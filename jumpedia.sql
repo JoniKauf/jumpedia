@@ -191,3 +191,95 @@ CREATE TABLE IF NOT EXISTS trickjump_link (
     FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
     FOREIGN KEY (link_id) REFERENCES link (id) ON DELETE RESTRICT
 );
+
+
+
+INSERT INTO tier (name) VALUES
+('Practice Tier'),
+('Beginner'),
+('Intermediate'),
+('Advanced'),
+('Expert'),
+('Master'),
+('Low Elite'),
+('Mid Elite'),
+('High Elite'),
+('Insanity Elite'),
+('God Tier'),
+('Hell Tier'),
+('Unproven');
+
+INSERT INTO difficulty (name, tier_id) VALUES
+('0/10', (SELECT id FROM tier WHERE name = 'Practice Tier')),
+('0.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('1/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('1.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('2/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('2.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('3/10', (SELECT id FROM tier WHERE name = 'Beginner')),
+('3.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
+('4/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
+('4.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
+('5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
+('5.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
+('6/10', (SELECT id FROM tier WHERE name = 'Advanced')),
+('6.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
+('7/10', (SELECT id FROM tier WHERE name = 'Expert')),
+('7.5/10', (SELECT id FROM tier WHERE name = 'Expert')),
+('8/10', (SELECT id FROM tier WHERE name = 'Expert')),
+('8.5/10', (SELECT id FROM tier WHERE name = 'Master')),
+('9/10', (SELECT id FROM tier WHERE name = 'Master')),
+('9.5/10', (SELECT id FROM tier WHERE name = 'Master')),
+('10/10', (SELECT id FROM tier WHERE name = 'Master')),
+('Low Elite', (SELECT id FROM tier WHERE name = 'Low Elite')),
+('Mid Elite', (SELECT id FROM tier WHERE name = 'Mid Elite')),
+('High Elite', (SELECT id FROM tier WHERE name = 'High Elite')),
+('Insanity Elite', (SELECT id FROM tier WHERE name = 'Insanity Elite')),
+('God Tier', (SELECT id FROM tier WHERE name = 'God Tier')),
+('Hell Tier', (SELECT id FROM tier WHERE name = 'Hell Tier')),
+('Unproven', (SELECT id FROM tier WHERE name = 'Unproven'));
+
+
+INSERT INTO location (name) VALUES
+('Cap Kingdom'),
+('Cascade Kingdom'),
+('Sand Kingdom'),
+('Lake Kingdom'),
+('Wooded Kingdom'),
+('Cloud Kingdom'),
+('Lost Kingdom'),
+('Metro Kingdom'),
+('Snow Kingdom'),
+('Seaside Kingdom'),
+('Luncheon Kingdom'),
+('Ruined Kingdom'),
+('Bowser''s Kingdom'),
+('Moon Kingdom'),
+('Mushroom Kingdom'),
+('Dark Side'),
+('Darker Side');
+
+
+INSERT INTO location_alias (alias, location_id) VALUES
+('Cap', (SELECT id FROM location WHERE name = 'Cap Kingdom')),
+('Cascade', (SELECT id FROM location WHERE name = 'Cascade Kingdom')),
+('Sand', (SELECT id FROM location WHERE name = 'Sand Kingdom')),
+('Lake', (SELECT id FROM location WHERE name = 'Lake Kingdom')),
+('Wooded', (SELECT id FROM location WHERE name = 'Wooded Kingdom')),
+('Cloud', (SELECT id FROM location WHERE name = 'Cloud Kingdom')),
+('Lost', (SELECT id FROM location WHERE name = 'Lost Kingdom')),
+('Metro', (SELECT id FROM location WHERE name = 'Metro Kingdom')),
+('Snow', (SELECT id FROM location WHERE name = 'Snow Kingdom')),
+('Seaside', (SELECT id FROM location WHERE name = 'Seaside Kingdom')),
+('Luncheon', (SELECT id FROM location WHERE name = 'Luncheon Kingdom')),
+('Ruined', (SELECT id FROM location WHERE name = 'Ruined Kingdom')),
+('Bowser', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
+('Bowsers', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
+('Bowser''s', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
+('Bowser Kingdom', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
+('Bowsers Kingdom', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
+('Moon', (SELECT id FROM location WHERE name = 'Moon Kingdom')),
+('Mushroom', (SELECT id FROM location WHERE name = 'Mushroom Kingdom')),
+('Dark', (SELECT id FROM location WHERE name = 'Dark Side')),
+('Darker', (SELECT id FROM location WHERE name = 'Darker Side'));
+
