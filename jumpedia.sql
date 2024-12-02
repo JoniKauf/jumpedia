@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS location (
 CREATE TABLE IF NOT EXISTS location_alias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     alias VARCHAR(100) UNIQUE NOT NULL,
-    location_id INT NOT NULL,  
+    location_id INT NOT NULL,
     FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE CASCADE
 );
 
@@ -23,9 +23,29 @@ CREATE TABLE IF NOT EXISTS location_parent (
     FOREIGN KEY (parent_id) REFERENCES location (id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS location_tag (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tag VARCHAR(32) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS location_tags (
+    location_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    PRIMARY KEY (location_id, tag_id),
+    FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE RESTRICT,
+    FOREIGN KEY (tag_id) REFERENCES location_tag (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS tier (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(16) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tier_alias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    alias VARCHAR(16) UNIQUE NOT NULL,
+    tier_id INT NOT NULL,
+    FOREIGN KEY (tier_id) REFERENCES tier (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS difficulty (
@@ -45,7 +65,7 @@ CREATE TABLE IF NOT EXISTS difficulty_alias (
 
 CREATE TABLE IF NOT EXISTS type (
 	id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(32),
+    name VARCHAR(32) UNIQUE,
     description VARCHAR(512)
 );
 
@@ -195,91 +215,212 @@ CREATE TABLE IF NOT EXISTS trickjump_link (
 
 
 INSERT INTO tier (name) VALUES
-('Practice Tier'),
-('Beginner'),
-('Intermediate'),
-('Advanced'),
-('Expert'),
-('Master'),
-('Low Elite'),
-('Mid Elite'),
-('High Elite'),
-('Insanity Elite'),
-('God Tier'),
-('Hell Tier'),
-('Unproven');
+('practice tier'),
+('beginner'),
+('intermediate'),
+('advanced'),
+('expert'),
+('master'),
+('low elite'),
+('mid elite'),
+('high elite'),
+('insanity elite'),
+('god tier'),
+('hell tier'),
+('unproven');
+
+INSERT INTO tier_alias (alias, tier_id) VALUES
+('practice', (SELECT id FROM tier WHERE name = 'practice tier')),
+('beginner', (SELECT id FROM tier WHERE name = 'beginner')),
+('intermediate', (SELECT id FROM tier WHERE name = 'intermediate')),
+('advanced', (SELECT id FROM tier WHERE name = 'advanced')),
+('expert', (SELECT id FROM tier WHERE name = 'expert')),
+('master', (SELECT id FROM tier WHERE name = 'master')),
+('low', (SELECT id FROM tier WHERE name = 'low elite')),
+('mid', (SELECT id FROM tier WHERE name = 'mid elite')),
+('high', (SELECT id FROM tier WHERE name = 'high elite')),
+('insanity', (SELECT id FROM tier WHERE name = 'insanity elite')),
+('god', (SELECT id FROM tier WHERE name = 'god tier')),
+('hell', (SELECT id FROM tier WHERE name = 'hell tier'));
+
 
 INSERT INTO difficulty (name, tier_id) VALUES
-('0/10', (SELECT id FROM tier WHERE name = 'Practice Tier')),
-('0.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('1/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('1.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('2/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('2.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('3/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-('3.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-('4/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-('4.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-('5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-('5.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-('6/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-('6.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-('7/10', (SELECT id FROM tier WHERE name = 'Expert')),
-('7.5/10', (SELECT id FROM tier WHERE name = 'Expert')),
-('8/10', (SELECT id FROM tier WHERE name = 'Expert')),
-('8.5/10', (SELECT id FROM tier WHERE name = 'Master')),
-('9/10', (SELECT id FROM tier WHERE name = 'Master')),
-('9.5/10', (SELECT id FROM tier WHERE name = 'Master')),
-('10/10', (SELECT id FROM tier WHERE name = 'Master')),
-('Low Elite', (SELECT id FROM tier WHERE name = 'Low Elite')),
-('Mid Elite', (SELECT id FROM tier WHERE name = 'Mid Elite')),
-('High Elite', (SELECT id FROM tier WHERE name = 'High Elite')),
-('Insanity Elite', (SELECT id FROM tier WHERE name = 'Insanity Elite')),
-('God Tier', (SELECT id FROM tier WHERE name = 'God Tier')),
-('Hell Tier', (SELECT id FROM tier WHERE name = 'Hell Tier')),
-('Unproven', (SELECT id FROM tier WHERE name = 'Unproven'));
+('0/10', (SELECT id FROM tier WHERE name = 'practice tier')),
+('0.5/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('1/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('1.5/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('2/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('2.5/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('3/10', (SELECT id FROM tier WHERE name = 'beginner')),
+('3.5/10', (SELECT id FROM tier WHERE name = 'intermediate')),
+('4/10', (SELECT id FROM tier WHERE name = 'intermediate')),
+('4.5/10', (SELECT id FROM tier WHERE name = 'intermediate')),
+('5/10', (SELECT id FROM tier WHERE name = 'intermediate')),
+('5.5/10', (SELECT id FROM tier WHERE name = 'advanced')),
+('6/10', (SELECT id FROM tier WHERE name = 'advanced')),
+('6.5/10', (SELECT id FROM tier WHERE name = 'advanced')),
+('7/10', (SELECT id FROM tier WHERE name = 'expert')),
+('7.5/10', (SELECT id FROM tier WHERE name = 'expert')),
+('8/10', (SELECT id FROM tier WHERE name = 'expert')),
+('8.5/10', (SELECT id FROM tier WHERE name = 'master')),
+('9/10', (SELECT id FROM tier WHERE name = 'master')),
+('9.5/10', (SELECT id FROM tier WHERE name = 'master')),
+('10/10', (SELECT id FROM tier WHERE name = 'master')),
+('low elite', (SELECT id FROM tier WHERE name = 'low elite')),
+('mid elite', (SELECT id FROM tier WHERE name = 'mid elite')),
+('high elite', (SELECT id FROM tier WHERE name = 'high elite')),
+('insanity elite', (SELECT id FROM tier WHERE name = 'insanity elite')),
+('god tier', (SELECT id FROM tier WHERE name = 'god tier')),
+('hell tier', (SELECT id FROM tier WHERE name = 'hell tier')),
+('unproven', (SELECT id FROM tier WHERE name = 'unproven'));
+
+
+INSERT INTO difficulty_alias (alias, difficulty_id) VALUES
+('0', (SELECT id FROM difficulty WHERE name = '0/10')),
+('.5', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+(',5', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+('0.5', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+('0,5', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+('.5/10', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+(',5/10', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+('0,5/10', (SELECT id FROM difficulty WHERE name = '0.5/10')),
+('1', (SELECT id FROM difficulty WHERE name = '1/10')),
+('1.5', (SELECT id FROM difficulty WHERE name = '1.5/10')),
+('1,5', (SELECT id FROM difficulty WHERE name = '1.5/10')),
+('1,5/10', (SELECT id FROM difficulty WHERE name = '1.5/10')),
+('2', (SELECT id FROM difficulty WHERE name = '2/10')),
+('2.5', (SELECT id FROM difficulty WHERE name = '2.5/10')),
+('2,5', (SELECT id FROM difficulty WHERE name = '2.5/10')),
+('2,5/10', (SELECT id FROM difficulty WHERE name = '2.5/10')),
+('3', (SELECT id FROM difficulty WHERE name = '3/10')),
+('3.5', (SELECT id FROM difficulty WHERE name = '3.5/10')),
+('3,5', (SELECT id FROM difficulty WHERE name = '3.5/10')),
+('3,5/10', (SELECT id FROM difficulty WHERE name = '3.5/10')),
+('4', (SELECT id FROM difficulty WHERE name = '4/10')),
+('4.5', (SELECT id FROM difficulty WHERE name = '4.5/10')),
+('4,5', (SELECT id FROM difficulty WHERE name = '4.5/10')),
+('4,5/10', (SELECT id FROM difficulty WHERE name = '4.5/10')),
+('5', (SELECT id FROM difficulty WHERE name = '5/10')),
+('5.5', (SELECT id FROM difficulty WHERE name = '5.5/10')),
+('5,5', (SELECT id FROM difficulty WHERE name = '5.5/10')),
+('5,5/10', (SELECT id FROM difficulty WHERE name = '5.5/10')),
+('6', (SELECT id FROM difficulty WHERE name = '6/10')),
+('6.5', (SELECT id FROM difficulty WHERE name = '6.5/10')),
+('6,5', (SELECT id FROM difficulty WHERE name = '6.5/10')),
+('6,5/10', (SELECT id FROM difficulty WHERE name = '6.5/10')),
+('7', (SELECT id FROM difficulty WHERE name = '7/10')),
+('7.5', (SELECT id FROM difficulty WHERE name = '7.5/10')),
+('7,5', (SELECT id FROM difficulty WHERE name = '7.5/10')),
+('7,5/10', (SELECT id FROM difficulty WHERE name = '7.5/10')),
+('8', (SELECT id FROM difficulty WHERE name = '8/10')),
+('8.5', (SELECT id FROM difficulty WHERE name = '8.5/10')),
+('8,5', (SELECT id FROM difficulty WHERE name = '8.5/10')),
+('8,5/10', (SELECT id FROM difficulty WHERE name = '8.5/10')),
+('9', (SELECT id FROM difficulty WHERE name = '9/10')),
+('9.5', (SELECT id FROM difficulty WHERE name = '9.5/10')),
+('9,5', (SELECT id FROM difficulty WHERE name = '9.5/10')),
+('9,5/10', (SELECT id FROM difficulty WHERE name = '9.5/10')),
+('10', (SELECT id FROM difficulty WHERE name = '10/10')),
+('low', (SELECT id FROM difficulty WHERE name = 'low elite')),
+('mid', (SELECT id FROM difficulty WHERE name = 'mid elite')),
+('high', (SELECT id FROM difficulty WHERE name = 'high elite')),
+('insanity', (SELECT id FROM difficulty WHERE name = 'insanity elite')),
+('god', (SELECT id FROM difficulty WHERE name = 'god tier')),
+('hell', (SELECT id FROM difficulty WHERE name = 'hell tier'));
 
 
 INSERT INTO location (name) VALUES
-('Cap Kingdom'),
-('Cascade Kingdom'),
-('Sand Kingdom'),
-('Lake Kingdom'),
-('Wooded Kingdom'),
-('Cloud Kingdom'),
-('Lost Kingdom'),
-('Metro Kingdom'),
-('Snow Kingdom'),
-('Seaside Kingdom'),
-('Luncheon Kingdom'),
-('Ruined Kingdom'),
-('Bowser''s Kingdom'),
-('Moon Kingdom'),
-('Mushroom Kingdom'),
-('Dark Side'),
-('Darker Side');
+('cap kingdom'),
+('cascade kingdom'),
+('sand kingdom'),
+('lake kingdom'),
+('wooded kingdom'),
+('cloud kingdom'),
+('lost kingdom'),
+('metro kingdom'),
+('snow kingdom'),
+('seaside kingdom'),
+('luncheon kingdom'),
+('ruined kingdom'),
+('bowser''s kingdom'),
+('moon kingdom'),
+('mushroom kingdom'),
+('dark side'),
+('darker side');
 
 
 INSERT INTO location_alias (alias, location_id) VALUES
-('Cap', (SELECT id FROM location WHERE name = 'Cap Kingdom')),
-('Cascade', (SELECT id FROM location WHERE name = 'Cascade Kingdom')),
-('Sand', (SELECT id FROM location WHERE name = 'Sand Kingdom')),
-('Lake', (SELECT id FROM location WHERE name = 'Lake Kingdom')),
-('Wooded', (SELECT id FROM location WHERE name = 'Wooded Kingdom')),
-('Cloud', (SELECT id FROM location WHERE name = 'Cloud Kingdom')),
-('Lost', (SELECT id FROM location WHERE name = 'Lost Kingdom')),
-('Metro', (SELECT id FROM location WHERE name = 'Metro Kingdom')),
-('Snow', (SELECT id FROM location WHERE name = 'Snow Kingdom')),
-('Seaside', (SELECT id FROM location WHERE name = 'Seaside Kingdom')),
-('Luncheon', (SELECT id FROM location WHERE name = 'Luncheon Kingdom')),
-('Ruined', (SELECT id FROM location WHERE name = 'Ruined Kingdom')),
-('Bowser', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
-('Bowsers', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
-('Bowser''s', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
-('Bowser Kingdom', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
-('Bowsers Kingdom', (SELECT id FROM location WHERE name = 'Bowser''s Kingdom')),
-('Moon', (SELECT id FROM location WHERE name = 'Moon Kingdom')),
-('Mushroom', (SELECT id FROM location WHERE name = 'Mushroom Kingdom')),
-('Dark', (SELECT id FROM location WHERE name = 'Dark Side')),
-('Darker', (SELECT id FROM location WHERE name = 'Darker Side'));
+('cap', (SELECT id FROM location WHERE name = 'cap kingdom')),
+('cascade', (SELECT id FROM location WHERE name = 'cascade kingdom')),
+('sand', (SELECT id FROM location WHERE name = 'sand kingdom')),
+('lake', (SELECT id FROM location WHERE name = 'lake kingdom')),
+('wooded', (SELECT id FROM location WHERE name = 'wooded kingdom')),
+('cloud', (SELECT id FROM location WHERE name = 'cloud kingdom')),
+('lost', (SELECT id FROM location WHERE name = 'lost kingdom')),
+('metro', (SELECT id FROM location WHERE name = 'metro kingdom')),
+('snow', (SELECT id FROM location WHERE name = 'snow kingdom')),
+('seaside', (SELECT id FROM location WHERE name = 'seaside kingdom')),
+('luncheon', (SELECT id FROM location WHERE name = 'luncheon kingdom')),
+('ruined', (SELECT id FROM location WHERE name = 'ruined kingdom')),
+('bowser', (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+('bowsers', (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+('bowser''s', (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+('bowser kingdom', (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+('bowsers kingdom', (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+('moon', (SELECT id FROM location WHERE name = 'moon kingdom')),
+('mushroom', (SELECT id FROM location WHERE name = 'mushroom kingdom')),
+('dark', (SELECT id FROM location WHERE name = 'dark side')),
+('darker', (SELECT id FROM location WHERE name = 'darker side'));
 
+INSERT INTO location (name) VALUES ('odyssey');
+
+INSERT INTO location_parent (location_id, parent_id) VALUES
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'cap kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'cascade kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'sand kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'lake kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'wooded kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'cloud kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'lost kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'metro kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'snow kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'seaside kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'luncheon kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'ruined kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'bowser''s kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'moon kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'mushroom kingdom')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'dark Side')),
+((SELECT id FROM location WHERE name = 'odyssey'), (SELECT id FROM location WHERE name = 'darker Side'));
+
+
+INSERT INTO server (name) VALUES 
+('smo trickjumping server'),
+('database');
+
+INSERT INTO server_alias (alias, server_id) VALUES
+('main', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('main server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('main trickjump server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('main trickjumping server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('smo trickjump', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('smo trickjump server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('smo trickjumping', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('trickjump server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('trickjumping server', (SELECT id FROM server WHERE name = 'smo trickjumping server')),
+('db', (SELECT id FROM server WHERE name = 'database')),
+('database server', (SELECT id FROM server WHERE name = 'database')),
+('smo database', (SELECT id FROM server WHERE name = 'database')),
+('smo trickjumping database', (SELECT id FROM server WHERE name = 'database')),
+('trickjump database', (SELECT id FROM server WHERE name = 'database')),
+('trickjumping database', (SELECT id FROM server WHERE name = 'database')),
+('trickjump db', (SELECT id FROM server WHERE name = 'database')),
+('trickjumping db', (SELECT id FROM server WHERE name = 'database'));
+
+INSERT IGNORE INTO location_tags (tag) VALUES ('Kingdom');
+
+INSERT INTO location_to_tag (location_id, tag_id)
+SELECT l.id, t.id
+FROM location l
+JOIN location_tags t ON t.tag = 'Kingdom'
+WHERE l.name != 'Odyssey';

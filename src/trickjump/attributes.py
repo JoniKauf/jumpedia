@@ -11,20 +11,12 @@ if TYPE_CHECKING:
 
 
 _init_module_done = False
-
-type JsonStrT = str
-
-# --- Required Classes ---
-
-class FS[T: Hashable](frozenset):
-    def __new__(cls, *args: T) -> Self:
-        return super(FS, cls).__new__(cls, args)
     
 
 # --- Meta Classes ---
  
 @dataclass(unsafe_hash=True)
-class AttrBase[VT](ABC):
+class Attr[VT](ABC):
     """
     Abstract base class for all attribute classes.
     An attribute class encapsulates data of a specific attribute,
@@ -35,7 +27,7 @@ class AttrBase[VT](ABC):
     value: Optional[VT]
     
     NAME: ClassVar[str]
-    ALIAS: ClassVar[FS[str]]
+    ALIAS: ClassVar[frozenset[str]]
 
     REQUIRED: ClassVar[bool]
     USER_ATTR: ClassVar[bool | None]
@@ -49,13 +41,6 @@ class AttrBase[VT](ABC):
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> Any:
         ...
 
-    def serialize(self) -> Optional[VT]:
-        return self.value
-
-    @classmethod
-    def deserialize(cls, value: Optional[VT]) -> Self:
-        return cls.get(value)
-
     @classmethod
     @abstractmethod
     def get(cls, value: Self | VT | None) -> Self:
@@ -64,8 +49,8 @@ class AttrBase[VT](ABC):
 
 
 @dataclass(unsafe_hash=True)
-class MultiValue:
-    value: Optional[tuple[AttrBase, ...]]
+class MultiValueMixin:
+    value: Optional[tuple[Attr, ...]]
     unpacked: Optional[tuple[Any, ...]] = field(init=False) 
     
     def __post_init__(self):
@@ -76,19 +61,10 @@ class MultiValue:
             None if self.value is None else
             tuple(elem.value for elem in self.value)
         )
-            
-
-@dataclass(unsafe_hash=True)
-class Generate(ABC):
-
-    @classmethod
-    @abstractmethod
-    def generate(cls, other_data: 'Attributes'):
-        ...
 
     
 @dataclass(unsafe_hash=True)
-class AttrStrBase[VT = str](AttrBase[VT]):
+class AttrStr[VT = str](Attr[VT]):
     value: Optional[str]
 
     def __post_init__(self):
@@ -111,8 +87,8 @@ class AttrStrBase[VT = str](AttrBase[VT]):
 
 
 @dataclass(unsafe_hash=True)
-class AttrMultiValueStrBase(MultiValue, AttrStrBase[tuple[AttrStrBase, ...]]):
-    value: Optional[tuple[AttrStrBase, ...]]
+class AttrMultiValueStr(MultiValueMixin, AttrStr[tuple[AttrStr, ...]]):
+    value: Optional[tuple[AttrStr, ...]]
 
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> tuple[tuple[int, ...], ...]:
         # Sort None as very last element
@@ -121,13 +97,13 @@ class AttrMultiValueStrBase(MultiValue, AttrStrBase[tuple[AttrStrBase, ...]]):
         return tuple(elem.sort_key(sign) for elem in self.value)
     
     @classmethod
-    def get(cls, value: Self | tuple[AttrStrBase | str | None, ...] | str | None) -> Self:
+    def get(cls, value: Self | tuple[AttrStr | str | None, ...] | str | None) -> Self:
         if value is None:
             return cls(value)
         if isinstance(value, tuple):
-            return cls(tuple(AttrStrBase.get(v) for v in value))
+            return cls(tuple(AttrStr.get(v) for v in value))
         if isinstance(value, str):
-            return cls((AttrStrBase.get(value),))
+            return cls((AttrStr.get(value),))
         if isinstance(value, cls):
             return value
         
@@ -135,12 +111,11 @@ class AttrMultiValueStrBase(MultiValue, AttrStrBase[tuple[AttrStrBase, ...]]):
 
 
 @dataclass(unsafe_hash=True)
-class AttrCollectionBase[VT: Hashable = str](AttrBase[VT]):
-    alias: FS[str] = FS()
-    
-    ALL_INSTANCES: ClassVar[tuple[Self, ...]]
-    GET: ClassVar[dict[Hashable, Self]]                          # All names and aliases mapped to their instances
-    VALUES: ClassVar[dict[Hashable, int]]                        # All values mapped to their sorting value
+class AttrCollection[VT: Hashable = str](Attr[VT]):
+    alias: frozenset[str] = frozenset()
+
+    ALL: ClassVar[dict[Hashable, Self]]
+    VALUES: ClassVar[dict[Hashable, Any]]
 
     def __post_init__(self):
         if _init_module_done:
@@ -150,30 +125,22 @@ class AttrCollectionBase[VT: Hashable = str](AttrBase[VT]):
             )
         
     @classmethod
-    def _init_cls(cls, *all_instances: Self):
-        cls.ALL_INSTANCES = all_instances
-        cls.GET = {
-            syn: self
-            for self in all_instances
-            for syn in (self.value, *self.alias)
-        }
-        cls.VALUES = {self.value: i for i, self in enumerate(all_instances)}
-        
+    @abstractmethod
+    def _init_cls(cls, *all_instances: Self) -> None:
+        ...
+    
+    @classmethod
+    @abstractmethod
+    def load(cls) -> None:
+        ...
 
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> int:
         return self.__class__.VALUES[self.value] * sign
-
-    def serialize(self) -> Optional[VT]:
-        return self.value
-    
-    @classmethod
-    def deserialize(cls, value: Optional[VT]) -> Self:
-        return cls.GET[value]
     
     @classmethod
     def get(cls, value: Self | str | None) -> Self:
         if value is None or isinstance(value, str):
-            return cls.GET[value]
+            return cls.ALL[value]
         if isinstance(value, cls):
             return value
         
@@ -181,38 +148,28 @@ class AttrCollectionBase[VT: Hashable = str](AttrBase[VT]):
 
 
 @dataclass(unsafe_hash=True)
-class AttrMultiValueCollectionBase(MultiValue, AttrCollectionBase[tuple[AttrCollectionBase, ...]]):
+class AttrMultiValueCollectionBase(MultiValueMixin, AttrCollection[tuple[AttrCollection, ...]]):
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> tuple[int, ...]:
         if self.value is None:
             return (len(self.__class__.VALUES),) * sign
         return tuple(self.__class__.VALUES[elem.value] * sign for elem in self.value)
     
-    def serialize(self) -> Optional[JsonStrT]:
-        if self.value is None:
-            return self.value
-        return json.dumps(tuple(elem.value for elem in self.value))
-    
     @classmethod
-    def deserialize(cls, value: Optional[JsonStrT]) -> Self:
-        return cls.get(value if value is None else json.loads(value))
-    
-    @classmethod
-    def get(cls, value: Self | tuple[AttrCollectionBase | str | None, ...] | str | None) -> Self:
+    def get(cls, value: Self | tuple[AttrCollection | str | None, ...] | str | None) -> Self:
         if value is None:
             return cls(value)
         if isinstance(value, tuple):
-            return cls(tuple(AttrCollectionBase.get(v) for v in value))
+            return cls(tuple(AttrCollection.get(v) for v in value))
         if isinstance(value, str):
-            return cls((AttrCollectionBase.get(value),))
+            return cls((AttrCollection.get(value),))
         if isinstance(value, cls):
             return value
         
         raise TypeError("Unexpected type: ", type(value))
 
 
-
 @dataclass(unsafe_hash=True)
-class AttrDatetimeBase(AttrBase[datetime]):
+class AttrDatetimeBase(Attr[datetime]):
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> float:
         return (float("inf") if self.value is None else self.value.timestamp()) * sign
 
@@ -221,8 +178,8 @@ class AttrDatetimeBase(AttrBase[datetime]):
 # --- Attribute Classes ---
 
 @dataclass(unsafe_hash=True)
-class Name(AttrStrBase):
-    ALIAS: ClassVar[FS[str]] = FS("n")
+class Name(AttrStr):
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["n"])
 
     REQUIRED = True
     USER_ATTR = None
@@ -230,7 +187,7 @@ class Name(AttrStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Location(AttrCollectionBase):
+class Location(AttrCollection):
     class Tag(Enum):
         KINGDOM = "Kingdom"
         MULTIPLE_KINGDOMS = "Multiple Kingdoms"
@@ -261,7 +218,7 @@ class Location(AttrCollectionBase):
 
 
 @dataclass(unsafe_hash=True, kw_only=True)
-class Difficulty(AttrCollectionBase):
+class Difficulty(AttrCollection):
     tier: 'Tier'
     is_missing: bool = True
 
@@ -273,7 +230,7 @@ class Difficulty(AttrCollectionBase):
     
 
 @dataclass(unsafe_hash=True)
-class Tier(Generate, AttrCollectionBase):
+class Tier(Generate, AttrCollection):
     ALIAS: ClassVar[FS[str]] = FS()
 
     REQUIRED = True
@@ -287,7 +244,7 @@ class Tier(Generate, AttrCollectionBase):
     
 
 @dataclass(unsafe_hash=True)
-class Server(AttrCollectionBase):
+class Server(AttrCollection):
     ALIAS: ClassVar[FS[str]] = FS("s", "serv")
 
     REQUIRED = True
@@ -296,7 +253,7 @@ class Server(AttrCollectionBase):
 
 
 @dataclass(unsafe_hash=True)
-class Type(AttrStrBase):
+class Type(AttrStr):
     # TODO:
     # - Collection
     # - required = True
@@ -309,7 +266,7 @@ class Type(AttrStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Finder(AttrMultiValueStrBase):
+class Finder(AttrMultiValueStr):
     ALIAS: ClassVar[FS[str]] = FS("f", "founder", "find", "found")
 
     REQUIRED = False
@@ -318,7 +275,7 @@ class Finder(AttrMultiValueStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Taser(AttrMultiValueStrBase):
+class Taser(AttrMultiValueStr):
     ALIAS: ClassVar[FS[str]] = FS("tas", "tased")
     
     REQUIRED = False
@@ -327,7 +284,7 @@ class Taser(AttrMultiValueStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Prover(AttrMultiValueStrBase):
+class Prover(AttrMultiValueStr):
     ALIAS: ClassVar[FS[str]] = FS("p", "prov", "proven")
 
     REQUIRED = False
@@ -372,7 +329,7 @@ class GivenAt(AttrDatetimeBase):
 
 
 @dataclass(unsafe_hash=True)
-class Proof(AttrStrBase):
+class Proof(AttrStr):
     ALIAS: ClassVar[FS[str]] = FS("prof", "prove", "proven")
 
     REQUIRED = False
@@ -381,7 +338,7 @@ class Proof(AttrStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Link(AttrMultiValueStrBase):
+class Link(AttrMultiValueStr):
     ALIAS: ClassVar[FS[str]] = FS("l", "lnk", "clip", "video")
 
     REQUIRED = True
@@ -390,7 +347,7 @@ class Link(AttrMultiValueStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Extra(AttrMultiValueStrBase):
+class Extra(AttrMultiValueStr):
     ALIAS: ClassVar[FS[str]] = FS("ex", "e", "info", "i", "desc", "description", "data")
 
     REQUIRED = False
@@ -399,7 +356,7 @@ class Extra(AttrMultiValueStrBase):
 
 
 @dataclass(unsafe_hash=True)
-class Thumbnail(AttrStrBase):
+class Thumbnail(AttrStr):
     ALIAS: ClassVar[FS[str]] = FS("tn", "thumb", "t_n", "th", "tnail")
 
     REQUIRED = False
@@ -431,14 +388,14 @@ class Attributes:
     thumbnail: Thumbnail
 
 
-    def get(self, attr: __type[AttrBase] | AttrBase | str) -> AttrBase:
+    def get(self, attr: __type[Attr] | Attr | str) -> Attr:
         if isinstance(attr, str):
             name = attr
         else:
             name = attr.NAME
         return getattr(self, name)
 
-    def set(self, attr: __type[AttrBase] | AttrBase | str, value: Any) -> None:
+    def set(self, attr: __type[Attr] | Attr | str, value: Any) -> None:
         if isinstance(attr, str):
             cls = syn_to_cls(attr)
             name = attr
@@ -448,7 +405,7 @@ class Attributes:
 
         setattr(self, name, cls(value))
 
-    def pop(self, attr: __type[AttrBase] | AttrBase | str) -> AttrBase:
+    def pop(self, attr: __type[Attr] | Attr | str) -> Attr:
         attr = self.get(attr)
         setattr(self, attr.NAME, attr.__class__(None))
         return attr
@@ -469,9 +426,9 @@ ATTR_ITEMS = tuple(zip(ATTR_NAMES, ATTR_CLASSES, strict=True))
 assert tuple(Attributes.__annotations__.items()) == tuple(ATTR_ITEMS) 
 
 
-_ATTR_DCT: dict[str, type[AttrBase]] = {k: v for k, v in ATTR_ITEMS}
+_ATTR_DCT: dict[str, type[Attr]] = {k: v for k, v in ATTR_ITEMS}
 
-SYNONYM_LOOKUP: dict[str, type[AttrBase]] = {}  # fill out further down
+SYNONYM_LOOKUP: dict[str, type[Attr]] = {}  # fill out further down
 
 def _cf(a: str, cf: bool):
     return a.casefold() if cf else a
@@ -486,7 +443,7 @@ def is_alias(a: str, cf: bool = True) -> bool:
 def is_syn(a: str, cf: bool = True) -> bool:
     return _cf(a, cf) in SYNONYM_LOOKUP
 
-def syn_to_cls(a: str, cf: bool = True) -> type[AttrBase]:
+def syn_to_cls(a: str, cf: bool = True) -> type[Attr]:
     return SYNONYM_LOOKUP[_cf(a, cf)]
 
 def syn_to_name(a: str, cf: bool = True) -> str:
@@ -496,16 +453,16 @@ def syn_to_aliases(a: str, cf: bool = True) -> FS[str]:
     return SYNONYM_LOOKUP[_cf(a, cf)].ALIAS
 
 
-def to_classes(attrs: Iterable[str], cf: bool = True) -> tuple[type[AttrBase], ...]:
+def to_classes(attrs: Iterable[str], cf: bool = True) -> tuple[type[Attr], ...]:
     return tuple(syn_to_cls(attr, cf) for attr in attrs)
 
-def to_instances(attrs: Iterable[str], values: Iterable[str], cf: bool = True) -> tuple[AttrBase, ...]:
+def to_instances(attrs: Iterable[str], values: Iterable[str], cf: bool = True) -> tuple[Attr, ...]:
     return tuple(cls(val) for cls, val in zip(to_classes(attrs, cf), values, strict=True))
 
 
 
 
-def _init_module(highest_metaclass: type[AttrBase] = AttrBase):
+def _init_module(highest_metaclass: type[Attr] = Attr):
     # Init classes and their data
     def identifier(typ: type):
         return typ.__name__
@@ -598,14 +555,14 @@ def _init_module(highest_metaclass: type[AttrBase] = AttrBase):
     ]
     server_args.append(Server(None))
 
-    def init_recursively(cls: type[AttrBase]):
+    def init_recursively(cls: type[Attr]):
         for subclass in cls.__subclasses__():
             subclass._init_cls(
                 *CLASS_INIT_ARGS.get(identifier(subclass), ()),
                 **CLASS_INIT_KWARGS.get(identifier(subclass), {})
             )
 
-            if subclass.__class__ not in (AttrCollectionBase.__class__, AttrMultiValueCollectionBase.__class__) and issubclass(subclass, AttrCollectionBase):
+            if subclass.__class__ not in (AttrCollection.__class__, AttrMultiValueCollectionBase.__class__) and issubclass(subclass, AttrCollection):
                 assert subclass.ALL_INSTANCES, f"{subclass}"
 
             init_recursively(subclass)

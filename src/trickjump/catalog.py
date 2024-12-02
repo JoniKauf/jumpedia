@@ -6,7 +6,7 @@ from discordtools.errors import InvalidAttributeFeedbackError, ProgrammingError
 from trickjump import attributes
 from trickjump.trickjump import Trickjump, TrickjumpDataT
 from registry.bundles.databases.mariadb import Table
-from trickjump.attributes import AttrBase, MultiValue, ATTR_NAMES
+from trickjump.attributes import AttrBase, MultiValueMixin, ATTR_NAMES
 from utils import errors
 
 class FilterSyntaxError(Exception):
