@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 
 _init_module_done = False
-    
+
+_id = id
 
 # --- Meta Classes ---
  
@@ -23,9 +24,8 @@ class Attr[VT](ABC):
     such that the attribute has more functionality, is easier to
     operate on and has its metadata all stored in one place.
     """
-
     value: Optional[VT]
-    
+
     NAME: ClassVar[str]
     ALIAS: ClassVar[frozenset[str]]
 
@@ -126,12 +126,7 @@ class AttrCollection[VT: Hashable = str](Attr[VT]):
         
     @classmethod
     @abstractmethod
-    def _init_cls(cls, *all_instances: Self) -> None:
-        ...
-    
-    @classmethod
-    @abstractmethod
-    def load(cls) -> None:
+    def _init_cls(cls) -> None:
         ...
 
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> int:
@@ -188,14 +183,10 @@ class Name(AttrStr):
 
 @dataclass(unsafe_hash=True)
 class Location(AttrCollection):
-    class Tag(Enum):
-        KINGDOM = "Kingdom"
-        MULTIPLE_KINGDOMS = "Multiple Kingdoms"
-        
-    inside: FS[Self] = FS()
-    tags: FS[Tag] = FS()
+    parent: frozenset[Self] = frozenset()
+    tag: frozenset[str] = frozenset()
 
-    ALIAS: ClassVar[FS[str]] = FS("l", "loc", "k", "kd", "kingdom")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["l", "loc", "k", "kd", "kingdom"])
 
     REQUIRED = True
     USER_ATTR = False
@@ -205,47 +196,45 @@ class Location(AttrCollection):
 
     def get_all_paths(self) -> PathT:
         def walk(loc: Self) -> Location.PathT:
-            if not loc.inside:
+            if not loc.parent:
                 return [loc]
             else:
                 paths = []
-                for inner_loc in loc.inside:
+                for inner_loc in loc.parent:
                     for path in walk(inner_loc):
                         paths.append([loc] + (path if isinstance(path, list) else [path]))
                 return paths
         
         return walk(self)
+    
 
+@dataclass(unsafe_hash=True)
+class Tier(AttrCollection):
+    alias: frozenset[str] = frozenset()
+
+    ALIAS: ClassVar[frozenset[str]] = frozenset()
+
+    REQUIRED = True
+    USER_ATTR = False
+    SECRET = False
+    
 
 @dataclass(unsafe_hash=True, kw_only=True)
 class Difficulty(AttrCollection):
-    tier: 'Tier'
+    alias: frozenset[str] = frozenset()
+    tier: Tier
     is_missing: bool = True
 
-    ALIAS: ClassVar[FS[str]] = FS("diff", "d")
-
-    REQUIRED = True
-    USER_ATTR = False
-    SECRET = False
-    
-
-@dataclass(unsafe_hash=True)
-class Tier(Generate, AttrCollection):
-    ALIAS: ClassVar[FS[str]] = FS()
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["diff", "d"])
 
     REQUIRED = True
     USER_ATTR = False
     SECRET = False
 
-    @classmethod
-    def generate(cls, other_data: 'Attributes') -> 'Tier':
-        return Tier.get(None) if other_data.difficulty is None else other_data.difficulty.tier 
-    
-    
 
 @dataclass(unsafe_hash=True)
 class Server(AttrCollection):
-    ALIAS: ClassVar[FS[str]] = FS("s", "serv")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["s", "serv"])
 
     REQUIRED = True
     USER_ATTR = False
@@ -258,7 +247,7 @@ class Type(AttrStr):
     # - Collection
     # - required = True
 
-    ALIAS: ClassVar[FS[str]] = FS("t", "ty", "typ")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["t", "ty", "typ"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -267,7 +256,7 @@ class Type(AttrStr):
 
 @dataclass(unsafe_hash=True)
 class Finder(AttrMultiValueStr):
-    ALIAS: ClassVar[FS[str]] = FS("f", "founder", "find", "found")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["f", "founder", "find", "found"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -276,7 +265,7 @@ class Finder(AttrMultiValueStr):
 
 @dataclass(unsafe_hash=True)
 class Taser(AttrMultiValueStr):
-    ALIAS: ClassVar[FS[str]] = FS("tas", "tased")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["tas", "tased"])
     
     REQUIRED = False
     USER_ATTR = False
@@ -285,7 +274,7 @@ class Taser(AttrMultiValueStr):
 
 @dataclass(unsafe_hash=True)
 class Prover(AttrMultiValueStr):
-    ALIAS: ClassVar[FS[str]] = FS("p", "prov", "proven")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["p", "prov", "proven"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -294,7 +283,7 @@ class Prover(AttrMultiValueStr):
 
 @dataclass(unsafe_hash=True)
 class FoundAt(AttrDatetimeBase):
-    ALIAS: ClassVar[FS[str]] = FS("fa", "f_a", "f_at")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["fa", "f_a", "f_at"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -303,7 +292,7 @@ class FoundAt(AttrDatetimeBase):
 
 @dataclass(unsafe_hash=True)
 class TasedAt(AttrDatetimeBase):
-    ALIAS: ClassVar[FS[str]] = FS("ta", "t_a", "t_at", "tas_at")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["ta", "t_a", "t_at", "tas_at"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -312,7 +301,7 @@ class TasedAt(AttrDatetimeBase):
 
 @dataclass(unsafe_hash=True)
 class ProvenAt(AttrDatetimeBase):
-    ALIAS: ClassVar[FS[str]] = FS("pa", "p_a", "p_at", "prov_at")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["pa", "p_a", "p_at", "prov_at"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -321,7 +310,7 @@ class ProvenAt(AttrDatetimeBase):
 
 @dataclass(unsafe_hash=True)
 class GivenAt(AttrDatetimeBase):
-    ALIAS: ClassVar[FS[str]] = FS("ga", "g_a", "g_at", "gave_at")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["ga", "g_a", "g_at", "gave_at"])
 
     REQUIRED = False
     USER_ATTR = True
@@ -330,7 +319,7 @@ class GivenAt(AttrDatetimeBase):
 
 @dataclass(unsafe_hash=True)
 class Proof(AttrStr):
-    ALIAS: ClassVar[FS[str]] = FS("prof", "prove", "proven")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["prof", "prove", "proven"])
 
     REQUIRED = False
     USER_ATTR = True
@@ -339,7 +328,7 @@ class Proof(AttrStr):
 
 @dataclass(unsafe_hash=True)
 class Link(AttrMultiValueStr):
-    ALIAS: ClassVar[FS[str]] = FS("l", "lnk", "clip", "video")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["l", "lnk", "clip", "video"])
 
     REQUIRED = True
     USER_ATTR = False
@@ -348,7 +337,7 @@ class Link(AttrMultiValueStr):
 
 @dataclass(unsafe_hash=True)
 class Extra(AttrMultiValueStr):
-    ALIAS: ClassVar[FS[str]] = FS("ex", "e", "info", "i", "desc", "description", "data")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["ex", "e", "info", "i", "desc", "description", "data"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -357,7 +346,7 @@ class Extra(AttrMultiValueStr):
 
 @dataclass(unsafe_hash=True)
 class Thumbnail(AttrStr):
-    ALIAS: ClassVar[FS[str]] = FS("tn", "thumb", "t_n", "th", "tnail")
+    ALIAS: ClassVar[frozenset[str]] = frozenset(["tn", "thumb", "t_n", "th", "tnail"])
 
     REQUIRED = False
     USER_ATTR = False
@@ -449,7 +438,7 @@ def syn_to_cls(a: str, cf: bool = True) -> type[Attr]:
 def syn_to_name(a: str, cf: bool = True) -> str:
     return SYNONYM_LOOKUP[_cf(a, cf)].NAME
 
-def syn_to_aliases(a: str, cf: bool = True) -> FS[str]:
+def syn_to_aliases(a: str, cf: bool = True) -> frozenset[str]:
     return SYNONYM_LOOKUP[_cf(a, cf)].ALIAS
 
 
@@ -475,83 +464,83 @@ def _init_module(highest_metaclass: type[Attr] = Attr):
     CLASS_INIT_KWARGS: dict[str, Mapping[str, Any]] = {}
 
     location_args = CLASS_INIT_ARGS[identifier(Location)] = [
-        Location('Mushroom Kingdom', FS("Mushroom"), tags=FS(Location.Tag.KINGDOM)),
-        Location('Cap Kingdom',      FS("Cap"),      tags=FS(Location.Tag.KINGDOM)),
-        Location('Cascade Kingdom',  FS("Cascade"),  tags=FS(Location.Tag.KINGDOM)),
-        Location('Sand Kingdom',     FS("Sand"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Lake Kingdom',     FS("Lake"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Wooded Kingdom',   FS("Wooded"),   tags=FS(Location.Tag.KINGDOM)),
-        Location('Cloud Kingdom',    FS("Cloud"),    tags=FS(Location.Tag.KINGDOM)),
-        Location('Lost Kingdom',     FS("Lost"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Metro Kingdom',    FS("Metro"),    tags=FS(Location.Tag.KINGDOM)),
-        Location('Snow Kingdom',     FS("Snow"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Seaside Kingdom',  FS("Seaside"),  tags=FS(Location.Tag.KINGDOM)),
-        Location('Luncheon Kingdom', FS("Luncheon"), tags=FS(Location.Tag.KINGDOM)),
-        Location('Ruined Kingdom',   FS("Ruined"),   tags=FS(Location.Tag.KINGDOM)),
-        Location("Bowser's Kingdom", FS("Bowser's", "Bowser", "Bowsers", "Bowser Kingdom", "Bowsers Kingdom"), tags=FS(Location.Tag.KINGDOM)),
-        Location('Moon Kingdom',     FS("Moon"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Dark Side',        FS("Dark"),     tags=FS(Location.Tag.KINGDOM)),
-        Location('Darker Side',      FS("Darker"),   tags=FS(Location.Tag.KINGDOM))
+        Location('Mushroom Kingdom', frozenset(["Mushroom"]), tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Cap Kingdom',      frozenset(["Cap"]),      tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Cascade Kingdom',  frozenset(["Cascade"]),  tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Sand Kingdom',     frozenset(["Sand"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Lake Kingdom',     frozenset(["Lake"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Wooded Kingdom',   frozenset(["Wooded"]),   tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Cloud Kingdom',    frozenset(["Cloud"]),    tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Lost Kingdom',     frozenset(["Lost"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Metro Kingdom',    frozenset(["Metro"]),    tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Snow Kingdom',     frozenset(["Snow"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Seaside Kingdom',  frozenset(["Seaside"]),  tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Luncheon Kingdom', frozenset(["Luncheon"]), tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Ruined Kingdom',   frozenset(["Ruined"]),   tags=frozenset([Location.Tag.KINGDOM])),
+        Location("Bowser's Kingdom", frozenset(["Bowser's", "Bowser", "Bowsers", "Bowser Kingdom", "Bowsers Kingdom"]), tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Moon Kingdom',     frozenset(["Moon"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Dark Side',        frozenset(["Dark"]),     tags=frozenset([Location.Tag.KINGDOM])),
+        Location('Darker Side',      frozenset(["Darker"]),   tags=frozenset([Location.Tag.KINGDOM]))
     ]
     location_args.append(Location(
         'Odyssey',
-        inside=FS(*(loc for loc in location_args)),
-        tags=FS(Location.Tag.MULTIPLE_KINGDOMS))
+        inside=frozenset([*(loc for loc in location_args])),
+        tags=frozenset([Location.Tag.MULTIPLE_KINGDOMS]))
     )
     location_args.append(Location(None))
 
     tier_args = CLASS_INIT_ARGS[identifier(Tier)] = [
-        Tier('Practice Tier',  FS("P", "Practice")),
-        Tier('Beginner',       FS("B")),
-        Tier('Intermediate',   FS("Int")),
-        Tier('Advanced',       FS("A")),
-        Tier('Expert',         FS("E")),
-        Tier('Master',         FS("M")),
-        Tier('Low Elite',      FS("L", "Low")),
-        Tier('Mid Elite',      FS("M", "Mid")),
-        Tier('High Elite',     FS("Hi", "High")),
-        Tier('Insanity Elite', FS("I", "Ins", "Insanity")),
-        Tier('God Tier',       FS("G", "God")),
-        Tier('Hell Tier',      FS("He", "Hell")),
-        Tier('Unproven',       FS("U"))
+        Tier('Practice Tier',  frozenset(["P", "Practice"])),
+        Tier('Beginner',       frozenset(["B"])),
+        Tier('Intermediate',   frozenset(["Int"])),
+        Tier('Advanced',       frozenset(["A"])),
+        Tier('Expert',         frozenset(["E"])),
+        Tier('Master',         frozenset(["M"])),
+        Tier('Low Elite',      frozenset(["L", "Low"])),
+        Tier('Mid Elite',      frozenset(["M", "Mid"])),
+        Tier('High Elite',     frozenset(["Hi", "High"])),
+        Tier('Insanity Elite', frozenset(["I", "Ins", "Insanity"])),
+        Tier('God Tier',       frozenset(["G", "God"])),
+        Tier('Hell Tier',      frozenset(["He", "Hell"])),
+        Tier('Unproven',       frozenset(["U"]))
     ]
     tier_args.append(Tier(None))
     
     difficulty_args = CLASS_INIT_ARGS[identifier(Difficulty)] = [
-        Difficulty('0/10',           FS('0'),         tier=tier_args[0]), 
-        Difficulty('0.5/10',         FS('0.5', '.5'), tier=tier_args[1]), 
-        Difficulty('1/10',           FS('1'),         tier=tier_args[1]), 
-        Difficulty('1.5/10',         FS('1.5'),       tier=tier_args[1]), 
-        Difficulty('2/10',           FS('2'),         tier=tier_args[1]), 
-        Difficulty('2.5/10',         FS('2.5'),       tier=tier_args[1]), 
-        Difficulty('3/10',           FS('3'),         tier=tier_args[1]), 
-        Difficulty('3.5/10',         FS('3.5'),       tier=tier_args[2]), 
-        Difficulty('4/10',           FS('4'),         tier=tier_args[2]), 
-        Difficulty('4.5/10',         FS('4.5'),       tier=tier_args[2]), 
-        Difficulty('5/10',           FS('5'),         tier=tier_args[2]), 
-        Difficulty('5.5/10',         FS('5.5'),       tier=tier_args[3]), 
-        Difficulty('6/10',           FS('6'),         tier=tier_args[3]), 
-        Difficulty('6.5/10',         FS('6.5'),       tier=tier_args[3]), 
-        Difficulty('7/10',           FS('7'),         tier=tier_args[4]), 
-        Difficulty('7.5/10',         FS('7.5'),       tier=tier_args[4]), 
-        Difficulty('8/10',           FS('8'),         tier=tier_args[4]), 
-        Difficulty('8.5/10',         FS('8.5'),       tier=tier_args[5]), 
-        Difficulty('9/10',           FS('9'),         tier=tier_args[5]), 
-        Difficulty('9.5/10',         FS('9.5'),       tier=tier_args[5]), 
-        Difficulty('10/10',          FS('10'),        tier=tier_args[5]),
-        Difficulty('Low Elite',      FS('Low'),       tier=tier_args[6]),  #dont mind me just watching  <- My boyfriend also wrote this
-        Difficulty('Mid Elite',      FS('Mid'),       tier=tier_args[7]), 
-        Difficulty('High Elite',     FS('High'),      tier=tier_args[8]), 
-        Difficulty('Insanity Elite', FS('Insanity'),  tier=tier_args[9]),
-        Difficulty('God Tier',       FS('God'),       tier=tier_args[10]), 
-        Difficulty('Hell Tier',      FS('Hell'),      tier=tier_args[11]), 
-        Difficulty('Unproven',       FS(),            tier=tier_args[12], is_missing=False)
+        Difficulty('0/10',           frozenset(['0']),         tier=tier_args[0]), 
+        Difficulty('0.5/10',         frozenset(['0.5', '.5']), tier=tier_args[1]), 
+        Difficulty('1/10',           frozenset(['1']),         tier=tier_args[1]), 
+        Difficulty('1.5/10',         frozenset(['1.5']),       tier=tier_args[1]), 
+        Difficulty('2/10',           frozenset(['2']),         tier=tier_args[1]), 
+        Difficulty('2.5/10',         frozenset(['2.5']),       tier=tier_args[1]), 
+        Difficulty('3/10',           frozenset(['3']),         tier=tier_args[1]), 
+        Difficulty('3.5/10',         frozenset(['3.5']),       tier=tier_args[2]), 
+        Difficulty('4/10',           frozenset(['4']),         tier=tier_args[2]), 
+        Difficulty('4.5/10',         frozenset(['4.5']),       tier=tier_args[2]), 
+        Difficulty('5/10',           frozenset(['5']),         tier=tier_args[2]), 
+        Difficulty('5.5/10',         frozenset(['5.5']),       tier=tier_args[3]), 
+        Difficulty('6/10',           frozenset(['6']),         tier=tier_args[3]), 
+        Difficulty('6.5/10',         frozenset(['6.5']),       tier=tier_args[3]), 
+        Difficulty('7/10',           frozenset(['7']),         tier=tier_args[4]), 
+        Difficulty('7.5/10',         frozenset(['7.5']),       tier=tier_args[4]), 
+        Difficulty('8/10',           frozenset(['8']),         tier=tier_args[4]), 
+        Difficulty('8.5/10',         frozenset(['8.5']),       tier=tier_args[5]), 
+        Difficulty('9/10',           frozenset(['9']),         tier=tier_args[5]), 
+        Difficulty('9.5/10',         frozenset(['9.5']),       tier=tier_args[5]), 
+        Difficulty('10/10',          frozenset(['10']),        tier=tier_args[5]),
+        Difficulty('Low Elite',      frozenset(['Low']),       tier=tier_args[6]),  #dont mind me just watching  <- My boyfriend also wrote this
+        Difficulty('Mid Elite',      frozenset(['Mid']),       tier=tier_args[7]), 
+        Difficulty('High Elite',     frozenset(['High']),      tier=tier_args[8]), 
+        Difficulty('Insanity Elite', frozenset(['Insanity']),  tier=tier_args[9]),
+        Difficulty('God Tier',       frozenset(['God']),       tier=tier_args[10]), 
+        Difficulty('Hell Tier',      frozenset(['Hell']),      tier=tier_args[11]), 
+        Difficulty('Unproven',       frozenset(),            tier=tier_args[12], is_missing=False)
     ]
     difficulty_args.append(Difficulty(None, tier=tier_args[-1], is_missing=False))
 
     server_args = CLASS_INIT_ARGS[identifier(Server)] = [
-        Server("Main Trickjumping Server", FS("M", "Main", "Main Server", "Main Trickjump Server")),
-        Server("Database", FS("D", "DB", "Database Server", "DB Server"))
+        Server("Main Trickjumping Server", frozenset(["M", "Main", "Main Server", "Main Trickjump Server"])),
+        Server("Database", frozenset(["D", "DB", "Database Server", "DB Server"]))
     ]
     server_args.append(Server(None))
 

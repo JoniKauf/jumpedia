@@ -33,5 +33,3 @@ class MariaDBConnector:
         c = self._conn.cursor()
         c.execute(query, params)
         return c
-    
-    

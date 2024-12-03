@@ -110,20 +110,15 @@ class InvalidAttributeFeedbackError(FeedbackError):
         )
         
 class SameAttributeFeedbackError(FeedbackError):
-    def __init__(self, attr: str, all_cases: Sequence[str] = ()):
+    def __init__(self, attr: str):
         self.attr = attr
-        self.all_cases = all_cases
 
         super().__init__(
             error="Same Attribute Error",
-            details=f"The same attribute `{attr}` or synonyms of it were specified multiple times" +
-            (
-                "!" if not all_cases else
-                ":\n" + msgt.shorten_and_embed_seq(all_cases)
-            )
+            details=f"The same attribute `{attr}` or synonyms of it were specified multiple times!"
         )
 
-class AttributeMissingFeedbackError(FeedbackError):
+class RequiredAttributesMissingFeedbackError(FeedbackError):
     def __init__(self, attrs: Sequence[str]):
         self.attrs = attrs
 
