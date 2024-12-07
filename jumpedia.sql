@@ -1,6 +1,10 @@
 USE jumpedia;
 
-# SET foreign_key_checks = 0;
+# A table should only be suffixed with "_junction" if the table is
+# only made of the ids to junction. Any further functionality gets 
+# its own name anyway. This way we avoid having multiple tables
+# with the same name if we follow a convention.
+
 SET foreign_key_checks = 1;
 
 CREATE TABLE IF NOT EXISTS location (
@@ -11,16 +15,16 @@ CREATE TABLE IF NOT EXISTS location (
 CREATE TABLE IF NOT EXISTS location_alias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     alias VARCHAR(100) UNIQUE NOT NULL,
-    location_id INT NOT NULL,
+    outer_id INT NOT NULL,
     FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS location_parent (
+CREATE TABLE IF NOT EXISTS location_outer_junction (
     location_id INT NOT NULL,
-    parent_id INT NOT NULL,
+    outer_id INT NOT NULL,
     PRIMARY KEY (location_id, parent_id),
     FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE RESTRICT,
-    FOREIGN KEY (parent_id) REFERENCES location (id) ON DELETE RESTRICT
+    FOREIGN KEY (outer_id) REFERENCES location (id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS location_tag (
@@ -28,7 +32,7 @@ CREATE TABLE IF NOT EXISTS location_tag (
     tag VARCHAR(32) UNIQUE NOT NULL COLLATE utf8mb4_general1400_as_ci
 );
 
-CREATE TABLE IF NOT EXISTS location_tags (
+CREATE TABLE IF NOT EXISTS location_tag_junction (
     location_id INT NOT NULL,
     tag_id INT NOT NULL,
     PRIMARY KEY (location_id, tag_id),
@@ -92,12 +96,11 @@ CREATE TABLE IF NOT EXISTS server_alias (
 CREATE TABLE IF NOT EXISTS link (
 	id INT AUTO_INCREMENT PRIMARY KEY,
     link VARCHAR(512) UNIQUE NOT NULL,
-    description VARCHAR(255),
     author INT NULL,
     FOREIGN KEY (author) REFERENCES person (id) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS extra (
+CREATE TABLE IF NOT EXISTS info (
 	id INT AUTO_INCREMENT PRIMARY KEY,
     text VARCHAR(1024) UNIQUE NOT NULL COLLATE utf8mb4_general1400_as_ci
 );
@@ -162,33 +165,16 @@ CREATE TABLE IF NOT EXISTS user_trickjump (
 );
 
 
-CREATE TABLE IF NOT EXISTS trickjump_finder (
+CREATE TABLE IF NOT EXISTS trickjump_contributor (
     trickjump_id INT NOT NULL,
     person_id INT NOT NULL,
+    contribution BIT(3),
     PRIMARY KEY (trickjump_id, person_id),
     FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
     FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS trickjump_taser (
-    trickjump_id INT NOT NULL,
-    person_id INT NOT NULL,
-    PRIMARY KEY (trickjump_id, person_id),
-    FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
-    FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
-);
-
-CREATE TABLE IF NOT EXISTS trickjump_prover (
-    trickjump_id INT NOT NULL,
-    person_id INT NOT NULL,
-    PRIMARY KEY (trickjump_id, person_id),
-    FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
-    FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
-);
-
-
-
-CREATE TABLE IF NOT EXISTS trickjump_extra (
+CREATE TABLE IF NOT EXISTS trickjump_extra_junction (
 	trickjump_id INT NOT NULL,
     extra_id INT NOT NULL,
     PRIMARY KEY (trickjump_id, extra_id),
@@ -197,7 +183,7 @@ CREATE TABLE IF NOT EXISTS trickjump_extra (
 );
 
 
-CREATE TABLE IF NOT EXISTS trickjump_tag (
+CREATE TABLE IF NOT EXISTS trickjump_tag_junction (
     trickjump_id INT NOT NULL,
     tag_id INT NOT NULL,
     PRIMARY KEY (trickjump_id, tag_id),
@@ -205,7 +191,7 @@ CREATE TABLE IF NOT EXISTS trickjump_tag (
     FOREIGN KEY (tag_id) REFERENCES tag (id) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS trickjump_link (
+CREATE TABLE IF NOT EXISTS trickjump_link_junction (
     trickjump_id INT NOT NULL,
     link_id INT NOT NULL,
     PRIMARY KEY (trickjump_id, link_id),
@@ -432,4 +418,4 @@ INSERT INTO `rank` (power, name) VALUES
 (1, 'Helper'),
 (2, 'Moderator'),
 (3, 'Administrator'),
-(4, 'Owner')
+(4, 'Owner');
