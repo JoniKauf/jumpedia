@@ -12,3 +12,5 @@ class Person:
     def _add(self):
         self.__class__.LOOKUP[self.value] = self
         self.__class__.LOOKUP[self.id] = self
+
+
