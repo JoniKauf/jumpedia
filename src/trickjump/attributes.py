@@ -3,11 +3,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, StrEnum, auto
 from functools import cached_property
+import functools
 import json
 import sys
 from typing import Any, Callable, ClassVar, Generic, Hashable, Iterable, Literal, Mapping, NamedTuple, Optional, Protocol, Self, TypeAlias, TypeGuard, TypeVar, TypedDict, Union, TYPE_CHECKING, cast, final, get_args
 import re
 
+from discordtools.errors import InvalidAttributeFeedbackError, PersonDoesNotExistFeedbackError, RequiredAttributesMissingFeedbackError, SameAttributeFeedbackError
 from users.person import Person
 
 if TYPE_CHECKING:
@@ -16,22 +18,11 @@ if TYPE_CHECKING:
 
 __init_module_done = False
 
-_PATTERN = re.compile(r'[(?!^)([A-Z]+)]')
+
+_PASCAL_REPLACE_PATTERN = re.compile(r'[(?!^)([A-Z]+)]')
 
 def pascal_to_snake(s: str):
-    return re.sub(_PATTERN, r'_\1', s).lower()
-
-class CollectionProtocol[VT](Protocol):
-    COLLECTION: ClassVar[Mapping[Hashable, Self]]
-    
-    @property
-    def value(self) -> VT:
-        ...
-        
-    @classmethod
-    def _init_cls(cls) -> None:
-        ...
-    
+    return re.sub(_PASCAL_REPLACE_PATTERN, r'_\1', s).lower()
 
 
 # --- Meta Classes ---
@@ -112,7 +103,7 @@ class AttrStr(Attr[str]):
 
 
 class AttrStrEntry(Attr[str]):
-    COLLECTION: dict[Optional[str], Self] = {}
+    LOOKUP: dict[str | int | None, Self] = {}
 
     def __init__(self, value: str | None, *, id: int, alias: frozenset[str] = frozenset()):
         if __init_module_done:
@@ -124,11 +115,11 @@ class AttrStrEntry(Attr[str]):
         self.id: int = id
         self.alias: frozenset[str] = alias
 
-        super().__init__(value)    
+        super().__init__(value)
 
     @classmethod
     def _init_cls(cls):
-        cls.COLLECTION[None] = cls(None, id=-1)
+        cls.LOOKUP[None] = cls(None, id=-1)
         return super()._init_cls()
     
     def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> int:
@@ -137,7 +128,7 @@ class AttrStrEntry(Attr[str]):
     @classmethod
     def get(cls, value: Self | str | None) -> Self:
         if value is None or isinstance(value, str):
-            return cls.COLLECTION[value]
+            return cls.LOOKUP[value]
         if isinstance(value, cls):
             return value
         
@@ -157,6 +148,25 @@ class AttrDatetime(Attr[datetime]):
         
         raise TypeError("Unexpected type:", type(value))
 
+
+class AttrPerson(Attr[Person]):
+    def sort_key(self, sign: Literal[-1, +1] = +1, **kwargs: Any) -> tuple[int, ...]:
+        return AttrStr.sort_key(AttrStr(self.value.value if self.value is not None else self.value), sign=sign, **kwargs)
+    
+    @classmethod
+    def get(cls, value: Self | Person | str | int | None) -> Self:
+        if value is None or isinstance(value, Person):
+            return cls(value)
+        if isinstance(value, (int, str)):
+            try:
+                return cls(Person.LOOKUP[value])
+            except KeyError:
+                raise PersonDoesNotExistFeedbackError(value)
+        if isinstance(value, cls):
+            return value
+        
+        raise TypeError("Unexpected type:", type(value))
+    
 
 class AttrMultiValue[T: Attr](Attr[tuple[T, ...]]):
     """
@@ -193,9 +203,11 @@ class Name(AttrStr):
     SECRET = False
 
 
-class Location():
-    outer: frozenset[Self] = field(kw_only=True, default=frozenset())
-    tag: frozenset[str] = field(kw_only=True, default=frozenset())
+class Location(AttrStrEntry):
+    def __init__(self, value: Optional[str], *, id: int, alias: frozenset[str] = frozenset(), tag: frozenset[str], outer: frozenset[Self]):
+        self.outer: frozenset[Self] = outer
+        self.tag: frozenset[str] = tag
+        super().__init__(value, id=id, alias=alias)
 
     ALIAS: frozenset[str] = frozenset(["l", "loc", "k", "kd", "kingdom"])
     REQUIRED = True
@@ -205,7 +217,6 @@ class Location():
 
 class Tier(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["t"])
-
     REQUIRED = True
     USER_ATTR = False
     SECRET = False
@@ -223,13 +234,6 @@ class Difficulty(AttrStrEntry):
     SECRET = False
 
 
-class Server(AttrStrEntry):
-    ALIAS: frozenset[str] = frozenset(["s", "serv"])
-    REQUIRED = True
-    USER_ATTR = False
-    SECRET = False
-
-
 class Type(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
     REQUIRED = False
@@ -237,21 +241,28 @@ class Type(AttrStrEntry):
     SECRET = False
 
 
-class Finder(AttrStrEntry):
+class Server(AttrStrEntry):
+    ALIAS: frozenset[str] = frozenset(["s", "serv"])
+    REQUIRED = True
+    USER_ATTR = False
+    SECRET = False
+
+
+class Finder(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["f", "founder", "find", "found"])
     REQUIRED = False
     USER_ATTR = False
     SECRET = False
 
 
-class Taser(AttrStrEntry):
+class Taser(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["tas", "tased"])
     REQUIRED = False
     USER_ATTR = False
     SECRET = False
 
 
-class Prover(AttrStrEntry):
+class Prover(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["p", "prov", "proven"])
     REQUIRED = False
     USER_ATTR = False
@@ -298,129 +309,32 @@ class Proof(AttrStr):
 
 class Link(AttrStr):
     def __init__(self, value: Optional[str], *, author: Person):
+        self.author: Person = author
         super().__init__(value)
-    author: Optional[str] = field(kw_only=True, default=None)
-    ALIAS: frozenset[str] = frozenset(["l", "lnk", "clip", "video"])
-
+    
+    ALIAS: frozenset[str] = frozenset(["l", "lnk", "clip", "video", "links"])
     REQUIRED = True
     USER_ATTR = False
     SECRET = False
 
 
-@dataclass(unsafe_hash=True)
-class Extra(AttrMultiValueStr):
+class Info(AttrStr):
     ALIAS: frozenset[str] = frozenset(["ex", "e", "info", "i", "desc", "description", "data"])
-
     REQUIRED = False
     USER_ATTR = False
     SECRET = False
 
+class Tag(AttrStrEntry):
+    ALIAS: frozenset[str] = frozenset(["tags"])
+    REQUIRED = False
+    USER_ATTR = False
+    SECRET = False
 
-@dataclass(unsafe_hash=True)
 class Thumbnail(AttrStr):
     ALIAS: frozenset[str] = frozenset(["tn", "thumb", "t_n", "th", "tnail"])
-
     REQUIRED = False
     USER_ATTR = False
     SECRET = True
-
-type __type = type
-
-@dataclass(kw_only=True, init=False, unsafe_hash=True, slots=True)
-class Attributes:
-    name: Name
-    location: Location
-    difficulty: Difficulty
-
-    tier: Tier = property(Tier.generate)  # type: ignore
-
-    type: Type
-    finder: Finder
-    taser: Taser
-    prover: Prover
-    found_at: FoundAt
-    tased_at: TasedAt
-    proven_at: ProvenAt
-    given_at: GivenAt
-    proof: Proof
-    server: Server
-    link: Link
-    extra: Extra
-    thumbnail: Thumbnail
-
-
-    def get(self, attr: __type[Attr] | Attr | str) -> Attr:
-        if isinstance(attr, str):
-            name = attr
-        else:
-            name = attr.NAME
-        return getattr(self, name)
-
-    def set(self, attr: __type[Attr] | Attr | str, value: Any) -> None:
-        if isinstance(attr, str):
-            cls = syn_to_cls(attr)
-            name = attr
-        else:
-            cls = attr.__class__
-            name = cls.NAME
-
-        setattr(self, name, cls(value))
-
-    def pop(self, attr: __type[Attr] | Attr | str) -> Attr:
-        attr = self.get(attr)
-        setattr(self, attr.NAME, attr.__class__(None))
-        return attr
-    
-
-    def keys(self) -> tuple[str, ...]:
-        return tuple(self.__slots__)
-
-
-# Define instead of taking from dataclass so we keep literals and class type safety
-ATTR_NAMES = ("name", "location", "difficulty", "tier", "type", "finder", "taser", "prover", "found_at", "tased_at", "proven_at", "given_at", "proof", "server", "link", "extra", "thumbnail")
-ATTR_CLASSES = (Name, Location, Difficulty, Tier, Type, Finder, Taser, Prover, FoundAt, TasedAt, ProvenAt, GivenAt, Proof, Server, Link, Extra, Thumbnail)
-ATTR_ITEMS = tuple(zip(ATTR_NAMES, ATTR_CLASSES, strict=True))
-
-# --- IMPORTANT to check for integrity if any changes are made in the future ---
-
-
-assert tuple(Attributes.__annotations__.items()) == tuple(ATTR_ITEMS) 
-
-
-_ATTR_DCT: dict[str, type[Attr]] = {k: v for k, v in ATTR_ITEMS}
-
-SYNONYM_COLLECTION: dict[str, type[Attr]] = {}  # fill out further down
-
-def _cf(a: str, cf: bool):
-    return a.casefold() if cf else a
-
-
-def is_name(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) in _ATTR_DCT
-
-def is_alias(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) not in _ATTR_DCT and a in SYNONYM_COLLECTION
-
-def is_syn(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) in SYNONYM_COLLECTION
-
-def syn_to_cls(a: str, cf: bool = True) -> type[Attr]:
-    return SYNONYM_COLLECTION[_cf(a, cf)]
-
-def syn_to_name(a: str, cf: bool = True) -> str:
-    return SYNONYM_COLLECTION[_cf(a, cf)].NAME
-
-def syn_to_aliases(a: str, cf: bool = True) -> frozenset[str]:
-    return SYNONYM_COLLECTION[_cf(a, cf)].ALIAS
-
-
-def to_classes(attrs: Iterable[str], cf: bool = True) -> tuple[type[Attr], ...]:
-    return tuple(syn_to_cls(attr, cf) for attr in attrs)
-
-def to_instances(attrs: Iterable[str], values: Iterable[str], cf: bool = True) -> tuple[Attr, ...]:
-    return tuple(cls(val) for cls, val in zip(to_classes(attrs, cf), values, strict=True))
-
-
 
 
 def _init_module():
@@ -429,13 +343,120 @@ def _init_module():
 
         for subclass in cls.__subclasses__():
             recursively_iterate_subclasses(subclass, do)
-            
 
     recursively_iterate_subclasses(Attr, lambda cls: cls._init_cls())
-    recursively_iterate_subclasses(Attr, lambda cls: cls._secondary_init_cls())
 
+    global __init_module_done
+    __init_module_done = True
 
 _init_module()
+
+
+ATTR_CLASSES = (Name, Location, Difficulty, Tier, Type, Finder, Taser, Prover, FoundAt, TasedAt, ProvenAt, GivenAt, Proof, Server, Tag, Link, Info, Thumbnail)
+ATTR_NAMES = tuple(cls.NAME for cls in ATTR_CLASSES)
+ATTR_ITEMS = tuple(zip(ATTR_NAMES, ATTR_CLASSES, strict=True))
+
+NAME_TO_CLS_LOOKUP: dict[str, type[Attr]] = {k: v for k, v in ATTR_ITEMS}
+SYN_TO_CLS_LOOKUP: dict[str, type[Attr]] = {syn: cls for cls in ATTR_CLASSES for syn in (cls.NAME, *cls.ALIAS)}
+
+
+class AttributeComboClass:
+    """
+    A parent class for any class that wants to use attributes
+    as its ONLY fields and provides functionality for that case.
+    """
+    ATTRS_ORDERED: tuple[type[Attr], ...] = ATTR_CLASSES
+    
+    @classmethod
+    @functools.cache
+    def ATTRS_SET(cls) -> set[type[Attr]]:
+        return set(cls.ATTRS_ORDERED)
+
+    def __init__(self, data: dict[str, Any], *, required: bool = True, cf: bool = True) -> None:
+        new_data: dict[str, Attr] = {}
+
+        for k, v in data:
+            try:
+                cls = syn_to_cls(k, cf=cf)
+
+                if cls not in self.__class__.ATTRS_SET():
+                    raise KeyError()
+            except KeyError:
+                raise InvalidAttributeFeedbackError(k)
+            
+            if cls.NAME in new_data:
+                raise SameAttributeFeedbackError(k)
+            
+            new_data[cls.NAME] = cls.get(v)
+        
+        missing: list[str] = []
+
+        for cls in self.__class__.ATTRS_ORDERED:
+            if cls.NAME not in new_data:
+                new_data[cls.NAME] = cls.get(None)
+
+                if required and cls.REQUIRED:
+                    missing.append(cls.NAME)
+
+        if missing:
+            raise RequiredAttributesMissingFeedbackError(missing)
+        
+        self.__dict__ = new_data
+
+
+    def get(self, attr: type[Attr] | Attr | str) -> Attr:
+        if isinstance(attr, str):
+            name = attr
+        else:
+            name = attr.NAME
+        return getattr(self, name)
+
+    def set(self, attr: type[Attr] | Attr | str, value: Any) -> None:
+        if isinstance(attr, str):
+            cls = syn_to_cls(attr)
+            name = attr
+        elif isinstance(attr, Attr):
+            cls = attr.__class__
+            name = cls.NAME
+        else:
+            cls = attr
+            name = cls.NAME
+
+        setattr(self, name, cls(value))
+
+    def pop(self, attr: type[Attr] | Attr | str) -> Attr:
+        attr = self.get(attr)
+        setattr(self, attr.NAME, attr.__class__(None))
+        return attr
+    
+    def keys(self) -> tuple[str, ...]:
+        return tuple(sorted(self.__dict__, key=ATTR_NAMES.index))
+    
+
+def _cf(a: str, cf: bool):
+    return a.casefold() if cf else a
+
+
+def is_name(a: str, cf: bool = True) -> bool:
+    return _cf(a, cf) in NAME_TO_CLS_LOOKUP
+
+def is_alias(a: str, cf: bool = True) -> bool:
+    return _cf(a, cf) not in NAME_TO_CLS_LOOKUP and a in SYN_TO_CLS_LOOKUP
+
+def is_syn(a: str, cf: bool = True) -> bool:
+    return _cf(a, cf) in SYN_TO_CLS_LOOKUP
+
+def name_to_cls(a: str, cf: bool = True) -> type[Attr]:
+    return NAME_TO_CLS_LOOKUP[_cf(a, cf)]
+
+def syn_to_cls(a: str, cf: bool = True) -> type[Attr]:
+    return SYN_TO_CLS_LOOKUP[_cf(a, cf)]
+
+def syn_to_name(a: str, cf: bool = True) -> str:
+    return SYN_TO_CLS_LOOKUP[_cf(a, cf)].NAME
+
+def syn_to_aliases(a: str, cf: bool = True) -> frozenset[str]:
+    return SYN_TO_CLS_LOOKUP[_cf(a, cf)].ALIAS
 
 
 # all in all good codi but want to play bsso uwuwuwuwuwuwuwuuwuwuwuuwuwuwuuwuwuwuwuwuwuwuw

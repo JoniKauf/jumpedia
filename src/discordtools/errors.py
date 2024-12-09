@@ -234,3 +234,10 @@ class TooLongNameFeedbackError(FeedbackError):
             error="Too Long Name",
             details=f"The entered name `{msgt.shorten(name)}` exceeds the limit of `{max}` characters!"
         )
+
+class PersonDoesNotExistFeedbackError(FeedbackError):
+    def __init__(self, person: str | int):
+        super().__init__(
+            error="Person Does not Exist",
+            details=f"The person with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist!"
+        )

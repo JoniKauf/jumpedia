@@ -5,74 +5,31 @@ from dataclasses import dataclass
 from trickjump import attributes as attrs
 from discordtools.errors import RequiredAttributesMissingFeedbackError, FeedbackError, InvalidAttributeFeedbackError, SameAttributeFeedbackError
 from trickjump import attributes
-from trickjump.attributes import ATTR_ITEMS, AttrBase, Attributes, Generate
+from trickjump.attributes import ATTR_CLASSES, ATTR_ITEMS, Attr, AttributeComboClass, Finder, Taser, Prover
 from discordtools import messagetools as msgt
 
 
 type TrickjumpDataT = dict[str, Any]
 
 
-
-@dataclass(init=False, slots=True, unsafe_hash=True)
-class Trickjump(Attributes):
-    def __init__(self, data: TrickjumpDataT, *, required: bool = True, syns: bool = True, cf: bool = True) -> None:
-        if not syns:
-            if cf:
-                same: set[str] = set()
-
-                for name in data:
-                    casefolded: str = name.casefold()
-                    
-                    if casefolded in same:
-                        raise SameAttributeFeedbackError(casefolded)
-                    
-                    same.add(casefolded)
-
-            new_data: TrickjumpDataT = data
-        else:
-            new_data: TrickjumpDataT = {}
-
-            for syn, val in data.items():
-                try:
-                    name = attributes.syn_to_name(syn, cf)
-                except KeyError:
-                    raise InvalidAttributeFeedbackError(syn)
-
-                if name in new_data:
-                    raise SameAttributeFeedbackError(name)
-                
-                new_data[name] = val
-
-        missing: set[str] = set()
-        
-        for attr in attributes.ATTR_CLASSES:
-            try:
-                val = new_data[attr.NAME]
-            except KeyError:
-                if required:
-                    missing.add(attr.NAME)
-                continue
-
-            setattr(self, attr.NAME, attr.get(val))  # type: ignore
-
-        if missing:
-            raise RequiredAttributesMissingFeedbackError(tuple(missing))
-
+class Trickjump(AttributeComboClass):
+    ATTRS_ORDERED: tuple[type[Attr], ...] = tuple(elem for elem in ATTR_CLASSES if elem.USER_ATTR is not False)
 
     def as_info(self) -> str:
-        ...
+        return "\n".join(f"{elem.NAME}: {elem.value}" for elem in self.__dict__.values())
     
+    # TODO: Fix issue that the attr could be of type multivalue
 
     def _ftp_to_line(self) -> str:
-        def join_humanly(elems: Sequence[str]):
+        def join_grammatically(elems: Sequence[str]):
             if len(elems) < 2:
                 return ''.join(elems)
             return ', '.join(elems[:-1]) + f" & {elems[-1]}"
         
         MAP: dict[str, Any] = {
-            "Found": self.finder.unpacked,
-            "Tased": self.taser.unpacked,
-            "Proven": self.prover.unpacked
+            "Found": self.get(Finder).unpacked, # type: ignore
+            "Tased": self.get(Taser).unpacked,  # type: ignore
+            "Proven": self.get(Prover).unpacked  # type: ignore
         }
 
         REV_MAP: dict[Optional[tuple[str, ...]], list[str]] = {}
@@ -85,6 +42,6 @@ class Trickjump(Attributes):
         REV_MAP.pop((), None)
 
         return ', '.join(
-            f"{join_humanly(titles)} by {join_humanly(value)}"  # type: ignore
+            f"{join_grammatically(titles)} by {join_grammatically(value)}"  # type: ignore
             for value, titles in REV_MAP.items()
         )
