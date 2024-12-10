@@ -1,15 +1,17 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum, StrEnum, auto
 from functools import cached_property
 import functools
-import json
+import inspect
+from utils import text
 import sys
-from typing import Any, Callable, ClassVar, Generic, Hashable, Iterable, Literal, Mapping, NamedTuple, Optional, Protocol, Self, Sequence, TypeAlias, TypeGuard, TypeVar, TypedDict, Union, TYPE_CHECKING, cast, final, get_args
+from typing import Annotated, Any, Callable, ClassVar, Generic, Hashable, Iterable, Literal, Mapping, NamedTuple, Optional, Protocol, Self, Sequence, TypeAlias, TypeGuard, TypeVar, TypedDict, Union, TYPE_CHECKING, cast, final, get_args
 import re
+from collections.abc import KeysView, ValuesView, ItemsView
 
-from discordtools.errors import InvalidAttributeFeedbackError, PersonDoesNotExistFeedbackError, RequiredAttributesMissingFeedbackError, SameAttributeFeedbackError
+import discordtools.feedbackerrors as fbe
 from users.person import Person
 
 if TYPE_CHECKING:
@@ -19,49 +21,114 @@ if TYPE_CHECKING:
 __init_module_done = False
 
 
-_PASCAL_REPLACE_PATTERN = re.compile(r'[(?!^)([A-Z]+)]')
-
-def pascal_to_snake(s: str):
-    return re.sub(_PASCAL_REPLACE_PATTERN, r'_\1', s).lower()
-
-
 # --- Meta Classes ---
 
-class Attr[VT](ABC):
+class AttrAny[T](ABC):
+    """An abstract base class for anything that represents an attribute.
+    
+    Metadata Class Variables:
+    - NAME:
+        The official key to map to the class, which should always be the
+        class name in lower and snake case.
+    - ALIAS:
+        The aliases that act as alternatives to NAME as a mapping. Any 
+        name or alias mapping to the same class is called a "syn" 
+        (synonym) in the code.
+    - REQUIRED:
+        If not explicitly ignored, the attribute is required to  have a 
+        value that is not falsy (empty, None, ...) for the context of an
+        AttrComboClass.
+    - MULTIVALUE:
+        Defines if the attribute comes wrapped in an AttrMultiValue with
+        possibly other instances of the same class for the context of an
+        AttributeComboClass or if it just comes as a standalone.
+    - USER_SPECIFIC:
+        Defines if the attribute is about user-specific data.
+    - SECRET:
+        Defines if the attribute should not be shown to users.
+    """
+
+    def __init__(self) -> None:
+        frame = inspect.currentframe()
+
+        if frame is not None:
+            caller = frame.f_back
+
+            if caller is not None:
+                cls: Optional[type[AttrAny]] = caller.f_locals.get("cls", None)
+
+                if cls is None or not issubclass(cls, AttrAny):
+                    raise RuntimeError(
+                        "Use the classmethod get(...) to create instances!"
+                    )
+                
+        super().__init__()
+
     @property
     @abstractmethod
-    def value(self) -> VT:
+    def value(self) -> Optional[T]:
+        """The value the class encapsulates."""
+
+    @property
+    @abstractmethod
+    def value_cls(self) -> type['AttrSingleValue']:
+        """The class encapsulating the AttrSingleValue.
+        
+        For AttrSingleValue this is simply its own type, while for
+        AttrMultiValue it's the type of the elements it contains. This 
+        is especially useful if we don't know which one of the two it
+        is.
+        """
+
+    @property
+    @abstractmethod
+    def unpacked(self) -> tuple[Any, ...]:
         ...
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        # if hasattr(self, "__init_done"):
-        #     raise RuntimeError("Object cannot be modified after initialization")
-        return super().__setattr__(name, value)
-    
     @abstractmethod
-    def sort_key(self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> Any:
-        ...
+    def sort_key( self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> Any:
+        """Return an appropiate value to be compared for sorting."""
 
     @classmethod
     def _init_cls(cls):
-        pass
+        """
+        Initialize the class itself when the module is imported and 
+        therefore runned the first time.
+        """
+        cls.NAME = text.pascal_to_snake(cls.__name__)
+
+        if __init_module_done:
+            raise RuntimeError(
+                "Classes may only be initialized before themodule is fully "
+                "initialized!"
+            )
+    
+    @classmethod
+    @abstractmethod
+    def get(cls, value: Self | T | None, *args: Any, **kwargs: Any) -> Self:
+        """Get an appropriate instance of a the specific class."""
+        ...
 
     NAME: str
     ALIAS: frozenset[str]
     REQUIRED: bool
     MULTI_VALUE: bool
-    USER_ATTR: Optional[bool]
+    USER_SPECIFIC: Optional[bool]
     SECRET: bool
 
+type AttrAnyTypeT[VT] = (
+    type[AttrSingleValue[VT]] | type[AttrMultiValue[AttrSingleValue[VT]]]
+)
+type AttrAnyT[VT] = AttrSingleValue[VT] | AttrMultiValue[AttrSingleValue[VT]]
 
-class AttrSingleValue[VT](Attr[VT]):
+
+class AttrSingleValue[VT](AttrAny[VT]):
     """
     Abstract base class for all attribute classes.
     An attribute class encapsulates data of a specific attribute,
     such that the attribute has more functionality, is easier to
     operate on and has its metadata is all stored in one place.
     """
-    
     def __str__(self) -> str:
         return str(self.value)
     
@@ -72,23 +139,23 @@ class AttrSingleValue[VT](Attr[VT]):
     def __hash__(self) -> int:
         return hash(tuple(sorted(self.__dict__.items())))
     
-    @classmethod
-    def _init_cls(cls):
-        cls.NAME = pascal_to_snake(cls.__name__)
+    @property
+    def value_cls(self) -> type[Self]:
+        return self.__class__
 
-        if __init_module_done:
-            raise RuntimeError("Classes may only be initialized before the module is fully initialized!")
-
+    @property
+    def unpacked(self) -> tuple[VT] | tuple[()]:
+        return () if self.value is None else (self.value,)
+    
     @classmethod
     @abstractmethod
-    def get(cls, value: Self | VT | None) -> Self:
+    def get(cls, value: Self | VT | None, *args: Any, **kwargs: Any) -> Self:
         ...
-
-
+        
     
 class AttrStr(AttrSingleValue[str]):
     """
-    A attribute that specifically has str as its value and
+    An attribute that specifically has str as its value and
     implements the functionalities associated.
     """
 
@@ -105,7 +172,7 @@ class AttrStr(AttrSingleValue[str]):
         return tuple(ord(char) * sign for char in self.value.casefold())
     
     @classmethod
-    def get(cls, value: Self | str | None) -> Self:
+    def get(cls, value: Self | str | None, *args: Any, **kwargs: Any) -> Self:
         if value is None or isinstance(value, str):
             return cls(value)
         if isinstance(value, cls):
@@ -117,7 +184,7 @@ class AttrStr(AttrSingleValue[str]):
 class AttrStrEntry(AttrSingleValue[str]):
     LOOKUP: dict[str | int | None, Self] = {}
 
-    def __init__(self, value: str | None, *, id: int, alias: frozenset[str] = frozenset()):
+    def __init__(self, value: str | None, *, id: int, alias: frozenset[str] = frozenset()) -> None:
         if __init_module_done:
             raise RuntimeError(
                 "No more objects of any collection can be created "
@@ -130,7 +197,7 @@ class AttrStrEntry(AttrSingleValue[str]):
         super().__init__(value)
 
     @classmethod
-    def _init_cls(cls):
+    def _init_cls(cls) -> None:
         cls.LOOKUP[None] = cls(None, id=-1)
         return super()._init_cls()
     
@@ -138,7 +205,7 @@ class AttrStrEntry(AttrSingleValue[str]):
         return self.id * sign
     
     @classmethod
-    def get(cls, value: Self | str | None) -> Self:
+    def get(cls, value: Self | str | None, *args: Any, **kwargs: Any) -> Self:
         if value is None or isinstance(value, str):
             return cls.LOOKUP[value]
         if isinstance(value, cls):
@@ -152,7 +219,7 @@ class AttrDatetime(AttrSingleValue[datetime]):
         return (float("inf") if self.value is None else self.value.timestamp()) * sign
     
     @classmethod
-    def get(cls, value: Self | datetime | None) -> Self:
+    def get(cls, value: Self | datetime | None, *args: Any, **kwargs: Any) -> Self:
         if value is None or isinstance(value, datetime):
             return cls(value)
         if isinstance(value, cls):
@@ -162,44 +229,46 @@ class AttrDatetime(AttrSingleValue[datetime]):
 
 
 class AttrPerson(AttrSingleValue[Person]):
+    ACTION: str
+
     def sort_key(self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> tuple[int, ...]:
         return AttrStr.sort_key(AttrStr(self.value.value if self.value is not None else self.value), sign=sign, **kwargs)
     
     @classmethod
-    def get(cls, value: Self | Person | str | int | None) -> Self:
+    def get(cls, value: Self | Person | str | int | None, *args: Any, **kwargs: Any) -> Self:
         if value is None or isinstance(value, Person):
             return cls(value)
         if isinstance(value, (int, str)):
             try:
                 return cls(Person.LOOKUP[value])
             except KeyError:
-                raise PersonDoesNotExistFeedbackError(value)
+                raise fbe.PersonDoesNotExist(value)
         if isinstance(value, cls):
             return value
         
         raise TypeError("Unexpected type:", type(value))
     
 
-class AttrCollection[T: AttrSingleValue](tuple[T, ...], Attr[tuple[T, ...]]):
+class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrAny[tuple[CT, ...]]):
     """
     A collection of multiple instances of the same Attr.
     An empty collection is converted to None and all None
     entries are also removed on initialization.
     """
     @property
-    def value(self) -> tuple[T, ...]:
+    def value(self) -> tuple[CT, ...]:
         return tuple(self)
     
     @classmethod
-    def __new__(cls, value: Optional[Iterable[T]], value_cls: type[T]) -> Self:
+    def __new__(cls, value: Optional[Iterable[CT]], value_cls: type[CT]) -> Self:
         value = value or ()
         if not all(value_cls == type(elem) for elem in value):
             raise TypeError("value_cls should be the exact same as the type of all elements of value")
         
         return super().__new__(cls, value)
 
-    def __init__(self, value: Optional[Iterable[T]], value_cls: type[T]) -> None:
-        self.value_cls: type[T] = value_cls
+    def __init__(self, value: Optional[Iterable[CT]], value_cls: type[CT]) -> None:
+        self.value_cls: type[CT] = value_cls
         super().__init__()
     
     @cached_property
@@ -212,7 +281,7 @@ class AttrCollection[T: AttrSingleValue](tuple[T, ...], Attr[tuple[T, ...]]):
         return tuple(elem.sort_key(sign) for elem in self)
     
     @classmethod
-    def get(cls, value: Self | Iterable[T | Any] | T | Any | None, value_cls: type[T]) -> Self:
+    def get(cls, value: Self | Iterable[CT | Any] | CT | Any | None, value_cls: type[CT], *args: Any, **kwargs: Any) -> Self:
         if value is None:
             return cls(value, value_cls)
         if isinstance(value, cls):
@@ -231,7 +300,7 @@ class Name(AttrStr):
     ALIAS: frozenset[str] = frozenset(["n"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_ATTR = None
+    USER_SPECIFIC = None
     SECRET = False
 
 
@@ -244,7 +313,7 @@ class Location(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["l", "loc", "k", "kd", "kingdom"])
     REQUIRED = True
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
     
 
@@ -252,7 +321,7 @@ class Tier(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["t"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -265,7 +334,7 @@ class Difficulty(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["diff", "d"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -273,7 +342,7 @@ class Type(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -281,31 +350,37 @@ class Server(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["s", "serv"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
 class Finder(AttrPerson):
+    ACTION = "Found"
+
     ALIAS: frozenset[str] = frozenset(["f", "founder", "find", "found"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
 class Taser(AttrPerson):
+    ACTION = "TASed"
+
     ALIAS: frozenset[str] = frozenset(["tas", "tased"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
 class Prover(AttrPerson):
+    ACTION = "Proven"
+
     ALIAS: frozenset[str] = frozenset(["p", "prov", "proven"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -313,7 +388,7 @@ class FoundAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["fa", "f_a", "f_at"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -321,7 +396,7 @@ class TasedAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["ta", "t_a", "t_at", "tas_at"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -330,7 +405,7 @@ class ProvenAt(AttrDatetime):
 
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -339,7 +414,7 @@ class GivenAt(AttrDatetime):
 
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = True
+    USER_SPECIFIC = True
     SECRET = False
 
 
@@ -348,7 +423,7 @@ class Proof(AttrStr):
 
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = True
+    USER_SPECIFIC = True
     SECRET = False
 
 
@@ -360,29 +435,29 @@ class Link(AttrStr):
     ALIAS: frozenset[str] = frozenset(["l", "lnk", "clip", "video", "links"])
     REQUIRED = True
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 
 class Info(AttrStr):
     ALIAS: frozenset[str] = frozenset(["ex", "e", "extra", "i", "desc", "description", "data"])
     REQUIRED = False
-    MULTI_VALUE = True
-    USER_ATTR = False
+    MULTI_VALUE = False
+    USER_SPECIFIC = False
     SECRET = False
 
 class Tag(AttrStrEntry):
     ALIAS: frozenset[str] = frozenset(["tags"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = False
 
 class Thumbnail(AttrStr):
     ALIAS: frozenset[str] = frozenset(["tn", "thumb", "t_n", "th", "tnail"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_ATTR = False
+    USER_SPECIFIC = False
     SECRET = True
 
 
@@ -408,45 +483,32 @@ ATTR_ITEMS = tuple(zip(ATTR_NAMES, ATTR_CLASSES, strict=True))
 NAME_TO_CLS_LOOKUP: dict[str, type[AttrSingleValue]] = {k: v for k, v in ATTR_ITEMS}
 SYN_TO_CLS_LOOKUP: dict[str, type[AttrSingleValue]] = {syn: cls for cls in ATTR_CLASSES for syn in (cls.NAME, *cls.ALIAS)}
 
-
+@dataclass(init=False, slots=True)
 class AttributeComboClass:
     """
     A parent class for any class that wants to use attributes
-    as its ONLY fields and provides functionality for that case.
+    as its fields and provides functionality for that case.
     """
-    ATTRS_ORDERED: tuple[type[AttrSingleValue], ...] = ATTR_CLASSES
-    ATTRS_MULTI_VALUE: set[type[AttrSingleValue]] = set(cls for cls in ATTR_CLASSES if cls.MULTI_VALUE)
-
-    @classmethod
-    @functools.cache
-    def ATTRS_SET(cls) -> set[type[AttrSingleValue]]:
-        return set(cls.ATTRS_ORDERED)
-
-    def __init__(self, data: dict[str, Any], *, required: bool = True, cf: bool = True) -> None:
-        new_data: dict[str, Attr] = {}
+    def __init__(self, data: dict[str, Any], *, required: bool = True, lower: bool = True) -> None:
+        new_data: dict[str, AttrAnyT] = {}
 
         for k, v in data.items():
             try:
-                cls = syn_to_cls(k, cf=cf)
+                cls = syn_to_cls(k, lower=lower)
 
-                if cls not in self.__class__.ATTRS_SET():
+                if cls not in self.field_types:
                     raise KeyError()
             except KeyError:
-                raise InvalidAttributeFeedbackError(k)
+                raise fbe.InvalidAttribute(k)
             
             if cls.NAME in new_data:
-                raise SameAttributeFeedbackError(k)
-            
-            if cls in self.__class__.ATTRS_MULTI_VALUE:
-                result = AttrCollection[cls].get(v, cls) 
-            else:
-                result = cls.get(v)
-            
-            new_data[cls.NAME] = result
+                raise fbe.SameAttribute(k)
+
+            new_data[cls.NAME] = AttrMultiValue.get(v, cls)
         
         missing: list[str] = []
 
-        for cls in self.__class__.ATTRS_ORDERED:
+        for cls in self.field_types:
             if cls.NAME not in new_data:
                 new_data[cls.NAME] = cls.get(None)
 
@@ -454,64 +516,82 @@ class AttributeComboClass:
                     missing.append(cls.NAME)
 
         if missing:
-            raise RequiredAttributesMissingFeedbackError(missing)
-        
-        self.__dict__: dict[str, Attr] = new_data
+            raise fbe.RequiredAttributesMissing(missing)
 
+    @cached_property
+    def field_types(self) -> dict[type[AttrSingleValue], None]:
+        """dict instead of set because of insertion order"""
+        return dict.fromkeys(
+            elem.value_cls if isinstance(elem, AttrMultiValue) else elem.__class__ 
+            for elem in self.values()
+        )
+    
+    def mapping(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> dict[str, AttrAnyT]:
+        if predicate is None:
+            return asdict(self)
+        return {k: v for k, v in asdict(self).items() if predicate(v)}
+    
+    @functools.cache
+    def keys(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> KeysView[str]:
+        return self.mapping(predicate).keys()
+    
+    def values(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> ValuesView[AttrAnyT]:
+        return self.mapping(predicate).values()
+    
+    def items(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> ItemsView[str, AttrAnyT]:
+        return self.mapping(predicate).items()
 
-    def get(self, attr: type[AttrSingleValue] | AttrSingleValue | str) -> AttrSingleValue:
+    def get(self, attr: str | type[AttrSingleValue]) -> AttrAnyT:
         if isinstance(attr, str):
-            name = attr
+            name: str = attr
         else:
-            name = attr.NAME
+            name: str = attr.NAME
         return getattr(self, name)
 
-    def set(self, attr: type[AttrSingleValue] | AttrSingleValue | str, value: Any) -> None:
+    def set(self, attr: str | type[AttrSingleValue], value: Any) -> AttrAnyT:
         if isinstance(attr, str):
             cls = syn_to_cls(attr)
-            name = attr
-        elif isinstance(attr, AttrSingleValue):
-            cls = attr.__class__
-            name = cls.NAME
         else:
             cls = attr
-            name = cls.NAME
+        
+        name: str = cls.NAME
+        instance: AttrSingleValue = cls.get(value)
 
-        setattr(self, name, cls(value))
+        result: AttrAnyT = AttrMultiValue.get(instance, cls) if cls.MULTI_VALUE else instance
 
-    def pop(self, attr: type[AttrSingleValue] | AttrSingleValue | str) -> AttrSingleValue:
-        attr = self.get(attr)
-        setattr(self, attr.NAME, attr.__class__(None))
-        return attr
+        setattr(self, name, result)
+        return result
+
+    def pop(self, attr: str | type[AttrSingleValue]) -> AttrAnyT:
+        value: AttrAnyT = self.get(attr)
+        setattr(self, value.NAME, value.__class__.get(None, value.value_cls))
+        return value
     
-    def keys(self) -> tuple[str, ...]:
-        return tuple(sorted(self.__dict__, key=ATTR_NAMES.index))
-    
 
-def _cf(a: str, cf: bool):
-    return a.casefold() if cf else a
+def _lower(a: str, lower: bool):
+    return a.casefold() if lower else a
 
 
-def is_name(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) in NAME_TO_CLS_LOOKUP
+def is_name(a: str, lower: bool = True) -> bool:
+    return _lower(a, lower) in NAME_TO_CLS_LOOKUP
 
-def is_alias(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) not in NAME_TO_CLS_LOOKUP and a in SYN_TO_CLS_LOOKUP
+def is_alias(a: str, lower: bool = True) -> bool:
+    return _lower(a, lower) not in NAME_TO_CLS_LOOKUP and a in SYN_TO_CLS_LOOKUP
 
-def is_syn(a: str, cf: bool = True) -> bool:
-    return _cf(a, cf) in SYN_TO_CLS_LOOKUP
+def is_syn(a: str, lower: bool = True) -> bool:
+    return _lower(a, lower) in SYN_TO_CLS_LOOKUP
 
-def name_to_cls(a: str, cf: bool = True) -> type[AttrSingleValue]:
-    return NAME_TO_CLS_LOOKUP[_cf(a, cf)]
+def name_to_cls(a: str, lower: bool = True) -> type[AttrSingleValue]:
+    return NAME_TO_CLS_LOOKUP[_lower(a, lower)]
 
-def syn_to_cls(a: str, cf: bool = True) -> type[AttrSingleValue]:
-    return SYN_TO_CLS_LOOKUP[_cf(a, cf)]
+def syn_to_cls(a: str, lower: bool = True) -> type[AttrSingleValue]:
+    return SYN_TO_CLS_LOOKUP[_lower(a, lower)]
 
-def syn_to_name(a: str, cf: bool = True) -> str:
-    return SYN_TO_CLS_LOOKUP[_cf(a, cf)].NAME
+def syn_to_name(a: str, lower: bool = True) -> str:
+    return SYN_TO_CLS_LOOKUP[_lower(a, lower)].NAME
 
-def syn_to_aliases(a: str, cf: bool = True) -> frozenset[str]:
-    return SYN_TO_CLS_LOOKUP[_cf(a, cf)].ALIAS
+def syn_to_aliases(a: str, lower: bool = True) -> frozenset[str]:
+    return SYN_TO_CLS_LOOKUP[_lower(a, lower)].ALIAS
 
 
 # all in all good codi but want to play bsso uwuwuwuwuwuwuwuuwuwuwuuwuwuwuuwuwuwuwuwuwuwuw
