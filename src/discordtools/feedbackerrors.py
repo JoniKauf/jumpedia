@@ -1,4 +1,4 @@
-from discordtools import errors
+from discordtools import errors, messagetools
 from typing import Sequence
 from discordtools import messagetools as msgt
 from numbers import Real
@@ -163,4 +163,11 @@ class PersonDoesNotExist(errors.FeedbackError):
         super().__init__(
             error="Person Does Not Exist",
             details=f"The person with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist!"
+        )
+
+class InvalidSringFormat(errors.FeedbackError):
+    def __init__(self, attr: str, wrong: str, right: str):
+        super().__init__(
+            error="Invalid String Format",
+            details=f"For the attribute `{attr}` the value contained `{msgt.shorten(wrong)}` which should be replaced by `{msgt.shorten(right)}`!"
         )

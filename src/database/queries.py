@@ -1,8 +1,9 @@
-from database import mariadb_extensions as mdbe
-import secret
-from trickjump.catalog import Catalog
+from typing import Any
+from . import mariadb_extensions as mdbe
+from database import secret
 
-CONNECTOR = mdbe.MariaDBConnector(secret.listen())
+
+CONNECTOR = mdbe.MariaDBConnector(secret.listen()['DB_CONNECTION_INFO'])
 
 
 class Tables:
@@ -35,7 +36,7 @@ class Tables:
     TRICKJUMP_LINK = "trickjump_link"
 
 
-def get_all_trickjumps() -> Catalog:
+def get_all_trickjumps() -> Any:
     with CONNECTOR as conn:
         cursor = conn.execute("""
             SELECT

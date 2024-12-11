@@ -5,7 +5,7 @@ USE jumpedia;
 # its own name anyway. This way we avoid having multiple tables
 # with the same name if we follow a convention.
 
-SET foreign_key_checks = 1;
+SET foreign_key_checks = 0;
 
 CREATE TABLE IF NOT EXISTS location (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -15,14 +15,14 @@ CREATE TABLE IF NOT EXISTS location (
 CREATE TABLE IF NOT EXISTS location_alias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     alias VARCHAR(100) UNIQUE NOT NULL,
-    outer_id INT NOT NULL,
+    location_id INT NOT NULL,
     FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS location_outer_junction (
     location_id INT NOT NULL,
     outer_id INT NOT NULL,
-    PRIMARY KEY (location_id, parent_id),
+    PRIMARY KEY (location_id, outer_id),
     FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE RESTRICT,
     FOREIGN KEY (outer_id) REFERENCES location (id) ON DELETE RESTRICT
 );
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS difficulty (
 	id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(16) UNIQUE NOT NULL,
     missing BOOL NOT NULL DEFAULT TRUE,
-    tier_id INT,
+    tier_id INT NOT NULL,
     FOREIGN KEY (tier_id) REFERENCES tier (id)
 );
 
@@ -139,17 +139,13 @@ CREATE TABLE IF NOT EXISTS user (
 CREATE TABLE IF NOT EXISTS trickjump (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(80) UNIQUE NOT NULL COLLATE utf8mb4_general1400_as_ci,
-    location_id INT NOT NULL,
     difficulty_id INT NOT NULL,
-    type_id INT NOT NULL,
     found_at DATETIME NULL,
     tased_at DATETIME NULL,
     proven_at DATETIME NULL,
     server_id INT NOT NULL,
-    thumbnail_id INT,
-    FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE RESTRICT,
+    thumbnail_id INT NULL,
     FOREIGN KEY (difficulty_id) REFERENCES difficulty (id) ON DELETE RESTRICT,
-    FOREIGN KEY (type_id) REFERENCES type (id) ON DELETE RESTRICT,
     FOREIGN KEY (server_id) REFERENCES server (id) ON DELETE RESTRICT,
     FOREIGN KEY (thumbnail_id) REFERENCES thumbnail (id) ON DELETE SET NULL
 );
@@ -174,6 +170,23 @@ CREATE TABLE IF NOT EXISTS trickjump_contributor (
     FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS trickjump_location_junction (
+	trickjump_id INT NOT NULL,
+    location_id INT NOT NULL,
+    PRIMARY KEY (trickjump_id, location_id),
+    FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
+    FOREIGN KEY (location_id) REFERENCES location (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS trickjump_type_junction (
+	trickjump_id INT NOT NULL,
+    type_id INT NOT NULL,
+    PRIMARY KEY (trickjump_id, type_id),
+    FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
+    FOREIGN KEY (type_id) REFERENCES type (id) ON DELETE RESTRICT
+);
+
+
 CREATE TABLE IF NOT EXISTS trickjump_extra_junction (
 	trickjump_id INT NOT NULL,
     extra_id INT NOT NULL,
@@ -197,6 +210,14 @@ CREATE TABLE IF NOT EXISTS trickjump_link_junction (
     PRIMARY KEY (trickjump_id, link_id),
     FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
     FOREIGN KEY (link_id) REFERENCES link (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS trickjump_info_junction (
+    trickjump_id INT NOT NULL,
+    info_id INT NOT NULL,
+    PRIMARY KEY (trickjump_id, info_id),
+    FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
+    FOREIGN KEY (info_id) REFERENCES info (id) ON DELETE RESTRICT
 );
 
 
@@ -361,7 +382,7 @@ INSERT INTO location_alias (alias, location_id) VALUES
 
 INSERT INTO location (name) VALUES ('Odyssey');
 
-INSERT INTO location_parent (location_id, parent_id) VALUES
+INSERT INTO location_outer_junction (location_id, outer_id) VALUES
 ((SELECT id FROM location WHERE name = 'Odyssey'), (SELECT id FROM location WHERE name = 'Mushroom Kingdom')),
 ((SELECT id FROM location WHERE name = 'Odyssey'), (SELECT id FROM location WHERE name = 'Cap Kingdom')),
 ((SELECT id FROM location WHERE name = 'Odyssey'), (SELECT id FROM location WHERE name = 'Cascade Kingdom')),
@@ -406,7 +427,7 @@ INSERT INTO server_alias (alias, server_id) VALUES
 
 INSERT INTO location_tag (tag) VALUES ('Kingdom');
 
-INSERT INTO location_tags (location_id, tag_id)
+INSERT INTO location_tag_junction (location_id, tag_id)
 SELECT l.id, t.id
 FROM location l
 JOIN location_tag t ON t.tag = 'Kingdom'

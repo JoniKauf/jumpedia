@@ -1,7 +1,7 @@
 from typing import Any, Mapping, Optional, Self, Sequence, Sized
 
 import mariadb
-from mariadb import Connection, Cursor, Error
+from mariadb import Connection, Cursor
 
 
 def placeholder(amount: int | Sized, placeholder: str = '%s') -> str:
@@ -11,25 +11,25 @@ def placeholder(amount: int | Sized, placeholder: str = '%s') -> str:
 class MariaDBConnector:
     def __init__(self, conn_kwargs: dict[str, Any]):
         self._conn_kwargs = conn_kwargs
-        self._conn: Optional[Connection] = None # type: ignore
+        self.connection: Optional[Connection] = None # type: ignore
     
     def __enter__(self) -> Self:
-        self._conn = mariadb.connect(**self._conn_kwargs)
+        self.connection = mariadb.connect(**self._conn_kwargs)
         return self
 
     def _verify_connection(self):
-        if self._conn is None or not self._conn.open:
+        if self.connection is None or not self.connection.open:
             raise ConnectionError('use a context manager to open the connection')
         
     def __exit__(self, exc_type, exc_value, traceback):
         self._verify_connection()
-        self._conn: Connection
+        self.connection: Connection
         
-        self._conn.commit()
-        self._conn.close()
+        self.connection.commit()
+        self.connection.close()
 
     def execute(self, query: str, params: tuple[Any, ...] = ()) -> Cursor:
         self._verify_connection()
-        c = self._conn.cursor()
+        c = self.connection.cursor()
         c.execute(query, params)
         return c

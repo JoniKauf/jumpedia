@@ -85,6 +85,11 @@ class AttrAny[T](ABC):
     def unpacked(self) -> tuple[Any, ...]:
         ...
 
+    @property
+    @abstractmethod
+    def packed(self) -> 'AttrMultiValue[AttrSingleValue]':
+        ...
+
     @abstractmethod
     def sort_key( self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> Any:
         """Return an appropiate value to be compared for sorting."""
@@ -139,14 +144,18 @@ class AttrSingleValue[VT](AttrAny[VT]):
     def __hash__(self) -> int:
         return hash(tuple(sorted(self.__dict__.items())))
     
-    @property
+    @cached_property
     def value_cls(self) -> type[Self]:
         return self.__class__
 
-    @property
+    @cached_property
     def unpacked(self) -> tuple[VT] | tuple[()]:
         return () if self.value is None else (self.value,)
     
+    @cached_property
+    def packed(self) -> 'AttrMultiValue[Self]':
+        return AttrMultiValue.get(None if self.value is None else self, self.value_cls)
+
     @classmethod
     @abstractmethod
     def get(cls, value: Self | VT | None, *args: Any, **kwargs: Any) -> Self:
@@ -274,6 +283,10 @@ class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrAny[tuple[CT, ...]
     @cached_property
     def unpacked(self) -> tuple[Any, ...]:
         return tuple(elem.value for elem in self)
+    
+    @cached_property
+    def packed(self) -> 'AttrMultiValue[CT]':
+        return self
     
     def sort_key(self, sign: Literal[-1] | Literal[1] = +1, *args: Any, **kwargs: Any) -> tuple:
         if not self:
@@ -440,6 +453,11 @@ class Link(AttrStr):
 
 
 class Info(AttrStr):
+    def __init__(self, value: Optional[str]):
+        if value is not None:
+            value = value.replace("\\n", "\n")
+
+        super().__init__(value)
     ALIAS: frozenset[str] = frozenset(["ex", "e", "extra", "i", "desc", "description", "data"])
     REQUIRED = False
     MULTI_VALUE = False
