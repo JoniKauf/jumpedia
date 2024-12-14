@@ -2,12 +2,9 @@ import ast
 from dataclasses import astuple
 import sys
 from typing import Any, Callable, Literal, Optional, Self, Sequence, TypeAlias, cast, get_args
-from discordtools.errors import InvalidAttributeFeedbackError, ProgrammingError
+from discordtools.errors import ProgrammingError
 from trickjump import attributes
-from trickjump.trickjump import Trickjump, TrickjumpDataT
-from registry.bundles.databases.mariadb import Table
-from trickjump.attributes import AttrBase, MultiValueMixin, ATTR_NAMES
-from utils import errors
+from trickjump.trickjump import Trickjump
 
 class FilterSyntaxError(Exception):
     pass
@@ -20,78 +17,20 @@ class Catalog(list[Trickjump]):
     
     _RAISE_KEY_ERROR = object()
 
-    def __init__(self, data: Optional[Sequence[Trickjump] | Sequence[TrickjumpDataT]] = None, **tj_kwargs: Any):
-        if not data:
-            super().__init__()
-            return
-        
-        generator = (
-            Trickjump(jump, **tj_kwargs) 
-            if isinstance(jump, dict) else jump
-            for jump in data
-        )
-        
-        super().__init__(generator)
-        
+    def __init__(self, data: Optional[Sequence[Trickjump]] = None):
+        super().__init__(data or ())
 
     @classmethod
     def get_all_trickjumps(cls, **tj_kwargs: Any) -> Self:
         pass
     
 
-    def contains_name(self, jump_name: str) -> bool:
-        jump_name = jump_name.casefold()
-        for jump in self:
-            if jump.name.value and jump.name.value.casefold() == jump_name:
-                return True
-        return False
-    
-    
-    @staticmethod
-    def jump_name_eq(jump: Trickjump, jump_name: str) -> bool:
-        return bool(jump.name.value) and jump.name.value.casefold() == jump_name
-
-
-    def get_by_name(self, jump_name: str, default: Optional[Trickjump] = None) -> Optional[Trickjump]:
-        jump_name = jump_name.casefold()
-
-        for jump in self:
-            if Catalog.jump_name_eq(jump, jump_name):
-                return jump
-        return default
-    
-
-    def name_index(self, jump_name: str, default: Optional[int] = None) -> Optional[int]:
-        jump_name = jump_name.casefold()
-        for index, jump in enumerate(self):
-            if Catalog.jump_name_eq(jump, jump_name): 
-                return index
-        return default
-    
-
-    def pop_by_name(self, jump_name: str, default: Optional[Trickjump]) -> Optional[Trickjump]:
-        jump_name = jump_name.casefold()
-        for index, jump in enumerate(self):
-            if Catalog.jump_name_eq(jump, jump_name):
-                return self.pop(index)
-        return default
-    
-
-    def filter(self, expression: Optional[str] = None):
+    def filter(self, expression: Optional[str]):
         """Filters the base to only include matching jumps according to a custom syntax."""
         
         if not expression or not self:
             return
         
-        def raise_syn_err(feedback: str, docs: Optional[Sequence[str]] = None):
-            raise FeedbackError(
-                error="Filter Syntax",
-                details=feedback,
-                docs=docs
-            )
-        
-        # TODO: Improve performance -> Calculations besides getting jump info are
-        # always the same, therefore repeated without reasoning for every jump
         class TrickJumpNodeVisitor(ast.NodeVisitor):
             def __init__(self, trickjump: Trickjump):
                 # last element will always be the currently visited function node

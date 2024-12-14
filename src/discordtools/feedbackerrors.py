@@ -1,8 +1,9 @@
-from discordtools import errors, messagetools
-from typing import Sequence
+from discordtools import errors
+from typing import Optional, Sequence
 from discordtools import messagetools as msgt
 from numbers import Real
 
+short = msgt.shorten
 
 class InvalidPermission(errors.FeedbackError):
     def __init__(self, ephemeral: bool = True):
@@ -24,14 +25,35 @@ class BadChannel(errors.FeedbackError):
         )
 
 class InvalidAttribute(errors.FeedbackError):
-    def __init__(self, attr: str) -> None:
+    def __init__(self, attr: str, expression: Optional[str] = None) -> None:
         self.attr = attr
-
+        
         super().__init__(
             error="Invalid Attribute Error",
-            details=f"The attribute `{attr}` is not valid!"
+            details=(
+                f"The attribute `{short(attr)}` is not valid!"
+                if expression is None else
+                f"The attribute `{short(attr)}` from the expression `{short(expression) or msgt.default_empty()}` is not valid!"
+            )
         )
-        
+
+class InvalidSubattribute(errors.FeedbackError):
+    def __init__(self, attr: str, sub_attr: str, expression: Optional[str] = None):
+        self.attr = attr
+        self.sub_attr = sub_attr
+        self.expression = expression
+
+        super().__init__(
+            error="Invalid Sub Attribute",
+            details=(
+                f"The attribute `{short(attr)}` has no subattribute `{short(sub_attr)}`"
+                + (
+                    f" in the expression `{short(expression) or msgt.default_empty()}`!"
+                    if expression else "!"
+                )
+            )
+        )
+
 class SameAttribute(errors.FeedbackError):
     def __init__(self, attr: str):
         self.attr = attr

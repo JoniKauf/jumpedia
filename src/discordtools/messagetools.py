@@ -10,13 +10,16 @@ InteractionFuncT = Callable[..., Coroutine]
 
 # --- Text editing ---
 
+def default_empty() -> str:
+    return "<Empty>"
+
 def shorten(s: str, max: int = 32, more: str = '...') -> str:
     return s[:max - len(more)] + more if len(s) > max else s
 
 def shorten_seq(elems: Sequence[str], *, max_elems: int = 8, max_s: int = 16, more_elems: str = '...', more_s: str = '...') -> tuple[str, ...]:
     return (*(shorten(elem, max_s, more_s) for elem in elems[:max_elems]), more_elems) if len(elems) > max_elems else tuple(elems)
 
-def embed_seq(elems: Sequence[str], *, when_empty: str = '<Empty>') -> str:
+def embed_seq(elems: Sequence[str], *, when_empty: str = default_empty()) -> str:
     return f"`{'`, `'.join(elems)}`" if elems else when_empty
 
 def shorten_and_embed_seq(
@@ -26,7 +29,7 @@ def shorten_and_embed_seq(
     max_s: int = 16,
     more_elems: str = '...', 
     more_s: str = '...',
-    when_empty: str = ''
+    when_empty: str = default_empty()
 ):
     return embed_seq(shorten_seq(elems, max_elems=max_elems, max_s=max_s, more_elems=more_elems, more_s=more_s), when_empty=when_empty)
 

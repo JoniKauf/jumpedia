@@ -1,35 +1,30 @@
-from enum import Enum, auto
-from functools import cached_property
-import functools
-from typing import Any, Generator, Optional, Sequence, overload, override
+from typing import Annotated, Any, Generator, Sequence, overload, override
 from dataclasses import dataclass
 
 from trickjump import attributes as attrs
-from trickjump import attributes
-from trickjump.attributes import AttributeComboClass, Finder, Taser, Prover
-from discordtools import messagetools as msgt
+from trickjump.attributes import AttributeCollection
 from users import person
 
 
 type TrickjumpDataT = dict[str, Any]
 
 @dataclass(init=False, slots=True)
-class Trickjump(AttributeComboClass):
-    name: attrs.Name
-    location: attrs.AttrMultiValue[attrs.Location]
-    difficulty: attrs.Difficulty
-    type: attrs.AttrMultiValue[attrs.Type]
-    server: attrs.Server
-    finder: attrs.AttrMultiValue[attrs.Finder]
-    taser: attrs.AttrMultiValue[attrs.Taser]
-    prover: attrs.AttrMultiValue[attrs.Prover]
-    found_at: attrs.FoundAt
-    tased_at: attrs.TasedAt
-    proven_at: attrs.ProvenAt
-    link: attrs.AttrMultiValue[attrs.Link]
-    info: attrs.Info
-    tag: attrs.AttrMultiValue[attrs.Tag]
-    thumbnail: attrs.Thumbnail
+class Trickjump(AttributeCollection):
+    name:       Annotated[attrs.Name, attrs.AttrMetadata(True)]
+    location:   Annotated[attrs.AttrMultiValue[attrs.Location], attrs.AttrMetadata(True)]
+    difficulty: Annotated[attrs.Difficulty, attrs.AttrMetadata(True)]
+    type:       Annotated[attrs.AttrMultiValue[attrs.Type], attrs.AttrMetadata(True)]
+    server:     Annotated[attrs.Server, attrs.AttrMetadata(True)]
+    finder:     Annotated[attrs.AttrMultiValue[attrs.Finder], attrs.AttrMetadata(True)]
+    taser:      Annotated[attrs.AttrMultiValue[attrs.Taser], attrs.AttrMetadata(True)]
+    prover:     Annotated[attrs.AttrMultiValue[attrs.Prover], attrs.AttrMetadata(True)]
+    found_at:   Annotated[attrs.FoundAt, attrs.AttrMetadata(True)]
+    tased_at:   Annotated[attrs.TasedAt, attrs.AttrMetadata(True)]
+    proven_at:  Annotated[attrs.ProvenAt, attrs.AttrMetadata(True)]
+    link:       Annotated[attrs.AttrMultiValue[attrs.Link], attrs.AttrMetadata(True)]
+    info:       Annotated[attrs.Info, attrs.AttrMetadata(True)]
+    tag:        Annotated[attrs.AttrMultiValue[attrs.Tag], attrs.AttrMetadata(True)]
+    thumbnail:  Annotated[attrs.Thumbnail, attrs.AttrMetadata(True)]
 
     def as_info(self) -> str:
         return "\n".join(f"{elem.NAME}: {elem.value}" for elem in self.__dict__.values())
@@ -62,3 +57,14 @@ class Trickjump(AttributeComboClass):
             f"{join_grammatically(titles)} by {join_grammatically(value)}"
             for value, titles in people_to_action.items()
         )
+
+
+def main() -> None:
+    tj: Trickjump = Trickjump({
+            "name": "Test Jump"
+        },
+            required=False
+    )
+
+if __name__ == '__main__':
+    main()
