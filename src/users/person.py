@@ -2,7 +2,7 @@ from typing import ClassVar, Self
 
 
 class Person:
-    LOOKUP: ClassVar[dict[str | int, Self]]
+    LOOKUP: ClassVar[dict[str | int, 'Person"']]
 
     def __init__(self, value: str, *, id: int) -> None:
         self.value: str = value

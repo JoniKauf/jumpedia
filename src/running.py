@@ -3,37 +3,47 @@ import os
 import traceback
 from typing import Any, Callable
 
-import discord
-from discord import Interaction, app_commands
+from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import CommandError, Context
 
+import discord
 from discordtools import errors, messagetools
+from database import secret
 
 if __name__ == '__main__':
     raise RuntimeError
 
-TOKEN = JsonDatabases.secret_db.load()['DISCORD_TOKEN']
-COMMANDS_PACKAGE = 'cogs'
+SEP = r" \ ".strip()
 
-@bot.event
+BOT: commands.Bot = globals()["BOT"]
+TOKEN = secret.listen()['DISCORD_TOKEN']
+
+COGS_DIR = r"cogs"
+
+
+def get_cogs() -> list[str]:
+    return [
+        f"{COGS_DIR}.{os.path.splitext(module)[0]}"
+        for module in os.listdir(COGS_DIR)
+        if not module.startswith("__")
+    ]
+    
+@BOT.event
 async def on_ready():
     try:
-        for file_name in os.listdir(COMMANDS_PACKAGE):
-            file_name = file_name.removesuffix('.py')
+        for module in get_cogs():
+            await BOT.load_extension(module)
 
-            if not file_name.startswith('__'):
-                await bot.load_extension(f"{COMMANDS_PACKAGE}.{file_name}")
+        await BOT.tree.sync()
+        await BOT.wait_until_ready()
     except BaseException as e:
         traceback.print_exc()
         exit(1)
 
-    await bot.tree.sync()
-    await bot.wait_until_ready()
 
-
-@bot.tree.error
-async def on_app_command_error(interaction: Interaction, error: app_commands.AppCommandError) -> None:
+@BOT.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
     if isinstance(error, app_commands.CommandInvokeError):
         e = error.original
     elif isinstance(error, app_commands.CheckFailure):
@@ -54,5 +64,4 @@ async def on_app_command_error(interaction: Interaction, error: app_commands.App
     await interaction.followup.send("Unhandled Exception!")
     raise e
 
-
-bot.run(TOKEN)
+BOT.run(TOKEN)

@@ -22,7 +22,7 @@ class Catalog(list[Trickjump]):
 
     @classmethod
     def get_all_trickjumps(cls, **tj_kwargs: Any) -> Self:
-        pass
+        ...
     
 
     def filter(self, expression: Optional[str]):
