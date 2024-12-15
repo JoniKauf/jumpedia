@@ -14,10 +14,7 @@ def main():
     if platform.python_implementation() != 'CPython':
         raise RuntimeError('Developed for CPython, other Python implementation may not be compatible!')
 
-    import scripts.old_to_new.data_old_to_new
-    
-    return
-    runpy.run_module('meta.integrity')
+    import trickjump.attributes
     runpy.run_module('running')
     
 

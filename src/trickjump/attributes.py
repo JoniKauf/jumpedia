@@ -14,6 +14,7 @@ from collections.abc import KeysView, ValuesView, ItemsView
 
 import discordtools.feedbackerrors as fbe
 from users.person import Person
+from utils.better_inbuilts import BetterSet
 
 
 
@@ -62,7 +63,7 @@ class AttrAny[T](ABC):
                 cls: Optional[type[AttrAny]] = caller.f_locals.get("cls", None)
                 self_: Optional[AttrAny] = caller.f_locals.get("self", None)
 
-                if cls is None or not issubclass(cls, AttrAny) or self_ is None or not isinstance(self, AttrAny):
+                if (cls is None or not issubclass(cls, AttrAny)) and (self_ is None or not isinstance(self, AttrAny)):
                     raise RuntimeError(
                         "Use the classmethod get(...) to create instances!"
                     )
@@ -170,11 +171,15 @@ class AttrSingleValue[VT](AttrAny[VT]):
         return str(self.value)
     
     def __init__(self, value: Optional[VT]):
-        self.value: Optional[VT] = value
+        self._value: Optional[VT] = value
         super().__init__()
 
     def __hash__(self) -> int:
         return hash(tuple(sorted(self.__dict__.items())))
+    
+    @cached_property
+    def value(self) -> Optional[VT]:
+        return self._value
     
     @cached_property
     def value_cls(self) -> type[Self]:
@@ -242,7 +247,7 @@ class AttrStrEntry(AttrSingleValue[str]):
             return cls.LOOKUP[value]
         if isinstance(value, cls):
             return value
-        
+
         raise TypeError("Unexpected type:", type(value))
 
     def sort_key(self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> int:
@@ -344,27 +349,68 @@ class Name(AttrStr):
 
 
 class Location(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Location"] = {}
+    
     ALIAS: frozenset[str] = frozenset(["l", "loc", "k", "kd", "kingdom"])
     REQUIRED = True
     MULTI_VALUE = True
     USER_SPECIFIC = False
     SECRET = False
 
-    def __init__(self, value: Optional[str], *, id: int, alias: frozenset[str] = frozenset(), tag: frozenset[str], outer: frozenset[Self]):
+    def __init__(
+        self, 
+        value: Optional[str], 
+        *, 
+        id: int, 
+        alias: frozenset[str] = frozenset(), 
+        tag: frozenset[str] = frozenset(), 
+        outer: frozenset[Self] = frozenset()
+    ):
         self.outer: Annotated[frozenset[Self], AttrMetadata(True)] = outer
         self.tag: Annotated[frozenset[str], AttrMetadata(True)] = tag
         super().__init__(value, id=id, alias=alias)
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connection() as connection:
-            cls.LOOKUP = {
-                
-            }
+        with queries.connected() as (connection, cursor):
+            cursor.execute(f"""
+                SELECT 
+                    location.id AS id,
+                    location.name AS name,
+                    location_alias.alias AS alias,
+                    location_outer_junction.outer_id AS outer_id,
+                    location_tag.tag AS tag
+                FROM location
+                LEFT JOIN location_alias ON location.id = location_alias.location_id
+                LEFT JOIN location_outer_junction ON location.id = location_outer_junction.location_id
+                LEFT JOIN location_tag_junction ON location.id = location_tag_junction.location_id
+                LEFT JOIN location_tag ON location_tag_junction.tag_id = location_tag.id;
+            """)
+
+            rows: list = cursor.fetchall()
+
+        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
+
+        for location in result.values():
+            id: int = location["id"].at(0)
+            name: str = location["name"].at(0)
+
+            cls.LOOKUP[id] = cls.LOOKUP[name] = Location(
+                name,
+                id=id,
+                alias=location["alias"].freeze(),
+                tag=location["tag"].freeze(),
+                outer=frozenset(cls.LOOKUP[outer_id] for outer_id in location["outer_id"])
+            )
+
+        for location in cls.LOOKUP.values():
+            print(location)
         return super()._init_cls()
     
 
 class Tier(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Tier"] = {}
+
     ALIAS: frozenset[str] = frozenset(["t"])
     REQUIRED = True
     MULTI_VALUE = False
@@ -373,19 +419,23 @@ class Tier(AttrStrEntry):
 
 
 class Difficulty(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Difficulty"] = {}
+
     ALIAS: frozenset[str] = frozenset(["diff", "d"])
     REQUIRED = True
     MULTI_VALUE = False
     USER_SPECIFIC = False
     SECRET = False
 
-    def __init__(self, value: Optional[str], *, tier: Tier, id: int, is_missing: bool = True, alias: frozenset[str] = frozenset()):
-        self.tier: Annotated[Tier, AttrMetadata(True)] = tier
+    def __init__(self, value: Optional[str], *, tier: Optional[Tier] = None, id: int, is_missing: bool = True, alias: frozenset[str] = frozenset()):
+        self.tier: Annotated[Tier, AttrMetadata(True)] = Tier.get(tier)
         self.is_missing: bool = is_missing
         super().__init__(value, id=id, alias=alias)
 
 
 class Type(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Type"] = {}
+
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
     REQUIRED = False
     MULTI_VALUE = True
@@ -394,6 +444,8 @@ class Type(AttrStrEntry):
 
 
 class Server(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Server"] = {}
+
     ALIAS: frozenset[str] = frozenset(["s", "serv"])
     REQUIRED = True
     MULTI_VALUE = False
@@ -497,6 +549,8 @@ class Info(AttrStr):
         super().__init__(value)
 
 class Tag(AttrStrEntry):
+    LOOKUP: dict[str | int | None, "Tag"] = {}
+
     ALIAS: frozenset[str] = frozenset(["tags"])
     REQUIRED = False
     MULTI_VALUE = True

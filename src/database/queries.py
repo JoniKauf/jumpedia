@@ -1,5 +1,8 @@
+from contextlib import contextmanager
 import functools
-from typing import Any
+from typing import Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal
+from types import EllipsisType
+from utils.better_inbuilts import BetterSet
 
 import mariadb.cursors
 from . import mariadb_extensions as mdbe
@@ -10,44 +13,43 @@ import mariadb
 def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
-def connection() -> mariadb.Connection:
-    return mariadb.connect(**__get_connection_data())
-    
-class Tables:
-    LOCATION = "location"
-    LOCATION_ALIAS = "location_alias"
-    LOCATION_OUTER_JUNCTION = "location_outer_junction"
-    LOCATION_TAG = "location_tag"
-    LOCATION_TAG_JUNCTION = "location_tag_junction"
-    TIER = "tier"
-    TIER_ALIAS = "tier_alias"
-    DIFFICULTY = "difficulty"
-    DIFFICULTY_ALIAS = "difficulty_alias"
-    TYPE = "type"
-    PERSON = "person"
-    SERVER = "server"
-    SERVER_ALIAS = "server_alias"
-    LINK = "link"
-    INFO = "info"
-    TAG = "tag"
-    THUMBNAIL = "thumbnail"
-    RANK = "rank"
-    USER = "user"
-    TRICKJUMP = "trickjump"
-    USER_TRICKJUMP = "user_trickjump"
-    TRICKJUMP_CONTRIBUTOR = "trickjump_contributor"
-    TRICKJUMP_LOCATION_JUNCTION = "trickjump_location_junction"
-    TRICKJUMP_TYPE_JUNCTION = "trickjump_type_junction"
-    TRICKJUMP_EXTRA_JUNCTION = "trickjump_extra_junction"
-    TRICKJUMP_TAG_JUNCTION = "trickjump_tag_junction"
-    TRICKJUMP_LINK_JUNCTION = "trickjump_link_junction"
-    TRICKJUMP_INFO_JUNCTION = "trickjump_info_junction"
+@contextmanager
+def connected(final_commit: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+    conn = None
+    try:
+        conn = mariadb.connect(**__get_connection_data())
+        cursor = conn.cursor(dictionary=True)
+        yield conn, cursor
+        if final_commit:
+            conn.commit()
+    except mariadb.Error as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
 
 
+def collapse_rows[T: Hashable](
+    rows: list[dict[str, T | Hashable]], 
+    collapse_columns: str, 
+    keep: Callable[[str, Hashable], bool] = lambda col, v: v is not None,
+    collapsed_column_in_data: bool = False
+) -> dict[T, dict[str, BetterSet[Hashable]]]:
+    result: dict[T, dict[str, BetterSet[Hashable]]] = {}
 
-def get_all_trickjumps() -> Any:
-    with CONNECTOR as conn:
-        cursor = conn.execute("""
-            SELECT
-                name, location
-        """)
+    for row in rows:
+        entry = result.setdefault(row[collapse_columns], {})  # type: ignore
+
+        for col, value in row.items():
+            entry[col] = BetterSet()
+            
+            if keep(col, value):
+                entry[col].add(value)
+
+            if not collapsed_column_in_data:
+                entry.pop(collapse_columns)
+        
+    return result
