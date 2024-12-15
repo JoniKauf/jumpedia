@@ -7,6 +7,7 @@ __LOCATION = r"..\secret.json"
 
 class SecretContentT(TypedDict):
     DB_CONNECTION_INFO: dict[str, Any]
+    DISCORD_TOKEN: str
 
 
 def listen() -> SecretContentT:

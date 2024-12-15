@@ -1,18 +1,36 @@
 from utils import devtools
 from database import queries
 
+class Counter:
+    def __init__(self, start: int = 0, step: int = 1):
+        self.n = self.start = start
+        self.step = step
+
+    def next(self) -> int:
+        ret = self.n
+        self.n += self.step
+        return ret
+    
+    def __call__(self) -> int:
+        return self.next()
+
+    def reset(self) -> None:
+        self.n = self.start
+
+
 devtools.time_left(seconds=5, feedback=lambda sec: f"You have {sec:.1f} seconds left to cancel!")
 
 input("WARNING: This will clear the entire database. ARE YOU SURE?")
 input("Are you like sure, sure???")
 
-with queries.connected() as connection, connection.cursor() as cursor:
+with queries.connected() as (connection, cursor):
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
-    cursor.execute("SHOW TABLES")
-    
-    tables: list[str] = cursor.fetchall()
 
-    for (table_name,) in tables or ():
+    cursor.execute("SHOW TABLES")
+    tables: list[dict[str, str]] = cursor.fetchall()
+
+    for table_data in tables:
+        table_name = tuple(table_data.values())[0]
         cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`")
 
     devtools.noob_log("All tables deleted")
@@ -24,7 +42,8 @@ with queries.connected() as connection, connection.cursor() as cursor:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS location (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL
+            name VARCHAR(100) UNIQUE NOT NULL,
+            sort_value INT UNIQUE NOT NULL
         )
     """)
 
@@ -67,7 +86,8 @@ with queries.connected() as connection, connection.cursor() as cursor:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tier (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(16) UNIQUE NOT NULL
+            name VARCHAR(16) UNIQUE NOT NULL,
+            sort_value INT UNIQUE NOT NULL
         )
     """)
 
@@ -84,6 +104,7 @@ with queries.connected() as connection, connection.cursor() as cursor:
         CREATE TABLE IF NOT EXISTS difficulty (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(16) UNIQUE NOT NULL,
+            sort_value INT UNIQUE NOT NULL,
             missing BOOL NOT NULL DEFAULT TRUE,
             tier_id INT NOT NULL,
             FOREIGN KEY (tier_id) REFERENCES tier (id)
@@ -99,27 +120,29 @@ with queries.connected() as connection, connection.cursor() as cursor:
         )
     """)
 
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS type (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(32) UNIQUE,
+            sort_value INT UNIQUE NOT NULL,
             description VARCHAR(512)
         )
     """)
 
-
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS person (
+        CREATE TABLE IF NOT EXISTS type_alias (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(64) UNIQUE NOT NULL
-        )
+            alias VARCHAR(100) UNIQUE NOT NULL,
+            type_id INT NOT NULL,
+            FOREIGN KEY (type_id) REFERENCES type (id) ON DELETE CASCADE
+        );
     """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS server (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(32) UNIQUE NOT NULL
+            name VARCHAR(32) UNIQUE NOT NULL,
+            sort_value INT UNIQUE NOT NULL
         )
     """)
 
@@ -164,6 +187,12 @@ with queries.connected() as connection, connection.cursor() as cursor:
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS person (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(64) UNIQUE NOT NULL
+        )
+    """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS `rank` (
@@ -185,8 +214,6 @@ with queries.connected() as connection, connection.cursor() as cursor:
             FOREIGN KEY (rank_power) REFERENCES `rank` (power)
         )
     """)
-
-
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS trickjump (
@@ -291,22 +318,23 @@ with queries.connected() as connection, connection.cursor() as cursor:
     """)
 
     devtools.noob_log("All new tables created")
+    c = Counter(0, 1)
 
-    cursor.execute("""
-        INSERT INTO tier (name) VALUES
-        ('Practice Tier'),
-        ('Beginner'),
-        ('Intermediate'),
-        ('Advanced'),
-        ('Expert'),
-        ('Master'),
-        ('Low Elite'),
-        ('Mid Elite'),
-        ('High Elite'),
-        ('Insanity Elite'),
-        ('God Tier'),
-        ('Hell Tier'),
-        ('Unproven')
+    cursor.execute(f"""
+        INSERT INTO tier (name, sort_value) VALUES
+        ('Practice Tier', {c()}),
+        ('Beginner', {c()}),
+        ('Intermediate', {c()}),
+        ('Advanced', {c()}),
+        ('Expert', {c()}),
+        ('Master', {c()}),
+        ('Low Elite', {c()}),
+        ('Mid Elite', {c()}),
+        ('High Elite', {c()}),
+        ('Insanity Elite', {c()}),
+        ('God Tier', {c()}),
+        ('Hell Tier', {c()}),
+        ('Unproven', {c()})
     """)
 
     cursor.execute("""
@@ -325,36 +353,38 @@ with queries.connected() as connection, connection.cursor() as cursor:
         ('Hell', (SELECT id FROM tier WHERE name = 'Hell Tier'))
     """)
 
-    cursor.execute("""
-        INSERT INTO difficulty (name, tier_id) VALUES
-        ('0/10', (SELECT id FROM tier WHERE name = 'Practice Tier')),
-        ('0.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('1/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('1.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('2/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('2.5/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('3/10', (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('3.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('4/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('4.5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('5/10', (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('5.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('6/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('6.5/10', (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('7/10', (SELECT id FROM tier WHERE name = 'Expert')),
-        ('7.5/10', (SELECT id FROM tier WHERE name = 'Expert')),
-        ('8/10', (SELECT id FROM tier WHERE name = 'Expert')),
-        ('8.5/10', (SELECT id FROM tier WHERE name = 'Master')),
-        ('9/10', (SELECT id FROM tier WHERE name = 'Master')),
-        ('9.5/10', (SELECT id FROM tier WHERE name = 'Master')),
-        ('10/10', (SELECT id FROM tier WHERE name = 'Master')),
-        ('Low Elite', (SELECT id FROM tier WHERE name = 'Low Elite')),
-        ('Mid Elite', (SELECT id FROM tier WHERE name = 'Mid Elite')),
-        ('High Elite', (SELECT id FROM tier WHERE name = 'High Elite')),
-        ('Insanity Elite', (SELECT id FROM tier WHERE name = 'Insanity Elite')),
-        ('God Tier', (SELECT id FROM tier WHERE name = 'God Tier')),
-        ('Hell Tier', (SELECT id FROM tier WHERE name = 'Hell Tier')),
-        ('Unproven', (SELECT id FROM tier WHERE name = 'Unproven'))
+    c.reset()
+
+    cursor.execute(f"""
+        INSERT INTO difficulty (name, sort_value, tier_id) VALUES
+        ('0/10', {c()}, (SELECT id FROM tier WHERE name = 'Practice Tier')),
+        ('0.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('1/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('1.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('2/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('2.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('3/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('3.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('4/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('4.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('5.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('6/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('6.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('7/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('7.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('8/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('8.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
+        ('9/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
+        ('9.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
+        ('10/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
+        ('Low Elite', {c()}, (SELECT id FROM tier WHERE name = 'Low Elite')),
+        ('Mid Elite', {c()}, (SELECT id FROM tier WHERE name = 'Mid Elite')),
+        ('High Elite', {c()}, (SELECT id FROM tier WHERE name = 'High Elite')),
+        ('Insanity Elite', {c()}, (SELECT id FROM tier WHERE name = 'Insanity Elite')),
+        ('God Tier', {c()}, (SELECT id FROM tier WHERE name = 'God Tier')),
+        ('Hell Tier', {c()}, (SELECT id FROM tier WHERE name = 'Hell Tier')),
+        ('Unproven', {c()}, (SELECT id FROM tier WHERE name = 'Unproven'))
     """)
 
     cursor.execute("""
@@ -412,25 +442,27 @@ with queries.connected() as connection, connection.cursor() as cursor:
         ('Hell', (SELECT id FROM difficulty WHERE name = 'Hell Tier'))
     """)
 
-    cursor.execute("""
-        INSERT INTO location (name) VALUES
-        ('Cap Kingdom'),
-        ('Cascade Kingdom'),
-        ('Sand Kingdom'),
-        ('Lake Kingdom'),
-        ('Wooded Kingdom'),
-        ('Cloud Kingdom'),
-        ('Lost Kingdom'),
-        ('Metro Kingdom'),
-        ('Snow Kingdom'),
-        ('Seaside Kingdom'),
-        ('Luncheon Kingdom'),
-        ('Ruined Kingdom'),
-        ('Bowser''s Kingdom'),
-        ('Moon Kingdom'),
-        ('Mushroom Kingdom'),
-        ('Dark side'),
-        ('Darker side')
+    c.reset()
+    cursor.execute(f"""
+        INSERT INTO location (name, sort_value) VALUES
+        ('Cap Kingdom', {c()}),
+        ('Cascade Kingdom', {c()}),
+        ('Sand Kingdom', {c()}),
+        ('Lake Kingdom', {c()}),
+        ('Wooded Kingdom', {c()}),
+        ('Cloud Kingdom', {c()}),
+        ('Lost Kingdom', {c()}),
+        ('Metro Kingdom', {c()}),
+        ('Snow Kingdom', {c()}),
+        ('Seaside Kingdom', {c()}),
+        ('Luncheon Kingdom', {c()}),
+        ('Ruined Kingdom', {c()}),
+        ('Bowser''s Kingdom', {c()}),
+        ('Moon Kingdom', {c()}),
+        ('Mushroom Kingdom', {c()}),
+        ('Dark side', {c()}),
+        ('Darker side', {c()}),
+        ('Odyssey', {c()})
     """)
 
     cursor.execute("""
@@ -457,10 +489,6 @@ with queries.connected() as connection, connection.cursor() as cursor:
         ('Dark', (SELECT id FROM location WHERE name = 'Dark side')),
         ('Darker', (SELECT id FROM location WHERE name = 'Darker side'))
     """)
-
-    cursor.execute("""
-        INSERT INTO location (name) VALUES ('Odyssey')
-    """)
     
     cursor.execute("""
         INSERT INTO location_outer_junction (location_id, outer_id) VALUES
@@ -483,10 +511,11 @@ with queries.connected() as connection, connection.cursor() as cursor:
         ((SELECT id FROM location WHERE name = 'Odyssey'), (SELECT id FROM location WHERE name = 'Darker Side'))
     """)
 
-    cursor.execute("""
-        INSERT INTO server (name) VALUES 
-        ('SMO Trickjumping server'),
-        ('Database')
+    c.reset()
+    cursor.execute(f"""
+        INSERT INTO server (name, sort_value) VALUES 
+        ('SMO Trickjumping server', {c()}),
+        ('Database', {c()})
     """)
 
     cursor.execute("""
