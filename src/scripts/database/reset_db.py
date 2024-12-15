@@ -6,7 +6,7 @@ devtools.time_left(seconds=5, feedback=lambda sec: f"You have {sec:.1f} seconds 
 input("WARNING: This will clear the entire database. ARE YOU SURE?")
 input("Are you like sure, sure???")
 
-with queries.connection() as connection, connection.cursor() as cursor:
+with queries.connected() as connection, connection.cursor() as cursor:
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
     cursor.execute("SHOW TABLES")
     

@@ -8,9 +8,7 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 from discord.ext.commands import CommandError, Context
 
-from src.bot import bot
 from discordtools import errors, messagetools
-from registry.bundles.databases.jsondb import JsonDatabases
 
 if __name__ == '__main__':
     raise RuntimeError
