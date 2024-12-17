@@ -19,15 +19,13 @@ from utils.better_inbuilts import BetterSet
 
 _init_module_done = False
 
-@dataclass(frozen=True)
-class AttrMetadata:
-    accessible: bool
-    editable: bool
-
 
 # --- Base Classes ---
 
 class AttrAny[T](ABC):
+    ACCESSIBLE: bool = True
+    EDITABLE: bool = True
+
     @property
     @abstractmethod
     def value(self) -> T:
@@ -38,12 +36,38 @@ class AttrAny[T](ABC):
 
 
 class AttrSub[T](AttrAny[T]):
-    def __init__(self) -> None:
+    def __init__(self, value: T) -> None:
+        self._value = value
         super().__init__()
 
-    #TODO
+    @property
+    def value(self) -> T:
+        return self._value
     
-class AttrRoot[T](AttrAny[Optional[T]]):
+
+class SortValueSub(AttrSub[int]):
+    ACCESSIBLE = False
+    EDITABLE = True
+
+class OuterSub(AttrSub[frozenset['Location']]):
+    ACCESSIBLE = True
+    EDITABLE = True
+
+class TagSub(AttrSub[frozenset[str]]):
+    ACCESSIBLE = True
+    EDITABLE = True
+
+class TierSub(AttrSub['Tier']):
+    ACCESSIBLE = True
+    EDITABLE = True
+
+class AuthorSub(AttrSub[Person]):
+    ACCESSIBLE = True
+    EDITABLE = True
+
+
+    
+class AttrNormal[T](AttrAny[Optional[T]]):
     """An abstract base class for anything that represents a "normal" attribute.
     
     Metadata Class Variables:
@@ -75,10 +99,10 @@ class AttrRoot[T](AttrAny[Optional[T]]):
             caller = frame.f_back
 
             if caller is not None:
-                cls: Optional[type[AttrRoot]] = caller.f_locals.get("cls", None)
-                self_: Optional[AttrRoot] = caller.f_locals.get("self", None)
+                cls: Optional[type[AttrNormal]] = caller.f_locals.get("cls", None)
+                self_: Optional[AttrNormal] = caller.f_locals.get("self", None)
 
-                if (cls is None or not issubclass(cls, AttrRoot)) and (self_ is None or not isinstance(self, AttrRoot)):
+                if (cls is None or not issubclass(cls, AttrNormal)) and (self_ is None or not isinstance(self, AttrNormal)):
                     raise RuntimeError(
                         "Use the classmethod get(...) to create instances!"
                     )
@@ -166,13 +190,20 @@ class AttrRoot[T](AttrAny[Optional[T]]):
         acts as a way of reversing the order.
         """
 
-type AttrAnyTypeT[VT] = (
+type AttrNormalTypeT[VT] = (
     type[AttrSingleValue[VT]] | type[AttrMultiValue[AttrSingleValue[VT]]]
 )
-type AttrAnyT[VT] = AttrSingleValue[VT] | AttrMultiValue[AttrSingleValue[VT]]
+type AttrNormalT[VT] = (
+    AttrSingleValue[VT] | AttrMultiValue[AttrSingleValue[VT]]
+)
+type AttrAnyTypeT[VT] = (
+    AttrNormalTypeT[VT] | type[AttrSub[VT]]
+)
+type AttrAnyT[VT] = (
+    AttrNormalT[VT] | AttrNormalT
+)
 
-
-class AttrSingleValue[VT](AttrRoot[VT]):
+class AttrSingleValue[VT](AttrNormal[VT]):
     NAME: str
     ALIAS: frozenset[str]
     REQUIRED: bool
@@ -242,8 +273,8 @@ class AttrStrEntry(AttrSingleValue[str]):
             )
         
         self.id: int = id
-        self.sort_value: Annotated[int, AttrMetadata(False, True)] = sort_value
-        self.alias: Annotated[frozenset[str], AttrMetadata(True, True)] = alias
+        self.sort_value  = sort_value
+        self.alias = alias
 
         super().__init__(value)
     
@@ -301,7 +332,7 @@ class AttrPerson(AttrSingleValue[Person]):
         return AttrStr.sort_key(AttrStr(self.value.value if self.value is not None else self.value), sign=sign, **kwargs)
     
 
-class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrRoot[tuple[CT, ...]]):
+class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrNormal[tuple[CT, ...]]):
     """
     A collection of multiple instances of the same Attr.
     An empty collection is converted to None and all None
@@ -377,10 +408,10 @@ class Location(AttrStrEntry):
         sort_value: int,
         alias: frozenset[str] = frozenset(), 
         tag: frozenset[str] = frozenset(), 
-        outer: frozenset[Self] = frozenset()
+        outer: frozenset['Location'] = frozenset()
     ):
-        self.outer: Annotated[frozenset[Self], AttrMetadata(True, True)] = outer
-        self.tag: Annotated[frozenset[str], AttrMetadata(True, True)] = tag
+        self.outer = OuterSub(outer)
+        self.tag = TagSub(tag)
         super().__init__(value, id=id, sort_value=sort_value, alias=alias)
 
     @classmethod
@@ -477,7 +508,7 @@ class Difficulty(AttrStrEntry):
     SECRET = False
 
     def __init__(self, value: Optional[str], *, tier: Optional[Tier] = None, id: int, sort_value: int, missing: bool = True, alias: frozenset[str] = frozenset()):
-        self.tier: Annotated[Tier, AttrMetadata(True, True)] = Tier.get(tier)
+        self.tier = TierSub(Tier.get(tier))
         self.missing: bool = missing
         super().__init__(value, id=id, sort_value=sort_value, alias=alias)
 
@@ -678,7 +709,7 @@ class Link(AttrStr):
     SECRET = False
 
     def __init__(self, value: Optional[str], *, author: Person):
-        self.author: Annotated[Person, AttrMetadata(True, True)] = author
+        self.author = AuthorSub(author)
         super().__init__(value)
 
 
@@ -718,10 +749,10 @@ class AttrCollection:
     A parent class for any class that wants to use attributes
     as its fields and provides functionality for that case.
     """
-    __annotations__: ClassVar[dict[str, type[AttrAnyT]]]
+    __annotations__: ClassVar[dict[str, type[AttrNormalT]]]
 
     def __init__(self, data: dict[str, Any], *, required: bool = True, lower: bool = True) -> None:
-        new_data: dict[str, AttrAnyT] = {}
+        new_data: dict[str, AttrNormalT] = {}
 
         for k, v in data.items():
             try:
@@ -757,29 +788,29 @@ class AttrCollection:
             for elem in self.values()
         )
     
-    def mapping(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> dict[str, AttrAnyT]:
+    def mapping(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> dict[str, AttrNormalT]:
         if predicate is None:
             return asdict(self)
         return {k: v for k, v in asdict(self).items() if predicate(v)}
     
     @functools.cache
-    def keys(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> KeysView[str]:
+    def keys(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> KeysView[str]:
         return self.mapping(predicate).keys()
     
-    def values(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> ValuesView[AttrAnyT]:
+    def values(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> ValuesView[AttrNormalT]:
         return self.mapping(predicate).values()
     
-    def items(self, predicate: Optional[Callable[[AttrAnyT], bool]] = None) -> ItemsView[str, AttrAnyT]:
+    def items(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> ItemsView[str, AttrNormalT]:
         return self.mapping(predicate).items()
 
-    def get(self, attr: str | type[AttrSingleValue]) -> AttrAnyT:
+    def get(self, attr: str | type[AttrSingleValue]) -> AttrNormalT:
         if isinstance(attr, str):
             name: str = attr
         else:
             name: str = attr.NAME
         return getattr(self, name)
 
-    def set(self, attr: str | type[AttrSingleValue], value: Any) -> AttrAnyT:
+    def set(self, attr: str | type[AttrSingleValue], value: Any) -> AttrNormalT:
         if isinstance(attr, str):
             cls = syn_to_cls(attr)
         else:
@@ -788,18 +819,21 @@ class AttrCollection:
         name: str = cls.NAME
         instance: AttrSingleValue = cls.get(value)
 
-        result: AttrAnyT = AttrMultiValue.get(instance, cls) if cls.MULTI_VALUE else instance
+        result: AttrNormalT = AttrMultiValue.get(instance, cls) if cls.MULTI_VALUE else instance
 
         setattr(self, name, result)
         return result
 
-    def pop(self, attr: str | type[AttrSingleValue]) -> AttrAnyT:
-        value: AttrAnyT = self.get(attr)
+    def pop(self, attr: str | type[AttrSingleValue]) -> AttrNormalT:
+        value: AttrNormalT = self.get(attr)
         setattr(self, value.NAME, value.__class__.get(None, value.value_cls))
         return value
     
-    def get_attr_hierarchy_value(self, expression: str, for_: Literal["user", "edit"]) -> Any:
+    def get_attr_hierarchy_value(self, expression: str, predicate: Callable[[AttrAny], bool]) -> Any:
         parts: list[str] = [stripped for part in expression.split(".") if (stripped := part.strip())]
+        
+        if not parts:
+            raise ValueError()
         
         for i, part in enumerate(parts):
             # try converting attrs from syn to name
@@ -808,43 +842,34 @@ class AttrCollection:
             except KeyError:
                 part = part.casefold()
 
-        curr_obj: Any = self
+        curr_obj: Any = self.get(parts[0])
         # expression = ".".join(parts)
 
         for i, part in enumerate(parts):
-            is_valid: bool = False
-
             try:
-                # possibly raises AttributeError or KeyError if no
-                # annotation for the attr (which hold the metadata info)
-                annotation = curr_obj.__annotations__[part]
-                
-                # possibly raises AttributeError if no metadata given
-                for metadata in annotation.__metadata__:
-                    if isinstance(metadata, AttrMetadata):
-                        is_valid = metadata.accessible if for_ == "user" else metadata.editable
-                        break
-                
-                # possibly raises AttributeError if not tagged as 
-                # accessible
-                if not is_valid:
+                if not isinstance(curr_obj, AttrAny):
                     raise AttributeError()
                 
-                # possibly raises AttributeError if exists in
-                # annotations but not as field anymore
+                if not predicate(curr_obj):
+                    raise AttributeError()
+                
+                # possibly raises AttributeError if doesn't exist
                 curr_obj = getattr(curr_obj, part)
+
+                if isinstance(curr_obj, AttrSub):
+                    curr_obj = curr_obj.value
             except (AttributeError, KeyError):
                 if i == 0:
                     raise fbe.InvalidAttribute(part, expression=expression)
                 else:
-                    raise fbe.InvalidSubattribute(parts[i - 1], part, expression=expression)
+                    raise fbe.InvalidSubAttribute(parts[i - 1], part, expression=expression)
 
-        if isinstance(curr_obj, AttrRoot):
-            curr_obj = curr_obj.value
+        curr_obj = curr_obj.value
 
         return curr_obj
     
 
+# TODO turn into metaclass
 def _init_module():
     def recursively_iterate_subclasses[T](cls: type[T], do: Callable[[type[T]], None]):
         do(cls)
