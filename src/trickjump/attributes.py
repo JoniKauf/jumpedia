@@ -28,7 +28,23 @@ class AttrMetadata:
 # --- Base Classes ---
 
 class AttrAny[T](ABC):
-    """An abstract base class for anything that represents an attribute.
+    @property
+    @abstractmethod
+    def value(self) -> T:
+        """The value the class encapsulates."""
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+class AttrSub[T](AttrAny[T]):
+    def __init__(self) -> None:
+        super().__init__()
+
+    #TODO
+    
+class AttrRoot[T](AttrAny[Optional[T]]):
+    """An abstract base class for anything that represents a "normal" attribute.
     
     Metadata Class Variables:
     - NAME:
@@ -59,18 +75,15 @@ class AttrAny[T](ABC):
             caller = frame.f_back
 
             if caller is not None:
-                cls: Optional[type[AttrAny]] = caller.f_locals.get("cls", None)
-                self_: Optional[AttrAny] = caller.f_locals.get("self", None)
+                cls: Optional[type[AttrRoot]] = caller.f_locals.get("cls", None)
+                self_: Optional[AttrRoot] = caller.f_locals.get("self", None)
 
-                if (cls is None or not issubclass(cls, AttrAny)) and (self_ is None or not isinstance(self, AttrAny)):
+                if (cls is None or not issubclass(cls, AttrRoot)) and (self_ is None or not isinstance(self, AttrRoot)):
                     raise RuntimeError(
                         "Use the classmethod get(...) to create instances!"
                     )
                 
         super().__init__()
-
-    def __str__(self) -> str:
-        return str(self.value)
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({",".join({f"{repr(k)}={repr(v)}" for k, v in self.__dict__.items()})})"
@@ -94,11 +107,6 @@ class AttrAny[T](ABC):
     def get(cls, value: Self | T | None, *args: Any, **kwargs: Any) -> Self:
         """Get an appropriate instance of a the specific class."""
         ...
-
-    @property
-    @abstractmethod
-    def value(self) -> Optional[T]:
-        """The value the class encapsulates."""
 
     @cached_property
     @abstractmethod
@@ -164,7 +172,7 @@ type AttrAnyTypeT[VT] = (
 type AttrAnyT[VT] = AttrSingleValue[VT] | AttrMultiValue[AttrSingleValue[VT]]
 
 
-class AttrSingleValue[VT](AttrAny[VT]):
+class AttrSingleValue[VT](AttrRoot[VT]):
     NAME: str
     ALIAS: frozenset[str]
     REQUIRED: bool
@@ -293,7 +301,7 @@ class AttrPerson(AttrSingleValue[Person]):
         return AttrStr.sort_key(AttrStr(self.value.value if self.value is not None else self.value), sign=sign, **kwargs)
     
 
-class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrAny[tuple[CT, ...]]):
+class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrRoot[tuple[CT, ...]]):
     """
     A collection of multiple instances of the same Attr.
     An empty collection is converted to None and all None
@@ -831,7 +839,7 @@ class AttrCollection:
                 else:
                     raise fbe.InvalidSubattribute(parts[i - 1], part, expression=expression)
 
-        if isinstance(curr_obj, AttrAny):
+        if isinstance(curr_obj, AttrRoot):
             curr_obj = curr_obj.value
 
         return curr_obj
