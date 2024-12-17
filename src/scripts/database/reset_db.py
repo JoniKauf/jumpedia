@@ -1,5 +1,9 @@
+import json
 from utils import devtools
 from database import queries
+
+SERVERS = ["SMO Trickjumping Server", "Database"]
+DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3.5/10", "4/10", "4.5/10", "5/10", "5.5/10", "6/10", "6.5/10", "7/10", "7.5/10", "8/10", "8.5/10", "9/10", "9.5/10", "10/10", "Low Elite", "Mid Elite", "High Elite", "Insanity Elite", "God Tier", "Hell Tier", "Unproven"]
 
 class Counter:
     def __init__(self, start: int = 0, step: int = 1):
@@ -565,6 +569,23 @@ with queries.connected() as (connection, cursor):
     cursor.execute("""
         SET FOREIGN_KEY_CHECKS = 1
     """)
+
+
+    # Insert trickjump data
+
+    with open("scripts/database/data/jump_data.json") as f:
+        jump_data: dict[str, dict[str, str]] = json.load(f)
+
+    jump_data_strs: list[str] = []
+
+    for jump in jump_data.values():
+        jump_data_strs.append(f"('{jump['name'].replace("'", "''")}', {DIFFICULTIES.index(jump['diff']) + 1}, {SERVERS.index(jump['server']) + 1})")
+
+    cursor.execute(f"""
+        INSERT INTO trickjump (name, difficulty_id, server_id) VALUES
+        {",\n".join(jump_data_strs)};
+    """)
+
 
     connection.commit()
 

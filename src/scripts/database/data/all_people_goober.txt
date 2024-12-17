@@ -1,27 +1,27 @@
-2.178H -> 
+2.178H -> 2.718H
 2.718H -> 
 8.1i8 -> 
 A Random Toaster -> 
 A9 -> 
 ace -> 
 AdityaJys4 -> 
-Aidan -> 
+Aidan -> Aidan.smo
 Aidan.smo -> 
-Air XF -> 
+Air XF -> Air_smo
 Air_smo -> 
-Aitor -> 
+Aitor -> Aitortxuus
 Aitortxuus -> 
 AJ -> 
 Ajax Gaming -> 
+ale_smo -> Ale_smo
 Ale_smo -> 
-ale_smo -> 
 alex110159 -> 
 Alex_Smo -> 
 allnewluke -> 
 Altay -> 
 AMD -> 
 Amy_smo -> 
-AppleXd -> 
+AppleXd -> Ident
 Aqua -> 
 Arctic -> 
 Ario -> 
@@ -34,49 +34,46 @@ Atreyu_08 ->
 Autumn -> 
 Avxliya -> 
 Awesome -> 
-awesomeaggron -> 
 AwesomeAggron -> 
-Awesomeaggron -> 
-AwesomeAggron & AlexW03 -> 
-AwesomeAggron & Cakegorl -> 
+Awesomeaggron -> AwesomeAggron
+awesomeaggron -> AwesomeAggron
 AwesomeGamer -> 
 Awesum8r -> 
 AWildRussell -> 
 Aymen -> 
 AyyJayy -> 
 AzulTheGamer -> 
-b0risd0g12 -> 
+b0risd0g12 -> B0risd0g12
 B0risd0g12 -> 
-B0risd0g12 & JoniKauf -> 
 b_yoshi -> 
 Bam -> 
-bamse -> 
 Bamse -> 
+bamse -> Bamse
+Bananacake -> BananaCake
 BananaCake -> 
-Bananacake -> 
 Beenz -> 
 Belle -> 
 Ben.smo -> 
-Betel -> 
+Betel -> Betelgeuse
 Betelgeuse -> 
-Beteł -> 
+Beteł -> Betelgeuse
 Bev200o -> 
-BeWILLdered -> 
 beWILLdered -> 
+BeWILLdered -> beWILLdered
 BillBoB -> 
-bk5 -> 
+bk5 -> Bk5
+BK5 -> Bk5
 Bk5 -> 
-BK5 -> 
 Bloopiero -> 
-Bluchimp -> 
+Bluchimp -> Bluechimp
 Bluechimp -> 
 Bluely -> 
 Bluey -> 
-bny -> 
+bny -> Bny
 Bny -> 
 Bob Murray -> 
-boesertoad -> 
 Boesertoad -> 
+boesertoad -> Boesertoad
 Boyd -> 
 Brayden Mario Fan -> 
 Bread -> 
@@ -85,74 +82,73 @@ Brendidy ->
 Brodwy -> 
 Brouudy -> 
 bts boi -> 
-btw boi -> 
+btw boi -> bts boi
 bunxzer -> 
 Burnt -> 
-byoshi -> 
-Cakeboi2 -> 
-Cakegorl -> 
+byoshi -> b_yoshi
+Cakeboi2 -> CakeGorl
 CakeGorl -> 
+Cakegorl -> CakeGorl
 Camilo84 -> 
-camilo84 -> 
+camilo84 -> Camilo84
 Cappy Crystal -> 
 Captain Ganymow -> 
 Catch -> 
-Ceja -> 
+Ceja -> Ninjapugs
 Chae -> 
-Chaeryeon -> 
+Chaeryeon -> Chae
 Chanlanino -> 
 cheeserat52 -> 
 ChickenPvps -> 
 Chrumma -> 
 Civic -> 
-Clappy -> 
-Clapy -> 
+Clappy -> Clapyoubtw
+Clapy -> Clapyoubtw
 Clapyoubtw -> 
-clapyoubtw -> 
-clapyoubtwSMO -> 
+clapyoubtw -> Clapyoubtw
+clapyoubtwSMO -> Clapyoubtw
 Clara -> 
 Clash_Gamer -> 
-Class_Gamer -> 
+Class_Gamer -> Clash_Gamer 
 CloudMarshall -> 
 ColeTheCow -> 
 Colin Stick -> 
 Colivious -> 
-colivious -> 
+colivious -> Colivious
 Conair -> 
 Connor -> 
-connor91 -> 
 Connor91 -> 
+connor91 -> Connor91
+Construcable -> construcable
 construcable -> 
-Construcable -> 
-Cordar -> 
+Cordar -> CorDar
 CorDar -> 
 Cornair -> 
 Cosine -> 
-Covilious -> 
-Crafting -> 
+Covilious -> Colivious
+Crafting -> CraftingDNA
 CraftingDNA -> 
 Crews Cotton -> 
 Crimson -> 
-Critical -> 
-CriticalHitX -> 
+Critical -> CriticalX
+CriticalHitX -> CriticalX
 CriticalX -> 
-Crystal -> 
-CToad -> 
-Ctoad7 -> 
+Crystal -> Cappy Crystal
+CToad -> CToad7
+Ctoad7 -> CToad7
 CToad7 -> 
 CVFD -> 
 CVZen -> 
 Cyber -> 
 DaanSMO -> 
 Dacid -> 
-Dacidderking -> 
-Dailo -> 
+Dacidderking -> Dacid
+Dailo -> Dailoxd
 Dailoxd -> 
-DailoXd -> 
-dailoxd -> 
-Dailoxd & JoniKauf -> 
-Dailoxd1 -> 
-dailoxd1 -> 
+dailoxd -> Dailoxd
+DailoXd -> Dailoxd
+Dailoxd1 -> Dailoxd
+dailoxd1 -> Dailoxd
 dakrai -> 
 Dane -> 
 Darkonikal -> 
@@ -160,9 +156,9 @@ Daveed ->
 DeanMarr -> 
 DGR -> 
 Dionysus -> 
-Diss cowboy -> 
-Disscowboy -> 
+Diss cowboy -> DissCowboy
 DissCowboy -> 
+Disscowboy -> DissCowboy
 Ditsmagics15 -> 
 Dmz -> 
 Doonguin -> 
@@ -170,29 +166,28 @@ Dragon ->
 Dram55 -> 
 DRX_UNAI07 -> 
 Ducktonium -> 
-Dumpster Tree -> 
-Dumpster_Tree -> 
+Dumpster Tree -> DumpsterTree
+Dumpster_Tree -> DumpsterTree
 DumpsterTree -> 
 E-commerce\'Kenny -> 
-eaglegamer -> 
+Eaglegamer -> EagleGamer
+eaglegamer -> EagleGamer
 EagleGamer -> 
-Eaglegamer -> 
-Eaglegamer & Kern -> 
-Eight -> 
+Eight -> 8.1i8
 Ely -> 
 Emi -> 
 Emuboss -> 
 Enlvie -> 
-Ethan 2428 -> 
+Ethan 2428 -> Ethan2428
 Ethan2428 -> 
-Ethan_2428 -> 
+Ethan_2428 -> Ethan2428
 EthanAlden -> 
 eyoimaloudboi -> 
 Eyp777 -> 
 fabmoneyy -> 
 FanDeLight_Ron -> 
 Fartchicken -> 
-FatFbi -> 
+FatFbi -> FatFBI
 FatFBI -> 
 Fathom -> 
 FatJaebus -> 
@@ -200,25 +195,24 @@ FearsomeFire ->
 Firefox -> 
 Firefox' Brother -> 
 Fishy -> 
-Fishy_smo -> 
+Fishy_smo -> Fishy
 Fizit -> 
 Flavien -> 
-Flavien & JoniKauf -> 
 Flaw -> 
-Flaw_ -> 
+Flaw_ -> Flaw
 Flexblewings72 -> 
-fliplg -> 
 Fliplg -> 
+fliplg -> Fliplg
 Flockiv -> 
 Francis -> 
 friedyoshi -> 
 Frosty -> 
 fruity_smo -> 
-Fud -> 
+Fud -> FUD
 FUD -> 
 G1uucc30 -> 
+g3marchi -> G3marchi
 G3marchi -> 
-g3marchi -> 
 Gaiaphage -> 
 GamezTank -> 
 Gamingwred -> 
@@ -229,102 +223,93 @@ GetrenkeKiste ->
 GiygasT -> 
 GoldPoptart -> 
 Gone Gamer -> 
-GoneGamer -> 
+GoneGamer -> Gone Gamer
 GoomBayPacker -> 
 Grady -> 
-Green -> 
+Green -> Green.
 Green. -> 
-Green.. -> 
+Green.. -> Green.
 Grey -> 
 Gummy -> 
 HaarasB -> 
 hagartal -> 
 Hanyedd -> 
 Happygamer787 -> 
-Harold_smo -> 
-Haven -> 
+Harold_smo -> Totando
+Haven -> Jario
 HelixSnake -> 
 Helpless Rowlet -> 
-Helpless_Rowlet -> 
-Helplessrowlet -> 
+Helpless_Rowlet -> Helpless Rowlet
+Helplessrowlet -> Helpless Rowlet
 high_smo -> 
 Hivey -> 
-hiveylmao -> 
+hiveylmao -> Hivey
+hookedcrockery -> HookedCrockery
 HookedCrockery -> 
-hookedcrockery -> 
 Hose_10 -> 
 Hyrule -> 
-Ianstorm -> 
-IanStorm -> 
-Ianstorm7 -> 
+IanStorm -> IanStorm7
+Ianstorm -> IanStorm7
+Ianstorm7 -> IanStorm7
 IanStorm7 -> 
-Ice Dragons -> 
-IceDragons -> 
+Ice Dragons -> IceDragonsHD
+IceDragons -> IceDragonsHD
 IceDragonsHD -> 
-ident -> 
 Ident -> 
-IdentXd -> 
-Identxd -> 
+ident -> Ident
+Identxd -> Ident
+IdentXd -> Ident
 idkwhat -> 
 IElatbani -> 
-Imahumanandagamer -> 
+Imahumanandagamer -> imahumanandimagamer
 imahumanandimagamer -> 
 Intral -> 
-Intral - Emi -> 
 Ismanimal -> 
 istoleurbread -> 
-J03y -> 
+J03y -> j03y09_lw
 j03y09_lw -> 
 Jacket -> 
 Jake G. -> 
 Jako -> 
 Jakobus2000 -> 
-jammingjennelle -> 
-Jane -> 
+jammingjennelle -> Jennelle
+Jane -> Chae
 Jario -> 
-Jario & Isa Juan -> 
 Jark -> 
 Jas. -> 
 Jefe75 -> 
 Jellopuff -> 
-Jelly -> 
-JellyFish -> 
-Jellyfish -> 
+Jelly -> JellyfishMario
+JellyFish -> JellyfishMario
+Jellyfish -> JellyfishMario
 JellyfishMario -> 
 Jennelle -> 
 Jinra -> 
 JJW89YT -> 
 JKBSunshine -> 
-joey_smo -> 
+joey_smo -> j03y09_lw
 Jonas.smo -> 
 jonathan32208 -> 
 jonikarotte -> 
 JoniKauf -> 
-JoniKauf & AwesomeAggron -> 
-JoniKauf & Fischling -> 
-JoniKauf & MadeForMario -> 
-JoniKauf & MightyOwl -> 
-JoniKauf & Qazzy -> 
-JoniKauf & SuperMix -> 
-JoniKauf, MightyOwl & MadeForMario -> 
 Joosh -> 
-Jose -> 
+Jose -> JoseFT_
 JoseFT_ -> 
 Jotaro -> 
-Jotaro_mk -> 
+Jotaro_mk -> Jotaro
 Julian K -> 
 Julius -> 
-Julius 06 -> 
-Julius06 -> 
-Julius_06 -> 
+Julius 06 -> Julius
+Julius06 -> Julius
+Julius_06 -> Julius
 Jupiin -> 
-Jupliin -> 
+Jupliin -> Jupiin
 justanavacado -> 
-justanavacadØ -> 
+justanavacadØ -> justanavacado
 K'os -> 
-K\'os -> 
+K\'os -> K'os
 kaasebrot -> 
-Kaeden -> 
+Kaeden -> KaedenBulllock
 KaedenBulllock -> 
 Kali -> 
 Katie -> 
@@ -335,138 +320,132 @@ Kerfuffle ->
 Kern -> 
 Keyboard -> 
 kid cat smo -> 
-Kill-U-Ahh -> 
-Kill-u-ahh -> 
+Kill-u-ahh -> Kill_u_ahh
+Kill-U-Ahh -> Kill_u_ahh
 Kill_u_ahh -> 
-Killuahh -> 
+Killuahh -> Kill_u_ahh
 Kirboi -> 
 KitsuZZ -> 
 Kodesu6 -> 
-Kos -> 
+Kos -> K'os
 Kratos -> 
-kratoss -> 
+kratoss -> Kratos
 Krillex -> 
 Ks627 -> 
-KsSMO -> 
-LamborghiniBottle -> 
+KsSMO -> Ks627
+LamborghiniBottle -> Pear
 Laughter -> 
 Leaser Jacob -> 
-leaser_jacob -> 
-Lego Bus -> 
+leaser_jacob -> Leaser Jacob 
+Lego Bus -> LegoBus
 LegoBus -> 
 Leinad_SMO -> 
 Lena -> 
 Leo_smo -> 
 Leroy -> 
 Lewin -> 
-LilK'os -> 
+LilK'os -> K'os
 LimeBlue -> 
 Lior -> 
-lior -> 
-Lloyd & Ruin -> 
+lior -> Lior
 Lobster Collector 1 -> 
 logis -> 
 Lolig123123 -> 
-Lololo -> 
+Lololo -> Atlas
 Looygi -> 
 Lopez -> 
-LopezGamer -> 
-Lopezgamer -> 
-Lopezgamer101 -> 
+LopezGamer -> LopezGamer101
+Lopezgamer -> LopezGamer101
+Lopezgamer101 -> LopezGamer101
 LopezGamer101 -> 
 Lorak -> 
 Louise -> 
-Louka -> 
+Louka -> LoukaThePro
 LoukaThePro -> 
-LoukaThePro08 -> 
+LoukaThePro08 -> LoukaThePro
 Lu Bebee -> 
 Lucidityy -> 
-Luffy -> 
+Luffy -> Luffyyeet
 Luffyyeet -> 
 Luigi -> 
 Luka_Gaming -> 
 LUKE -> 
 Lunaire -> 
-Lunaire & JoniKauf -> 
 M!rza -> 
 m4pud -> 
-M4pud -> 
+M4pud -> m4pud
 Mackansmat -> 
-Mackansmat & Helpless Rowlet -> 
+Maddhatter -> MaddHatter
 MaddHatter -> 
-Maddhatter -> 
-MadeforMario -> 
+MadeforMario -> MadeForMario
 MadeForMario -> 
-MadeForMario & JoniKauf -> 
-Mak -> 
+Mak -> MakPanda
+Makpanda -> MakPanda
 MakPanda -> 
-Makpanda -> 
 Mandy -> 
 Mang0 -> 
-Mango -> 
+Mango -> Mang0
 Marci -> 
 Mario Man -> 
 Mariokartist -> 
 MarioMaster24 -> 
-Mariomaster2475 -> 
+Mariomaster2475 -> MarioMaster24
 Mars2030 -> 
 Marsh -> 
 Marshmallow -> 
-Martian -> 
+Martian -> MartianZucchini
 MartianZucchini -> 
 MartinTheGamer -> 
 Master Hercules -> 
-MasterPsyduck -> 
+MasterPsyduck -> MasterPsyduck64
 MasterPsyduck64 -> 
-matthewpugs24 -> 
+matthewpugs24 -> Matthewpugs24
 Matthewpugs24 -> 
 Max -> 
-Max ;D -> 
+Max ;D -> Max
 Maxsterious -> 
-MaxThePro -> 
-MaxThePro545 -> 
+MaxThePro -> Max
+MaxThePro545 -> Max
 MegaFire -> 
 Micro -> 
 Microo -> 
-Might Owl -> 
-Mighty Owl -> 
+Might Owl -> MightyOwl
+Mighty Owl -> MightyOwl
 MightyOwl -> 
 Miji -> 
 Milkynutz -> 
-Mina -> 
-MineXeniM -> 
+Mina -> Chae
 MineXenim -> 
-Mininonoy -> 
-mininonoy -> 
+MineXeniM -> MineXenim
+mininonoy -> Mininonoy1
+Mininonoy -> Mininonoy1
 Mininonoy1 -> 
-Minji -> 
-Mirco -> 
-MirzaSMO -> 
+Minji -> Chae
+Mirco -> Micro
+MirzaSMO -> M!rza
 Mitch -> 
-Mobby -> 
-MobbyAshPlayz -> 
-MobbyYt -> 
-Modnob -> 
+Mobby -> pndaMobby
+MobbyAshPlayz -> pndaMobby
+MobbyYt -> pndaMobby
+Modnob -> modnob
 modnob -> 
-Moo -> 
-Moomoo -> 
+Moo -> Moomoo Plopadom
+Moomoo -> Moomoo Plopadom
 Moomoo Plopadom -> 
 Moonlord -> 
 Mountain -> 
-Mr. Dr Pepper and RoyalSMO -> 
 Mr. Dr. Pepper -> 
-Mr. Dr. Pepper & RoyalSMO -> 
 Mr. Mario Odyssey -> 
-Mr. MarioOdyssey -> 
+Mr. MarioOdyssey -> Mr. Mario Odyssey
 Mr. Odyssey -> 
 Mr. Weeg -> 
-Mr.Savage -> 
-MrMarioOdyssey -> 
-MrNarwhal -> 
+Mr.Savage -> MrSavage
+MrMarioOdyssey -> Mr. Mario Odyssey
+MrNarwhal -> Narwhal
 MrSavage -> 
-Multi -> 
+Multi -> Multi_smo
 Multi_smo -> 
-Mushroom -> 
+Mushroom -> mushroom293
 mushroom293 -> 
 Mxfty -> 
 Myron -> 
@@ -476,53 +455,51 @@ Narwhal ->
 NEIN_SMO -> 
 Nel -> 
 Nevil -> 
-Neville -> 
+Neville -> Nevil
 Nevu -> 
-newname -> 
 Newname -> 
+newname -> Newname
 Niam2008 -> 
 NicroVeda -> 
 Nikibilo -> 
-Nikl Yoshi -> 
+Nikl Yoshi -> NiklYoshi
 Niklas0527 -> 
+Niklyoshi -> NiklYoshi
 NiklYoshi -> 
-Niklyoshi -> 
-NiklYoshi & Nachito -> 
 Nimayn -> 
 Ninjapugs -> 
-Ninjapugs1 -> 
-Nix -> 
+Ninjapugs1 -> Ninjapugs
+Nix -> nixisawesome
 nixisawesome -> 
 Noobycheerman -> 
 NotNick -> 
 Notrx -> 
-NottNiickk -> 
+NottNiickk -> NotNick
 NoutR -> 
 Nytzz -> 
-Odysseyguy -> 
 OdysseyGuy -> 
-OG jario -> 
+Odysseyguy -> OdysseyGuy
+OG jario -> Jario
 Oliver -> 
 Opiret44 -> 
 Orange Cardinal -> 
-Orange4 -> 
+Orange4 -> Orange4Playz
+Orange4playz -> Orange4Playz
 Orange4Playz -> 
-Orange4playz -> 
-Orange4Playz  -> 
-OrangeCardinal -> 
-Orangle4playz -> 
+Orange4Playz  -> Orange4Playz
+OrangeCardinal -> Orange Cardinal
+Orangle4playz -> Orange4Playz
 OuijaSpider -> 
-Ouijaspider -> 
-OujiaSpider -> 
+Ouijaspider -> OuijaSpider
+OujiaSpider -> OuijaSpider
 Pants -> 
 Paradoxe -> 
 parknich -> 
-Pato -> 
+Pato -> Pato_0Z
 Pato_0Z -> 
-Peanut -> 
+Peanut -> PeanutMaster
 PeanutMaster -> 
 Pear -> 
-Pear & JoniKauf -> 
 Pelican -> 
 PeliqueiroLaza09 -> 
 Peng uin -> 
@@ -535,15 +512,15 @@ PitOfDespair ->
 Plessie -> 
 pndaMobby -> 
 Polygon -> 
-poppywoo -> 
 Poppywoo -> 
-Poppywoo2 -> 
-Poppywoo2. -> 
+poppywoo -> Poppywoo
+Poppywoo2 -> Poppywoo
+Poppywoo2. -> Poppywoo
 PotatoGodOverlord -> 
 Premieze -> 
+Privatecat -> PrivateCat
 PrivateCat -> 
-Privatecat -> 
-PrivateCat6 -> 
+PrivateCat6 -> PrivateCat
 Proshi -> 
 PSCuber77 -> 
 Psyduck -> 
@@ -552,63 +529,61 @@ Pydox ->
 Qazzy -> 
 Qflame -> 
 Qiwoa -> 
+Quantumhornet -> QuantumHornet
 QuantumHornet -> 
-Quantumhornet -> 
 Quinxte -> 
 Qwy -> 
+qxysteo -> Qxysteo
 Qxysteo -> 
-qxysteo -> 
 Racecar -> 
-Racecar567 -> 
+Racecar567 -> Racecar
 Rashed -> 
 RCM -> 
 reddy_is_amazing -> 
-Reid -> 
+Reid -> Reid Johnson
 Reid Johnson -> 
 Relaxmas -> 
-relaxmas -> 
-Repeditora -> 
+relaxmas -> Relaxmas
+Repeditora -> Repetidora
 Repetidora -> 
-Repetidora & Joe Biden -> 
-Repetidora & JoniKauf -> 
 Revi64 -> 
 Riku_smo -> 
 Rise -> 
 Rishi -> 
 RivaZ -> 
-Rndmname74 -> 
+Rndmname74 -> Rndmname7474
 Rndmname7474 -> 
 roblox8192 -> 
-Rock Man -> 
-Rock man -> 
+Rock man -> Repetidora
+Rock Man -> Repetidora
 Rockin -> 
 RockingFlames88 -> 
 RollerCoasterManiac -> 
 RollKancelVector -> 
 Rottendogs -> 
-Rowlet -> 
+Rowlet -> Helpless Rowlet
 Royal_SMO -> 
 RSChao -> 
 Ruin -> 
-Ryan -> 
+Ryan -> Ryan64
 Ryan64 -> 
 s8ck -> 
 Saki -> 
-Sam -> 
+Sam -> Sam.Smo
 Sam.Smo -> 
-Sam_smo -> 
-SamI -> 
+Sam_smo -> Sam.Smo
+SamI -> Sami
 Sami -> 
-Savage -> 
+Savage -> MrSavage
 Scalli -> 
 Sdertyy -> 
 Seagull -> 
 Sealio -> 
-Sebiblock -> 
+Sebiblock -> SEBIBLOCK
 SEBIBLOCK -> 
 senneplayz -> 
 Seungoh1 -> 
-sg---197 -> 
+sg---197 -> Sg197
 Sg197 -> 
 Shaggy -> 
 Skill_Issue -> 
@@ -623,30 +598,30 @@ smo_brayden ->
 SMO_david™️ -> 
 smo_trickjumper -> 
 smo_zombie -> 
+smoceany -> Smoceany
 Smoceany -> 
-smoceany -> 
-SmoHd -> 
+SmoHd -> SmoHD
 SmoHD -> 
 SmoJoycon -> 
-SMONarwhal -> 
+SMONarwhal -> Narwhal
 SMOTurtle -> 
-SmoTurtle -> 
+SmoTurtle -> SMOTurtle
 Snipezz -> 
-Snipezz.smo -> 
-snipezz.smo -> 
-snipezz.som -> 
+Snipezz.smo -> Snipezz
+snipezz.smo -> Snipezz
+snipezz.som -> Snipezz
 Snokeruns -> 
 Snowy -> 
 SomeRandomGuy -> 
-SomeRandomPear -> 
+SomeRandomPear -> Pear
 SomeStupidGuy -> 
+soupafi -> Soupafi
 Soupafi -> 
-soupafi -> 
-Soupafi Fan 1 -> 
-Soupafis -> 
+Soupafi Fan 1 -> Soupafi
+Soupafis -> Soupafi
 Space Sharky -> 
 Sparrow_smo -> 
-Speed -> 
+Speed -> Speed_SMO
 Speed_SMO -> 
 Speedy -> 
 speemario -> 
@@ -656,29 +631,29 @@ Spikey Spikes ->
 Spirel -> 
 Spring_Smo -> 
 SPX -> 
-Spyker -> 
+Spyker -> SpykerTJ
 SpykerTJ -> 
 Spyral -> 
 Stealthy Lion -> 
 Steffen Ipabo -> 
 Steven1109 -> 
 Stompee -> 
-Stumpee -> 
+Stumpee -> Stompee
 Summer -> 
 Sunsteel -> 
 SupaJay3 -> 
 Super_Steamy -> 
+supermarioguy4 -> SuperMarioGuy4
 SuperMarioGuy4 -> 
-supermarioguy4 -> 
-Supermix -> 
 SuperMix -> 
-Swiss Jario -> 
+Supermix -> SuperMix
+Swiss Jario -> bonk_0475
 Syrkl -> 
 T -> 
 TacoShark -> 
 Tadcoco -> 
 Tankgames -> 
-tasmachine -> 
+tasmachine -> Tasmachine
 Tasmachine -> 
 tedh9u -> 
 Terido -> 
@@ -692,7 +667,7 @@ TheRealGabz ->
 Thienzers -> 
 Tiger -> 
 Tiger's Brother -> 
-TigerGold -> 
+TigerGold -> TigerGold59
 TigerGold59 -> 
 TigerGold59's Friend -> 
 Tinpar -> 
@@ -703,72 +678,72 @@ tmvronta ->
 TobyTech -> 
 Tom -> 
 Totando -> 
+Totol -> totol
 totol -> 
-Totol -> 
 Tr1ckz -> 
-Tranman -> 
+Tranman -> Tranman64
 Tranman64 -> 
-TreeDumpster -> 
+TreeDumpster -> DumpsterTree
 Trever -> 
 TrickjumpGuy -> 
 TtvXxLeoxX -> 
-TtvXxLeoXx -> 
+TtvXxLeoXx -> TtvXxLeoxX
 Tudsen1 -> 
 TurtleGangsta -> 
 TurtleSMO -> 
 Tuwile -> 
 TygovZ -> 
-tyl3r171 -> 
+tyl3r171 -> tyl3r173
 tyl3r173 -> 
 tyler_smo -> 
 Typro -> 
 U4IA -> 
 Unknown -> 
 Updog -> 
-updog -> 
-VaberSaber -> 
-Vadersaber -> 
+updog -> Updog
+VaberSaber -> VaderSaber
 VaderSaber -> 
-VaderSaber36 -> 
+Vadersaber -> VaderSaber
+VaderSaber36 -> VaderSaber
 Vase -> 
 Vault -> 
 VerZ -> 
 Victoto -> 
-Wackydude -> 
 WackyDude -> 
+Wackydude -> WackyDude
 Wallonice -> 
 Walmart Fan -> 
-WeChokeonMilk -> 
+WeChokeonMilk -> WeChokeOnMilk
 WeChokeOnMilk -> 
 Wed -> 
-Wezly -> 
+Wezly -> Wezly_0of
 Wezly_0of -> 
-Wezly_oof -> 
-Winter -> 
+Wezly_oof -> Wezly_0of
+Winter -> WinterSMO
 WinterSMO -> 
 WJBuzzard -> 
 WolfAttack -> 
 wyt00bxred -> 
-wyT00bxred -> 
-XDMoonlord -> 
-Xdxbox -> 
-XdxboxJaja -> 
+wyT00bxred -> wyt00bxred
+XDMoonlord -> Moonlord
+Xdxbox -> Xdxboxjaja
+XdxboxJaja -> Xdxboxjaja
 Xdxboxjaja -> 
 Xeter -> 
 Xiivler -> 
 Xilo -> 
 Xoneous -> 
+Ya36 -> YA36
 YA36 -> 
-Ya36 -> 
-YClod7 -> 
+YClod7 -> YouClod7
 Yeen -> 
-Yellow -> 
-Yellow SMO -> 
+Yellow -> YellowSMO
+Yellow SMO -> YellowSMO
 YellowSMO  -> 
-YouClod -> 
-Youclod7 -> 
+YouClod -> YouClod7
+Youclod7 -> YouClod7
 YouClod7 -> 
-YourFavMina -> 
+YourFavMina -> Chae
 Yoyofruits -> 
 YT_valentin -> 
 Yurt -> 
@@ -778,12 +753,12 @@ ZeldaMari0l ->
 Zinc -> 
 Zistx -> 
 Zlarium -> 
-Zlarium/Kern (Vault) -> 
+Zlarium/Kern (Vault) -> Zlarium
 Znxi -> 
 Zombie -> 
 Zombolotl -> 
 Zox -> 
 Zubrach -> 
-ZubrachSMO -> 
-~~Rayno~~ Max -> 
-ŤţvXxŁəøxX -> 
+ZubrachSMO -> Zubrach
+~~Rayno~~ Max -> Max
+ŤţvXxŁəøxX -> TtvXxLeoxX

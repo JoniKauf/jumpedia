@@ -37,7 +37,7 @@ class InvalidAttribute(errors.FeedbackError):
             )
         )
 
-class InvalidSubattribute(errors.FeedbackError):
+class InvalidSubAttribute(errors.FeedbackError):
     def __init__(self, attr: str, sub_attr: str, expression: Optional[str] = None):
         self.attr = attr
         self.sub_attr = sub_attr
@@ -46,7 +46,7 @@ class InvalidSubattribute(errors.FeedbackError):
         super().__init__(
             error="Invalid Sub Attribute",
             details=(
-                f"The attribute `{short(attr)}` has no subattribute `{short(sub_attr)}`"
+                f"The attribute `{short(attr)}` has no sub attribute `{short(sub_attr)}`"
                 + (
                     f" in the expression `{short(expression) or msgt.default_empty()}`!"
                     if expression else "!"
