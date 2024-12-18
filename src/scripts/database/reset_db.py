@@ -1,6 +1,8 @@
 import json
+import re
 from utils import devtools
 from database import queries
+from utils.better_inbuilts import BetterSet
 
 SERVERS = ["SMO Trickjumping Server", "Database"]
 DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3.5/10", "4/10", "4.5/10", "5/10", "5.5/10", "6/10", "6.5/10", "7/10", "7.5/10", "8/10", "8.5/10", "9/10", "9.5/10", "10/10", "Low Elite", "Mid Elite", "High Elite", "Insanity Elite", "God Tier", "Hell Tier", "Unproven"]
@@ -192,6 +194,13 @@ with queries.connected() as (connection, cursor):
     """)
 
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS info (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            text VARCHAR(2048) UNIQUE NOT NULL
+        )
+    """)
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS person (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(64) UNIQUE NOT NULL
@@ -228,9 +237,11 @@ with queries.connected() as (connection, cursor):
             tased_at DATETIME NULL,
             proven_at DATETIME NULL,
             server_id INT NOT NULL,
+            info_id INT NULL,
             thumbnail_id INT NULL,
             FOREIGN KEY (difficulty_id) REFERENCES difficulty (id) ON DELETE RESTRICT,
             FOREIGN KEY (server_id) REFERENCES server (id) ON DELETE RESTRICT,
+            FOREIGN KEY (info_id) REFERENCES info (id) ON DELETE RESTRICT,
             FOREIGN KEY (thumbnail_id) REFERENCES thumbnail (id) ON DELETE SET NULL
         )
     """)
@@ -281,17 +292,6 @@ with queries.connected() as (connection, cursor):
 
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS trickjump_extra_junction (
-            trickjump_id INT NOT NULL,
-            extra_id INT NOT NULL,
-            PRIMARY KEY (trickjump_id, extra_id),
-            FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
-            FOREIGN KEY (extra_id) REFERENCES extra (id) ON DELETE RESTRICT
-        )
-    """)
-
-
-    cursor.execute("""
         CREATE TABLE IF NOT EXISTS trickjump_tag_junction (
             trickjump_id INT NOT NULL,
             tag_id INT NOT NULL,
@@ -322,24 +322,23 @@ with queries.connected() as (connection, cursor):
     """)
 
     devtools.noob_log("All new tables created")
-    c = Counter(0, 1)
 
     cursor.execute(f"""
         INSERT INTO tier (name, sort_value) VALUES
-        ('Practice Tier', {c()}),
-        ('Beginner', {c()}),
-        ('Intermediate', {c()}),
-        ('Advanced', {c()}),
-        ('Expert', {c()}),
-        ('Master', {c()}),
-        ('Low Elite', {c()}),
-        ('Mid Elite', {c()}),
-        ('High Elite', {c()}),
-        ('Insanity Elite', {c()}),
-        ('God Tier', {c()}),
-        ('Hell Tier', {c()}),
-        ('Unproven', {c()})
-    """)
+        ('Practice Tier', ?),
+        ('Beginner', ?),
+        ('Intermediate', ?),
+        ('Advanced', ?),
+        ('Expert', ?),
+        ('Master', ?),
+        ('Low Elite', ?),
+        ('Mid Elite', ?),
+        ('High Elite', ?),
+        ('Insanity Elite', ?),
+        ('God Tier', ?),
+        ('Hell Tier', ?),
+        ('Unproven', ?)
+    """, tuple(i for i in range(13)))
 
     cursor.execute("""
         INSERT INTO tier_alias (alias, tier_id) VALUES
@@ -357,39 +356,37 @@ with queries.connected() as (connection, cursor):
         ('Hell', (SELECT id FROM tier WHERE name = 'Hell Tier'))
     """)
 
-    c.reset()
-
     cursor.execute(f"""
         INSERT INTO difficulty (name, sort_value, tier_id) VALUES
-        ('0/10', {c()}, (SELECT id FROM tier WHERE name = 'Practice Tier')),
-        ('0.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('1/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('1.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('2/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('2.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('3/10', {c()}, (SELECT id FROM tier WHERE name = 'Beginner')),
-        ('3.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('4/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('4.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('5/10', {c()}, (SELECT id FROM tier WHERE name = 'Intermediate')),
-        ('5.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('6/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('6.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Advanced')),
-        ('7/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
-        ('7.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
-        ('8/10', {c()}, (SELECT id FROM tier WHERE name = 'Expert')),
-        ('8.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
-        ('9/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
-        ('9.5/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
-        ('10/10', {c()}, (SELECT id FROM tier WHERE name = 'Master')),
-        ('Low Elite', {c()}, (SELECT id FROM tier WHERE name = 'Low Elite')),
-        ('Mid Elite', {c()}, (SELECT id FROM tier WHERE name = 'Mid Elite')),
-        ('High Elite', {c()}, (SELECT id FROM tier WHERE name = 'High Elite')),
-        ('Insanity Elite', {c()}, (SELECT id FROM tier WHERE name = 'Insanity Elite')),
-        ('God Tier', {c()}, (SELECT id FROM tier WHERE name = 'God Tier')),
-        ('Hell Tier', {c()}, (SELECT id FROM tier WHERE name = 'Hell Tier')),
-        ('Unproven', {c()}, (SELECT id FROM tier WHERE name = 'Unproven'))
-    """)
+        ('0/10', ?, (SELECT id FROM tier WHERE name = 'Practice Tier')),
+        ('0.5/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('1/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('1.5/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('2/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('2.5/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('3/10', ?, (SELECT id FROM tier WHERE name = 'Beginner')),
+        ('3.5/10', ?, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('4/10', ?, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('4.5/10', ?, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('5/10', ?, (SELECT id FROM tier WHERE name = 'Intermediate')),
+        ('5.5/10', ?, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('6/10', ?, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('6.5/10', ?, (SELECT id FROM tier WHERE name = 'Advanced')),
+        ('7/10', ?, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('7.5/10', ?, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('8/10', ?, (SELECT id FROM tier WHERE name = 'Expert')),
+        ('8.5/10', ?, (SELECT id FROM tier WHERE name = 'Master')),
+        ('9/10', ?, (SELECT id FROM tier WHERE name = 'Master')),
+        ('9.5/10', ?, (SELECT id FROM tier WHERE name = 'Master')),
+        ('10/10', ?, (SELECT id FROM tier WHERE name = 'Master')),
+        ('Low Elite', ?, (SELECT id FROM tier WHERE name = 'Low Elite')),
+        ('Mid Elite', ?, (SELECT id FROM tier WHERE name = 'Mid Elite')),
+        ('High Elite', ?, (SELECT id FROM tier WHERE name = 'High Elite')),
+        ('Insanity Elite', ?, (SELECT id FROM tier WHERE name = 'Insanity Elite')),
+        ('God Tier', ?, (SELECT id FROM tier WHERE name = 'God Tier')),
+        ('Hell Tier', ?, (SELECT id FROM tier WHERE name = 'Hell Tier')),
+        ('Unproven', ?, (SELECT id FROM tier WHERE name = 'Unproven'))
+    """, tuple(i for i in range(28)))
 
     cursor.execute("""
         INSERT INTO difficulty_alias (alias, difficulty_id) VALUES
@@ -446,28 +443,29 @@ with queries.connected() as (connection, cursor):
         ('Hell', (SELECT id FROM difficulty WHERE name = 'Hell Tier'))
     """)
 
-    c.reset()
-    cursor.execute(f"""
+    devtools.noob_log("All difficulty & tier 'contants' inserted")
+
+    cursor.execute("""
         INSERT INTO location (name, sort_value) VALUES
-        ('Cap Kingdom', {c()}),
-        ('Cascade Kingdom', {c()}),
-        ('Sand Kingdom', {c()}),
-        ('Lake Kingdom', {c()}),
-        ('Wooded Kingdom', {c()}),
-        ('Cloud Kingdom', {c()}),
-        ('Lost Kingdom', {c()}),
-        ('Metro Kingdom', {c()}),
-        ('Snow Kingdom', {c()}),
-        ('Seaside Kingdom', {c()}),
-        ('Luncheon Kingdom', {c()}),
-        ('Ruined Kingdom', {c()}),
-        ('Bowser''s Kingdom', {c()}),
-        ('Moon Kingdom', {c()}),
-        ('Mushroom Kingdom', {c()}),
-        ('Dark side', {c()}),
-        ('Darker side', {c()}),
-        ('Odyssey', {c()})
-    """)
+        ('Cap Kingdom', ?),
+        ('Cascade Kingdom', ?),
+        ('Sand Kingdom', ?),
+        ('Lake Kingdom', ?),
+        ('Wooded Kingdom', ?),
+        ('Cloud Kingdom', ?),
+        ('Lost Kingdom', ?),
+        ('Metro Kingdom', ?),
+        ('Snow Kingdom', ?),
+        ('Seaside Kingdom', ?),
+        ('Luncheon Kingdom', ?),
+        ('Ruined Kingdom', ?),
+        ('Bowser''s Kingdom', ?),
+        ('Moon Kingdom', ?),
+        ('Mushroom Kingdom', ?),
+        ('Dark side', ?),
+        ('Darker side', ?),
+        ('Odyssey', ?)
+    """, tuple(i for i in range(18)))
 
     cursor.execute("""
         INSERT INTO location_alias (alias, location_id) VALUES
@@ -515,12 +513,13 @@ with queries.connected() as (connection, cursor):
         ((SELECT id FROM location WHERE name = 'Odyssey'), (SELECT id FROM location WHERE name = 'Darker Side'))
     """)
 
-    c.reset()
+    devtools.noob_log("All location 'contants' inserted")
+
     cursor.execute(f"""
         INSERT INTO server (name, sort_value) VALUES 
-        ('SMO Trickjumping server', {c()}),
-        ('Database', {c()})
-    """)
+        ('SMO Trickjumping server', ?),
+        ('Database', ?)
+    """, tuple(i for i in range(2)))
 
     cursor.execute("""
         INSERT INTO server_alias (alias, server_id) VALUES
@@ -543,17 +542,7 @@ with queries.connected() as (connection, cursor):
         ('Trickjumping db', (SELECT id FROM server WHERE name = 'Database'))
     """)
 
-    cursor.execute("""
-        INSERT INTO location_tag (tag) VALUES ('Kingdom')
-    """)
-
-    cursor.execute("""
-        INSERT INTO location_tag_junction (location_id, tag_id)
-        SELECT l.id, t.id
-        FROM location l
-        JOIN location_tag t ON t.tag = 'Kingdom'
-        WHERE l.name != 'Odyssey'
-    """)
+    devtools.noob_log("All server 'contants' inserted")
 
     cursor.execute("""
         INSERT INTO `rank` (power, name) VALUES
@@ -564,28 +553,99 @@ with queries.connected() as (connection, cursor):
         (4, 'Owner')
     """)
 
-    devtools.noob_log("All data inserted")
+    devtools.noob_log("All 'constant' values inserted")
 
     cursor.execute("""
         SET FOREIGN_KEY_CHECKS = 1
     """)
 
 
-    # Insert trickjump data
+    # Get all jump data
 
     with open("scripts/database/data/jump_data.json") as f:
-        jump_data: dict[str, dict[str, str]] = json.load(f)
+        all_jump_data: dict[str, dict[str, str | list[str]]] = json.load(f)
 
-    jump_data_strs: list[str] = []
 
-    for jump in jump_data.values():
-        jump_data_strs.append(f"('{jump['name'].replace("'", "''")}', {DIFFICULTIES.index(jump['diff']) + 1}, {SERVERS.index(jump['server']) + 1})")
+    # Insert all people
+
+    with open("scripts/database/data/all_people_filtered.json") as f:
+        simple_all_people_mapping: dict[str, str] = json.load(f)
+
+    all_contributor_lines_unfiltered: set[str] = set()
+
+    CONTRIBUTOR_KEYS = ("finder", "taser", "prover")
+    for jump_data in all_jump_data.values():
+        for contributor_line in CONTRIBUTOR_KEYS:
+            if contributor_line in jump_data:
+                all_contributor_lines_unfiltered |= set(person.strip() for person in jump_data[contributor_line])
+
+    all_people_mapping: dict[str, str] = {}
+    all_lines_mapping: dict[str, list[str]] = {}
+
+    for contributor_line in all_contributor_lines_unfiltered:
+        actual_people: list[str] = re.split(r", | & | and | - ", contributor_line)
+
+        for line in actual_people:
+            person_fixed = simple_all_people_mapping[line]
+            all_people_mapping[line] = person_fixed
+            all_lines_mapping.setdefault(contributor_line, []).append(person_fixed)
 
     cursor.execute(f"""
-        INSERT INTO trickjump (name, difficulty_id, server_id) VALUES
-        {",\n".join(jump_data_strs)};
+        INSERT INTO person (name) VALUES
+        {",\n".join(f"('{person.replace("'", "''")}')" for person in set(all_people_mapping.values()))}
     """)
 
+    devtools.noob_log("All people inserted")
+    
+    # Insert contributors of trickjumps
+    all_trickjumps_with_ftp: list[tuple[str, str, int]] = []
+
+    for jump_data in all_jump_data.values():
+        people_ftp_points: dict[str, int] = {}
+
+        for i, contributor_key in enumerate(CONTRIBUTOR_KEYS):
+            points_for_this: int = 2**i
+            people_flattened: set[str] = set()
+
+            for line in jump_data.get(contributor_key, ()):
+                people_flattened |= set(all_lines_mapping[line])
+
+            for person in people_flattened:
+                if person not in people_ftp_points:
+                    people_ftp_points[person] = 0
+                people_ftp_points[person] += points_for_this
+        
+        for person, points in people_ftp_points.items():
+            all_trickjumps_with_ftp.append((jump_data['name'], person, points))
+    
+    cursor.execute(f"""
+        INSERT INTO trickjump_contributor (trickjump_id, person_id, contribution) VALUES
+        {",\n".join(f"((SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), {elem[2]})" for elem in all_trickjumps_with_ftp)}
+    """, [elem for tup in all_trickjumps_with_ftp for elem in tup[:2]])
+
+    devtools.noob_log("All trickjump contributors inserted")
+
+    jump_to_info: dict[str, str] = {}
+    for jump_name, jump_data in all_jump_data.items():
+        jump_infos: list[str] = jump_data.get('extra', [])
+        if jump_infos:
+            jump_to_info[jump_name] = "\n".join(jump_infos)
+
+    all_infos_unique = tuple(set(jump_to_info.values()))
+    cursor.execute(f"""
+        INSERT IGNORE INTO info (text) VALUES
+        {",\n".join("(?)" for _ in all_infos_unique)}
+    """, all_infos_unique)
+
+    devtools.noob_log("All infos inserted")
+
+
+    # Insert trickjump data
+
+    cursor.execute(f"""
+        INSERT INTO trickjump (name, difficulty_id, server_id, extra_id) VALUES
+        {",\n".join("(?, (SELECT name FROM difficulty WHERE name = ?), ?, (SELECT text FROM info WHERE text = ?))" for _ in range(len(all_jump_data)))};
+    """, [(jump_data['name'], jump_data['diff'], SERVERS.index(jump_data['server']) + 1, "\n".join(line) if line != [None] # for line in jump_data.get('extra', [None])) for jump_data in all_jump_data.values()])
 
     connection.commit()
 
