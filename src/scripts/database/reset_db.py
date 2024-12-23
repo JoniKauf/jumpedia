@@ -1,11 +1,9 @@
+import functools
 import json
 import re
 from utils import devtools
 from database import queries
 from utils.better_inbuilts import BetterSet
-
-SERVERS = ["SMO Trickjumping Server", "Database"]
-DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3.5/10", "4/10", "4.5/10", "5/10", "5.5/10", "6/10", "6.5/10", "7/10", "7.5/10", "8/10", "8.5/10", "9/10", "9.5/10", "10/10", "Low Elite", "Mid Elite", "High Elite", "Insanity Elite", "God Tier", "Hell Tier", "Unproven"]
 
 class Counter:
     def __init__(self, start: int = 0, step: int = 1):
@@ -22,6 +20,43 @@ class Counter:
 
     def reset(self) -> None:
         self.n = self.start
+
+
+from collections import defaultdict
+from typing import Any, Hashable, Iterable, Sequence
+
+@functools.cache
+def remap_nested_collection[KT: Hashable, VT](key: KT, data: Iterable[dict[KT, VT]]) -> dict[KT, dict[KT, VT]]:
+    result = defaultdict(dict)
+    
+    for elem in data:
+        key_val = elem[key]
+        
+        for k, v in elem.items():
+            result[k][key_val] = v
+            
+    return result
+
+# Constants 
+
+SERVERS = ["SMO Trickjumping Server", "Database"]
+DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3.5/10", "4/10", "4.5/10", "5/10", "5.5/10", "6/10", "6.5/10", "7/10", "7.5/10", "8/10", "8.5/10", "9/10", "9.5/10", "10/10", "Low Elite", "Mid Elite", "High Elite", "Insanity Elite", "God Tier", "Hell Tier", "Unproven"]
+
+with open("scripts/database/data/jump_data.json") as f:
+        ALL_JUMP_DATA: dict[str, dict[str, Any]] = json.load(f)
+
+with open("scripts/database/data/all_people_filtered.json") as f:
+    ALL_PEOPLE_ALIAS_TO_NAME: dict[str, str] = json.load(f)
+
+ALL_ATTR_DATA = remap_nested_collection("name", ALL_JUMP_DATA.values())
+
+CONTRIBUTOR_KEYS = ("finder", "taser", "prover")
+AND_PATTERN = re.compile(r", | & | and | - ")
+
+@functools.cache
+def ftp_line_to_people(line: str) -> list[str]:
+    parts: list[str] = re.split(AND_PATTERN, line)
+    return [ALL_PEOPLE_ALIAS_TO_NAME[part] for part in parts]
 
 
 devtools.time_left(seconds=5, feedback=lambda sec: f"You have {sec:.1f} seconds left to cancel!")
@@ -562,76 +597,30 @@ with queries.connected() as (connection, cursor):
 
     # Get all jump data
 
-    with open("scripts/database/data/jump_data.json") as f:
-        all_jump_data: dict[str, dict[str, str | list[str]]] = json.load(f)
-
-
-    # Insert all people
-
-    with open("scripts/database/data/all_people_filtered.json") as f:
-        simple_all_people_mapping: dict[str, str] = json.load(f)
-
-    all_contributor_lines_unfiltered: set[str] = set()
-
-    CONTRIBUTOR_KEYS = ("finder", "taser", "prover")
-    for jump_data in all_jump_data.values():
-        for contributor_line in CONTRIBUTOR_KEYS:
-            if contributor_line in jump_data:
-                all_contributor_lines_unfiltered |= set(person.strip() for person in jump_data[contributor_line])
-
-    all_people_mapping: dict[str, str] = {}
-    all_lines_mapping: dict[str, list[str]] = {}
-
-    for contributor_line in all_contributor_lines_unfiltered:
-        actual_people: list[str] = re.split(r", | & | and | - ", contributor_line)
-
-        for line in actual_people:
-            person_fixed = simple_all_people_mapping[line]
-            all_people_mapping[line] = person_fixed
-            all_lines_mapping.setdefault(contributor_line, []).append(person_fixed)
-
-    cursor.execute(f"""
-        INSERT INTO person (name) VALUES
-        {",\n".join(f"('{person.replace("'", "''")}')" for person in set(all_people_mapping.values()))}
-    """)
+    cursor.execute("INSERT INTO person (name) VALUES (?)",
+        tuple(person for person in set(ALL_PEOPLE_ALIAS_TO_NAME.values()))
+    )
 
     devtools.noob_log("All people inserted")
     
     # Insert contributors of trickjumps
-    all_trickjumps_with_ftp: list[tuple[str, str, int]] = []
+    tj_person_contribution: list[tuple[str, str, int]] = []
 
-    for jump_data in all_jump_data.values():
-        people_ftp_points: dict[str, int] = {}
-
-        for i, contributor_key in enumerate(CONTRIBUTOR_KEYS):
-            points_for_this: int = 2**i
-            people_flattened: set[str] = set()
-
-            for line in jump_data.get(contributor_key, ()):
-                people_flattened |= set(all_lines_mapping[line])
-
-            for person in people_flattened:
-                if person not in people_ftp_points:
-                    people_ftp_points[person] = 0
-                people_ftp_points[person] += points_for_this
-        
-        for person, points in people_ftp_points.items():
-            all_trickjumps_with_ftp.append((jump_data['name'], person, points))
+    for i, key in enumerate(CONTRIBUTOR_KEYS):
+        for tj_name, attr_val in ALL_ATTR_DATA.get(key, {}).items():
+            for person in ftp_line_to_people(attr_val):
+                tj_person_contribution.append((tj_name, person, i))
     
     cursor.execute(f"""
         INSERT INTO trickjump_contributor (trickjump_id, person_id, contribution) VALUES
-        {",\n".join(f"((SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), {elem[2]})" for elem in all_trickjumps_with_ftp)}
-    """, [elem for tup in all_trickjumps_with_ftp for elem in tup[:2]])
+        {",\n".join("SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), ?)" for _ in range(len(tj_person_contribution)))}
+    """, [elem for tup in tj_person_contribution for elem in tup])
 
     devtools.noob_log("All trickjump contributors inserted")
 
-    jump_to_info: dict[str, str] = {}
-    for jump_name, jump_data in all_jump_data.items():
-        jump_infos: list[str] = jump_data.get('extra', [])
-        if jump_infos:
-            jump_to_info[jump_name] = "\n".join(jump_infos)
+    JUMP_TO_INFO: dict[str, str] = {tj_name: "\n".join(info) for tj_name, info in ALL_ATTR_DATA.items()}
+    all_infos_unique = tuple(set(JUMP_TO_INFO.values()))
 
-    all_infos_unique = tuple(set(jump_to_info.values()))
     cursor.execute(f"""
         INSERT IGNORE INTO info (text) VALUES
         {",\n".join("(?)" for _ in all_infos_unique)}
@@ -639,13 +628,22 @@ with queries.connected() as (connection, cursor):
 
     devtools.noob_log("All infos inserted")
 
-
     # Insert trickjump data
 
     cursor.execute(f"""
         INSERT INTO trickjump (name, difficulty_id, server_id, extra_id) VALUES
-        {",\n".join("(?, (SELECT name FROM difficulty WHERE name = ?), ?, (SELECT text FROM info WHERE text = ?))" for _ in range(len(all_jump_data)))};
-    """, [(jump_data['name'], jump_data['diff'], SERVERS.index(jump_data['server']) + 1, "\n".join(line) if line != [None] # for line in jump_data.get('extra', [None])) for jump_data in all_jump_data.values()])
+        {",\n".join("(?, ?, ?, (SELECT text FROM info WHERE text = ?))" for _ in range(len(ALL_JUMP_DATA)))}""",
+        [
+            item
+            for jump_data in ALL_JUMP_DATA.values()
+            for item in
+            [
+                jump_data['name'],
+                DIFFICULTIES.index(jump_data['diff']) + 1,
+                SERVERS.index(jump_data['server']) + 1,
+                JUMP_TO_INFO['name']]
+            ]
+    )
 
     connection.commit()
 
