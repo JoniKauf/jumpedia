@@ -45,7 +45,7 @@ DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3
 with open("scripts/database/data/jump_data.json") as f:
         ALL_JUMP_DATA: dict[str, dict[str, Any]] = json.load(f)
 
-with open("scripts/database/data/all_people_filtered.json") as f:
+with open("scripts/database/data/all_people_filtered.json", encoding='utf-8') as f:
     ALL_PEOPLE_ALIAS_TO_NAME: dict[str, str] = json.load(f)
 
 ALL_ATTR_DATA = remap_nested_collection("name", ALL_JUMP_DATA.values())
@@ -57,6 +57,9 @@ AND_PATTERN = re.compile(r", | & | and | - ")
 def ftp_line_to_people(line: str) -> list[str]:
     parts: list[str] = re.split(AND_PATTERN, line)
     return [ALL_PEOPLE_ALIAS_TO_NAME[part] for part in parts]
+
+def join_text(s: str, amount: int, delim: str = ",\n"):
+    return delim.join(s for _ in range(amount))
 
 
 devtools.time_left(seconds=5, feedback=lambda sec: f"You have {sec:.1f} seconds left to cancel!")
@@ -229,13 +232,6 @@ with queries.connected() as (connection, cursor):
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS info (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            text VARCHAR(2048) UNIQUE NOT NULL
-        )
-    """)
-
-    cursor.execute("""
         CREATE TABLE IF NOT EXISTS person (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(64) UNIQUE NOT NULL
@@ -343,16 +339,6 @@ with queries.connected() as (connection, cursor):
             PRIMARY KEY (trickjump_id, link_id),
             FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
             FOREIGN KEY (link_id) REFERENCES link (id) ON DELETE RESTRICT
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS trickjump_info_junction (
-            trickjump_id INT NOT NULL,
-            info_id INT NOT NULL,
-            PRIMARY KEY (trickjump_id, info_id),
-            FOREIGN KEY (trickjump_id) REFERENCES trickjump (id) ON DELETE CASCADE,
-            FOREIGN KEY (info_id) REFERENCES info (id) ON DELETE RESTRICT
         )
     """)
 
@@ -590,49 +576,51 @@ with queries.connected() as (connection, cursor):
 
     devtools.noob_log("All 'constant' values inserted")
 
-    cursor.execute("""
-        SET FOREIGN_KEY_CHECKS = 1
-    """)
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
 
 
     # Get all jump data
 
-    cursor.execute("INSERT INTO person (name) VALUES (?)",
-        tuple(person for person in set(ALL_PEOPLE_ALIAS_TO_NAME.values()))
+    unique_all_people_alias_to_name = set(ALL_PEOPLE_ALIAS_TO_NAME.values())
+
+    cursor.execute(f"INSERT INTO person (name) VALUES {join_text("(?)", len(unique_all_people_alias_to_name))}",
+        tuple(unique_all_people_alias_to_name)
     )
 
     devtools.noob_log("All people inserted")
     
     # Insert contributors of trickjumps
-    tj_person_contribution: list[tuple[str, str, int]] = []
+    contribution: defaultdict[tuple[str, str], int] = defaultdict(lambda: 0)
 
     for i, key in enumerate(CONTRIBUTOR_KEYS):
         for tj_name, attr_val in ALL_ATTR_DATA.get(key, {}).items():
-            for person in ftp_line_to_people(attr_val):
-                tj_person_contribution.append((tj_name, person, i))
+            for line in attr_val:
+                for person in ftp_line_to_people(line):
+                    contribution[(tj_name, person.strip())] += 2**i
     
     cursor.execute(f"""
         INSERT INTO trickjump_contributor (trickjump_id, person_id, contribution) VALUES
-        {",\n".join("SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), ?)" for _ in range(len(tj_person_contribution)))}
-    """, [elem for tup in tj_person_contribution for elem in tup])
+        {join_text("SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), ?)", len(contribution))}
+    """, tuple((k1, k2, v) for (k1, k2), v in contribution.items()))
 
     devtools.noob_log("All trickjump contributors inserted")
 
-    JUMP_TO_INFO: dict[str, str] = {tj_name: "\n".join(info) for tj_name, info in ALL_ATTR_DATA.items()}
+    JUMP_TO_INFO: dict[str, str] = {tj_name: "\n".join(data['extra']) for tj_name, data in ALL_ATTR_DATA.items()}
     all_infos_unique = tuple(set(JUMP_TO_INFO.values()))
 
     cursor.execute(f"""
         INSERT IGNORE INTO info (text) VALUES
-        {",\n".join("(?)" for _ in all_infos_unique)}
+        {join_text("(?)", len(all_infos_unique))}
     """, all_infos_unique)
 
     devtools.noob_log("All infos inserted")
+
 
     # Insert trickjump data
 
     cursor.execute(f"""
         INSERT INTO trickjump (name, difficulty_id, server_id, extra_id) VALUES
-        {",\n".join("(?, ?, ?, (SELECT text FROM info WHERE text = ?))" for _ in range(len(ALL_JUMP_DATA)))}""",
+        {join_text("(?, ?, ?, (SELECT text FROM info WHERE text = ?))", len(ALL_JUMP_DATA))}""",
         [
             item
             for jump_data in ALL_JUMP_DATA.values()
@@ -641,9 +629,20 @@ with queries.connected() as (connection, cursor):
                 jump_data['name'],
                 DIFFICULTIES.index(jump_data['diff']) + 1,
                 SERVERS.index(jump_data['server']) + 1,
-                JUMP_TO_INFO['name']]
+                JUMP_TO_INFO[jump_data['name']]
             ]
+        ]
     )
+
+    ALL_LINKS_COLLAPSED: list[tuple[str, str]] = [(tj_name, link) for tj_name, links in ALL_ATTR_DATA['link'].items() for link in links]
+    cursor.execute(f"""
+        INSERT INTO link (link) VALUES
+        {join_text(su)}
+    """)
+    cursor.execute(f"""
+        INSERT INTO trickjump_link_junction (trickjump_id, link_id)
+        {join_text("((SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM link WHERE link = ?))", sum(len(links) for links in ))}
+    """)
 
     connection.commit()
 
