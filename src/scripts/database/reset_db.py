@@ -43,12 +43,25 @@ SERVERS = ["SMO Trickjumping Server", "Database"]
 DIFFICULTIES = ["0/10", "0.5/10", "1/10", "1.5/10", "2/10", "2.5/10", "3/10", "3.5/10", "4/10", "4.5/10", "5/10", "5.5/10", "6/10", "6.5/10", "7/10", "7.5/10", "8/10", "8.5/10", "9/10", "9.5/10", "10/10", "Low Elite", "Mid Elite", "High Elite", "Insanity Elite", "God Tier", "Hell Tier", "Unproven"]
 
 with open("scripts/database/data/jump_data.json") as f:
-        ALL_JUMP_DATA: dict[str, dict[str, Any]] = json.load(f)
+    # tj_name -> attr -> list[values]
+    ALL_JUMP_DATA: dict[str, dict[str, Any]] = json.load(f)
 
 with open("scripts/database/data/all_people_filtered.json", encoding='utf-8') as f:
     ALL_PEOPLE_ALIAS_TO_NAME: dict[str, str] = json.load(f)
 
-ALL_ATTR_DATA = remap_nested_collection("name", ALL_JUMP_DATA.values())
+# attr -> tj_name -> list[values]
+ALL_ATTR_DATA: dict[str, dict[str, list[str]]] = remap_nested_collection("name", ALL_JUMP_DATA.values())
+
+# attr -> list[tuple[tj_name, attr_value]]
+ALL_ATTR_FLATTENED: dict[str, list[tuple[str, str]]] = {}
+
+for attr, data in ALL_ATTR_DATA.items():
+    attr_list = ALL_ATTR_FLATTENED[attr] = []
+
+    for tj_name, values in data.items():
+        for v in values:
+            attr_list.append((tj_name, v))
+
 
 CONTRIBUTOR_KEYS = ("finder", "taser", "prover")
 AND_PATTERN = re.compile(r", | & | and | - ")
@@ -209,13 +222,6 @@ with queries.connected() as (connection, cursor):
         )
     """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS info (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            text VARCHAR(1024) UNIQUE NOT NULL COLLATE utf8mb4_general1400_as_ci
-        )
-    """)
-
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tag (
@@ -263,16 +269,15 @@ with queries.connected() as (connection, cursor):
         CREATE TABLE IF NOT EXISTS trickjump (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(80) UNIQUE NOT NULL COLLATE utf8mb4_general1400_as_ci,
+            info VARCHAR(2048) NULL,
             difficulty_id INT NOT NULL,
+            server_id INT NOT NULL,
+            thumbnail_id INT NULL,
             found_at DATETIME NULL,
             tased_at DATETIME NULL,
             proven_at DATETIME NULL,
-            server_id INT NOT NULL,
-            info_id INT NULL,
-            thumbnail_id INT NULL,
             FOREIGN KEY (difficulty_id) REFERENCES difficulty (id) ON DELETE RESTRICT,
             FOREIGN KEY (server_id) REFERENCES server (id) ON DELETE RESTRICT,
-            FOREIGN KEY (info_id) REFERENCES info (id) ON DELETE RESTRICT,
             FOREIGN KEY (thumbnail_id) REFERENCES thumbnail (id) ON DELETE SET NULL
         )
     """)
@@ -589,38 +594,12 @@ with queries.connected() as (connection, cursor):
 
     devtools.noob_log("All people inserted")
     
-    # Insert contributors of trickjumps
-    contribution: defaultdict[tuple[str, str], int] = defaultdict(lambda: 0)
-
-    for i, key in enumerate(CONTRIBUTOR_KEYS):
-        for tj_name, attr_val in ALL_ATTR_DATA.get(key, {}).items():
-            for line in attr_val:
-                for person in ftp_line_to_people(line):
-                    contribution[(tj_name, person.strip())] += 2**i
-    
-    cursor.execute(f"""
-        INSERT INTO trickjump_contributor (trickjump_id, person_id, contribution) VALUES
-        {join_text("SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), ?)", len(contribution))}
-    """, tuple((k1, k2, v) for (k1, k2), v in contribution.items()))
-
-    devtools.noob_log("All trickjump contributors inserted")
-
-    JUMP_TO_INFO: dict[str, str] = {tj_name: "\n".join(data['extra']) for tj_name, data in ALL_ATTR_DATA.items()}
-    all_infos_unique = tuple(set(JUMP_TO_INFO.values()))
-
-    cursor.execute(f"""
-        INSERT IGNORE INTO info (text) VALUES
-        {join_text("(?)", len(all_infos_unique))}
-    """, all_infos_unique)
-
-    devtools.noob_log("All infos inserted")
-
 
     # Insert trickjump data
 
     cursor.execute(f"""
-        INSERT INTO trickjump (name, difficulty_id, server_id, extra_id) VALUES
-        {join_text("(?, ?, ?, (SELECT text FROM info WHERE text = ?))", len(ALL_JUMP_DATA))}""",
+        INSERT INTO trickjump (name, difficulty_id, server_id, info) VALUES
+        {join_text("(?, ?, ?, ?)", len(ALL_JUMP_DATA))}""",
         [
             item
             for jump_data in ALL_JUMP_DATA.values()
@@ -629,20 +608,34 @@ with queries.connected() as (connection, cursor):
                 jump_data['name'],
                 DIFFICULTIES.index(jump_data['diff']) + 1,
                 SERVERS.index(jump_data['server']) + 1,
-                JUMP_TO_INFO[jump_data['name']]
+                "\n".join(jump_data['extra']) if 'extra' in jump_data else None
             ]
         ]
     )
 
-    ALL_LINKS_COLLAPSED: list[tuple[str, str]] = [(tj_name, link) for tj_name, links in ALL_ATTR_DATA['link'].items() for link in links]
+    devtools.noob_log("All trickjumps inserted!")
+
+
+    # Insert contributors of trickjumps
+    contribution: defaultdict[tuple[str, str], int] = defaultdict(lambda: 0)
+
+    for i, key in enumerate(CONTRIBUTOR_KEYS):
+        for tj_name, attr_val in ALL_ATTR_DATA.get(key, {}).items():
+            for line in attr_val:
+                for person in ftp_line_to_people(line):
+                    contribution[(tj_name, person.strip())] += 2**i
+
     cursor.execute(f"""
-        INSERT INTO link (link) VALUES
-        {join_text(su)}
-    """)
-    cursor.execute(f"""
-        INSERT INTO trickjump_link_junction (trickjump_id, link_id)
-        {join_text("((SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM link WHERE link = ?))", sum(len(links) for links in ))}
-    """)
+        INSERT INTO trickjump_contributor (trickjump_id, person_id, contribution) VALUES
+        {join_text("((SELECT id FROM trickjump WHERE name = ?), (SELECT id FROM person WHERE name = ?), ?)", len(contribution))}
+    """, tuple(elem for (k1, k2), v in contribution.items() for elem in (k1, k2, v)))
+
+    devtools.noob_log("All trickjump contributors inserted")
+
+
+    devtools.noob_log("All infos inserted")
+
+
 
     connection.commit()
 
