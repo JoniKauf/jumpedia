@@ -20,9 +20,12 @@ from utils.better_inbuilts import BetterSet
 _init_module_done = False
 
 
+class AttrMeta(type):
+    def __new__(cls, name)
+
 # --- Base Classes ---
 
-class AttrAny[T](ABC):
+class AttrAny[T](ABC, metaclass=AttrMeta):
     ACCESSIBLE: bool = True
     EDITABLE: bool = True
 
@@ -262,7 +265,7 @@ class AttrStr(AttrSingleValue[str]):
         return tuple(ord(char) * sign for char in self.value.casefold())
 
 
-class AttrStrEntry(AttrSingleValue[str]):
+class AttrStrBundle(AttrSingleValue[str]):
     LOOKUP: dict[str | int | None, Self] = {}
 
     def __init__(self, value: str | None, *, id: int, sort_value: int, alias: frozenset[str] = frozenset()) -> None:
@@ -273,7 +276,7 @@ class AttrStrEntry(AttrSingleValue[str]):
             )
         
         self.id: int = id
-        self.sort_value  = sort_value
+        self.sort_value = sort_value
         self.alias = alias
 
         super().__init__(value)
@@ -391,7 +394,7 @@ class Name(AttrStr):
     SECRET = False
 
 
-class Location(AttrStrEntry):
+class Location(AttrStrBundle):
     LOOKUP: dict[str | int | None, 'Location'] = {}
     
     ALIAS: frozenset[str] = frozenset(["l", "loc", "k", "kd", "kingdom"])
@@ -455,7 +458,7 @@ class Location(AttrStrEntry):
         return super()._init_cls()
     
 
-class Tier(AttrStrEntry):
+class Tier(AttrStrBundle):
     LOOKUP: dict[str | int | None, 'Tier'] = {}
 
     ALIAS: frozenset[str] = frozenset(['t'])
@@ -498,7 +501,7 @@ class Tier(AttrStrEntry):
         return super()._init_cls()
 
 
-class Difficulty(AttrStrEntry):
+class Difficulty(AttrStrBundle):
     LOOKUP: dict[str | int | None, 'Difficulty'] = {}
 
     ALIAS: frozenset[str] = frozenset(['diff', 'd'])
@@ -548,7 +551,7 @@ class Difficulty(AttrStrEntry):
                 cls.LOOKUP[key] = obj
 
 
-class Type(AttrStrEntry):
+class Type(AttrStrBundle):
     LOOKUP: dict[str | int | None, 'Type'] = {}
 
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
@@ -589,7 +592,7 @@ class Type(AttrStrEntry):
                 cls.LOOKUP[key] = obj
 
 
-class Server(AttrStrEntry):
+class Server(AttrStrBundle):
     LOOKUP: dict[str | int | None, 'Server'] = {}
 
     ALIAS: frozenset[str] = frozenset(["s", "serv"])
@@ -726,7 +729,7 @@ class Info(AttrStr):
 
         super().__init__(value)
 
-class Tag(AttrStrEntry):
+class Tag(AttrStrBundle):
     LOOKUP: dict[str | int | None, "Tag"] = {}
 
     ALIAS: frozenset[str] = frozenset(["tags"])
