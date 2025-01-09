@@ -9,21 +9,21 @@ type TrickjumpDataT = dict[str, Any]
 
 @dataclass(init=False, slots=True)
 class Trickjump(attrs.AttrCollection):
-    name:       Annotated[attrs.Name, attrs.AttrMetadata(True, True)]
-    location:   Annotated[attrs.AttrMultiValue[attrs.Location], attrs.AttrMetadata(True, True)]
-    difficulty: Annotated[attrs.Difficulty, attrs.AttrMetadata(True, True)]
-    type:       Annotated[attrs.AttrMultiValue[attrs.Type], attrs.AttrMetadata(True, True)]
-    server:     Annotated[attrs.Server, attrs.AttrMetadata(True, True)]
-    finder:     Annotated[attrs.AttrMultiValue[attrs.Finder], attrs.AttrMetadata(True, True)]
-    taser:      Annotated[attrs.AttrMultiValue[attrs.Taser], attrs.AttrMetadata(True, True)]
-    prover:     Annotated[attrs.AttrMultiValue[attrs.Prover], attrs.AttrMetadata(True, True)]
-    found_at:   Annotated[attrs.FoundAt, attrs.AttrMetadata(True, True)]
-    tased_at:   Annotated[attrs.TasedAt, attrs.AttrMetadata(True, True)]
-    proven_at:  Annotated[attrs.ProvenAt, attrs.AttrMetadata(True, True)]
-    link:       Annotated[attrs.AttrMultiValue[attrs.Link], attrs.AttrMetadata(True, True)]
-    info:       Annotated[attrs.Info, attrs.AttrMetadata(True, True)]
-    tag:        Annotated[attrs.AttrMultiValue[attrs.Tag], attrs.AttrMetadata(True, True)]
-    thumbnail:  Annotated[attrs.Thumbnail, attrs.AttrMetadata(True, True)]
+    name:       attrs.Name
+    location:   attrs.AttrMultiValue[attrs.Location]
+    difficulty: attrs.Difficulty
+    type:       attrs.AttrMultiValue[attrs.Type]
+    server:     attrs.Server
+    finder:     attrs.AttrMultiValue[attrs.Finder]
+    taser:      attrs.AttrMultiValue[attrs.Taser]
+    prover:     attrs.AttrMultiValue[attrs.Prover]
+    found_at:   attrs.FoundAt
+    tased_at:   attrs.TasedAt
+    proven_at:  attrs.ProvenAt
+    link:       attrs.AttrMultiValue[attrs.Link]
+    info:       attrs.Info
+    tag:        attrs.AttrMultiValue[attrs.Tag]
+    thumbnail:  attrs.Thumbnail
 
     def as_info(self) -> str:
         return "\n".join(f"{elem.NAME}: {elem.value}" for elem in self.__dict__.values())
