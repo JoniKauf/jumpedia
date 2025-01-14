@@ -20,12 +20,9 @@ from utils.better_inbuilts import BetterSet
 _init_module_done = False
 
 
-class AttrMeta(type):
-    def __new__(cls, name)
-
 # --- Base Classes ---
 
-class AttrAny[T](ABC, metaclass=AttrMeta):
+class AttrAny[T](ABC):
     ACCESSIBLE: bool = True
     EDITABLE: bool = True
 
