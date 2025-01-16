@@ -55,7 +55,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 
     if isinstance(e, errors.UserReturnableError):
         e.msg_kwargs['content'] = str(e)
-        await messagetools.handle_interaction_func(interaction, e.msg_kwargs)
+        await messagetools._handle_interaction_func(interaction, e.msg_kwargs)
         return
 
     if not is_deferred:
