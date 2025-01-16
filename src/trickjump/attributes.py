@@ -452,7 +452,7 @@ class Location(AttrStrBundle):
             for key in {obj.value, obj.id, *obj.alias}:
                 cls.LOOKUP[key] = obj
 
-        return super()._init_cls()
+        super()._init_cls()
     
 
 class Tier(AttrStrBundle):
@@ -495,7 +495,7 @@ class Tier(AttrStrBundle):
             for key in {obj.value, obj.id, *obj.alias}:
                 cls.LOOKUP[key] = obj
 
-        return super()._init_cls()
+        super()._init_cls()
 
 
 class Difficulty(AttrStrBundle):
@@ -546,6 +546,9 @@ class Difficulty(AttrStrBundle):
 
             for key in {obj.value, obj.id, *obj.alias}:
                 cls.LOOKUP[key] = obj
+        
+        super()._init_cls()
+        
 
 
 class Type(AttrStrBundle):
@@ -587,6 +590,8 @@ class Type(AttrStrBundle):
 
             for key in {obj.value, obj.id, *obj.alias}:
                 cls.LOOKUP[key] = obj
+        
+        super()._init_cls()
 
 
 class Server(AttrStrBundle):
@@ -628,6 +633,8 @@ class Server(AttrStrBundle):
 
             for key in {obj.value, obj.id, *obj.alias}:
                 cls.LOOKUP[key] = obj
+
+        super()._init_cls()
 
 
 

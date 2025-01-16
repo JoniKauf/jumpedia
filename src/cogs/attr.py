@@ -2,43 +2,30 @@ import discord as dc
 from discord.ext import commands as cmds
 from discord import app_commands as acmds
 
-from discordtools import autocompletes
+from discordtools import autocompletes, messagetools
 from trickjump import attributes as attrs
+
+from database import queries
 
 class Attr(cmds.GroupCog, group_name="attr"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    bundle_group = acmds.Group(name="bundle", description="info missing")
+    bundle_group = acmds.Group(name="bundle", description="Attr Bundle Group")
 
     BUNDLE_ATTR_CHOICES = [
-        acmds.Choice(name=name, value=name)
-        for name, cls
-        in attrs.ATTR_ITEMS if issubclass(cls, attrs.AttrStrBundle)
+        cls.NAME for cls in attrs.ATTR_CLASSES 
+        if issubclass(cls, attrs.AttrStrBundle)
     ]
     
-    @bundle_group.command(name="add_item")
-    @acmds.autocomplete(attr=autocompletes.best_match_paged(["hi",
-    "apple", "giraffe", "thunder", "bicycle", "pancake", "volcano", "comet", "umbrella",
-    "galaxy", "rainbow", "elephant", "cactus", "spaceship", "lantern", "notebook",
-    "crocodile", "mountain", "chocolate", "sunset", "telescope", "waterfall", "cinnamon",
-    "helicopter", "aquarium", "keyboard", "unicorn", "hamster", "diamond", "skateboard",
-    "pizza", "dolphin", "treasure", "balloon", "tornado", "magnolia", "penguin", "octopus",
-    "sandwich", "carousel", "firefly", "honeycomb", "mushroom", "starlight", "peppermint",
-    "glacier", "marigold", "horizon", "sapphire", "butterfly", "jellyfish", "labyrinth",
-    "kangaroo", "porcupine", "whisper", "spaghetti", "compass", "lemonade", "cathedral",
-    "nightingale", "tambourine", "sunflower", "staircase", "iceberg", "lavender", "blueberry",
-    "locomotive", "acorn", "masquerade", "hammock", "fern", "tangerine", "dragonfly", "topaz",
-    "mosaic", "parchment", "nebula", "constellation", "lighthouse", "seahorse", "mermaid",
-    "caravan", "meadow", "high", "firework", "zephyr", "windmill", "treetop", "honeybee", "silhouette",
-    "ziggurat"
-], per_page_limit=5))
-    async def add_item(self, ia: dc.Interaction, attr: str):
-        await ia.response.send_message(attr)
-
-    @bundle_group.command(name="testing")
-    async def testing(self, ia: dc.Interaction, aaaaa: str):
-        await ia.response.send_message(aaaaa)
+    @bundle_group.command()
+    @acmds.autocomplete(
+        attr=autocompletes.best_match_paged(
+            BUNDLE_ATTR_CHOICES, per_page_limit=5
+        )
+    )
+    async def add_item(self, ia: dc.Interaction, attr: str, arguments: str):
+        await messagetools.success(ia, "Work In Progress", "Coming soon...")
     
     
 async def setup(bot: cmds.Bot):

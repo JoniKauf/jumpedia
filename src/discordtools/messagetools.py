@@ -35,7 +35,7 @@ def shorten_and_embed_seq(
 
 
 
-def get_relevant_kwargs(kwargs: dict[str, Any], func: Callable) -> dict[str, Any]:
+def _get_relevant_kwargs(kwargs: dict[str, Any], func: Callable) -> dict[str, Any]:
     """Get all kwargs a given function accepts."""
     sig = inspect.signature(func)
     return {k: v for k, v in kwargs.items() if k in sig.parameters}
@@ -50,7 +50,7 @@ def _is_followup_func(func: InteractionFuncT, interaction: Interaction):
     )
 
 
-async def handle_interaction_func(
+async def _handle_interaction_func(
     interaction: Interaction,
     msg_kwargs: Optional[dict[str, Any]] = None,
     *,
@@ -69,7 +69,7 @@ async def handle_interaction_func(
             else:
                 raise ValueError(f"func '{success_func}' not executable anymore, because response is done")
             
-    msg_kwargs = get_relevant_kwargs(msg_kwargs, success_func) if msg_kwargs else {}
+    msg_kwargs = _get_relevant_kwargs(msg_kwargs, success_func) if msg_kwargs else {}
 
     await success_func(**msg_kwargs)
 
@@ -90,4 +90,4 @@ async def success(
 
     msg_kwargs['content'] = msg
 
-    await handle_interaction_func(interaction, msg_kwargs, success_func=success_func)
+    await _handle_interaction_func(interaction, msg_kwargs, success_func=success_func)
