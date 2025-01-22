@@ -27,7 +27,7 @@ def _same_chars_contained(container: str, s: str) -> bool:
 AUTOCOMPLETE_LIMIT = 25
 PAGING_SUFFIX: str = ">"
 REVERSE_PAGING_SUFFIX: str = "<"
-MAX_PAGE_ORDER_OF_MAGNITUDE: int = 6
+MAX_PAGE: int = 99_999
 BEST_MATCH_CRITERIAS: tuple[Callable[[str, str], bool], ...] = (
     lambda elem, current: elem == current,
     lambda elem, current: elem.startswith(current),
@@ -61,16 +61,16 @@ def _save_ceildiv(a: int | float, b: int | float) -> int:
 
 def _get_page(s: str) -> tuple[int, bool, str]:
     DEFAULT = (1, False, s)
-    page = 1
+    page: int = DEFAULT[0]
 
     for suf, reverse in ((PAGING_SUFFIX, False), (REVERSE_PAGING_SUFFIX, True)):
         left, sep, n = s.rpartition(suf)
 
         if sep and n.isdigit():
-            # 0 -> 1
+            # 0 converts to 1
             page = int(n) or 1
 
-            if math.log10(page) > MAX_PAGE_ORDER_OF_MAGNITUDE:
+            if page > MAX_PAGE:
                 return DEFAULT
 
             return page, reverse, left.rstrip()

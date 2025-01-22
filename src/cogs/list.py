@@ -1,6 +1,6 @@
 import discord as dc
-from discord.ext import commands as cmds
-from discord import app_commands as acmds
+import discord.app_commands as acmds
+import discord.ext.commands as cmds
 
 from typing import Optional as Opt
 
@@ -30,7 +30,7 @@ class List(cmds.GroupCog, group_name="list"):
     @users_group.command()
     async def who_completed(self, ia: dc.Interaction, filter: Opt[str]):
         await messagetools.success(ia, "Work In Progress", "Coming soon...")
-    
+
 
 
 async def setup(bot: cmds.Bot):

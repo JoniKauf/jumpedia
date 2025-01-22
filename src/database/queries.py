@@ -14,7 +14,7 @@ def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected(final_commit: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(*, final_commit: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     conn = None
     try:
         conn = mariadb.connect(**__get_connection_data())

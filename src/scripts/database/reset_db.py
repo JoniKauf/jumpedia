@@ -257,11 +257,11 @@ with queries.connected() as (connection, cursor):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user (
             id BIGINT PRIMARY KEY,
-            custom_name VARCHAR(64) NOT NULL,
-            person_id INT NOT NULL,
+            name VARCHAR(64) NOT NULL,
             rank_power INT NOT NULL DEFAULT 0,
-            FOREIGN KEY (person_id) REFERENCES person (id),
+            person_id INT NOT NULL,
             FOREIGN KEY (rank_power) REFERENCES `rank` (power)
+            FOREIGN KEY (person_id) REFERENCES person (id),
         )
     """)
 
