@@ -416,7 +416,7 @@ class Location(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (connection, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
                     location.id AS id,
@@ -466,7 +466,7 @@ class Tier(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (connection, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
                     tier.id AS id,
@@ -514,7 +514,7 @@ class Difficulty(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (connection, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
                     difficulty.id AS id,
@@ -562,7 +562,7 @@ class Type(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (connection, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
                     type.id AS id,
@@ -605,7 +605,7 @@ class Server(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (connection, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
                     server.id AS id,

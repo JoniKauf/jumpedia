@@ -1,6 +1,6 @@
 import discord as dc
-from discord.ext import commands as cmds
-from discord import app_commands as acmds
+import discord.app_commands as acmds
+import discord.ext.commands as cmds
 
 from discordtools import autocompletes, messagetools
 from trickjump import attributes as attrs

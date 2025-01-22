@@ -181,10 +181,11 @@ class TooLongName(errors.FeedbackError):
         )
 
 class PersonDoesNotExist(errors.FeedbackError):
-    def __init__(self, person: str | int):
+    def __init__(self, person: str | int, say_user_instead: bool = False):
+        convention: str = "User" if say_user_instead else "Person"
         super().__init__(
-            error="Person Does Not Exist",
-            details=f"The person with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist!"
+            error=f"{convention} Does Not Exist",
+            details=f"The {convention.lower()} with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist!"
         )
 
 class InvalidSringFormat(errors.FeedbackError):
@@ -192,4 +193,11 @@ class InvalidSringFormat(errors.FeedbackError):
         super().__init__(
             error="Invalid String Format",
             details=f"For the attribute `{attr}` the value contained `{msgt.shorten(wrong)}` which should be replaced by `{msgt.shorten(right)}`!"
+        )
+
+class InvalidUserFormat(errors.FeedbackError):
+    def __init__(self, id_format: int | str):
+        super().__init__(
+            error="Invalid User Format",
+            details=f"The format `{msgt.shorten(str(id_format))}` is not valid! Either mention the user with @username or enter their discord ID."
         )
