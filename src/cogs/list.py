@@ -3,14 +3,13 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from typing import Optional as Opt
-
 from discordtools import messagetools
 
 class List(cmds.GroupCog, group_name="list"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    trickjump_group = acmds.Group(name="tj", description="List Trickjump Group")
+    trickjump_group = acmds.Group(name="tj", description="List Tj Group")
 
     @trickjump_group.command()
     async def all(self, ia: dc.Interaction, filter: Opt[str], sort: Opt[str]):

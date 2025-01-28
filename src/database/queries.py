@@ -1,31 +1,38 @@
 from contextlib import contextmanager
 import functools
-from typing import Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal
+import json
+from typing import Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, Optional as Opt
 from types import EllipsisType
-from utils.better_inbuilts import BetterSet
+from utils.custom_collections import BetterSet
 
 import mariadb.cursors
 from . import mariadb_extensions as mdbe
 from database import secret
 import mariadb
+from discordtools import feedbackerrors as fbe
 
 @functools.lru_cache(maxsize=1)
 def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected(*, final_commit: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected() -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     conn = None
     try:
-        conn = mariadb.connect(**__get_connection_data())
+        conn = mariadb.connect(
+            **__get_connection_data(),
+            converter={
+                mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str)
+            }
+        )
         cursor = conn.cursor(dictionary=True)
+
         yield conn, cursor
-        if final_commit:
-            conn.commit()
+
     except mariadb.Error as e:
         if conn:
             conn.rollback()
-        raise e
+        raise fbe.InternalDatabaseError(e)
     finally:
         if conn:
             cursor.close()

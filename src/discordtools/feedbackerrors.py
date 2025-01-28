@@ -1,9 +1,12 @@
 from discordtools import errors
-from typing import Optional, Sequence
+from typing import Optional as Opt, Sequence
 from discordtools import messagetools as msgt
 from numbers import Real
 
-short = msgt.shorten
+from people import ranks
+
+sh = msgt.shorten
+spaced = lambda *s: ' '.join(s)
 
 class InvalidPermission(errors.FeedbackError):
     def __init__(self, ephemeral: bool = True):
@@ -25,20 +28,20 @@ class BadChannel(errors.FeedbackError):
         )
 
 class InvalidAttribute(errors.FeedbackError):
-    def __init__(self, attr: str, expression: Optional[str] = None) -> None:
+    def __init__(self, attr: str, expression: Opt[str] = None) -> None:
         self.attr = attr
         
         super().__init__(
             error="Invalid Attribute Error",
             details=(
-                f"The attribute `{short(attr)}` is not valid!"
+                f"The attribute `{sh(attr)}` is not valid!"
                 if expression is None else
-                f"The attribute `{short(attr)}` from the expression `{short(expression) or msgt.default_empty()}` is not valid!"
+                f"The attribute `{sh(attr)}` from the expression `{sh(expression) or msgt.default_empty()}` is not valid in the given context!"
             )
         )
 
 class InvalidSubAttribute(errors.FeedbackError):
-    def __init__(self, attr: str, sub_attr: str, expression: Optional[str] = None):
+    def __init__(self, attr: str, sub_attr: str, expression: Opt[str] = None):
         self.attr = attr
         self.sub_attr = sub_attr
         self.expression = expression
@@ -46,9 +49,9 @@ class InvalidSubAttribute(errors.FeedbackError):
         super().__init__(
             error="Invalid Sub Attribute",
             details=(
-                f"The attribute `{short(attr)}` has no sub attribute `{short(sub_attr)}`"
+                f"The attribute `{sh(attr)}` has no sub attribute `{sh(sub_attr)}`"
                 + (
-                    f" in the expression `{short(expression) or msgt.default_empty()}`!"
+                    f" in the expression `{sh(expression) or msgt.default_empty()}`!"
                     if expression else "!"
                 )
             )
@@ -78,16 +81,20 @@ class NotAJump(errors.FeedbackError):
         
         super().__init__(
             error="Not A Jump",
-            details=f"The jump `{jump_name}` doesn't exist in Jumpedia!"
+            details=f"The jump `{sh(jump_name)}` doesn't exist in Jumpedia!"
         )
 
 class JumpAlreadyObtained(errors.FeedbackError):
-    def __init__(self, user_name: str):
+    def __init__(self, user_name: Opt[str]):
         self.user_name = user_name
 
         super().__init__(
             error="Jump Already Obtained",
-            details=f"The user `{user_name}` has already obtained that jump!"
+            details=(
+                f"The user `{user_name}` has already obtained that jump!"
+                if user_name is None else 
+                f"You have already obtained that jump!"
+            )
         )
 
 class JumpNotYetObtained(errors.FeedbackError):
@@ -105,7 +112,7 @@ class NotAValidLink(errors.FeedbackError):
 
         super().__init__(
             error="Not A Valid Link",
-            details=f"The link `{msgt.shorten(link)}` is not a valid URL!"
+            details=f"The link `{sh(link)}` is not a valid URL!"
         )
 
 class TooLongLink(errors.FeedbackError):
@@ -115,14 +122,48 @@ class TooLongLink(errors.FeedbackError):
 
         super().__init__(
             error="Too Long Link",
-            details=f"The link `{msgt.shorten(link)}` exceeds the maximum limit of `{limit}` characters!"
+            details=f"The link `{sh(link)}` exceeds the maximum limit of `{limit}` characters!"
         )
 
 class NoPermissionForOtherUsers(errors.FeedbackError):
-    def __init__(self):
+    def __init__(
+        self, 
+        user_rank_and_min: Opt[tuple[ranks.UserRank, ranks.UserRank]] = None, 
+        server_rank_and_min: Opt[tuple[ranks.ServerRank, ranks.ServerRank]] = None,
+    ):
+        self.user_rank_and_min = user_rank_and_min
+        self.server_rank_and_min = server_rank_and_min
+        
+        rank_addons: list[str] = []
+        
+        if (
+            user_rank_and_min and 
+            user_rank_and_min[0] < user_rank_and_min[1]
+        ):
+            rank_addons.append(
+                f"__Required User Rank__: `{user_rank_and_min[1]}`"
+            )
+        
+        if (
+            server_rank_and_min and 
+            server_rank_and_min[0] < server_rank_and_min[1]
+        ):
+            rank_addons.append(
+                f"__Required Server Rank:__ `{server_rank_and_min[1]}`"
+            )
+
+        if not rank_addons and (user_rank_and_min or server_rank_and_min):
+            raise errors.ProgrammingError(
+                "both ranks are high enough, so why even raise this feedback?"
+            )
+        
         super().__init__(
             error="No Permission For Other Users",
-            details="You do not have the required permissions to use this functionality for other users!"
+            details=spaced(
+                "You do not have the required rank to use this",
+                "functionality for other users in this context!",
+                ("\n" + "\n".join(rank_addons)) if rank_addons else ""
+            )
         )
 
 class NotAValidUser(errors.FeedbackError):
@@ -177,27 +218,47 @@ class TooLongName(errors.FeedbackError):
 
         super().__init__(
             error="Too Long Name",
-            details=f"The entered name `{msgt.shorten(name)}` exceeds the limit of `{max}` characters!"
+            details=f"The entered name `{sh(name)}` exceeds the limit of `{max}` characters!"
+        )
+
+class TooLongValue(errors.FeedbackError):
+    def __init__(self, value: str, max: int):
+        self.name = value
+        self.max = max
+
+        super().__init__(
+            error="Too Long Value",
+            details=f"The entered value `{sh(value)}` (length: {len(value)}) exceeds the limit of `{max}` characters!"
         )
 
 class PersonDoesNotExist(errors.FeedbackError):
     def __init__(self, person: str | int, say_user_instead: bool = False):
-        convention: str = "User" if say_user_instead else "Person"
+        convention: str = "user" if say_user_instead else "person"
         super().__init__(
-            error=f"{convention} Does Not Exist",
-            details=f"The {convention.lower()} with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist!"
+            error=f"{convention.title()} Does Not Exist",
+            details=f"The {convention} with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist or could not be found!\nA person must have interacted with Jumpedia at least once before to become a user!"
         )
 
 class InvalidSringFormat(errors.FeedbackError):
     def __init__(self, attr: str, wrong: str, right: str):
         super().__init__(
             error="Invalid String Format",
-            details=f"For the attribute `{attr}` the value contained `{msgt.shorten(wrong)}` which should be replaced by `{msgt.shorten(right)}`!"
+            details=f"For the attribute `{attr}` the value contained `{sh(wrong)}` which should be replaced by `{sh(right)}`!"
         )
 
 class InvalidUserFormat(errors.FeedbackError):
     def __init__(self, id_format: int | str):
         super().__init__(
             error="Invalid User Format",
-            details=f"The format `{msgt.shorten(str(id_format))}` is not valid! Either mention the user with @username or enter their discord ID."
+            details=f"The format `{sh(str(id_format))}` is not valid! Either mention the user with @username or enter their discord ID."
         )
+
+class InternalDatabaseError(errors.FeedbackError):
+    def __init__(self, inner: BaseException):
+        self.inner = inner
+        
+        super().__init__(
+            error="Internal Database Error",
+            details=f"An internal database error occurred. This can happen, for example, when the data you tried to interact with got changed in that exact same moment.\nPlease try again and if the issue persists, try again later!"
+        )
+

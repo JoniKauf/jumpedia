@@ -1,10 +1,12 @@
 import ast
 from dataclasses import astuple
 import sys
-from typing import Any, Callable, Literal, Optional, Self, Sequence, TypeAlias, cast, get_args
+from typing import Any, Callable, Iterable, Literal, Optional, Self, Sequence, TypeAlias, cast, get_args, TYPE_CHECKING
 from discordtools.errors import ProgrammingError
 from trickjump import attributes
-from trickjump.trickjump import Trickjump
+
+if TYPE_CHECKING:
+    from trickjump.trickjump import Trickjump
 
 class FilterSyntaxError(Exception):
     pass
@@ -17,7 +19,7 @@ class Catalog(list[Trickjump]):
     
     _RAISE_KEY_ERROR = object()
 
-    def __init__(self, data: Optional[Sequence[Trickjump]] = None):
+    def __init__(self, data: Optional[Iterable[Trickjump]] = None):
         super().__init__(data or ())
 
     @classmethod
@@ -178,7 +180,7 @@ class Catalog(list[Trickjump]):
 
         
         def get_sort_val(jump: Trickjump) -> tuple:
-            return tuple(jump.get(attr_cls).sort_key(sign) for attr_cls, sign in attrs_sign.items())
+            return tuple(jump.get_by_name(attr_cls).sort_key(sign) for attr_cls, sign in attrs_sign.items())
         
         super().sort(key=get_sort_val)
 

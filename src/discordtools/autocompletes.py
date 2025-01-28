@@ -31,7 +31,8 @@ MAX_PAGE: int = 99_999
 BEST_MATCH_CRITERIAS: tuple[Callable[[str, str], bool], ...] = (
     lambda elem, current: elem == current,
     lambda elem, current: elem.startswith(current),
-    _same_chars_contained
+    lambda elem, current: current in elem,
+    # _same_chars_contained
 )
 
 

@@ -1,12 +1,15 @@
-from typing import Annotated, Any, Generator, Sequence, overload, override
+from typing import TYPE_CHECKING, Annotated, Any, Generator, Sequence, overload, override, Optional as Opt
 from dataclasses import dataclass
-
+from database import queries
 from trickjump import attributes as attrs
-from users import person
-
+from people import person
+from discordtools import feedbackerrors as fbe
 
 type TrickjumpDataT = dict[str, Any]
 
+if TYPE_CHECKING:
+   from trickjump import catalog as cat
+    
 @dataclass(init=False, slots=True)
 class Trickjump(attrs.AttrCollection):
     name:       attrs.Name
@@ -26,8 +29,72 @@ class Trickjump(attrs.AttrCollection):
     thumbnail:  attrs.Thumbnail
 
     def as_info(self) -> str:
-        return "\n".join(f"{elem.NAME}: {elem.value}" for elem in self.__dict__.values())
+        return "\n".join(f"{k}: {v}" for k, v in self.items())
 
+    @classmethod
+    def select_attrs(cls) -> str:
+        return f"""
+            SELECT {", ".join(cls.field_names())} FROM trickjump
+        """
+    
+    @classmethod
+    def get_all(cls) -> 'cat.Catalog':
+        from trickjump import catalog as cat
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(cls.select_attrs())
+
+            tjs_data: list[dict[str, Any]] = cursor.fetchall()
+
+        return cat.Catalog(
+            Trickjump(tj, required=True, lower=False) 
+            for tj in tjs_data
+        )
+    
+    @classmethod
+    def get_all_names(cls) -> list[str]:
+        with queries.connected() as (conn, cursor):
+            cursor.execute("""SELECT name FROM trickjump""")
+
+            result: list[TrickjumpDataT] = cursor.fetchall()
+
+        return [tj['name'] for tj in result]
+    
+    @classmethod
+    def get_by_name(cls, name: str) -> 'Trickjump':
+        with queries.connected() as (conn, cursor):
+            cursor.execute(
+                f"{cls.select_attrs()} WHERE name = ? LIMIT 1", 
+                (name,)
+            )
+
+            result: TrickjumpDataT = cursor.fetchone()
+
+        if result is None:
+            raise fbe.NotAJump(name)
+        
+        return cls(result)
+
+    @classmethod
+    def get_raw(cls, name: str, attributes: Sequence[str] = ()) -> TrickjumpDataT:
+        attributes = attributes or cls.field_names()
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT *
+                FROM trickjump
+                WHERE name = ?
+                LIMIT 1""",
+                (name,)
+            )
+
+            result: TrickjumpDataT = cursor.fetchone()
+        
+        if result is None:
+            raise fbe.NotAJump(name)
+        
+        return result
+        
     def get_contributor_line(self) -> str:
         def join_grammatically(elems: Sequence[str]):
             if len(elems) < 2:
@@ -35,7 +102,7 @@ class Trickjump(attrs.AttrCollection):
             return ', '.join((*elems[:-1], f" & {elems[-1]}"))
         
         contributors: Generator[attrs.AttrPerson | attrs.AttrMultiValue[attrs.AttrPerson]] = (
-            v for v in self.values(lambda attr: issubclass(attr.value_cls, attrs.AttrPerson))
+            v for v in self.values(lambda _, val: issubclass(val.value_cls, attrs.AttrPerson))
         )  # type: ignore
 
         action_to_people: dict[str, tuple[person.Person, ...]] = {
