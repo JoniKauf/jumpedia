@@ -1,35 +1,48 @@
-from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass, field
+from dataclasses import Field, asdict, dataclass, fields
 from datetime import datetime
-from enum import Enum, StrEnum, auto
 from functools import cached_property
 import functools
 import inspect
-from database import queries
+import typing
 from utils import text
 import sys
-from typing import Annotated, Any, Callable, ClassVar, Generic, Hashable, Iterable, Literal, Mapping, NamedTuple, Optional, Protocol, Self, Sequence, TypeAlias, TypeGuard, TypeVar, TypedDict, Union, TYPE_CHECKING, cast, final, get_args
+from typing import Any, Callable, ClassVar as CV, Iterable, Literal, Optional as Opt, Protocol, Self, get_args, get_origin, runtime_checkable
 import re
 from collections.abc import KeysView, ValuesView, ItemsView
 
 import discordtools.feedbackerrors as fbe
-from users.person import Person
-from utils.better_inbuilts import BetterSet
+from people.person import Person
 
 
 _init_module_done = False
 
+MAX_LINK_LENGTH = 512
+
+# Recursive fix for https://bugs.python.org/issue44847
+def _issubclass(cls: Any, parent: Any):
+    if cls == parent:
+        return True
+    
+    for base in cls.__bases__:
+        return _issubclass(base, parent)
+    
+    return False
+
+def fs[T](*elems: T) -> frozenset[T]:
+    return frozenset(elems)
+
 
 # --- Base Classes ---
 
-class AttrAny[T](ABC):
+@runtime_checkable
+class AttrAny[T](Protocol):
     ACCESSIBLE: bool = True
     EDITABLE: bool = True
 
     @property
-    @abstractmethod
     def value(self) -> T:
         """The value the class encapsulates."""
+        raise NotImplementedError()
 
     def __str__(self) -> str:
         return str(self.value)
@@ -61,13 +74,13 @@ class TierSub(AttrSub['Tier']):
     ACCESSIBLE = True
     EDITABLE = True
 
-class AuthorSub(AttrSub[Person]):
+class AuthorSub(AttrSub[Opt[Person]]):
     ACCESSIBLE = True
     EDITABLE = True
 
 
     
-class AttrNormal[T](AttrAny[Optional[T]]):
+class AttrNormal[T](AttrAny[Opt[T]]):
     """An abstract base class for anything that represents a "normal" attribute.
     
     Metadata Class Variables:
@@ -99,8 +112,8 @@ class AttrNormal[T](AttrAny[Optional[T]]):
             caller = frame.f_back
 
             if caller is not None:
-                cls: Optional[type[AttrNormal]] = caller.f_locals.get("cls", None)
-                self_: Optional[AttrNormal] = caller.f_locals.get("self", None)
+                cls: Opt[type[AttrNormal]] = caller.f_locals.get("cls", None)
+                self_: Opt[AttrNormal] = caller.f_locals.get("self", None)
 
                 if (cls is None or not issubclass(cls, AttrNormal)) and (self_ is None or not isinstance(self, AttrNormal)):
                     raise RuntimeError(
@@ -118,8 +131,6 @@ class AttrNormal[T](AttrAny[Optional[T]]):
         Initialize the class itself when the module is imported and 
         therefore runned the first time.
         """
-        cls.NAME = text.pascal_to_snake(cls.__name__)
-
         if _init_module_done:
             raise RuntimeError(
                 "Classes may only be initialized before themodule is fully "
@@ -127,13 +138,15 @@ class AttrNormal[T](AttrAny[Optional[T]]):
             )
     
     @classmethod
-    @abstractmethod
     def get(cls, value: Self | T | None, *args: Any, **kwargs: Any) -> Self:
-        """Get an appropriate instance of a the specific class."""
-        ...
+        """Get an appropriate instance of the specific class."""
+        raise NotImplementedError()
 
-    @cached_property
-    @abstractmethod
+    @property
+    def value(self) -> Opt[T]:
+        raise NotImplementedError()
+    
+    @property
     def value_cls(self) -> type['AttrSingleValue']:
         """The class encapsulating the AttrSingleValue.
         
@@ -144,14 +157,14 @@ class AttrNormal[T](AttrAny[Optional[T]]):
         possibility that an object could be an instance of either and
         we want to retrieve the AttrSingleValue's class.
         """
+        raise NotImplementedError()
 
-    @cached_property
-    @abstractmethod
+    @property
     def unpacked(self) -> tuple[Any, ...]:
         """The value(s) unpacked into a tuple.
         
-        For AttrSingleValue this is simply a tuple of zero or one,
-        depending on if the value of the class is None or not
+        For AttrSingleValue this is simply a tuple of length zero or one,
+        depending on if the value of the class is None or not,
         respectively. AttrMultiValue's value is a tuple of
         AttrSingleValue, this will "unpack" every value from each
         AttrSingleValue into a combined, new tuple.
@@ -161,9 +174,9 @@ class AttrNormal[T](AttrAny[Optional[T]]):
         we want to retrieve a tuple of all elements' values, for example
         when iterating over them.
         """
+        raise NotImplementedError()
 
-    @cached_property
-    @abstractmethod
+    @property
     def packed(self) -> 'AttrMultiValue[AttrSingleValue]':
         """The AttrSingleValue(s) packed into a AttrMultiValue.
         
@@ -177,9 +190,8 @@ class AttrNormal[T](AttrAny[Optional[T]]):
         we want to retrieve a tuple of all elements, for example when 
         iterating over them.
         """
-        ...
+        raise NotImplementedError()
 
-    @abstractmethod
     def sort_key(self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> Any:
         """Return an appropriate comparison value to be compared to
         other instances of the same type for sorting.
@@ -189,6 +201,11 @@ class AttrNormal[T](AttrAny[Optional[T]]):
         by the specific attribute follows a natural order. The sign
         acts as a way of reversing the order.
         """
+        raise NotImplementedError()
+
+    def is_empty(self) -> bool:
+        raise NotImplementedError()
+    
 
 type AttrNormalTypeT[VT] = (
     type[AttrSingleValue[VT]] | type[AttrMultiValue[AttrSingleValue[VT]]]
@@ -208,21 +225,27 @@ class AttrSingleValue[VT](AttrNormal[VT]):
     ALIAS: frozenset[str]
     REQUIRED: bool
     MULTI_VALUE: bool
-    USER_SPECIFIC: Optional[bool]
+    USER_SPECIFIC: Opt[bool]
     SECRET: bool
     
-    def __init__(self, value: Optional[VT]):
-        self._value: Optional[VT] = value
+    def __init__(self, value: Opt[VT]):
+        self._value: Opt[VT] = value
         super().__init__()
 
+    @classmethod
+    def _init_cls(cls):
+        super()._init_cls()
+        
+        cls.NAME = text.pascal_to_snake(cls.__name__)
+    
     def __hash__(self) -> int:
         return hash(tuple(sorted(self.__dict__.items())))
     
-    @cached_property
-    def value(self) -> Optional[VT]:
+    @property
+    def value(self) -> Opt[VT]:
         return self._value
     
-    @cached_property
+    @property
     def value_cls(self) -> type[Self]:
         return self.__class__
 
@@ -235,14 +258,18 @@ class AttrSingleValue[VT](AttrNormal[VT]):
         return AttrMultiValue.get(None if self.value is None else self, self.value_cls)
 
     @classmethod
-    @abstractmethod
     def get(cls, value: Self | VT | None, *args: Any, **kwargs: Any) -> Self:
-        ...
+        raise NotImplementedError()
+    
+    def is_empty(self) -> bool:
+        return self.value is None
         
     
 class AttrStr(AttrSingleValue[str]):
-    def __init__(self, value: Optional[str]):
-        if self.value and not self.value.strip():
+    MAX_LENGTH: CV[int]
+
+    def __init__(self, value: Opt[str]):
+        if value and not value.strip():
             super().__init__(None)
         else:
             super().__init__(value)
@@ -250,6 +277,9 @@ class AttrStr(AttrSingleValue[str]):
     @classmethod
     def get(cls, value: Self | str | None, *args: Any, **kwargs: Any) -> Self:
         if value is None or isinstance(value, str):
+            if value is not None and len(value) > cls.MAX_LENGTH:
+                raise fbe.TooLongValue(value, cls.MAX_LENGTH)
+            
             return cls(value)
         if isinstance(value, cls):
             return value
@@ -279,15 +309,38 @@ class AttrStrBundle(AttrSingleValue[str]):
         super().__init__(value)
     
     @classmethod
+    def _add_raw_data(cls, *values: dict[str, Any]) -> None:
+        already_added = len({elem.id for elem in cls.LOOKUP.values()})
+
+        if None in cls.LOOKUP:
+            already_added -= 1
+
+        for i, elem in enumerate(values, start=already_added + 1):
+            # add these kv only if not existant already
+            elem: dict[str, Any] = {'id': i, 'sort_value': i} | elem
+            
+            obj = cls(**elem)
+            
+            for syn_or_id in (
+                obj.id, 
+                obj.value.casefold() if obj.value is not None else None, 
+                *(alias.casefold() for alias in obj.alias)
+            ):
+                cls.LOOKUP[syn_or_id] = obj
+
+    @classmethod
     def _init_cls(cls) -> None:
+        super()._init_cls()
+
         # If we reach 2^32 - 1 elements, we definitely have other problems
         cls.LOOKUP[None] = cls(None, id=-1, sort_value=(2**32) - 1)
-        return super()._init_cls()
     
     @classmethod
     def get(cls, value: Self | str | int | None, *args: Any, **kwargs: Any) -> Self:
-        if value is None or isinstance(value, (str, int)):
+        if value is None or isinstance(value, int):
             return cls.LOOKUP[value]
+        if isinstance(value, str):
+            return cls.LOOKUP[value.casefold()]
         if isinstance(value, cls):
             return value
 
@@ -319,10 +372,7 @@ class AttrPerson(AttrSingleValue[Person]):
         if value is None or isinstance(value, Person):
             return cls(value)
         if isinstance(value, (int, str)):
-            try:
-                return cls(Person.LOOKUP[value])
-            except KeyError:
-                raise fbe.PersonDoesNotExist(value)
+            return cls(Person.get(value))
         if isinstance(value, cls):
             return value
         
@@ -342,25 +392,31 @@ class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrNormal[tuple[CT, .
     def value(self) -> tuple[CT, ...]:
         return tuple(self)
     
-    @classmethod
-    def __new__(cls, value: Optional[Iterable[CT]], value_cls: type[CT]) -> Self:
+    def __new__(cls, value: Opt[Iterable[CT]], value_cls: type[CT]) -> Self:
         value = value or ()
         if not all(value_cls == type(elem) for elem in value):
             raise TypeError("value_cls should be the exact same as the type of all elements of value")
         
         return super().__new__(cls, value)
 
-    def __init__(self, value: Optional[Iterable[CT]], value_cls: type[CT]) -> None:
-        self.value_cls: type[CT] = value_cls
+    def __init__(self, value: Opt[Iterable[CT]], value_cls: type[CT]) -> None:
+        self._value_cls: type[CT] = value_cls
         super().__init__()
+    
+    def __str__(self) -> str:
+        return str(tuple(str(elem) for elem in self.unpacked))
     
     @cached_property
     def unpacked(self) -> tuple[Any, ...]:
         return tuple(elem.value for elem in self)
     
-    @cached_property
+    @property
     def packed(self) -> 'AttrMultiValue[CT]':
         return self
+    
+    @property
+    def value_cls(self) -> type[CT]:
+        return self._value_cls
     
     def sort_key(self, sign: Literal[-1] | Literal[1] = +1, *args: Any, **kwargs: Any) -> tuple:
         if not self:
@@ -374,11 +430,14 @@ class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrNormal[tuple[CT, .
         if isinstance(value, cls):
             return value
         if isinstance(value, Iterable):
-            return cls(tuple(
-                elem if isinstance(elem, value_cls) else value_cls(elem) for elem in value), 
+            return cls(
+                tuple(value_cls.get(elem) for elem in value), 
                 value_cls
             )
-        return cls((value_cls.get(value),), value_cls)
+        return cls([value_cls.get(value),], value_cls)
+    
+    def is_empty(self) -> bool:
+        return self == ()
 
 
 # --- Attribute Classes ---
@@ -389,6 +448,8 @@ class Name(AttrStr):
     MULTI_VALUE = False
     USER_SPECIFIC = None
     SECRET = False
+
+    MAX_LENGTH = 80
 
 
 class Location(AttrStrBundle):
@@ -402,7 +463,7 @@ class Location(AttrStrBundle):
 
     def __init__(
         self, 
-        value: Optional[str], 
+        value: Opt[str], 
         *, 
         id: int, 
         sort_value: int,
@@ -416,43 +477,37 @@ class Location(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    location.id AS id,
-                    location.name AS name,
-                    location.sort_value AS sort_value,
-                    location_alias.alias AS alias,
-                    location_outer_junction.outer_id AS outer_id,
-                    location_tag.tag AS tag
-                FROM location
-                LEFT JOIN location_alias ON location.id = location_alias.location_id
-                LEFT JOIN location_outer_junction ON location.id = location_outer_junction.location_id
-                LEFT JOIN location_tag_junction ON location.id = location_tag_junction.location_id
-                LEFT JOIN location_tag ON location_tag_junction.tag_id = location_tag.id;
-            """)
-
-            rows: list = cursor.fetchall()
-
-        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
-
-        for location in result.values():
-            id: int = location['id'].at(0)
-            name: str = location['name'].at(0)
-
-            obj = Location(
-                name,
-                id=id,
-                sort_value=location['sort_value'].at(0),
-                alias=location['alias'].freeze(),
-                tag=location['tag'].freeze(),
-                outer=frozenset(cls.LOOKUP[outer_id] for outer_id in location['outer_id'])
-            )
-
-            for key in {obj.value, obj.id, *obj.alias}:
-                cls.LOOKUP[key] = obj
-
         super()._init_cls()
+
+        data: list[dict[str, Any]] = [
+            {'value': "Cap Kingdom"},
+            {'value': "Cascade Kingdom"},
+            {'value': "Sand Kingdom"},
+            {'value': "Lake Kingdom"},
+            {'value': "Wooded Kingdom"},
+            {'value': "Cloud Kingdom"},
+            {'value': "Lost Kingdom"},
+            {'value': "Metro Kingdom"},
+            {'value': "Snow Kingdom"},
+            {'value': "Seaside Kingdom"},
+            {'value': "Luncheon Kingdom"},
+            {'value': "Ruined Kingdom"},
+            bowser := {'value': "Bowser's Kingdom"},
+            {'value': "Moon Kingdom"},
+            {'value': "Mushroom Kingdom"},
+            {'value': "Dark Side"},
+            {'value': "Darker Side"},
+        ]
+        
+        for elem in data:
+            elem |= {'alias': frozenset([elem['value'].partition(" ")[0]]), 'outer': frozenset()}
+
+        bowser['alias'] |= frozenset(["Bowser", "Bowsers", "Bowser Kingdom", "Bowsers Kingdom"])
+
+        cls._add_raw_data(*data)
+        cls._add_raw_data(
+            {'value': "Odyssey", 'outer': frozenset(elem for elem in cls.LOOKUP.values())}
+        )
     
 
 class Tier(AttrStrBundle):
@@ -466,36 +521,30 @@ class Tier(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    tier.id AS id,
-                    tier.name AS name,
-                    tier.sort_value AS sort_value,
-                    tier_alias.alias AS alias
-                FROM tier
-                LEFT JOIN tier_alias ON tier.id = tier_alias.tier_id
-            """)
-
-            rows: list = cursor.fetchall()
-
-        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
-
-        for tier in result.values():
-            id: int = tier['id'].at(0)
-            name: str = tier['name'].at(0)
-
-            obj = Tier(
-                name,
-                id=id,
-                sort_value=tier['sort_value'].at(0),
-                alias=tier['alias'].freeze()
-            )
-
-            for key in {obj.value, obj.id, *obj.alias}:
-                cls.LOOKUP[key] = obj
-
         super()._init_cls()
+
+        data: list[dict[str, Any]] = [
+            {'value': "Practice Tier"},
+            {'value': "Beginner"},
+            {'value': "Intermediate"},
+            {'value': "Advanced"},
+            {'value': "Expert"},
+            {'value': "Master"},
+            {'value': "Low Elite"},
+            {'value': "Mid Elite"},
+            {'value': "High Elite"},
+            {'value': "Insanity Elite"},
+            {'value': "God Tier"},
+            {'value': "Hell Tier"},
+            {'value': "Unproven"}
+        ]
+
+        for elem in data:
+            first_part, has_space, _ = elem['value'].partition(" ")
+
+            elem['alias'] = frozenset([first_part] if has_space else [])
+        
+        cls._add_raw_data(*data)
 
 
 class Difficulty(AttrStrBundle):
@@ -507,51 +556,80 @@ class Difficulty(AttrStrBundle):
     USER_SPECIFIC = False
     SECRET = False
 
-    def __init__(self, value: Optional[str], *, tier: Optional[Tier] = None, id: int, sort_value: int, missing: bool = True, alias: frozenset[str] = frozenset()):
+    def __init__(self, value: Opt[str], *, tier: Opt[Tier] = None, id: int, sort_value: int, missing: bool = True, alias: frozenset[str] = frozenset()):
         self.tier = TierSub(Tier.get(tier))
         self.missing: bool = missing
         super().__init__(value, id=id, sort_value=sort_value, alias=alias)
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    difficulty.id AS id,
-                    difficulty.name AS name,
-                    difficulty.sort_value AS sort_value,
-                    difficulty_alias.alias AS alias,
-                    difficulty.missing AS missing,
-                    difficulty.tier_id AS tier_id
-                FROM difficulty
-                LEFT JOIN difficulty_alias ON difficulty.id = difficulty_alias.difficulty_id
-            """)
-
-            rows: list = cursor.fetchall()
-
-        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
-
-        for difficulty in result.values():
-            id: int = difficulty['id'].at(0)
-            name: str = difficulty['name'].at(0)
-
-            obj = Difficulty(
-                name,
-                id=id,
-                sort_value=difficulty['sort_value'].at(0),
-                alias=difficulty['alias'].freeze(),
-                missing=difficulty['missing'].at(0),
-                tier=Tier.get(difficulty['tier_id'].at(0)),
-            )
-
-            for key in {obj.value, obj.id, *obj.alias}:
-                cls.LOOKUP[key] = obj
-        
         super()._init_cls()
+
+        data: list[dict[str, Any]] = [
+            {'value': "0/10", 'tier': Tier.get('Practice Tier')},
+            {'value': "0.5/10", 'tier': Tier.get('Beginner')},
+            {'value': "1/10", 'tier': Tier.get('Beginner')},
+            {'value': "1.5/10", 'tier': Tier.get('Beginner')},
+            {'value': "2/10", 'tier': Tier.get('Beginner')},
+            {'value': "2.5/10", 'tier': Tier.get('Beginner')},
+            {'value': "3/10", 'tier': Tier.get('Beginner')},
+            {'value': "3.5/10", 'tier': Tier.get('Intermediate')},
+            {'value': "4/10", 'tier': Tier.get('Intermediate')},
+            {'value': "4.5/10", 'tier': Tier.get('Intermediate')},
+            {'value': "5/10", 'tier': Tier.get('Intermediate')},
+            {'value': "5.5/10", 'tier': Tier.get('Advanced')},
+            {'value': "6/10", 'tier': Tier.get('Advanced')},
+            {'value': "6.5/10", 'tier': Tier.get('Advanced')},
+            {'value': "7/10", 'tier': Tier.get('Expert')},
+            {'value': "7.5/10", 'tier': Tier.get('Expert')},
+            {'value': "8/10", 'tier': Tier.get('Expert')},
+            {'value': "8.5/10", 'tier': Tier.get('Master')},
+            {'value': "9/10", 'tier': Tier.get('Master')},
+            {'value': "9.5/10", 'tier': Tier.get('Master')},
+            {'value': "10/10", 'tier': Tier.get('Master')},
+            {'value': "Low Elite", 'tier': Tier.get('Low Elite')},
+            {'value': "Mid Elite", 'tier': Tier.get('Mid Elite')},
+            {'value': "High Elite", 'tier': Tier.get('High Elite')},
+            {'value': "Insanity Elite", 'tier': Tier.get('Insanity Elite')},
+            {'value': "God Tier", 'tier': Tier.get('God Tier')},
+            {'value': "Hell Tier", 'tier': Tier.get('Hell Tier')},
+            {'value': "Unproven", 'tier': Tier.get('Unproven')}
+        ]
+
+        for elem in data:
+            # if not unproven, make 'missing' = True
+            elem['missing'] = elem is not data[-1]
+
+            v: str = elem['value']
+            elem['alias'] = set()
+
+            n, is_oo10, _ = v.partition("/")
+
+            # -- Add aliases --
+            # case x/10
+            if is_oo10:
+                elem['alias'] |= {n}
+                
+                # case .5
+                if "." in n:
+                    n_comma = n.replace(".", ",")
+                    elem['alias'] |= {n_comma, n_comma + "/10"}
+
+                    # case 0.5
+                    if n == "0.5":
+                        elem['alias'] |= {".5", ",5", ".5/10", ",5/10"}
+
+            # case Elite and higher
+            elif " " in v:
+                elem['alias'] |= {v.partition(" ")[0]}
+
+            elem['alias'] = frozenset(elem['alias'])
+            
+        cls._add_raw_data(*data)
         
 
-
-class Type(AttrStrBundle):
+class Type(AttrStr):
+    MAX_LENGTH = 100
     LOOKUP: dict[str | int | None, 'Type'] = {}
 
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
@@ -560,38 +638,13 @@ class Type(AttrStrBundle):
     USER_SPECIFIC = False
     SECRET = False
 
-    @classmethod
-    def _init_cls(cls) -> None:
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    type.id AS id,
-                    type.name AS name,
-                    type.sort_value AS sort_value,
-                    type_alias.alias AS alias
-                FROM type
-                LEFT JOIN type_alias ON type.id = type_alias.type_id
-            """)
+    # @classmethod
+    # def _init_cls(cls) -> None:
+    #     super()._init_cls()
 
-            rows: list = cursor.fetchall()
+    #     data: list[dict[str, Any]] = []
 
-        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
-
-        for type in result.values():
-            id: int = type['id'].at(0)
-            name: str = type['name'].at(0)
-
-            obj = Type(
-                name,
-                id=id,
-                sort_value=type['sort_value'].at(0),
-                alias=type['alias'].freeze()
-            )
-
-            for key in {obj.value, obj.id, *obj.alias}:
-                cls.LOOKUP[key] = obj
-        
-        super()._init_cls()
+    #     cls._add_raw_data(*data)
 
 
 class Server(AttrStrBundle):
@@ -605,36 +658,34 @@ class Server(AttrStrBundle):
 
     @classmethod
     def _init_cls(cls) -> None:
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    server.id AS id,
-                    server.name AS name,
-                    server.sort_value AS sort_value,
-                    server_alias.alias AS alias
-                FROM server
-                LEFT JOIN server_alias ON server.id = server_alias.server_id
-            """)
-
-            rows: list = cursor.fetchall()
-
-        result: dict[int, dict[str, BetterSet[Any]]] = queries.collapse_rows(rows, "id", collapsed_column_in_data=True)
-
-        for server in result.values():
-            id: int = server['id'].at(0)
-            name: str = server['name'].at(0)
-
-            obj = Server(
-                name,
-                id=id,
-                sort_value=server['sort_value'].at(0),
-                alias=server['alias'].freeze(),
-            )
-
-            for key in {obj.value, obj.id, *obj.alias}:
-                cls.LOOKUP[key] = obj
-
         super()._init_cls()
+
+        data: list[dict[str, Any]] = [{
+            'value': "SMO Trickjumping Server", 
+            'alias': frozenset([
+                "Main",         
+                "Main Server",
+                "Main Trickjump Server",
+                "Main Trickjumping Server",
+                "SMO Trickjump",
+                "SMO Trickjump Server",
+                "SMO Trickjumping",
+                "Trickjump Server",
+                "Trickjumping Server"
+            ])}, {
+            'value': "Database", 
+            'alias': frozenset([
+                "DB",
+                "Database Server",
+                "SMO Database",
+                "SMO Trickjumping Database",
+                "Trickjump Database",
+                "Trickjumping Database",
+                "Trickjump DB",
+                "Trickjumping DB",
+            ])
+        }]
+        cls._add_raw_data(*data)
 
 
 
@@ -707,6 +758,8 @@ class Proof(AttrStr):
     USER_SPECIFIC = True
     SECRET = False
 
+    MAX_LENGTH = MAX_LINK_LENGTH
+
 
 class Link(AttrStr):
     ALIAS: frozenset[str] = frozenset(["l", "lnk", "clip", "video", "links"])
@@ -715,7 +768,9 @@ class Link(AttrStr):
     USER_SPECIFIC = False
     SECRET = False
 
-    def __init__(self, value: Optional[str], *, author: Person):
+    MAX_LENGTH = MAX_LINK_LENGTH
+
+    def __init__(self, value: Opt[str], *, author: Opt[Person] = None):
         self.author = AuthorSub(author)
         super().__init__(value)
 
@@ -727,7 +782,9 @@ class Info(AttrStr):
     USER_SPECIFIC = False
     SECRET = False
 
-    def __init__(self, value: Optional[str]):
+    MAX_LENGTH = 2048
+
+    def __init__(self, value: Opt[str]):
         if value is not None:
             value = value.replace("\\n", "\n")
 
@@ -749,6 +806,8 @@ class Thumbnail(AttrStr):
     USER_SPECIFIC = False
     SECRET = True
 
+    MAX_LENGTH = MAX_LINK_LENGTH
+
 
 @dataclass(init=False, slots=True)
 class AttrCollection:
@@ -756,68 +815,114 @@ class AttrCollection:
     A parent class for any class that wants to use attributes
     as its fields and provides functionality for that case.
     """
-    __annotations__: ClassVar[dict[str, type[AttrNormalT]]]
-
+    __annotations__: CV[dict[str, type[AttrNormalT]]]
+    
     def __init__(self, data: dict[str, Any], *, required: bool = True, lower: bool = True) -> None:
-        new_data: dict[str, AttrNormalT] = {}
+        attr_to_v: dict[str, Any] = {}
 
-        for k, v in data.items():
+        for syn, v in data.items():
             try:
-                cls = syn_to_cls(k, lower=lower)
-
-                if cls not in self.field_types:
+                attr: str = syn_to_name(syn, lower=lower)
+                
+                if attr not in self.__class__.field_names():
                     raise KeyError()
             except KeyError:
-                raise fbe.InvalidAttribute(k)
+                raise fbe.InvalidAttribute(syn)
             
-            if cls.NAME in new_data:
-                raise fbe.SameAttribute(k)
+            if attr in attr_to_v:
+                raise fbe.SameAttribute(syn)
 
-            new_data[cls.NAME] = AttrMultiValue.get(v, cls)
+            attr_to_v[attr] = v
         
-        missing: list[str] = []
+        missing_attrs: list[str] = []
 
-        for cls in self.field_types:
-            if cls.NAME not in new_data:
-                new_data[cls.NAME] = cls.get(None)
+        for cls, is_multi in self.field_value_type_info().items():
+            v = attr_to_v.get(cls.NAME, None)
 
-                if required and cls.REQUIRED:
-                    missing.append(cls.NAME)
+            if v is None and required and cls.REQUIRED:
+                missing_attrs.append(cls.NAME)
 
-        if missing:
-            raise fbe.RequiredAttributesMissing(missing)
+            setattr(
+                self, 
+                cls.NAME,
+                AttrMultiValue.get(v, cls) if is_multi else cls.get(v)
+            )
 
-    @cached_property
-    def field_types(self) -> dict[type[AttrSingleValue], None]:
-        """dict instead of set because of insertion order"""
-        return dict.fromkeys(
-            elem.value_cls if isinstance(elem, AttrMultiValue) else elem.__class__ 
-            for elem in self.values()
-        )
+        if missing_attrs:
+            raise fbe.RequiredAttributesMissing(missing_attrs)
     
-    def mapping(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> dict[str, AttrNormalT]:
+    def mapping(self, predicate: Opt[Callable[[str, AttrNormalT], bool]] = None) -> dict[str, AttrNormalT]:
         if predicate is None:
-            return asdict(self)
-        return {k: v for k, v in asdict(self).items() if predicate(v)}
+            return {f.name: getattr(self, f.name) for f in self.fields()}
+        return {k: v for k, v in self.mapping().items() if predicate(k, v)}
     
     @functools.cache
-    def keys(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> KeysView[str]:
+    def keys(self, predicate: Opt[Callable[[str, AttrNormalT], bool]] = None) -> KeysView[str]:
         return self.mapping(predicate).keys()
     
-    def values(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> ValuesView[AttrNormalT]:
+    def values(self, predicate: Opt[Callable[[str, AttrNormalT], bool]] = None) -> ValuesView[AttrNormalT]:
         return self.mapping(predicate).values()
     
-    def items(self, predicate: Optional[Callable[[AttrNormalT], bool]] = None) -> ItemsView[str, AttrNormalT]:
+    def items(self, predicate: Opt[Callable[[str, AttrNormalT], bool]] = None) -> ItemsView[str, AttrNormalT]:
         return self.mapping(predicate).items()
 
-    def get(self, attr: str | type[AttrSingleValue]) -> AttrNormalT:
+    _fields: CV[Opt[tuple[Field, ...]]] = None
+
+    @classmethod
+    def fields(cls) -> tuple[Field, ...]:
+        if cls._fields is None:
+            cls._fields = fields(cls)
+        return cls._fields
+    
+    _field_names: CV[Opt[tuple[str, ...]]] = None
+
+    @classmethod
+    def field_names(cls) -> tuple[str, ...]:
+        if cls._field_names is None:
+            cls._field_names = tuple(f.name for f in cls.fields())
+        return cls._field_names
+    
+    _field_types: CV[Opt[dict[str, type[AttrNormalT]]]] = None
+
+    @classmethod
+    def field_types(cls) -> dict[str, type[AttrNormalT]]:
+        if cls._field_types is None:
+            resolved_hints = typing.get_type_hints(cls, globals(), locals())
+            
+            cls._field_types = {
+                name: resolved_hints[name] for name in cls.field_names()
+            }
+        return cls._field_types
+    
+    _field_value_type_info: CV[Opt[dict[type[AttrSingleValue], bool]]] = None
+
+    @classmethod
+    def field_value_type_info(cls) -> dict[type[AttrSingleValue], bool]:
+        """dict[value_cls, is_AttrMultiValue]"""
+        if cls._field_value_type_info is None:
+            type_info: dict[type[AttrSingleValue], bool] = {}
+
+            for v in cls.field_types().values():
+                if _issubclass(v, AttrSingleValue):
+                    type_info[v] = False  # type: ignore
+                elif _issubclass(get_origin(v), AttrMultiValue):
+                    type_info[get_args(v)[0]] = True
+                else:
+                    print(get_origin(v))
+                    raise TypeError
+
+            cls._field_value_type_info = type_info
+
+        return cls._field_value_type_info
+    
+    def get_attr(self, attr: str | type[AttrSingleValue]) -> AttrNormalT:
         if isinstance(attr, str):
             name: str = attr
         else:
             name: str = attr.NAME
         return getattr(self, name)
 
-    def set(self, attr: str | type[AttrSingleValue], value: Any) -> AttrNormalT:
+    def set_attr(self, attr: str | type[AttrSingleValue], value: Any) -> AttrNormalT:
         if isinstance(attr, str):
             cls = syn_to_cls(attr)
         else:
@@ -832,8 +937,8 @@ class AttrCollection:
         return result
 
     def pop(self, attr: str | type[AttrSingleValue]) -> AttrNormalT:
-        value: AttrNormalT = self.get(attr)
-        setattr(self, value.NAME, value.__class__.get(None, value.value_cls))
+        value: AttrNormalT = self.get_attr(attr)
+        setattr(self, value.value_cls.NAME, value.__class__.get(None, value.value_cls))
         return value
     
     def get_attr_hierarchy_value(self, expression: str, predicate: Callable[[AttrAny], bool]) -> Any:
@@ -849,7 +954,7 @@ class AttrCollection:
             except KeyError:
                 part = part.casefold()
 
-        curr_obj: Any = self.get(parts[0])
+        curr_obj: Any = self.get_attr(parts[0])
         # expression = ".".join(parts)
 
         for i, part in enumerate(parts):
