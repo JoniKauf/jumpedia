@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
 SEP = r" \ ".strip()
 
-BOT: commands.Bot = globals()["BOT"]
+BOT: commands.Bot = globals()['BOT']
 TOKEN = secret.listen()['DISCORD_TOKEN']
 
 COGS_DIR = r"cogs"

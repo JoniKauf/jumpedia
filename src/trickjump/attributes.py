@@ -23,7 +23,7 @@ def _issubclass(cls: Any, parent: Any):
     if cls == parent:
         return True
     
-    for base in cls.__bases__:
+    for base in getattr(cls, '__bases__', ()):
         return _issubclass(base, parent)
     
     return False
@@ -908,7 +908,6 @@ class AttrCollection:
                 elif _issubclass(get_origin(v), AttrMultiValue):
                     type_info[get_args(v)[0]] = True
                 else:
-                    print(get_origin(v))
                     raise TypeError
 
             cls._field_value_type_info = type_info
