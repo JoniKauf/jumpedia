@@ -78,7 +78,7 @@ async def success(
     interaction: Interaction,
     header: str,
     description: str,
-    show_success: bool = False,
+    show_success: bool = True,
     *,
     success_func: Optional[InteractionFuncT] = None,
     **msg_kwargs: Any

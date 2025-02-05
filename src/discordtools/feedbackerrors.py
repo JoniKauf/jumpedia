@@ -84,26 +84,42 @@ class NotAJump(errors.FeedbackError):
             details=f"The jump `{sh(jump_name)}` doesn't exist in Jumpedia!"
         )
 
-class JumpAlreadyObtained(errors.FeedbackError):
+class JumpAlreadyGotten(errors.FeedbackError):
     def __init__(self, user_name: Opt[str]):
         self.user_name = user_name
 
         super().__init__(
-            error="Jump Already Obtained",
+            error="Jump Already Gotten",
             details=(
-                f"The user `{user_name}` has already obtained that jump!"
-                if user_name is None else 
-                f"You have already obtained that jump!"
+                f"The user `{user_name}` has already gotten that jump!"
+                if user_name is not None else 
+                f"You have already gotten that jump!"
             )
         )
 
-class JumpNotYetObtained(errors.FeedbackError):
-    def __init__(self, user_name: str):
+class JumpNotYetGotten(errors.FeedbackError):
+    def __init__(self, user_name: Opt[str]):
         self.user_name = user_name
 
         super().__init__(
-            error="Jump Not Yet Obtained",
-            details=f"The user `{user_name}` has not obtained that jump yet!"
+            error="Jump Not Yet Gotten",
+            details=(
+                f"The user `{user_name}` has not gotten that jump yet!"
+                if user_name is not None else
+                "You have not gotten that jump yet!"
+            )
+        )
+
+
+class NoProofYetSet(errors.FeedbackError):
+    def __init__(self, user_name: Opt[str]):
+        super().__init__(
+            error="No Proof Yet Set",
+            details=(
+                f"The user `{user_name}` has not set a proof for that jump yet!"
+                if user_name is not None else
+                "You have not set a proof for the jump that jump yet!"
+            )
         )
 
 class NotAValidLink(errors.FeedbackError):
@@ -166,25 +182,11 @@ class NoPermissionForOtherUsers(errors.FeedbackError):
             )
         )
 
-class NotAValidUser(errors.FeedbackError):
-    def __init__(self):
-        super().__init__(
-            error="Not A Valid User",
-            details="The user specified is neither a valid user's ID nor a mention of a user."
-        )
-
 class UserNotFound(errors.FeedbackError):
     def __init__(self):
         super().__init__(
             error="User Not Found",
             details="The user specified could not be found!"
-        )
-
-class NoProofYetSet(errors.FeedbackError):
-    def __init__(self, user_name: str, jump_name: str):
-        super().__init__(
-            error="No Proof Yet Set",
-            details=f"The user `{user_name}` has not set a proof for the jump `{jump_name}` yet!"
         )
 
 class AllJumpsAndUserSpecified(errors.FeedbackError):

@@ -40,6 +40,9 @@ class User:
         if not isinstance(value, User):
             return False
         return self.id == value.id
+    
+    def __ne__(self, value: object) -> bool:
+        return not (self.__eq__(value)) 
             
     @classmethod
     def get(
@@ -128,7 +131,7 @@ class User:
         ia: dc.Interaction,
         other_user_identifier: UserT,
         min_user_rank: ranks.UserRank = ranks.USER_RANKS.JONIKAUF,
-        min_server_rank: ranks.ServerRank = ranks.SERVER_RANKS.UNREACHABLE
+        min_server_rank: ranks.ServerRank = ranks.SERVER_RANKS.MEMBER
     ) -> tuple['User', 'User']:
         """Return: tuple[executing_user, other_user],"""
         server_rank_this_user = ranks.get_server_rank(ia.user)

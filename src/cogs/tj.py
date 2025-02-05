@@ -26,6 +26,16 @@ def _validate_proof(proof: Opt[str]) -> Opt[str]:
         proof = proof or None
 
 
+def specify_user(
+    ia_user: users.User,
+    other_user: users.User
+) -> str:
+    return (
+        "yourself" 
+        if ia_user == other_user else
+        f"the user `{other_user.name}`"
+    )
+
 class Tj(cmds.GroupCog, group_name="tj"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
@@ -47,8 +57,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
             user or ia.user, 
-            ranks.USER_RANKS.MODERATOR, 
-            ranks.SERVER_RANKS.MEMBER
+            ranks.USER_RANKS.MODERATOR
         )
 
         _validate_proof(proof)   
@@ -64,7 +73,11 @@ class Tj(cmds.GroupCog, group_name="tj"):
             result = cursor.fetchone()
 
             if result is not None:
-                raise fbe.JumpAlreadyObtained(other_user.name)
+                raise fbe.JumpAlreadyGotten(
+                    other_user.name 
+                    if ia_user != other_user
+                    else None
+                )
 
             cursor.execute("""
                 INSERT INTO user_trickjump 
@@ -80,22 +93,116 @@ class Tj(cmds.GroupCog, group_name="tj"):
             "Jump Successfully Given",
             " ".join((
                 "You successfully gave",
-                "yourself" if ia_user == other_user else f"the user `{other_user}`",
+                specify_user(ia_user, other_user),
                 f"the trickjump `{tj_data['name']}` with",
                 "no proof yet!" if not proof else "the specified proof!"
-            )),
-            True
+            ))
         )
 
     proof_group = acmds.Group(name="proof", description="Tj Proof Group")
 
-    @proof_group.command(name="give")
-
+    @proof_group.command(name="set")
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
         tj.Trickjump.get_all_names()
     ))
-    async def proof_give(self, ia: dc.Interaction, jump_name: str, ):
-        pass
+    async def proof_set(self, ia: dc.Interaction, jump_name: str, proof: str, user: Opt[str] = None):
+        tj_data = tj.Trickjump.get_raw(jump_name)
+
+        ia_user, other_user = users.User.get_if_permitted(
+            ia, 
+            user or ia.user, 
+            ranks.USER_RANKS.MODERATOR
+        )
+
+        _validate_proof(proof)   
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute("""
+                SELECT *
+                FROM user_trickjump
+                WHERE trickjump_id = ? and user_id = ?
+                LIMIT 1
+            """, (tj_id := tj_data['id'], other_user.id))
+
+            result = cursor.fetchone()
+
+            if result is None:
+                raise fbe.JumpNotYetGotten(
+                    other_user.name 
+                    if ia_user != other_user
+                    else None
+                )
+
+            cursor.execute("""
+                UPDATE user_trickjump
+                SET proof = ?
+                WHERE trickjump_id = ? AND user_id = ?
+            """, (proof, tj_id, other_user.id))
+
+            conn.commit()
+
+        action: str = "set a" if result['proof'] is None else "overwrote the old"
+
+        await msgt.success(
+            ia,
+            "Proof Successfully Set",
+            " ".join((
+                f"You successfully {action} proof for the trickjump",
+                f"`{tj_data['name']}` for {specify_user(ia_user, other_user)}!"
+            ))
+        )
+        
+    
+    @proof_group.command(name="get")
+    @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
+        tj.Trickjump.get_all_names()
+    ))
+    async def proof_get(self, ia: dc.Interaction, jump_name: str, user: Opt[str] = None):
+        tj_data = tj.Trickjump.get_raw(jump_name)
+
+        ia_user, other_user = users.User.get_if_permitted(
+            ia, 
+            user or ia.user, 
+            ranks.USER_RANKS.MODERATOR
+        )
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute("""
+                SELECT *
+                FROM user_trickjump
+                WHERE trickjump_id = ? and user_id = ?
+                LIMIT 1
+            """, (tj_id := tj_data['id'], other_user.id))
+
+            result = cursor.fetchone()
+
+        if result is None:
+            raise fbe.JumpNotYetGotten(
+                other_user.name 
+                if ia_user != other_user
+                else None
+            )
+        
+        if (proof := result['proof']) is None:
+            raise fbe.NoProofYetSet(
+                other_user.name 
+                if ia_user != other_user
+                else None
+            )
+        
+        await msgt.success(
+            ia,
+            "Proof Successfully Retrieved",
+            f"Here is the proof for the trickjump `{tj_data['name']}`" +
+            (f" of the user `{other_user.name}`" if ia_user != other_user else "") +
+            ":\n" + proof +
+            "\n\nThese proofs are set by users themselves, so be careful and " +
+            "only open them if you are sure it is save to do so!",
+            embed=False
+        )
+        
+        
+
         
     list_group = acmds.Group(name="list", description="Tj List Group")
     

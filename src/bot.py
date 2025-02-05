@@ -15,7 +15,7 @@ def main():
         raise RuntimeError('Developed for CPython, other Python implementation may not be compatible!')
 
     import trickjump.attributes
-    runpy.run_module('running', init_globals={"BOT": BOT})
+    runpy.run_module('running', init_globals={'BOT': BOT})
     
 
 if __name__ == '__main__':
