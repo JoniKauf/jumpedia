@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import re
+import textwrap
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
@@ -99,6 +100,49 @@ class Tj(cmds.GroupCog, group_name="tj"):
             ))
         )
 
+    @acmds.command()
+    @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
+        tj.Trickjump.get_all_names()
+    ))
+    async def remove(self, ia: dc.Interaction, jump_name: str, user: Opt[str] = None):
+        tj_data = tj.Trickjump.get_raw(jump_name)
+
+        ia_user, other_user = users.User.get_if_permitted(
+            ia, 
+            user or ia.user, 
+            ranks.USER_RANKS.MODERATOR
+        )
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute("""
+                SELECT *
+                FROM user_trickjump
+                WHERE trickjump_id = ? AND user_id = ?
+                LIMIT 1
+            """, (tj_id := tj_data['id'], other_user.id))
+
+            result = cursor.fetchone()
+
+            if result is None:
+                raise fbe.JumpNotYetGotten(
+                    other_user.name
+                    if ia_user != other_user
+                    else None
+                )
+            
+            cursor.execute("""
+                DELETE FROM user_trickjump
+                WHERE trickjump_id = ? AND user_id = ?
+            """, (tj_id, other_user.id))
+
+            conn.commit()
+
+        await msgt.success(
+            ia,
+            "Jump Successfully Removed",
+            f"Successfully removed the trickjump `{tj_data['name']}` from {"your" if ia_user == other_user else f"`{other_user.name}`'s"} list of trickjumps!"
+        )
+
     proof_group = acmds.Group(name="proof", description="Tj Proof Group")
 
     @proof_group.command(name="set")
@@ -172,7 +216,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 FROM user_trickjump
                 WHERE trickjump_id = ? and user_id = ?
                 LIMIT 1
-            """, (tj_id := tj_data['id'], other_user.id))
+            """, (tj_data['id'], other_user.id))
 
             result = cursor.fetchone()
 
@@ -189,21 +233,20 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 if ia_user != other_user
                 else None
             )
-        
+
         await msgt.success(
             ia,
             "Proof Successfully Retrieved",
-            f"Here is the proof for the trickjump `{tj_data['name']}`" +
-            (f" of the user `{other_user.name}`" if ia_user != other_user else "") +
-            ":\n" + proof +
-            "\n\nThese proofs are set by users themselves, so be careful and " +
-            "only open them if you are sure it is save to do so!",
-            embed=False
+            textwrap.dedent(f"""
+                Here is the proof for the trickjump `{tj_data['name']}`{f" of the user `{other_user.name}`" if ia_user != other_user else ""}!
+                These links are not guaranteed to be safe, so be careful!
+                
+                {proof}
+            """),
+            suppress_embeds=True
         )
         
-        
-
-        
+    
     list_group = acmds.Group(name="list", description="Tj List Group")
     
     @list_group.command()
