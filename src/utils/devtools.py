@@ -1,5 +1,6 @@
 
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import os
 import platform
@@ -18,6 +19,15 @@ def time_left(seconds: float = 8, interval: float = 0.1, feedback: Callable[[flo
             clear()
         print(feedback(difference))
         time.sleep(interval)
+
+@contextmanager
+def timed(name: str):
+    start = time.time()
+    try:
+        yield
+    finally:
+        end = time.time()
+        print(f"{end - start:.4f} - {name}")
 
 def noob_log(s: str) -> None:
     print(f"{datetime.now(timezone.utc)}   {s}")
