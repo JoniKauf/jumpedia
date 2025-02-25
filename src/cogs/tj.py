@@ -55,7 +55,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
         tj.Trickjump.get_all_names()
     ))
     async def give(self, ia: dc.Interaction, jump_name: str, proof: Opt[str] = None, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_raw(jump_name)
+        tj_data = tj.Trickjump.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -71,7 +71,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 FROM user_trickjump
                 WHERE trickjump_id = ? and user_id = ?
                 LIMIT 1
-            """, (tj_id := tj_data['id'], other_user.id))
+            """, (tj_data.id, other_user.id))
 
             result = cursor.fetchone()
 
@@ -87,7 +87,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 (trickjump_id, user_id, proof, given_at)
                 VALUES
                 (?, ?, ?, ?)
-            """, (tj_id, other_user.id, proof, datetime.now(timezone.utc)))
+            """, (tj_data.id, other_user.id, proof, datetime.now(timezone.utc)))
 
             conn.commit()
 
@@ -97,7 +97,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
             " ".join((
                 "You successfully gave",
                 specify_user(ia_user, other_user),
-                f"the trickjump `{tj_data['name']}` with",
+                f"the trickjump `{tj_data.name}` with",
                 "no proof yet!" if not proof else "the specified proof!"
             ))
         )
@@ -107,7 +107,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
         tj.Trickjump.get_all_names()
     ))
     async def remove(self, ia: dc.Interaction, jump_name: str, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_raw(jump_name)
+        tj_data = tj.Trickjump.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -121,7 +121,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 FROM user_trickjump
                 WHERE trickjump_id = ? AND user_id = ?
                 LIMIT 1
-            """, (tj_id := tj_data['id'], other_user.id))
+            """, (tj_data.id, other_user.id))
 
             result = cursor.fetchone()
 
@@ -135,14 +135,14 @@ class Tj(cmds.GroupCog, group_name="tj"):
             cursor.execute("""
                 DELETE FROM user_trickjump
                 WHERE trickjump_id = ? AND user_id = ?
-            """, (tj_id, other_user.id))
+            """, (tj_data.id, other_user.id))
 
             conn.commit()
 
         await msgt.success(
             ia,
             "Jump Successfully Removed",
-            f"Successfully removed the trickjump `{tj_data['name']}` from {"your" if ia_user == other_user else f"`{other_user.name}`'s"} list of trickjumps!"
+            f"Successfully removed the trickjump `{tj_data.name}` from {"your" if ia_user == other_user else f"`{other_user.name}`'s"} list of trickjumps!"
         )
 
     proof_group = acmds.Group(name="proof", description="Tj Proof Group")
@@ -152,7 +152,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
         tj.Trickjump.get_all_names()
     ))
     async def proof_set(self, ia: dc.Interaction, jump_name: str, proof: str, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_raw(jump_name)
+        tj_data = tj.Trickjump.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -168,7 +168,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 FROM user_trickjump
                 WHERE trickjump_id = ? and user_id = ?
                 LIMIT 1
-            """, (tj_id := tj_data['id'], other_user.id))
+            """, (tj_data.id, other_user.id))
 
             result = cursor.fetchone()
 
@@ -183,7 +183,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
                 UPDATE user_trickjump
                 SET proof = ?
                 WHERE trickjump_id = ? AND user_id = ?
-            """, (proof, tj_id, other_user.id))
+            """, (proof, tj_data.id, other_user.id))
 
             conn.commit()
 

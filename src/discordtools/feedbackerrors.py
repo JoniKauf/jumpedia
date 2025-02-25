@@ -264,3 +264,20 @@ class InternalDatabaseError(errors.FeedbackError):
             details=f"An internal database error occurred. This can happen, for example, when the data you tried to interact with got changed in that exact same moment.\nPlease try again and if the issue persists, try again later!"
         )
 
+class NotANumber(errors.FeedbackError):
+    def __init__(self, n: str):
+        self.n = n
+
+        super().__init__(
+            error="Not A Number",
+            details=f"The specified string `{sh(n)}` does not represent a number!"
+        )
+
+class NotAValidNumber(errors.FeedbackError):
+    def __init__(self, n: int):
+        self.n = n
+
+        super().__init__(
+            error="Not A Number",
+            details=f"The specified number `{sh(str(n))}` is not valid in this context!"
+        )

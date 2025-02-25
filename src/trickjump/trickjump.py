@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     
 @dataclass(init=False, slots=True)
 class Trickjump(attrs.AttrCollection):
+    id:         attrs.Id
     name:       attrs.Name
     location:   attrs.AttrMultiValue[attrs.Location]
     difficulty: attrs.Difficulty
@@ -36,6 +37,14 @@ class Trickjump(attrs.AttrCollection):
         return f"""
             SELECT {", ".join(cls.field_names())} FROM trickjump
         """
+    
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Trickjump):
+            return False
+        return self.id.value == value.id.value
+    
+    def __hash__(self) -> int:
+        return hash(self.id.value)
     
     @classmethod
     def get_all(cls) -> 'cat.Catalog':
@@ -74,26 +83,6 @@ class Trickjump(attrs.AttrCollection):
             raise fbe.NotAJump(name)
         
         return cls(result)
-
-    @classmethod
-    def get_raw(cls, name: str, attributes: Sequence[str] = ()) -> TrickjumpDataT:
-        attributes = attributes or cls.field_names()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM trickjump
-                WHERE name = ?
-                LIMIT 1""",
-                (name,)
-            )
-
-            result: TrickjumpDataT = cursor.fetchone()
-        
-        if result is None:
-            raise fbe.NotAJump(name)
-        
-        return result
         
     def get_contributor_line(self) -> str:
         def join_grammatically(elems: Sequence[str]):

@@ -46,6 +46,9 @@ class AttrAny[T](Protocol):
 
     def __str__(self) -> str:
         return str(self.value)
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}.get({repr(self.value)})"
 
 
 class AttrSub[T](AttrAny[T]):
@@ -99,8 +102,6 @@ class AttrNormal[T](AttrAny[Opt[T]]):
         Defines if the attribute comes wrapped in an AttrMultiValue with
         possibly other instances of the same class for the context of an
         AttributeCollection or if it just comes as a standalone.
-    - USER_SPECIFIC:
-        Defines if the attribute is about user-specific data.
     - SECRET:
         Defines if the attribute should not be shown to users.
     """
@@ -121,9 +122,6 @@ class AttrNormal[T](AttrAny[Opt[T]]):
                     )
                 
         super().__init__()
-    
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({",".join({f"{repr(k)}={repr(v)}" for k, v in self.__dict__.items()})})"
     
     @classmethod
     def _init_cls(cls):
@@ -225,7 +223,6 @@ class AttrSingleValue[VT](AttrNormal[VT]):
     ALIAS: frozenset[str]
     REQUIRED: bool
     MULTI_VALUE: bool
-    USER_SPECIFIC: Opt[bool]
     SECRET: bool
     
     def __init__(self, value: Opt[VT]):
@@ -263,7 +260,32 @@ class AttrSingleValue[VT](AttrNormal[VT]):
     
     def is_empty(self) -> bool:
         return self.value is None
+
+class AttrInt(AttrSingleValue[int]):
+    def __init__(self, value: Opt[int]):
+        super().__init__(value)
+
+    @classmethod
+    def get(cls, value: Self | int | str | None, *args: Any, **kwargs: Any) -> Self:
+        if value is None or isinstance(value, int):
+            return cls(value)
         
+        if isinstance(value, str):
+            try:
+                return cls(int(value))
+            except ValueError:
+                raise fbe.NotANumber(value)
+            
+        if isinstance(value, cls):
+            return value
+        
+        raise TypeError("Unexpected type:", type(value))
+    
+    def sort_key(self, sign: Literal[-1] | Literal[1] = +1, *args: Any, **kwargs: Any) -> Any:
+        if self.value is None:
+            return sys.maxsize * sign
+        return self.value * sign
+    
     
 class AttrStr(AttrSingleValue[str]):
     MAX_LENGTH: CV[int]
@@ -279,8 +301,8 @@ class AttrStr(AttrSingleValue[str]):
         if value is None or isinstance(value, str):
             if value is not None and len(value) > cls.MAX_LENGTH:
                 raise fbe.TooLongValue(value, cls.MAX_LENGTH)
-            
             return cls(value)
+        
         if isinstance(value, cls):
             return value
         
@@ -333,7 +355,7 @@ class AttrStrBundle(AttrSingleValue[str]):
         super()._init_cls()
 
         # If we reach 2^32 - 1 elements, we definitely have other problems
-        cls.LOOKUP[None] = cls(None, id=-1, sort_value=(2**32) - 1)
+        cls.LOOKUP[None] = cls(None, id=-1, sort_value=sys.maxsize - 1)
     
     @classmethod
     def get(cls, value: Self | str | int | None, *args: Any, **kwargs: Any) -> Self:
@@ -442,11 +464,16 @@ class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrNormal[tuple[CT, .
 
 # --- Attribute Classes ---
 
+class Id(AttrInt):
+    ALIAS: frozenset[str] = frozenset()
+    REQUIRED = True
+    MULTI_VALUE = False
+    SECRET = True
+
 class Name(AttrStr):
     ALIAS: frozenset[str] = frozenset(["n"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_SPECIFIC = None
     SECRET = False
 
     MAX_LENGTH = 80
@@ -458,7 +485,6 @@ class Location(AttrStrBundle):
     ALIAS: frozenset[str] = frozenset(["l", "loc", "k", "kd", "kingdom"])
     REQUIRED = True
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
     def __init__(
@@ -516,7 +542,6 @@ class Tier(AttrStrBundle):
     ALIAS: frozenset[str] = frozenset(['t'])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
     @classmethod
@@ -553,7 +578,6 @@ class Difficulty(AttrStrBundle):
     ALIAS: frozenset[str] = frozenset(['diff', 'd'])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
     def __init__(self, value: Opt[str], *, tier: Opt[Tier] = None, id: int, sort_value: int, missing: bool = True, alias: frozenset[str] = frozenset()):
@@ -635,7 +659,6 @@ class Type(AttrStr):
     ALIAS: frozenset[str] = frozenset(["t", "ty", "typ"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
     # @classmethod
@@ -653,7 +676,6 @@ class Server(AttrStrBundle):
     ALIAS: frozenset[str] = frozenset(["s", "serv"])
     REQUIRED = True
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
     @classmethod
@@ -695,7 +717,6 @@ class Finder(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["f", "founder", "find", "found"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -705,7 +726,6 @@ class Taser(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["tas", "tased"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -715,7 +735,6 @@ class Prover(AttrPerson):
     ALIAS: frozenset[str] = frozenset(["p", "prov", "proven"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -723,7 +742,6 @@ class FoundAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["fa", "f_a", "f_at", "foundat"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -731,7 +749,6 @@ class TasedAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["ta", "t_a", "tat", "t_at", "tas_at", "tasat", "tasedat"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -739,7 +756,6 @@ class ProvenAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["pa", "p_a", "pat", "p_at", "provat", "prov_at", "provenat"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
 
@@ -747,7 +763,6 @@ class GivenAt(AttrDatetime):
     ALIAS: frozenset[str] = frozenset(["ga", "g_a", "gat", "g_at", "giveat", "give_at", "givenat"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = True
     SECRET = False
 
 
@@ -755,7 +770,6 @@ class Proof(AttrStr):
     ALIAS: frozenset[str] = frozenset(["prof", "prove", "proven"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = True
     SECRET = False
 
     MAX_LENGTH = MAX_LINK_LENGTH
@@ -765,7 +779,6 @@ class Link(AttrStr):
     ALIAS: frozenset[str] = frozenset(["l", "lnk", "clip", "video", "links"])
     REQUIRED = True
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
     MAX_LENGTH = MAX_LINK_LENGTH
@@ -779,7 +792,6 @@ class Info(AttrStr):
     ALIAS: frozenset[str] = frozenset(["ex", "e", "extra", "i", "desc", "description", "data"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = False
 
     MAX_LENGTH = 2048
@@ -796,14 +808,12 @@ class Tag(AttrStrBundle):
     ALIAS: frozenset[str] = frozenset(["tags"])
     REQUIRED = False
     MULTI_VALUE = True
-    USER_SPECIFIC = False
     SECRET = False
 
 class Thumbnail(AttrStr):
     ALIAS: frozenset[str] = frozenset(["tn", "thumb", "t_n", "th", "tnail"])
     REQUIRED = False
     MULTI_VALUE = False
-    USER_SPECIFIC = False
     SECRET = True
 
     MAX_LENGTH = MAX_LINK_LENGTH
