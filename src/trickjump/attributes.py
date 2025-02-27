@@ -45,7 +45,7 @@ class AttrAny[T](Protocol):
         raise NotImplementedError()
 
     def __str__(self) -> str:
-        return str(self.value)
+        return "" if self.value is None else str(self.value)
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}.get({repr(self.value)})"
@@ -180,7 +180,7 @@ class AttrNormal[T](AttrAny[Opt[T]]):
         
         For AttrMultiValue this is simply its own value, whereas for
         AttrSingleValue it's itself wrapped into an AttrMultiValue,
-        which will either have a zero or one elements, depending on
+        which will either have zero or one elements, depending on
         if the AttrSingleValue's value is None or not respectively.
 
         This is especially useful if we have to deal with the
@@ -1012,7 +1012,7 @@ def _init_module():
 _init_module()
 
 
-ATTR_CLASSES = (Name, Location, Difficulty, Tier, Type, Finder, Taser, Prover, FoundAt, TasedAt, ProvenAt, GivenAt, Proof, Server, Tag, Link, Info, Thumbnail)
+ATTR_CLASSES = (Id, Name, Location, Difficulty, Tier, Type, Finder, Taser, Prover, FoundAt, TasedAt, ProvenAt, GivenAt, Proof, Server, Tag, Link, Info, Thumbnail)
 ATTR_NAMES = tuple(cls.NAME for cls in ATTR_CLASSES)
 ATTR_ITEMS = tuple(zip(ATTR_NAMES, ATTR_CLASSES, strict=True))
 
