@@ -325,3 +325,17 @@ class TooManyCollectionElements(errors.FeedbackError):
             error="Too Many Collection Elements",
             details=f"The collection of the attribute `{attr.lower()}` has a maximum limit of {limit} elements it can hold!"
         )
+
+class InvalidValuesForDefiningAttribute(errors.FeedbackError):
+    def __init__(self, attr: str, *values_name_typename: tuple[str, str]):
+        self.attr = attr
+        self.values_name_typename = values_name_typename
+
+        super().__init__(
+            error="Invalid Values For Defining Attribute",
+            details=(
+                f"For defining the attribute `{attr}` the following values and corresponding types are required:" +
+                "".join(f"\n- **{name}**: *{typename}*" for name, typename in values_name_typename)
+            )
+            
+        )
