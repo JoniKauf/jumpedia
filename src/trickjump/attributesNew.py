@@ -1,5 +1,7 @@
 
 
+import ast
+import json
 import sys
 from typing import Any, Callable, Iterable, Literal, Optional as Opt, Sequence
 from enum import Enum
@@ -13,7 +15,6 @@ class Attribute[T]:
 
     def __init__(
         self, 
-        *,
         name: str,
         alias: Iterable[str],
         hidden: bool,
@@ -72,7 +73,7 @@ class Attribute[T]:
 
 class _AttributeBool(Attribute[bool]):
     def _from_str(self, value: Opt[str]) -> Opt[bool]:
-        if value is None:
+        if value is None or not (value := value.strip()):
             return None
         
         value = value.lower()
@@ -99,7 +100,7 @@ class _AttributeInt(Attribute[int]):
     MAX_INT_STR: int = len(str(MAX_INT)) 
 
     def _from_str(self, value: Opt[str]) -> Opt[int]:
-        if value is None:
+        if value is None or not (value := value.strip()):
             return None
         
         if len(value) > self.__class__.MAX_INT_STR:
@@ -129,10 +130,10 @@ class _AttributeInt(Attribute[int]):
     
 
 class _AttributeStr(Attribute[str]):
-    MAX_STR_LEN = 2 ** 12
+    MAX_STR_LEN = 2 ** 10
 
     def _from_str(self, value: Opt[str]) -> Opt[str]:
-        if not value:
+        if value is None or not (value := value.strip()):
             return None
         
         if len(value) > self.__class__.MAX_STR_LEN:
@@ -144,7 +145,7 @@ class _AttributeStr(Attribute[str]):
         v = self._from_str(value)
 
         if v is None:
-            return (sys.maxunicode + 1,) * sign
+            return ((sys.maxunicode + 1) * sign,)
         
         return tuple(ord(char) * sign for char in v)
 
@@ -154,12 +155,11 @@ class _AttributeStrCollection(_AttributeStr):
 
     def __init__(
         self, 
-        *, 
         name: str, 
         alias: Iterable[str], 
         hidden: bool, 
         required: bool,
-        collection: Sequence[str]
+        collection: Sequence[str],
     ):
         super().__init__(
             name=name, 
@@ -168,6 +168,7 @@ class _AttributeStrCollection(_AttributeStr):
             required=required
         )
 
+        # dict[casefolded_val, tuple[val, index]]
         self._collection: dict[str, tuple[str, int]] = {}
 
         if len(collection) > self.__class__.MAX_COLLECTION_LEN:
@@ -189,28 +190,182 @@ class _AttributeStrCollection(_AttributeStr):
         return self._collection
     
     def _from_str(self, value: Opt[str]) -> Opt[str]:
-        value = super()._from_str(value)
+        v = super()._from_str(value)
 
-        if value is None:
+        if v is None:
             return None
         
-        if value not in self.collection:
-            raise fbe.NotPartOfTheCollection(self.name, value)
+        if v not in self.collection:
+            raise fbe.NotPartOfTheCollection(self.name, v)
         
-        return value.casefold()
+        return v.casefold()
     
     def sort_key(self, value: Opt[str], sign: Literal[+1, -1]):
         v = self._from_str(value)
 
         if v is None:
-            return 
+            return len(self.collection) * sign
         
         return self.collection[v][1] * sign
+
+
+class _AttributePluralMixin:
+    def __init__(
+        self,
+        unique: bool,
+        limit: int
+    ) -> None:
+        self._unique = unique
+        self._limit = limit if limit > 0 else 0
+
+    @property
+    def unique(self) -> bool:
+        return self._unique
     
+    @property
+    def limit(self) -> int:
+        return self._limit
 
-class _AttributeStrPlural(Attribute[str]):
-    # TODO allow UNIQUE
-    ...
 
-class _AttributeStrPluralCollection(Attribute[str]):
-    ...
+class _AttributeStrPlural(_AttributeStr, _AttributePluralMixin):
+    def __init__(
+        self, 
+        name: str, 
+        alias: Iterable[str], 
+        hidden: bool, 
+        required: bool,
+        unique: bool,
+        limit: int
+    ):
+        super().__init__(
+            name=name, 
+            alias=alias, 
+            hidden=hidden, 
+            required=required
+        )
+
+        _AttributePluralMixin.__init__(
+            self, 
+            unique=unique, 
+            limit=limit
+        )
+    
+    def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
+        if value is None or not (value := value.strip()):
+            return None
+        
+        v: list[str] = json.loads(value)
+
+        if not isinstance(v, list):
+            raise Exception
+        
+        if self.limit > 0 and len(v) > self.limit:
+            raise Exception
+        
+        used: set[str] = set()
+        unfiltered_v = v
+        v = []
+
+        for elem in unfiltered_v:
+            if not isinstance(elem, str):
+                raise Exception
+            
+            elem = super()._from_str(elem)
+            
+            if elem is None:
+                continue
+
+            if self.unique:
+                elem_cf = elem.casefold()
+
+                if elem_cf in used:
+                    raise Exception
+                
+                used.add(elem_cf)
+
+            v.append(elem)
+
+        # Empty list -> None
+        return v or None
+    
+    def sort_key(self, value: Opt[str], sign: Literal[+1, -1]):
+        v = self._from_str(value)
+
+        if v is None:
+            return (((sys.maxunicode + 1) * sign,),)
+        
+        return tuple(
+            tuple(ord(char) * sign for char in s) for s in v
+        )
+
+class _AttributeStrCollectionPlural(_AttributeStrCollection, _AttributePluralMixin):
+    def __init__(
+        self, 
+        name: str, 
+        alias: Iterable[str], 
+        hidden: bool, 
+        required: bool, 
+        collection: Sequence[str],
+        unique: bool, 
+        limit: int = 0
+    ):
+        super().__init__(
+            name=name,
+            alias=alias,
+            hidden=hidden,
+            required=required,
+            collection=collection
+        )
+
+        _AttributePluralMixin.__init__(
+            self, 
+            unique=unique,
+            limit=limit
+        )
+
+    def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
+        if value is None or not (value := value.strip()):
+            return None
+        
+        v: list[str] = json.loads(value)
+
+        if not isinstance(v, list):
+            raise Exception
+        
+        if self.limit > 0 and len(v) > self.limit:
+            raise Exception
+        
+        used: set[str] = set()
+        unfiltered_v = v
+        v = []
+
+        for elem in unfiltered_v:
+            if not isinstance(elem, str):
+                raise Exception
+            
+            # casefolded here
+            elem = super()._from_str(elem)
+            
+            if elem is None:
+                continue
+
+            if self.unique:
+                if elem in used:
+                    raise Exception
+                
+                used.add(elem)
+
+            v.append(elem)
+
+        # Empty list -> None
+        return v or None
+    
+    def sort_key(self, value: Opt[str], sign: Literal[+1, -1]):
+        v = self._from_str(value)
+
+        if v is None:
+            return (len(self.collection) * sign,)
+        
+        return tuple(
+            self.collection[elem][1] for elem in v
+        )
