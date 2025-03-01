@@ -1,5 +1,5 @@
 from discordtools import errors
-from typing import Optional as Opt, Sequence
+from typing import Any, Optional as Opt, Sequence
 from discordtools import messagetools as msgt
 from numbers import Real
 
@@ -224,13 +224,14 @@ class TooLongName(errors.FeedbackError):
         )
 
 class TooLongValue(errors.FeedbackError):
-    def __init__(self, value: str, max: int):
+    def __init__(self, type: str, value: str, max: int):
+        self.type = type
         self.name = value
         self.max = max
 
         super().__init__(
-            error="Too Long Value",
-            details=f"The entered value `{sh(value)}` (length: {len(value)}) exceeds the limit of `{max}` characters!"
+            error=f"Too Long {type.title()}",
+            details=f"The entered {type.lower()} `{sh(value)}` (length: {len(value)}) exceeds the limit of `{max}` characters!"
         )
 
 class PersonDoesNotExist(errors.FeedbackError):
@@ -264,14 +265,26 @@ class InternalDatabaseError(errors.FeedbackError):
             details=f"An internal database error occurred. This can happen, for example, when the data you tried to interact with got changed in that exact same moment.\nPlease try again and if the issue persists, try again later!"
         )
 
-class NotANumber(errors.FeedbackError):
-    def __init__(self, n: str):
-        self.n = n
+class NotAProperValue(errors.FeedbackError):
+    def __init__(self, type: str, value: str):
+        self.type = type
+        self.value = value
 
-        super().__init__(
-            error="Not A Number",
-            details=f"The specified string `{sh(n)}` does not represent a number!"
+        return super().__init__(
+            error=f"Not A Proper {type.title()}",
+            details=f"The specified string `{sh(value)}` is not a {type.lower()}!"
         )
+    
+class OutsideOfValidRange(errors.FeedbackError):
+    def __init__[T](self, value: T, lb: T, ub: T):
+        self.lb = lb
+        self.ub = ub
+
+        return super().__init__(
+            error="Outside Of Valid Range",
+            details=f"The value `{sh(str(value))}` is outside of the valid range reaching from `{lb}` to `{ub}`!"
+        )
+
 
 class NotAValidNumber(errors.FeedbackError):
     def __init__(self, n: int):
@@ -280,4 +293,35 @@ class NotAValidNumber(errors.FeedbackError):
         super().__init__(
             error="Not A Number",
             details=f"The specified number `{sh(str(n))}` is not valid in this context!"
+        )
+
+class NotPartOfTheCollection(errors.FeedbackError):
+    def __init__(self, attr: str, value: str):
+        self.attr = attr
+        self.value = value
+
+        super().__init__(
+            error="Not Part Of The Collection",
+            details=f"The value `{sh(value)}` is not a part of the attribute `{attr.lower()}` collection of valid values!"
+        )
+
+
+class CollectionElementCollision(errors.FeedbackError):
+    def __init__(self, attr: str, value: str):
+        self.attr = attr
+        self.value = value
+
+        super().__init__(
+            error="Collection Element Collision",
+            details=f"The collection of the attribute `{attr.lower()}` received the value `{sh(value)}` more than once (casing and extra whitespace is ignored)!"
+        )
+
+class TooManyCollectionElements(errors.FeedbackError):
+    def __init__(self, attr: str, limit: int):
+        self.attr = attr
+        self.limit = limit
+
+        super().__init__(
+            error="Too Many Collection Elements",
+            details=f"The collection of the attribute `{attr.lower()}` has a maximum limit of {limit} elements it can hold!"
         )
