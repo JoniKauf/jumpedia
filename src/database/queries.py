@@ -4,6 +4,7 @@ import json
 from typing import Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, Optional as Opt
 from types import EllipsisType
 from utils.custom_collections import BetterSet
+import discord as dc
 
 import mariadb.cursors
 from . import mariadb_extensions as mdbe
@@ -16,7 +17,7 @@ def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected() -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(ia: dc.Interaction) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     conn = None
     try:
         conn = mariadb.connect(

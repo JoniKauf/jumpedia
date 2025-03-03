@@ -3,7 +3,7 @@
 import ast
 import json
 import sys
-from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Sequence
+from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence
 from enum import Enum
 from discordtools import feedbackerrors as fbe
 from people.person import Person
@@ -19,7 +19,7 @@ _ALL_ATTRIBUTE_TYPES: list[type['_AttributeBase']] = []
 
 #------#   Mixins   #------#
 
-class _AttributePluralMixin:
+class _AttributePluralMixin[T]:
     def __init__(
         self,
         unique: bool,
@@ -35,6 +35,41 @@ class _AttributePluralMixin:
     @property
     def limit(self) -> int:
         return self._limit
+    
+    def _from_str(self, value: Opt[str]) -> Opt[list[T]]:
+        if value is None or not (value := value.strip()):
+            return None
+
+        v: list[str] = json.loads(value)
+
+        if not isinstance(v, list):
+            raise Exception
+        
+        if self.limit > 0 and len(v) > self.limit:
+            raise Exception
+        
+        used: set[str] = set()
+        unfiltered_v = v
+        filtered_v: list[T] = []
+
+        for elem in unfiltered_v:
+            if not isinstance(elem, str):
+                raise Exception
+            
+            elem = super(self.__class__, self)._from_str(elem)
+            
+            if elem is None:
+                continue
+
+            if self.unique:
+                if elem in used:
+                    raise Exception
+                
+                used.add(elem)
+
+            filtered_v.append(elem)
+
+        return filtered_v or None
 
 
 #------#   AttributeBase   #------#
@@ -279,7 +314,7 @@ class AttributePerson(_AttributeBase[Person]):
 
 #------#   Attribute Plural Implementations   #------#
 
-class AttributePluralStr(AttributeStr, _AttributePluralMixin):
+class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
     def __init__(
         self, 
         context: ContextT,
@@ -299,48 +334,13 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin):
         )
 
         _AttributePluralMixin.__init__(
-            self, 
+            self,
             unique=unique, 
             limit=limit
         )
     
     def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
-        if value is None or not (value := value.strip()):
-            return None
-        
-        v: list[str] = json.loads(value)
-
-        if not isinstance(v, list):
-            raise Exception
-        
-        if self.limit > 0 and len(v) > self.limit:
-            raise Exception
-        
-        used: set[str] = set()
-        unfiltered_v = v
-        filtered_v: list[str] = []
-
-        for elem in unfiltered_v:
-            if not isinstance(elem, str):
-                raise Exception
-            
-            elem = super()._from_str(elem)
-            
-            if elem is None:
-                continue
-
-            if self.unique:
-                elem_cf = elem.casefold()
-
-                if elem_cf in used:
-                    raise Exception
-                
-                used.add(elem_cf)
-
-            filtered_v.append(elem)
-
-        # Empty list -> None
-        return filtered_v or None
+        return _AttributePluralMixin._from_str(self, value)
     
     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
         v = self._from_str(value)
@@ -355,7 +355,7 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin):
             for s in v
         )
 
-class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin):
+class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin[str]):
     def __init__(
         self, 
         context: ContextT,
@@ -383,41 +383,7 @@ class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin
         )
 
     def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
-        if value is None or not (value := value.strip()):
-            return None
-        
-        v: list[str] = json.loads(value)
-
-        if not isinstance(v, list):
-            raise Exception
-        
-        if self.limit > 0 and len(v) > self.limit:
-            raise Exception
-        
-        used: set[str] = set()
-        unfiltered_v = v
-        filtered_v: list[str] = []
-
-        for elem in unfiltered_v:
-            if not isinstance(elem, str):
-                raise Exception
-            
-            # casefolded here
-            elem = super()._from_str(elem)
-            
-            if elem is None:
-                continue
-
-            if self.unique:
-                if elem in used:
-                    raise Exception
-                
-                used.add(elem)
-
-            filtered_v.append(elem)
-
-        # Empty list -> None
-        return filtered_v or None
+        return _AttributePluralMixin._from_str(self, value)
     
     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
         v = self._from_str(value)
@@ -430,7 +396,7 @@ class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin
         )
     
 
-class AttributePluralPerson(AttributePerson, _AttributePluralMixin):
+class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
     def __init__(
         self, 
         context: ContextT, 
@@ -456,40 +422,7 @@ class AttributePluralPerson(AttributePerson, _AttributePluralMixin):
         )
 
     def _from_str(self, value: Opt[str]) -> Opt[list[Person]]:
-        if value is None or not (value := value.strip()):
-            return None
-        
-        v: list[str] = json.loads(value)
-
-        if not isinstance(v, list):
-            raise Exception
-        
-        if self.limit > 0 and len(v) > self.limit:
-            raise Exception
-        
-        used: set[Person] = set()
-        unfiltered_v = v
-        filtered_v = []
-
-        for elem in unfiltered_v:
-            if not isinstance(elem, str):
-                raise Exception
-            
-            elem = super()._from_str(elem)
-            
-            if elem is None:
-                continue
-
-            if self.unique:
-                if elem in used:
-                    raise Exception
-                
-                used.add(elem)
-
-            filtered_v.append(elem)
-
-        # Empty list -> None
-        return filtered_v or None
+        return _AttributePluralMixin._from_str(self, value)
 
 
 #------#   Module Functionality   #------#

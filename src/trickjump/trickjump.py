@@ -47,7 +47,7 @@ class Trickjump(attrs.AttrCollection):
         return hash(self.id.value)
     
     @classmethod
-    def get_all(cls) -> 'cat.Catalog':
+    def get_all(cls) -> 'cat.List':
         from trickjump import catalog as cat
 
         with queries.connected() as (conn, cursor):
@@ -55,7 +55,7 @@ class Trickjump(attrs.AttrCollection):
 
             tjs_data: list[dict[str, Any]] = cursor.fetchall()
 
-        return cat.Catalog(
+        return cat.List(
             Trickjump(tj, required=True, lower=False) 
             for tj in tjs_data
         )
