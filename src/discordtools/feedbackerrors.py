@@ -337,5 +337,12 @@ class InvalidValuesForDefiningAttribute(errors.FeedbackError):
                 f"For defining the attribute `{attr}` the following values and corresponding types are required:" +
                 "".join(f"\n- **{name}**: *{typename}*" for name, typename in values_name_typename)
             )
-            
         )
+
+
+class TemporaryFeedbackError(errors.FeedbackError):
+    def __init__(self):
+        super().__init__(
+            error="Temporary Feedback Error",
+            details="This error is used as a placeholder and shouldn't occur outside of development. If you see this, Joni missed a spot here!"
+        ) 

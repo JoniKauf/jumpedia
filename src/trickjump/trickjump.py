@@ -102,7 +102,7 @@ class Trickjump(attrs.AttrCollection):
 
         for title, value in action_to_people.items():
             people_to_action.setdefault(
-                tuple(person.value for person in value), []
+                tuple(person.name for person in value), []
             ).append(title)
 
         # Remove empty values
