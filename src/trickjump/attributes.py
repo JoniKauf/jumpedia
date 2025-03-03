@@ -401,7 +401,7 @@ class AttrPerson(AttrSingleValue[Person]):
         raise TypeError("Unexpected type:", type(value))
     
     def sort_key(self, sign: Literal[-1, +1] = +1, *args: Any, **kwargs: Any) -> tuple[int, ...]:
-        return AttrStr.sort_key(AttrStr(self.value.value if self.value is not None else self.value), sign=sign, **kwargs)
+        return AttrStr.sort_key(AttrStr(self.value.name if self.value is not None else self.value), sign=sign, **kwargs)
     
 
 class AttrMultiValue[CT: AttrSingleValue](tuple[CT, ...], AttrNormal[tuple[CT, ...]]):
