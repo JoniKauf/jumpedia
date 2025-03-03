@@ -1,7 +1,7 @@
 import json
 from typing import ClassVar, Self
 from discordtools import feedbackerrors as fbe
-from database import queries
+# from database import queries
 
 
 class Person:
