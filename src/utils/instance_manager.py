@@ -43,7 +43,8 @@ class InstanceManager[InstanceT, LookupT: Hashable]():
                 
                 self._lookup[lv] = instance
         
-        self._on_add
+        if self._on_add is not None:
+            self._on_add(instance)
    
     def remove(self, instance: InstanceT):
         with self._LOCK:
@@ -53,4 +54,5 @@ class InstanceManager[InstanceT, LookupT: Hashable]():
             
             self._all.remove(instance)
 
-        self._on_remove
+        if self._on_remove is not None:
+            self._on_remove(instance)
