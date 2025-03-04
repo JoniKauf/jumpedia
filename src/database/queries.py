@@ -17,11 +17,22 @@ def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected(ia: dc.Interaction) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(community: None | Literal['global'] | str | dc.Interaction, auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     conn = None
+    extra: dict[str, str] = {}
+
+    if community is None: 
+        pass
+    elif isinstance(community, str): 
+        extra = {'db': community}
+    elif isinstance(community, dc.Interaction):
+        extra = {'db': 'Jumpedia'}
+    else:
+        raise TypeError
+
     try:
         conn = mariadb.connect(
-            **__get_connection_data(),
+            **(__get_connection_data() | extra),
             converter={
                 mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str)
             }
@@ -36,6 +47,8 @@ def connected(ia: dc.Interaction) -> Iterator[tuple[mariadb.Connection, mariadb.
         raise fbe.InternalDatabaseError(e)
     finally:
         if conn:
+            if auto_commit:
+                conn.commit()
             cursor.close()
             conn.close()
 

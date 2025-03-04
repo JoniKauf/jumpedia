@@ -77,3 +77,7 @@ class SetupError(RuntimeError):
     
     def __exception__(self, exc_type, exc_value, traceback):
         exit()
+
+
+class CriticalError(RuntimeError):
+    ...

@@ -12,7 +12,7 @@ import discord as dc
 
 _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
-type UserT = int | str | 'User' | dc.User | dc.Member
+type UserIdentifierT = int | str | 'User' | dc.User | dc.Member
 
 class User:
     def __init__(
@@ -117,7 +117,7 @@ class User:
         return id
 
     @staticmethod
-    def _get_id(user: UserT) -> int:
+    def _get_id(user: UserIdentifierT) -> int:
         if isinstance(user, (str, int)):
             return User._user_id_to_int(user)
         elif isinstance(user, (User, dc.User, dc.Member)):
@@ -129,7 +129,7 @@ class User:
     def get_if_permitted(
         cls,
         ia: dc.Interaction,
-        other_user_identifier: UserT,
+        other_user_identifier: UserIdentifierT,
         min_user_rank: ranks.UserRank = ranks.USER_RANKS.JONIKAUF,
         min_server_rank: ranks.ServerRank = ranks.SERVER_RANKS.MEMBER
     ) -> tuple['User', 'User']:
