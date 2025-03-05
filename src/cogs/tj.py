@@ -26,7 +26,6 @@ def _validate_proof(proof: Opt[str]) -> Opt[str]:
         
         proof = proof or None
 
-
 def specify_user(
     ia_user: users.User,
     other_user: users.User
@@ -36,8 +35,6 @@ def specify_user(
         if ia_user == other_user else
         f"the user `{other_user.name}`"
     )
-
-
 
 class Tj(cmds.GroupCog, group_name="tj"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -65,7 +62,7 @@ class Tj(cmds.GroupCog, group_name="tj"):
 
         _validate_proof(proof)   
 
-        with queries.connected() as (conn, cursor):
+        with queries.connected(ia) as (conn, cursor):
             cursor.execute("""
                 SELECT *
                 FROM user_trickjump

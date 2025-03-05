@@ -68,7 +68,7 @@ def join_text(s: str, amount: int, delim: str = ",\n"):
 input("WARNING: This will clear the entire database. ARE YOU SURE?")
 input("Are you like sure, sure???")
 
-with queries.connected() as (connection, cursor):
+with queries.connected('Jumpedia') as (connection, cursor):
     cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
 
     cursor.execute("SHOW TABLES")

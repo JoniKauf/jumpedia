@@ -5,55 +5,22 @@ from trickjump import attributes as attrs
 from people import person
 from discordtools import feedbackerrors as fbe
 
-type TrickjumpDataT = dict[str, Any]
-
-if TYPE_CHECKING:
-   from trickjump import catalog as cat
-    
-@dataclass(init=False, slots=True)
-class Trickjump(attrs.AttrCollection):
-    id:         attrs.Id
-    name:       attrs.Name
-    location:   attrs.AttrMultiValue[attrs.Location]
-    difficulty: attrs.Difficulty
-    type:       attrs.AttrMultiValue[attrs.Type]
-    server:     attrs.Server
-    finder:     attrs.AttrMultiValue[attrs.Finder]
-    taser:      attrs.AttrMultiValue[attrs.Taser]
-    prover:     attrs.AttrMultiValue[attrs.Prover]
-    found_at:   attrs.FoundAt
-    tased_at:   attrs.TasedAt
-    proven_at:  attrs.ProvenAt
-    link:       attrs.AttrMultiValue[attrs.Link]
-    info:       attrs.Info
-    tag:        attrs.AttrMultiValue[attrs.Tag]
-    thumbnail:  attrs.Thumbnail
-
+class Trickjump(dict[str, Any]):
     def as_info(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.items())
-
-    @classmethod
-    def select_attrs(cls) -> str:
-        return f"""
-            SELECT {", ".join(cls.field_names())} FROM trickjump
-        """
-    
-    def __eq__(self, value: object) -> bool:
-        if not isinstance(value, Trickjump):
-            return False
-        return self.id.value == value.id.value
-    
-    def __hash__(self) -> int:
-        return hash(self.id.value)
     
     @classmethod
-    def get_all(cls) -> 'cat.List':
-        from trickjump import catalog as cat
+    def get_all(cls):
+        all_attrs = attrs.get_all('Jumpedia')
 
         with queries.connected() as (conn, cursor):
-            cursor.execute(cls.select_attrs())
+            cursor.execute("SELECT * FROM trickjump")
 
-            tjs_data: list[dict[str, Any]] = cursor.fetchall()
+            result: list = cursor.fetchall()
+
+        for data in result
+        #TODO
+            
 
         return cat.List(
             Trickjump(tj, required=True, lower=False) 
