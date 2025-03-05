@@ -17,7 +17,7 @@ def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected(community: None | Literal['global'] | str | dc.Interaction, auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(community: Literal['master'] | dc.Interaction | str = 'Jumpedia', auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     conn = None
     extra: dict[str, str] = {}
 
