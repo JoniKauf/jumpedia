@@ -10,7 +10,7 @@ class FilterSyntaxError(Exception):
     pass
 
 
-class Selection(list[Trickjump]):
+class List(list[Trickjump]):
 
     AttrT: TypeAlias = str
     KeyT: TypeAlias = str | Trickjump
@@ -52,7 +52,7 @@ class Selection(list[Trickjump]):
 
 
     def get_yield(self, bad_attrs: Optional[Sequence[AttrT]], replace: Callable[[Any], Any]) -> list[tuple[Any, ...]]:
-        attrs = Selection._resolve_bad_attrs(bad_attrs, [attributes.Name])
+        attrs = List._resolve_bad_attrs(bad_attrs, [attributes.Name])
 
         yield_ = []
         
