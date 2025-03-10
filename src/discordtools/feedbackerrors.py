@@ -341,7 +341,7 @@ class InvalidValuesForDefiningAttribute(errors.FeedbackError):
 
 
 class TemporaryFeedbackError(errors.FeedbackError):
-    def __init__(self):
+    def __init__(self, *args):
         super().__init__(
             error="Temporary Feedback Error",
             details="This error is used as a placeholder and shouldn't occur outside of development. If you see this, Joni missed a spot here!"

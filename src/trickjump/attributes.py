@@ -1,7 +1,7 @@
 
 
 import ast
-from collections import Counter
+from collections import Counter, defaultdict
 import json
 import sys
 from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence
@@ -12,16 +12,129 @@ import re
 
 type ContextT = str
 type AttrT = '_AttributeBase'
+type TreeT[T: Hashable] = dict[T, TreeT]
+
 TMP_CTX = "Jumpedia"
 
-#------#   Module Constants   #------#
+#------#   Module Constants & Helper Functions   #------#
 
 _ATTR_LOOKUP: dict[ContextT, dict[str, '_AttributeBase']] = {}
 _ALL_ATTRS: dict[ContextT, list['_AttributeBase']] = {}
 _ALL_ATTRIBUTE_TYPES: list[type['_AttributeBase']] = []
 
-_NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
+_RECURSION_LIMIT = 2 ** 6
 
+_NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
+_DUPLICATE_WHITESPACE_PATTERN = re.compile(r'\s+')
+_VALID_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
+
+
+def normalize_syn(syn: str, context: ContextT) -> str:
+    syn = re.sub(_DUPLICATE_WHITESPACE_PATTERN, '_', syn.lower().casefold())
+
+    if not syn:
+        raise fbe.TemporaryFeedbackError
+    
+    if len(syn) > _AttributeBase.MAX_SYN_LEN:
+        raise fbe.TemporaryFeedbackError
+    
+    illegals: set[str] = set()
+
+    for char in syn:
+        if char not in _VALID_CHARS:
+            illegals.add(char)
+
+    if illegals:
+        raise fbe.TemporaryFeedbackError(illegals)
+    
+    if syn in _ATTR_LOOKUP.get(context, {}):
+        raise fbe.TemporaryFeedbackError
+    
+    return syn
+#hello schatz i love you
+
+def _tree_worker[T: Hashable](
+    branch: TreeT[T],
+    normalized_to_value: dict[T, T],
+    parents_res: dict[T, list[T]],
+    children: dict[T, list[T]],
+    visited_on_this_branch: set[T],
+    normalize: Callable[[T], T],
+    depth: int = 1
+) -> None:
+    if depth > _RECURSION_LIMIT:
+        raise fbe.TemporaryFeedbackError(RecursionError)
+
+    for parent_name, children_dicts in branch.items():
+        parent_name_norm = normalize(parent_name)
+
+        if parent_name_norm in visited_on_this_branch:
+            raise fbe.TemporaryFeedbackError
+        
+        visited_on_this_branch.add(parent_name_norm)
+        
+        children_names_norm_to_value = {
+            normalize(child_name): grandchildren 
+            for child_name, grandchildren 
+            in children_dicts.items()
+        }
+
+        children.setdefault(parent_name_norm, []).extend(children_names_norm_to_value)
+        normalized_to_value[parent_name_norm] = parent_name
+
+        for child_name_norm in children_names_norm_to_value:
+            parents_res.setdefault(child_name_norm, []).append(parent_name_norm)
+            
+        for childs in children_dicts.values():
+            _tree_worker(child, visited_on_this_branch, depth + 1)  # type: ignore
+
+
+        visited_on_this_branch.remove(parent_name_norm)
+
+    
+def _get_plural_from_str_method[TParent](
+    singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
+) -> Callable[[Any, Opt[str]], Opt[list[TParent]]]:
+
+    def _from_str(self, value: Opt[str]) -> Opt[list[TParent]]:
+        if value is None or not (value := value.strip()):
+            return None
+
+        v: list[str] = json.loads(value)
+
+        if not isinstance(v, list):
+            raise Exception
+        
+        if self.max > 0 and len(v) > self.max:
+            raise Exception
+        
+        counter: Counter[TParent] = Counter()
+        unfiltered_v = v
+        filtered_v: list[TParent] = []
+
+        for elem in unfiltered_v:
+            if not isinstance(elem, str):
+                raise Exception
+            
+            elem = singular_from_str(self, elem)
+            
+            if elem is None:
+                continue
+                
+            if elem not in counter:
+                counter[elem] = 1
+            else:
+                counter[elem] += 1
+
+            if counter[elem] > self.max_duplicates:
+                raise fbe.TemporaryFeedbackError
+
+            filtered_v.append(elem)
+
+        return filtered_v or None
+    
+    return _from_str
+    
 #------#   Mixins   #------#
 
 class _AttributePluralMixin[T]:
@@ -40,49 +153,13 @@ class _AttributePluralMixin[T]:
     @property
     def max(self) -> int:
         return self._max
-    
-    def _from_str(self, value: Opt[str]) -> Opt[list[T]]:
-        if value is None or not (value := value.strip()):
-            return None
-
-        v: list[str] = json.loads(value)
-
-        if not isinstance(v, list):
-            raise Exception
-        
-        if self.max > 0 and len(v) > self.max:
-            raise Exception
-        
-        counter: Counter[T] = Counter()
-        unfiltered_v = v
-        filtered_v: list[T] = []
-
-        for elem in unfiltered_v:
-            if not isinstance(elem, str):
-                raise Exception
-            
-            elem = super(self.__class__, self)._from_str(elem)  # type: ignore
-            
-            if elem is None:
-                continue
-                
-            if elem not in counter:
-                counter[elem] = 1
-            else:
-                counter[elem] += 1
-
-            if counter[elem] > self.max_duplicates:
-                raise fbe.TemporaryFeedbackError
-
-            filtered_v.append(elem)
-
-        return filtered_v or None
 
 
 #------#   AttributeBase   #------#
 
 class _AttributeBase[T]:
-    VALID_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
+    TYPE_ID: int
+    MAX_SYN_LEN = 32
 
     def __init__(
         self, 
@@ -91,26 +168,14 @@ class _AttributeBase[T]:
         alias: Iterable[str],
         unique: bool,
         required: bool,
-        hidden: bool
+        hidden: bool,
+        *other: Any
     ):
-        name = name.casefold().strip()
-        alias = frozenset(a.casefold().strip() for a in alias)
+        name = normalize_syn(name, context)
+        alias = frozenset(normalize_syn(a, context) for a in alias)
 
         lookup = _ATTR_LOOKUP.setdefault(context, {})
         _ALL_ATTRS.setdefault(context, []).append(self)
-
-        for syn in (name, *alias):
-            if syn in lookup:
-                raise ValueError(
-                    f"Attribute name or alias '{syn}' already in use"
-                )
-            
-            if not syn:
-                raise ValueError("Empty attribute name")
-            
-            for char in syn:
-                if char not in self.__class__.VALID_CHARS:
-                    raise ValueError("Invalid char: ", char)
         
         self._context = context
         self._name = name
@@ -124,7 +189,6 @@ class _AttributeBase[T]:
 
     @classmethod
     def __init_subclass__(cls) -> None:
-        cls.TYPE = re.sub(_NAME_CONVERSION_PATTERN, r' \1', cls.__name__)
         _ALL_ATTRIBUTE_TYPES.append(cls)
 
     @property
@@ -164,6 +228,8 @@ class _AttributeBase[T]:
 #------#   Attribute Specific Implementations   #------#
 
 class AttributeBool(_AttributeBase[bool]):
+    TYPE_ID = 1
+
     def _from_str(self, value: Opt[str]) -> Opt[bool]:
         if value is None or not (value := value.strip()):
             return None
@@ -187,6 +253,8 @@ class AttributeBool(_AttributeBase[bool]):
     
 
 class AttributeInt(_AttributeBase[int]):
+    TYPE_ID = 2
+
     MIN_INT: int = -(2 ** 64)
     MAX_INT: int = 2 ** 64 - 1
     MAX_INT_STR: int = len(str(MAX_INT)) 
@@ -222,6 +290,8 @@ class AttributeInt(_AttributeBase[int]):
     
 
 class AttributeStr(_AttributeBase[str]):
+    TYPE_ID = 3
+
     MAX_STR_LEN = 2 ** 10
 
     def _from_str(self, value: Opt[str]) -> Opt[str]:
@@ -246,6 +316,8 @@ class AttributeStr(_AttributeBase[str]):
 
 
 class AttributeStrCollection(AttributeStr):
+    TYPE_ID = 4
+
     MAX_COLLECTION_LEN = 2 ** 12
 
     def __init__(
@@ -256,8 +328,10 @@ class AttributeStrCollection(AttributeStr):
         required: bool,
         unique: bool,
         hidden: bool, 
-        collection: Sequence[str],
+        *args: *tuple[Sequence[str]]
     ):
+        collection, = args             
+
         super().__init__(
             context=context,
             name=name, 
@@ -306,9 +380,35 @@ class AttributeStrCollection(AttributeStr):
             return len(self.collection) * sign
         
         return self.collection[v][1] * sign
+    
+class AttributeStrCollectionTree(_AttributeBase[str]):
+    def __init__(
+        self, 
+        context: str, 
+        name: str, 
+        alias: Iterable[str], 
+        required: bool, 
+        unique: bool, 
+        hidden: bool, 
+        *args: *tuple[TreeT[str]]
+    ):
+        tree, = args
+        
+        _tree_worker(tree, set())
+
+        super().__init__(
+            context, 
+            name, 
+            alias, 
+            required, 
+            unique, 
+            hidden
+        )
+
 
 
 class AttributePerson(_AttributeBase[Person]):
+    TYPE_ID = 5
     MAX_PERSON_NAME_LEN = Person.MAX_PERSON_NAME_LEN
 
     def _from_str(self, value: Opt[str]) -> Opt[Person]:
@@ -321,7 +421,7 @@ class AttributePerson(_AttributeBase[Person]):
         v = self._from_str(value)
 
         if v is None:
-            return None
+            return ((sys.maxunicode + 1) * sign,)
         
         name: str = v.name if case_sensitive else v.name.casefold()
 
@@ -330,7 +430,11 @@ class AttributePerson(_AttributeBase[Person]):
 
 #------#   Attribute Plural Implementations   #------#
 
+ATTRIBUTE_PLURAL_BASE_ID = 128
+
 class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
+    TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributeStr.TYPE_ID
+
     def __init__(
         self, 
         context: ContextT,
@@ -339,9 +443,10 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
         required: bool,
         unique: bool,
         hidden: bool, 
-        max: int,
-        max_duplicates: int,
+        *other: *tuple[int, int]
     ):
+        max, max_duplicates = other
+
         super().__init__(
             context=context,
             name=name, 
@@ -357,8 +462,7 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
             max_duplicates=max_duplicates
         )
     
-    def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
-        return _AttributePluralMixin._from_str(self, value)
+    _from_str: Callable[[Opt[str]], Opt[list[str]]] = _get_plural_from_str_method(AttributeStr._from_str)  # type: ignore
     
     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
         v = self._from_str(value)
@@ -374,6 +478,8 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
         )
 
 class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin[str]):
+    TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributeStrCollection.TYPE_ID
+
     def __init__(
         self, 
         context: ContextT,
@@ -381,19 +487,19 @@ class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin
         alias: Iterable[str], 
         required: bool, 
         unique: bool,
-        hidden: bool, 
-        collection: Sequence[str],
-        max: int,
-        max_duplicates: int
+        hidden: bool,
+        *other: *tuple[int, int, Sequence[str]]
     ):
+        max, max_duplicates, collection = other
+
         super().__init__(
-            context=context,
-            name=name,
-            alias=alias,
-            required=required,
-            unique=unique,
-            hidden=hidden,
-            collection=collection
+            context,
+            name,
+            alias,
+            required,
+            unique,
+            hidden,
+            *(collection,)
         )
 
         _AttributePluralMixin.__init__(
@@ -402,8 +508,7 @@ class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin
             max_duplicates=max_duplicates
         )
 
-    def _from_str(self, value: Opt[str]) -> Opt[list[str]]:
-        return _AttributePluralMixin._from_str(self, value)
+    _from_str: Callable[[Opt[str]], Opt[list[str]]] = _get_plural_from_str_method(AttributeStrCollection._from_str)  # type: ignore
     
     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
         v = self._from_str(value)
@@ -417,6 +522,8 @@ class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin
     
 
 class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
+    TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributePerson.TYPE_ID
+    
     def __init__(
         self, 
         context: ContextT, 
@@ -424,17 +531,18 @@ class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
         alias: Iterable[str], 
         required: bool,
         unique: bool,
-        hidden: bool, 
-        max: int,
-        max_duplicates: int
+        hidden: bool,
+        *other: *tuple[int, int]
     ):
+        max, max_duplicates = other
+
         super().__init__(
             context=context, 
             name=name, 
             alias=alias, 
             required=required,
             unique=unique,
-            hidden=hidden, 
+            hidden=hidden
         )
 
         _AttributePluralMixin.__init__(
@@ -443,8 +551,20 @@ class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
             max_duplicates=max_duplicates
         )
 
-    def _from_str(self, value: Opt[str]) -> Opt[list[Person]]:
-        return _AttributePluralMixin._from_str(self, value)
+    _from_str: Callable[[Opt[str]], Opt[list[Person]]] = _get_plural_from_str_method(AttributePerson._from_str)  # type: ignore
+     
+    def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
+        v = self._from_str(value)
+
+        if v is None:
+            return (((sys.maxunicode + 1) * sign,),)
+        
+        return tuple(
+            tuple(ord(char) * sign for char in (
+                person.name if case_sensitive else person.name.casefold()
+            )) 
+            for person in v
+        )
 
 
 #------#   Module Functionality   #------#
@@ -469,4 +589,4 @@ if __name__ == '__main__':
     print(_ATTR_LOOKUP)
 
     attr = AttributePluralStr(TMP_CTX, "test", ["test"], True, True, True, 10, 100)
-    print(attr._from_str(f'["test", "{"a" * 1025}"]'))
+    print(attr._from_str(f'[""]'))
