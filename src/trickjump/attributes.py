@@ -9,10 +9,12 @@ from enum import Enum
 from discordtools import feedbackerrors as fbe
 from people.person import Person
 import re
+from collections2 import tree as tree_
 
 type ContextT = str
 type AttrT = '_AttributeBase'
-type TreeT[T: Hashable] = dict[T, TreeT]
+type TreeT[T: Hashable] = dict[T, TreeT[T]]
+
 
 TMP_CTX = "Jumpedia"
 
@@ -51,45 +53,49 @@ def normalize_syn(syn: str, context: ContextT) -> str:
         raise fbe.TemporaryFeedbackError
     
     return syn
+
 #hello schatz i love you
 
-def _tree_worker[T: Hashable](
-    branch: TreeT[T],
-    normalized_to_value: dict[T, T],
-    parents_res: dict[T, list[T]],
-    children: dict[T, list[T]],
-    visited_on_this_branch: set[T],
-    normalize: Callable[[T], T],
-    depth: int = 1
-) -> None:
-    if depth > _RECURSION_LIMIT:
-        raise fbe.TemporaryFeedbackError(RecursionError)
+# def _tree_worker[T: Hashable](tree: TreeT[T], normalize: Callable[[T], T]) -> tuple[dict[T, set[T]], dict[T, T]]:
+#     children: dict[T, set[T]] = {}
+#     unnormalize: dict[T, T] = {}
+#     all_visited: set[T] = set()
 
-    for parent_name, children_dicts in branch.items():
-        parent_name_norm = normalize(parent_name)
+#     def _visit_node(node_names: tuple[T, T], child_nodes: TreeT[T], depth: int):
+#         if depth > _RECURSION_LIMIT:
+#             raise fbe.TemporaryFeedbackError
 
-        if parent_name_norm in visited_on_this_branch:
-            raise fbe.TemporaryFeedbackError
+#         node_name, norm_node_name = node_names
         
-        visited_on_this_branch.add(parent_name_norm)
+#         # Check if duplicate node, otherwise add to collection 
+#         if norm_node_name in all_visited:
+#             raise fbe.TemporaryFeedbackError("Cyclic")
         
-        children_names_norm_to_value = {
-            normalize(child_name): grandchildren 
-            for child_name, grandchildren 
-            in children_dicts.items()
-        }
+#         all_visited.add(norm_node_name)
+        
+#         unnormalize[norm_node_name] = node_name
 
-        children.setdefault(parent_name_norm, []).extend(children_names_norm_to_value)
-        normalized_to_value[parent_name_norm] = parent_name
-
-        for child_name_norm in children_names_norm_to_value:
-            parents_res.setdefault(child_name_norm, []).append(parent_name_norm)
+#         for child_node_name, child_child_nodes in child_nodes.items():
+#             norm_child_node_name = normalize(child_node_name)
+                
+#             children.setdefault(norm_node_name, set()).add(norm_child_node_name)
             
-        for childs in children_dicts.values():
-            _tree_worker(child, visited_on_this_branch, depth + 1)  # type: ignore
+#             _visit_node(
+#                 (child_node_name, norm_child_node_name), 
+#                 child_child_nodes, 
+#                 depth + 1
+#             )
 
+#     for child_node_name, child_child_nodes in tree.items():
+#         norm_child_node_name = normalize(child_node_name)
 
-        visited_on_this_branch.remove(parent_name_norm)
+#         _visit_node(
+#             (child_node_name, norm_child_node_name), 
+#             child_child_nodes, 
+#             1
+#         )
+
+#     return children, unnormalize
 
     
 def _get_plural_from_str_method[TParent](
@@ -169,7 +175,7 @@ class _AttributeBase[T]:
         unique: bool,
         required: bool,
         hidden: bool,
-        *other: Any
+        *other: *tuple[()]
     ):
         name = normalize_syn(name, context)
         alias = frozenset(normalize_syn(a, context) for a in alias)
@@ -393,9 +399,9 @@ class AttributeStrCollectionTree(_AttributeBase[str]):
         *args: *tuple[TreeT[str]]
     ):
         tree, = args
-        
-        _tree_worker(tree, set())
 
+        self.tree = tree_.Tree(tree, lambda s: s.strip().casefold())
+        input(self.tree)
         super().__init__(
             context, 
             name, 
@@ -588,5 +594,24 @@ if __name__ == '__main__':
     print(_ALL_ATTRIBUTE_TYPES)
     print(_ATTR_LOOKUP)
 
-    attr = AttributePluralStr(TMP_CTX, "test", ["test"], True, True, True, 10, 100)
-    print(attr._from_str(f'[""]'))
+    AttributeStrCollectionTree(
+        TMP_CTX, 
+        "test", 
+        [], 
+        True,
+        True,
+        True,
+        {
+            "Metro Kingdom": {
+                "Tank Subarea": {
+                    "Test1": {}
+                },
+                "Ogre Subarea": {}
+            },
+            "Dark Side": {
+                "Broodal Fight 1": {}
+            },
+        }
+    )
+    # attr = AttributePluralStr(TMP_CTX, "test", ["test"], True, True, True, 10, 100)
+    # print(attr._from_str(f'[""]'))
