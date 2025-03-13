@@ -2,101 +2,29 @@
 
 import ast
 from collections import Counter, defaultdict
+from datetime import datetime
+import functools
 import json
 import sys
-from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence
-from enum import Enum
+from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence, cast
+from enum import Enum, auto
 from discordtools import feedbackerrors as fbe
 from people.person import Person
 import re
 from collections2 import tree as tree_
+from trickjump.community import Community
+import builtins
 
-type ContextT = str
-type AttrT = '_AttributeBase'
+type AttrT = 'Attribute'
 type TreeT[T: Hashable] = dict[T, TreeT[T]]
 
-
-TMP_CTX = "Jumpedia"
-
 #------#   Module Constants & Helper Functions   #------#
-
-_ATTR_LOOKUP: dict[ContextT, dict[str, '_AttributeBase']] = {}
-_ALL_ATTRS: dict[ContextT, list['_AttributeBase']] = {}
-_ALL_ATTRIBUTE_TYPES: list[type['_AttributeBase']] = []
 
 _RECURSION_LIMIT = 2 ** 6
 
 _NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 _DUPLICATE_WHITESPACE_PATTERN = re.compile(r'\s+')
 _VALID_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
-
-
-def normalize_syn(syn: str, context: ContextT) -> str:
-    syn = re.sub(_DUPLICATE_WHITESPACE_PATTERN, '_', syn.lower().casefold())
-
-    if not syn:
-        raise fbe.TemporaryFeedbackError
-    
-    if len(syn) > _AttributeBase.MAX_SYN_LEN:
-        raise fbe.TemporaryFeedbackError
-    
-    illegals: set[str] = set()
-
-    for char in syn:
-        if char not in _VALID_CHARS:
-            illegals.add(char)
-
-    if illegals:
-        raise fbe.TemporaryFeedbackError(illegals)
-    
-    if syn in _ATTR_LOOKUP.get(context, {}):
-        raise fbe.TemporaryFeedbackError
-    
-    return syn
-
-#hello schatz i love you
-
-# def _tree_worker[T: Hashable](tree: TreeT[T], normalize: Callable[[T], T]) -> tuple[dict[T, set[T]], dict[T, T]]:
-#     children: dict[T, set[T]] = {}
-#     unnormalize: dict[T, T] = {}
-#     all_visited: set[T] = set()
-
-#     def _visit_node(node_names: tuple[T, T], child_nodes: TreeT[T], depth: int):
-#         if depth > _RECURSION_LIMIT:
-#             raise fbe.TemporaryFeedbackError
-
-#         node_name, norm_node_name = node_names
-        
-#         # Check if duplicate node, otherwise add to collection 
-#         if norm_node_name in all_visited:
-#             raise fbe.TemporaryFeedbackError("Cyclic")
-        
-#         all_visited.add(norm_node_name)
-        
-#         unnormalize[norm_node_name] = node_name
-
-#         for child_node_name, child_child_nodes in child_nodes.items():
-#             norm_child_node_name = normalize(child_node_name)
-                
-#             children.setdefault(norm_node_name, set()).add(norm_child_node_name)
-            
-#             _visit_node(
-#                 (child_node_name, norm_child_node_name), 
-#                 child_child_nodes, 
-#                 depth + 1
-#             )
-
-#     for child_node_name, child_child_nodes in tree.items():
-#         norm_child_node_name = normalize(child_node_name)
-
-#         _visit_node(
-#             (child_node_name, norm_child_node_name), 
-#             child_child_nodes, 
-#             1
-#         )
-
-#     return children, unnormalize
-
     
 def _get_plural_from_str_method[TParent](
     singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
@@ -140,7 +68,7 @@ def _get_plural_from_str_method[TParent](
         return filtered_v or None
     
     return _from_str
-    
+
 #------#   Mixins   #------#
 
 class _AttributePluralMixin[T]:
@@ -160,80 +88,138 @@ class _AttributePluralMixin[T]:
     def max(self) -> int:
         return self._max
 
+class AttributeStructure(Enum):
+    SINGLE = auto()
+    PLURAL = auto()
+    TREE = auto()
 
-#------#   AttributeBase   #------#
+class AttributeInteractability(Enum):
+    HIDDEN = auto()
+    SHOWN = auto()
+    REQUIRED = auto()
+    USER = auto()
 
-class _AttributeBase[T]:
+#------#   Attribute   #------#
+
+class Attribute[T: bool | int | float | str | datetime]:
     TYPE_ID: int
     MAX_SYN_LEN = 32
+    MAX_ATTRIBUTES_PER_COMMUNITY = 50
+    
+    LOOKUP: defaultdict[Community, dict[str, 'Attribute']] = defaultdict(lambda: {})
+
+    # Number (int | float)
+    MIN_NUMBER: int = -(2 ** 64)
+    MAX_NUMBER: int = 2 ** 64 - 1
+    MAX_NUMBER_AS_STR_LEN: int = len(str(MAX_NUMBER)) 
+
+    # String (str)
+    MAX_STR_LEN = 1024
 
     def __init__(
         self, 
-        context: ContextT,
+        community: Community,
         name: str,
         alias: Iterable[str],
-        unique: bool,
-        required: bool,
-        hidden: bool,
-        *other: *tuple[()]
+        value_type: type[T],
+        interactability: AttributeInteractability,
+        structure: AttributeStructure,
+        collection: Iterable[T],
+        unique_in_list: bool
     ):
-        name = normalize_syn(name, context)
-        alias = frozenset(normalize_syn(a, context) for a in alias)
+        if structure is AttributeStructure.TREE and not collection:
+            raise fbe.TemporaryFeedbackError
 
-        lookup = _ATTR_LOOKUP.setdefault(context, {})
-        _ALL_ATTRS.setdefault(context, []).append(self)
+        self.community = community
+        self.name = self._normalize_syn(name)
+        self.alias = set(self._normalize_syn(a) for a in alias)
+        self.value_type = value_type
+        self.interactability = interactability
+        self.stucture = structure
+        self.collection = {self._normalize_value(v): v for v in collection}
+        self.unique_in_list = unique_in_list
+    
+    def _normalize_syn(self, syn: str) -> str:
+        syn = re.sub(_DUPLICATE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
+
+        if not syn:
+            raise fbe.TemporaryFeedbackError
         
-        self._context = context
-        self._name = name
-        self._alias = alias
-        self._required = required
-        self._unique = unique
-        self._hidden = hidden
+        if len(syn) > self.__class__.MAX_SYN_LEN:
+            raise fbe.TemporaryFeedbackError
+        
+        if syn in self.__class__.LOOKUP[self.community]:
+            raise fbe.TemporaryFeedbackError
+        
+        illegal_chars: set[str] = set()
 
-        for syn in (name, *alias):
-            lookup[syn] = self
+        for char in syn:
+            if char not in _VALID_CHARS:
+                illegal_chars.add(char)
 
-    @classmethod
-    def __init_subclass__(cls) -> None:
-        _ALL_ATTRIBUTE_TYPES.append(cls)
-
-    @property
-    def context(self) -> ContextT:
-        return self._context
-    
-    @property
-    def name(self) -> str:
-        return self._name
-    
-    @property
-    def alias(self) -> frozenset[str]:
-        return self._alias
-    
-    @property
-    def required(self) -> bool:
-        return self._required
-    
-    @property
-    def unique(self) -> bool:
-        return self._unique
-    
-    @property
-    def hidden(self) -> bool:
-        return self._hidden
-
+        if illegal_chars:
+            raise fbe.TemporaryFeedbackError(illegal_chars)
+        
+        return syn
+            
     def is_empty(self, value: Opt[str]) -> bool:
         return self._from_str(value) is None
     
-    def _from_str(self, value: Opt[str]) -> Opt[T]:
-        raise NotImplementedError()
+    def _normalize_value(self, value: T) -> T:
+        match self.value_type:
+            case builtins.str:
+                return re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value.strip().casefold())  # type: ignore
+            case _:
+                return value
+            
+    def _from_str(self, value: Opt[str], structure: Opt[AttributeStructure] = None) -> Opt[T]:
+        if value is None or not (value := value.strip()):
+            return None
+        
+        if structure is None:
+            structure = self.stucture
+        
+        match self.value_type:
+            case builtins.bool:
+                value = value.lower()
+
+                if value == "false":
+                    result = False
+                elif value == "true":
+                    result = True
+                else:
+                    raise fbe.NotAProperValue("boolean", value)
+            case builtins.int | builtins.float:
+                if len(value) > self.__class__.MAX_NUMBER_AS_STR_LEN:
+                    raise fbe.OutsideOfValidRange(value, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER )
+
+                try:
+                    result = self.value_type(value)
+                except ValueError:
+                    raise fbe.NotAProperValue("number", value)
+
+                if not (self.__class__.MIN_NUMBER < result < self.__class__.MAX_NUMBER):
+                    raise fbe.OutsideOfValidRange(result, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER)
+            case builtins.str:
+                if len(value) > self.__class__.MAX_STR_LEN:
+                    raise fbe.TooLongValue("string", value, self.__class__.MAX_STR_LEN)
+                
+                result = re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value)
+            case _:
+                raise ValueError
+
+        return result  # type: ignore
+            
     
-    def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-        raise NotImplementedError()
+            
+    
+            
+        
     
 
 #------#   Attribute Specific Implementations   #------#
 
-class AttributeBool(_AttributeBase[bool]):
+class AttributeBool(Attribute[bool]):
     TYPE_ID = 1
 
     def _from_str(self, value: Opt[str]) -> Opt[bool]:
@@ -258,20 +244,18 @@ class AttributeBool(_AttributeBase[bool]):
         return (not v) * sign
     
 
-class AttributeInt(_AttributeBase[int]):
+class AttributeInt(Attribute[int]):
     TYPE_ID = 2
 
-    MIN_INT: int = -(2 ** 64)
-    MAX_INT: int = 2 ** 64 - 1
-    MAX_INT_STR: int = len(str(MAX_INT)) 
+    
 
     def _from_str(self, value: Opt[str]) -> Opt[int]:
         if value is None or not (value := value.strip()):
             return None
         
-        if len(value) > self.__class__.MAX_INT_STR:
+        if len(value) > self.__class__.MAX_NUMBER_AS_STR_LEN:
             raise fbe.OutsideOfValidRange(
-                value, self.__class__.MIN_INT, self.__class__.MAX_INT
+                value, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER
             )
         
         try:
@@ -279,9 +263,9 @@ class AttributeInt(_AttributeBase[int]):
         except ValueError:
             raise fbe.NotAProperValue("integer", value)
 
-        if not (self.__class__.MIN_INT < result < self.__class__.MAX_INT):
+        if not (self.__class__.MIN_NUMBER < result < self.__class__.MAX_NUMBER):
             raise fbe.OutsideOfValidRange(
-                result, self.__class__.MIN_INT, self.__class__.MAX_INT
+                result, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER
             )
         
         return result
@@ -290,12 +274,12 @@ class AttributeInt(_AttributeBase[int]):
         v = self._from_str(value)
 
         if v is None:
-            v = self.MAX_INT + 1
+            v = self.MAX_NUMBER + 1
             
         return v * sign
     
 
-class AttributeStr(_AttributeBase[str]):
+class AttributeStr(Attribute[str]):
     TYPE_ID = 3
 
     MAX_STR_LEN = 2 ** 10
@@ -343,8 +327,8 @@ class AttributeStrCollection(AttributeStr):
             name=name, 
             alias=alias, 
             required=required,
-            unique=unique,
-            hidden=hidden
+            unique_in_list=unique,
+            interactability=hidden
         )
 
         # dict[casefolded_val, tuple[val, index]]
@@ -387,7 +371,7 @@ class AttributeStrCollection(AttributeStr):
         
         return self.collection[v][1] * sign
     
-class AttributeStrCollectionTree(_AttributeBase[str]):
+class AttributeStrCollectionTree(Attribute[str]):
     def __init__(
         self, 
         context: str, 
@@ -396,12 +380,11 @@ class AttributeStrCollectionTree(_AttributeBase[str]):
         required: bool, 
         unique: bool, 
         hidden: bool, 
-        *args: *tuple[TreeT[str]]
+        normalize: Callable[[str], str],
+        tree: TreeT[str]
     ):
-        tree, = args
+        self.tree = tree_.Tree(tree, normalize)
 
-        self.tree = tree_.Tree(tree, lambda s: s.strip().casefold())
-        input(self.tree)
         super().__init__(
             context, 
             name, 
@@ -413,7 +396,7 @@ class AttributeStrCollectionTree(_AttributeBase[str]):
 
 
 
-class AttributePerson(_AttributeBase[Person]):
+class AttributePerson(Attribute[Person]):
     TYPE_ID = 5
     MAX_PERSON_NAME_LEN = Person.MAX_PERSON_NAME_LEN
 
@@ -458,8 +441,8 @@ class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
             name=name, 
             alias=alias, 
             required=required,
-            unique=unique,
-            hidden=hidden 
+            unique_in_list=unique,
+            interactability=hidden 
         )
 
         _AttributePluralMixin.__init__(
@@ -547,8 +530,8 @@ class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
             name=name, 
             alias=alias, 
             required=required,
-            unique=unique,
-            hidden=hidden
+            unique_in_list=unique,
+            interactability=hidden
         )
 
         _AttributePluralMixin.__init__(
@@ -575,7 +558,7 @@ class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
 
 #------#   Module Functionality   #------#
 
-def get(context: ContextT, attr: str) -> _AttributeBase:
+def get(context: ContextT, attr: str) -> Attribute:
     try:
         lookup = _ATTR_LOOKUP[context]
     except KeyError:
@@ -586,7 +569,7 @@ def get(context: ContextT, attr: str) -> _AttributeBase:
     except KeyError:
         raise fbe.InvalidAttribute(attr)
 
-def get_all(context: ContextT) -> tuple[_AttributeBase, ...]:
+def get_all(context: ContextT) -> tuple[Attribute, ...]:
     return tuple(_ALL_ATTRS[context])
     
 
@@ -609,9 +592,58 @@ if __name__ == '__main__':
                 "Ogre Subarea": {}
             },
             "Dark Side": {
-                "Broodal Fight 1": {}
+                "Broodal Fight 1": {
+                    "test3": {
+                        "test2": {}
+                    }
+                }
             },
         }
     )
     # attr = AttributePluralStr(TMP_CTX, "test", ["test"], True, True, True, 10, 100)
     # print(attr._from_str(f'[""]'))
+
+
+
+#hello schatz i love you
+
+# def _tree_worker[T: Hashable](tree: TreeT[T], normalize: Callable[[T], T]) -> tuple[dict[T, set[T]], dict[T, T]]:
+#     children: dict[T, set[T]] = {}
+#     unnormalize: dict[T, T] = {}
+#     all_visited: set[T] = set()
+
+#     def _visit_node(node_names: tuple[T, T], child_nodes: TreeT[T], depth: int):
+#         if depth > _RECURSION_LIMIT:
+#             raise fbe.TemporaryFeedbackError
+
+#         node_name, norm_node_name = node_names
+        
+#         # Check if duplicate node, otherwise add to collection 
+#         if norm_node_name in all_visited:
+#             raise fbe.TemporaryFeedbackError("Cyclic")
+        
+#         all_visited.add(norm_node_name)
+        
+#         unnormalize[norm_node_name] = node_name
+
+#         for child_node_name, child_child_nodes in child_nodes.items():
+#             norm_child_node_name = normalize(child_node_name)
+                
+#             children.setdefault(norm_node_name, set()).add(norm_child_node_name)
+            
+#             _visit_node(
+#                 (child_node_name, norm_child_node_name), 
+#                 child_child_nodes, 
+#                 depth + 1
+#             )
+
+#     for child_node_name, child_child_nodes in tree.items():
+#         norm_child_node_name = normalize(child_node_name)
+
+#         _visit_node(
+#             (child_node_name, norm_child_node_name), 
+#             child_child_nodes, 
+#             1
+#         )
+
+#     return children, unnormalize

@@ -58,3 +58,7 @@
 #     def id(self) -> int:
 #         return self._id
 
+class Community:
+    DEFAULT: 'Community' = ... # type: ignore
+
+Community.DEFAULT = Community()
