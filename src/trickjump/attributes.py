@@ -2,11 +2,12 @@
 
 import ast
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, time, timedelta
 import functools
 import json
 import sys
-from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence, cast
+from threading import Lock
+from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence, TypeVar, cast
 from enum import Enum, auto
 from discordtools import feedbackerrors as fbe
 from people.person import Person
@@ -14,9 +15,12 @@ import re
 from collections2 import tree as tree_
 from trickjump.community import Community
 import builtins
+from collections2.range import Range
 
 type AttrT = 'Attribute'
 type TreeT[T: Hashable] = dict[T, TreeT[T]]
+type AttributeValueTypeT = bool | int | float | str | time | datetime | timedelta
+
 
 #------#   Module Constants & Helper Functions   #------#
 
@@ -69,52 +73,38 @@ def _get_plural_from_str_method[TParent](
     
     return _from_str
 
-#------#   Mixins   #------#
-
-class _AttributePluralMixin[T]:
-    def __init__(
-        self,
-        max: int,
-        max_duplicates: int
-    ) -> None:
-        self._max = max if max >= 0 else 0
-        self._max_duplicates = max_duplicates if max_duplicates >= 1 else 1
-
-    @property
-    def max_duplicates(self) -> int:
-        return self._max_duplicates
-    
-    @property
-    def max(self) -> int:
-        return self._max
-
-class AttributeStructure(Enum):
-    SINGLE = auto()
-    PLURAL = auto()
+class ValueCollection(Enum):
+    NONE = auto()
+    RANGES = auto()
     TREE = auto()
 
-class AttributeInteractability(Enum):
-    HIDDEN = auto()
-    SHOWN = auto()
-    REQUIRED = auto()
-    USER = auto()
+class ConflictingSettings(Enum):
+    NONE = auto()
+    UNIQUE_VALUE_PER_LIST = auto()
+    USER_BOUND = auto()
 
-#------#   Attribute   #------#
+#------#   Attribute   #------#	
 
-class Attribute[T: bool | int | float | str | datetime]:
+class Attribute[T: AttributeValueTypeT]:
     TYPE_ID: int
     MAX_SYN_LEN = 32
     MAX_ATTRIBUTES_PER_COMMUNITY = 50
     
-    LOOKUP: defaultdict[Community, dict[str, 'Attribute']] = defaultdict(lambda: {})
+    LOOKUP: dict[Community, dict[str, 'Attribute']] = {}
 
-    # Number (int | float)
-    MIN_NUMBER: int = -(2 ** 64)
-    MAX_NUMBER: int = 2 ** 64 - 1
-    MAX_NUMBER_AS_STR_LEN: int = len(str(MAX_NUMBER)) 
+    # int | float
+    NUMBER_MIN: int = -(2 ** 64)
+    NUMBER_MAX: int = 2 ** 64 - 1
+    NUMBER_MAX_LEN_AS_STR: int = len(str(NUMBER_MAX)) 
 
-    # String (str)
-    MAX_STR_LEN = 1024
+    # str
+    STR_MAX_LEN = 1024
+
+    # Collection
+    COLLECTION_MAX_COST = 1024 * 32
+    COLLECTION_MAX_ELEMS = 1024
+
+    LOCK = Lock()
 
     def __init__(
         self, 
@@ -122,33 +112,98 @@ class Attribute[T: bool | int | float | str | datetime]:
         name: str,
         alias: Iterable[str],
         value_type: type[T],
-        interactability: AttributeInteractability,
-        structure: AttributeStructure,
-        collection: Iterable[T],
-        unique_in_list: bool
+        value_collection: None | Sequence[T | Sequence[T]] | TreeT[T],
+        min_value_slots: int,
+        max_value_slots: int,
+        unique_slot_values: bool,
+        conflicting_settings: ConflictingSettings
     ):
-        if structure is AttributeStructure.TREE and not collection:
-            raise fbe.TemporaryFeedbackError
+        with self.__class__.LOCK:
+            self.community = community
 
-        self.community = community
-        self.name = self._normalize_syn(name)
-        self.alias = set(self._normalize_syn(a) for a in alias)
-        self.value_type = value_type
-        self.interactability = interactability
-        self.stucture = structure
-        self.collection = {self._normalize_value(v): v for v in collection}
-        self.unique_in_list = unique_in_list
+            self.name = self._normalize_and_validate_syn(name)
+            self.alias = set(self._normalize_and_validate_syn(a) for a in alias)
+
+            self.collection: None | list[Range[T]] | tree_.Tree[T] = None
+
+            if value_collection is None:
+                self.collection_type = ValueCollection.NONE
+            elif isinstance(value_collection, Sequence):
+                tmp_res: list[Range[T]] = []
+
+                for v in value_collection:
+                    if isinstance(v, value_type):
+                        v = self._normalize_value(v)
+                        tmp_res.append(Range(v, v))
+                    else:
+                        tmp_res.append(Range(
+                            self._normalize_value(v[0]), 
+                            self._normalize_value(v[1])
+                        ))
+
+                self.collection = Range.combine(*tmp_res)
+
+                if len(self.collection) > self.COLLECTION_MAX_ELEMS:
+                    raise fbe.TemporaryFeedbackError
+                
+                if sum(self._value_to_cost(
+                    bound) for r in self.collection 
+                    for bound in (r.first, r.last)
+                ) > self.COLLECTION_MAX_COST:
+                    raise fbe.TemporaryFeedbackError
+                
+                self.collection_type = ValueCollection.RANGES 
+            else:
+                try:
+                    self.collection = tree_.Tree(value_collection, self._normalize_value, 64, self.COLLECTION_MAX_ELEMS, self.NUMBER_MAX)
+                except tree_.TreeError as e:
+                    raise fbe.TemporaryFeedbackError(e)
+                
+                if sum(
+                    self._value_to_cost(n.value) 
+                    for n in self.collection._node_lookup.values()
+                ) > self.COLLECTION_MAX_COST:
+                    raise fbe.TemporaryFeedbackError
+                
+                self.collection_type = ValueCollection.TREE 
+
+            if min_value_slots < 0:
+                raise fbe.TemporaryFeedbackError
+            
+            if max_value_slots < 1 or max_value_slots < min_value_slots:
+                raise fbe.TemporaryFeedbackError
+            
+            self.min_value_slots = min_value_slots
+            self.max_value_slots = max_value_slots
+
+            self.unique_slot_values = unique_slot_values
+
+            self.unique_value_per_list = conflicting_settings is ConflictingSettings.UNIQUE_VALUE_PER_LIST
+            self.user_bound = conflicting_settings is ConflictingSettings.USER_BOUND
+
+            lookup = self.LOOKUP.setdefault(community, {})
+
+            for syn in (name, *alias):
+                lookup[syn] = self
+
+            # TODO:
+            # - Add to database
+            # - Make mapping from normalized to unnormalized values, so that
+            #   collections actually contain unnormalized values but lookup
+            #   is possible via normalized
+
+
     
-    def _normalize_syn(self, syn: str) -> str:
+    def _normalize_and_validate_syn(self, syn: str) -> str:
         syn = re.sub(_DUPLICATE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
 
         if not syn:
             raise fbe.TemporaryFeedbackError
         
-        if len(syn) > self.__class__.MAX_SYN_LEN:
+        if len(syn) > self.MAX_SYN_LEN:
             raise fbe.TemporaryFeedbackError
         
-        if syn in self.__class__.LOOKUP[self.community]:
+        if syn in self.LOOKUP[self.community]:
             raise fbe.TemporaryFeedbackError
         
         illegal_chars: set[str] = set()
@@ -161,18 +216,33 @@ class Attribute[T: bool | int | float | str | datetime]:
             raise fbe.TemporaryFeedbackError(illegal_chars)
         
         return syn
-            
-    def is_empty(self, value: Opt[str]) -> bool:
-        return self._from_str(value) is None
     
     def _normalize_value(self, value: T) -> T:
-        match self.value_type:
-            case builtins.str:
-                return re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value.strip().casefold())  # type: ignore
-            case _:
-                return value
+        if isinstance(value, str):
+            return re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value.strip().casefold())  # type: ignore
+        
+        return value
+
+    def _value_to_cost(self, value: T) -> int:
+        if isinstance(value, str):
+            return len(value)
+        if isinstance(value, int):
+            return 8
+        if isinstance(value, float):
+            return 8
+        if isinstance(value, time):
+            return 4
+        if isinstance(value, datetime):
+            return 8
+        if isinstance(value, timedelta):
+            return 8
+        
+        raise TypeError
+
+    def is_empty(self, value: Opt[str]) -> bool:
+        return self._from_str(value) is None
             
-    def _from_str(self, value: Opt[str], structure: Opt[AttributeStructure] = None) -> Opt[T]:
+    def _from_str(self, value: Opt[str], structure: Opt[ValueCollection] = None) -> Opt[T]:
         if value is None or not (value := value.strip()):
             return None
         
@@ -190,19 +260,19 @@ class Attribute[T: bool | int | float | str | datetime]:
                 else:
                     raise fbe.NotAProperValue("boolean", value)
             case builtins.int | builtins.float:
-                if len(value) > self.__class__.MAX_NUMBER_AS_STR_LEN:
-                    raise fbe.OutsideOfValidRange(value, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER )
+                if len(value) > self.__class__.NUMBER_MAX_LEN_AS_STR:
+                    raise fbe.OutsideOfValidRange(value, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX )
 
                 try:
                     result = self.value_type(value)
                 except ValueError:
                     raise fbe.NotAProperValue("number", value)
 
-                if not (self.__class__.MIN_NUMBER < result < self.__class__.MAX_NUMBER):
-                    raise fbe.OutsideOfValidRange(result, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER)
+                if not (self.__class__.NUMBER_MIN < result < self.__class__.NUMBER_MAX):
+                    raise fbe.OutsideOfValidRange(result, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX)
             case builtins.str:
-                if len(value) > self.__class__.MAX_STR_LEN:
-                    raise fbe.TooLongValue("string", value, self.__class__.MAX_STR_LEN)
+                if len(value) > self.__class__.STR_MAX_LEN:
+                    raise fbe.TooLongValue("string", value, self.__class__.STR_MAX_LEN)
                 
                 result = re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value)
             case _:
@@ -253,9 +323,9 @@ class AttributeInt(Attribute[int]):
         if value is None or not (value := value.strip()):
             return None
         
-        if len(value) > self.__class__.MAX_NUMBER_AS_STR_LEN:
+        if len(value) > self.__class__.NUMBER_MAX_LEN_AS_STR:
             raise fbe.OutsideOfValidRange(
-                value, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER
+                value, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX
             )
         
         try:
@@ -263,9 +333,9 @@ class AttributeInt(Attribute[int]):
         except ValueError:
             raise fbe.NotAProperValue("integer", value)
 
-        if not (self.__class__.MIN_NUMBER < result < self.__class__.MAX_NUMBER):
+        if not (self.__class__.NUMBER_MIN < result < self.__class__.NUMBER_MAX):
             raise fbe.OutsideOfValidRange(
-                result, self.__class__.MIN_NUMBER, self.__class__.MAX_NUMBER
+                result, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX
             )
         
         return result
@@ -274,7 +344,7 @@ class AttributeInt(Attribute[int]):
         v = self._from_str(value)
 
         if v is None:
-            v = self.MAX_NUMBER + 1
+            v = self.NUMBER_MAX + 1
             
         return v * sign
     
