@@ -4,20 +4,17 @@ from typing import Any, Callable, Hashable, Iterable, Optional as Opt
 type TreeT[T: Hashable] = dict[T, TreeT[T]]
 
 class _TreeNode[T: Hashable]:
-    def __init__(self, value: T, parent: Opt['_TreeNode[T]'], children: list['_TreeNode[T]']) -> None:
+    def __init__(self, value: T, parent: Opt['_TreeNode[T]'], children: list['_TreeNode[T]'], depth: int) -> None:
         self.value = value
         self.parent = parent
         self.children = children
+        self.depth = depth
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.__dict__ == value.__dict__
     
     def __repr__(self) -> str:
-        return f'{type(self).__name__}({",".join(
-            f"{k!r}={v!r}" 
-            for k, v in self.__dict__.items() 
-            if not k.startswith("__")
-        )})'
+        return f"{self.__class__.__name__}({self.value!r}, {self.parent!r}, {self.children!r}, {self.depth!r})"
     
     def __str__(self) -> str:
         return str(self.value)
@@ -26,11 +23,11 @@ class _TreeNode[T: Hashable]:
         return self.value == other.value
 
 
-class Tree[T: Hashable]:
-    def __init__(self, tree: TreeT[T], normalize: Callable[[T], T], max_depth: int, max_nodes: int, max_children: int) -> None:
+class Tree[TNorm: Hashable, TUnnorm]:
+    def __init__(self, tree: TreeT[TUnnorm], normalize: Callable[[TUnnorm], TNorm], max_depth: int, max_nodes: int, max_children: int) -> None:
         self._normalize = normalize
-        self._node_lookup: dict[T, _TreeNode[T]] = {}
-        self._roots: list[_TreeNode[T]] = []
+        self._node_lookup: dict[TNorm, _TreeNode[TNorm]] = {}
+        self._roots: list[_TreeNode[TNorm]] = []
 
         self._max_depth = max(1, max_depth)
         self._max_nodes = max(1, max_nodes)
@@ -41,7 +38,7 @@ class Tree[T: Hashable]:
     def __str__(self) -> str:
         return self._str(self._roots, "")
 
-    def _str(self, nodes: list[_TreeNode[T]], prefix: str) -> str:
+    def _str(self, nodes: list[_TreeNode[TNorm]], prefix: str) -> str:
         result = []
         for i, node in enumerate(nodes):
             is_last_child = (i == len(nodes) - 1)
@@ -57,11 +54,11 @@ class Tree[T: Hashable]:
 
         return "\n".join(result)
 
-    def _build_tree(self, parent: Opt['_TreeNode[T]'], children_tree: TreeT[T], depth: int) -> list[_TreeNode[T]]:
+    def _build_tree(self, parent: Opt[_TreeNode[TNorm]], children_tree: TreeT[TUnnorm], depth: int) -> list[_TreeNode[TNorm]]:
         if depth > self._max_depth:
             raise MaxDepthExceededError()
         
-        children: list[_TreeNode[T]] = []
+        children: list[_TreeNode[TNorm]] = []
 
         for child_value, child_children_tree in children_tree.items():
             child_value_norm = self._normalize(child_value)
@@ -74,7 +71,8 @@ class Tree[T: Hashable]:
             child = _TreeNode(
                 child_value_norm,
                 parent,
-                []
+                [],
+                depth
             )
 
             if len(self._node_lookup) > self._max_nodes:
