@@ -1,4 +1,5 @@
-from typing import Callable, Hashable, Iterable, Optional as Opt
+import math
+from typing import Any, Callable, Hashable, Iterable, Optional as Opt
 
 type TreeT[T: Hashable] = dict[T, TreeT[T]]
 
@@ -26,14 +27,16 @@ class _TreeNode[T: Hashable]:
 
 
 class Tree[T: Hashable]:
-    MAX_DEPTH = 64
-
-    def __init__(self, tree: TreeT[T], normalize: Callable[[T], T]) -> None:
+    def __init__(self, tree: TreeT[T], normalize: Callable[[T], T], max_depth: int, max_nodes: int, max_children: int) -> None:
         self._normalize = normalize
         self._node_lookup: dict[T, _TreeNode[T]] = {}
         self._roots: list[_TreeNode[T]] = []
 
-        self._build_tree(None, tree, 0)
+        self._max_depth = max(1, max_depth)
+        self._max_nodes = max(1, max_nodes)
+        self._max_children = max(1, max_children)
+
+        self._build_tree(None, tree, 1)
 
     def __str__(self) -> str:
         return self._str(self._roots, "")
@@ -55,8 +58,8 @@ class Tree[T: Hashable]:
         return "\n".join(result)
 
     def _build_tree(self, parent: Opt['_TreeNode[T]'], children_tree: TreeT[T], depth: int) -> list[_TreeNode[T]]:
-        if depth > self.__class__.MAX_DEPTH:
-            raise ValueError("recursion limit")
+        if depth > self._max_depth:
+            raise MaxDepthExceededError()
         
         children: list[_TreeNode[T]] = []
 
@@ -64,16 +67,19 @@ class Tree[T: Hashable]:
             child_value_norm = self._normalize(child_value)
 
             if child_value_norm in self._node_lookup:
-                raise ValueError("Duplicate normalized value")
+                raise DuplicateValueError(child_value_norm)
+
+            self._node_lookup[child_value_norm] = child
 
             child = _TreeNode(
-                child_value,
+                child_value_norm,
                 parent,
                 []
             )
 
-            self._node_lookup[child_value_norm] = child
-
+            if len(self._node_lookup) > self._max_nodes:
+                raise MaxNodesExceededError()
+            
             child.children = self._build_tree(
                 child,
                 child_children_tree,
@@ -81,8 +87,32 @@ class Tree[T: Hashable]:
             ) 
 
             children.append(child)
-
+        
+        if len(children) > self._max_children:
+            raise MaxChildrenExceededError(parent)
+        
         if parent is None:
             self._roots.extend(children)
 
         return children
+    
+
+class TreeError(ValueError):
+    pass
+
+class MaxDepthExceededError(TreeError):
+    pass
+
+class MaxNodesExceededError(TreeError):
+    pass
+
+class DuplicateValueError(TreeError):
+    def __init__(self, duplicate: Any, *args: object) -> None:
+        self.duplicate = duplicate
+
+        super().__init__(*args)
+
+class MaxChildrenExceededError(TreeError):
+    def __init__(self, node: _TreeNode | None, *args: object) -> None:
+        self.node = node
+        super().__init__(*args)
