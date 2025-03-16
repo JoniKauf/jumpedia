@@ -3,23 +3,29 @@
 import ast
 from collections import Counter, defaultdict
 from trickjump.context import Context
-from datetime import datetime, time, timedelta
+import datetime as dt
 import functools
 import json
 import sys
 from threading import Lock
 from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence, TypeVar, cast
 from enum import Enum, auto
-from discordtools import feedbackerrors as fbe
+from discordtools import errors, feedbackerrors as fbe
 from people.person import Person
 import re
 from collections2 import tree
 from trickjump.community import Community
 import builtins
 from collections2.range import Range
+from decimal import Decimal
+import decimal
 
 type AttrT = 'Attribute'
-type AttributeValueTypeT = bool | int | float | str | time | datetime | timedelta
+type AttributeValueTypeT = (
+    bool | int | Decimal | 
+    dt.time | dt.date | dt.datetime | dt.timedelta | 
+    str
+)
 
 
 #------#   Module Constants & Helper Functions   #------#
@@ -27,8 +33,10 @@ type AttributeValueTypeT = bool | int | float | str | time | datetime | timedelt
 _RECURSION_LIMIT = 2 ** 6
 
 _NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
-_DUPLICATE_WHITESPACE_PATTERN = re.compile(r'\s+')
-_VALID_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
+_ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
+_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'/\.')
+
+_VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
     
 def _get_plural_from_str_method[TParent](
     singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
@@ -73,6 +81,10 @@ def _get_plural_from_str_method[TParent](
     
     return _from_str
 
+def _parse_timedelta_str(s: str) -> dt.timedelta:
+    # TODO
+
+
 
 class ValueCollectionType(Enum):
     NONE = auto()
@@ -88,11 +100,14 @@ class Attribute[T: AttributeValueTypeT]:
     
     LOOKUP: dict[Community, dict[str, 'Attribute']] = {}
 
-    # int | float
-    NUMBER_MIN: int = -(2 ** 64)
-    NUMBER_MAX: int = 2 ** 64 - 1
-    NUMBER_MAX_LEN_AS_STR: int = len(str(NUMBER_MAX)) 
-
+    # int | decimal
+    NUMBER_MAX: int = 2 ** 63 - 1
+    NUMBER_MIN: int = -NUMBER_MAX - 1
+    DECIMAL_PRECISION: int = decimal.getcontext().prec
+    INT_PART_MAX_LEN: int = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
+    DEC_PART_MAX_LEN: int = DECIMAL_PRECISION - INT_PART_MAX_LEN
+    DECIMAL_MAX_LEN: int = DECIMAL_PRECISION if DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
+ 
     # str
     STR_MAX_LEN = 1024
 
@@ -117,7 +132,7 @@ class Attribute[T: AttributeValueTypeT]:
         unique_values_per_list: bool,
         user_bound: bool
     ):
-        with self.__class__.LOCK:
+        with Attribute.LOCK:
             self.community = community
 
             self.name = self._normalize_and_validate_syn(name)
@@ -143,19 +158,19 @@ class Attribute[T: AttributeValueTypeT]:
                     v_norm = self._normalize_and_implement(value)
                     self.list.append(v_norm)
                     
-                if len(self.list) > self.COLLECTION_MAX_ELEMS:
+                if len(self.list) > Attribute.COLLECTION_MAX_ELEMS:
                     raise fbe.TemporaryFeedbackError
                 
-                if sum(self.value_to_memory(v) for v in self.list) > self.COLLECTION_MAX_MEMORY:
+                if sum(self.value_to_memory(v) for v in self.list) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
             else:
                 try:
                     self.tree = tree.Tree(
                         value_collection, 
                         self._normalize_and_implement, 
-                        self.MAX_DEPTH, 
-                        self.COLLECTION_MAX_ELEMS, 
-                        self.NUMBER_MAX
+                        Attribute.MAX_DEPTH, 
+                        Attribute.COLLECTION_MAX_ELEMS, 
+                        Attribute.NUMBER_MAX
                     )
                 except tree.TreeError as e:
                     raise fbe.TemporaryFeedbackError(e)
@@ -163,7 +178,7 @@ class Attribute[T: AttributeValueTypeT]:
                 if sum(
                     self.value_to_memory(n.value) 
                     for n in self.tree._node_lookup.values()
-                ) > self.COLLECTION_MAX_MEMORY:
+                ) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
 
             if min_value_slots < 0:
@@ -183,7 +198,7 @@ class Attribute[T: AttributeValueTypeT]:
             self.unique_value_per_list = unique_values_per_list
             self.user_bound = user_bound
 
-            lookup = self.LOOKUP.setdefault(community, {})
+            lookup = Attribute.LOOKUP.setdefault(community, {})
 
             for syn in (name, *alias):
                 lookup[syn] = self
@@ -192,21 +207,21 @@ class Attribute[T: AttributeValueTypeT]:
             # - Add to database
 
     def _normalize_and_validate_syn(self, syn: str) -> str:
-        syn = re.sub(_DUPLICATE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
+        syn = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
 
         if not syn:
             raise fbe.TemporaryFeedbackError
         
-        if len(syn) > self.MAX_SYN_LEN:
+        if len(syn) > Attribute.MAX_SYN_LEN:
             raise fbe.TemporaryFeedbackError
         
-        if syn in self.LOOKUP.setdefault(self.community, {}):
+        if syn in Attribute.LOOKUP.setdefault(self.community, {}):
             raise fbe.TemporaryFeedbackError
         
         illegal_chars: set[str] = set()
 
         for char in syn:
-            if char not in _VALID_CHARS:
+            if char not in _VALID_SYN_CHARS:
                 illegal_chars.add(char)
 
         if illegal_chars:
@@ -233,9 +248,80 @@ class Attribute[T: AttributeValueTypeT]:
         
         return normalized
     
+    def _from_str_singular[T1: AttributeValueTypeT](self, context: Context, value: str, value_type: Opt[type[T1]] = None) -> T1:
+        if value_type is None:
+            value_type = self.value_type  # type: ignore
+            
+        match value_type:
+            case builtins.bool:
+                value = value.lower()
+
+                if value in "false":
+                    result = False
+                elif value == "true":
+                    result = True
+                else:
+                    raise fbe.NotAProperValue("boolean", value)
+                
+            case builtins.int:
+                if len(value) > Attribute.INT_PART_MAX_LEN:
+                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+
+                try:
+                    result = int(value)
+                except Exception:
+                    raise fbe.NotAProperValue("integer", value)
+
+                if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
+                    raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+                
+            case decimal.Decimal:
+                if len(value) > Attribute.DECIMAL_MAX_LEN:
+                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+                
+                try:
+                    result = Decimal(value)
+                    result = result.quantize(Decimal(f"1E-{Attribute.DEC_PART_MAX_LEN}"))
+                except Exception:
+                    raise fbe.NotAProperValue("decimal", value)
+                
+                if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
+                    raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+            
+            case dt.time | dt.date | dt.datetime:
+                # If a date is in the type
+                if issubclass(value_type, (dt.date, dt.datetime)):
+                    value = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", value)
+                
+                try:
+                    result = value_type.fromisoformat(value)
+                except Exception:
+                    raise fbe.TemporaryFeedbackError("Invalid datetime repr")
+                
+                if isinstance(result, (dt.time, dt.datetime)):
+                    if result.tzinfo is None:
+                        result = result.replace(tzinfo=dt.timezone.utc)
+
+            case dt.timedelta:
+                parts = value.split(" ")
+
+                for part in parts:
+
+
+            case builtins.str:
+                if len(value) > Attribute.STR_MAX_LEN:
+                    raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)
+                
+                result = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", value)
+
+            case _:
+                raise ValueError
+        
+        return result
+
     def normalize(self, unnormalized: T) -> T:
         if isinstance(unnormalized, str):
-            normalized: T = re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", unnormalized.strip().casefold())  # type: ignore
+            normalized: T = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", unnormalized.strip().casefold())  # type: ignore
         else:
             normalized = unnormalized
         
@@ -258,17 +344,20 @@ class Attribute[T: AttributeValueTypeT]:
         raise TypeError
 
     def is_empty(self, value: Opt[str]) -> bool:
-        return self._from_str(value) is None
+        return self.from_str(value) is None
             
-    def _from_str(self, value: Opt[str]) -> Opt[T]:
-        if value is None or not (value := value.strip()):
+    def from_str(self, s: Opt[str]) -> Opt[T]:
+        if s is None or not (s := s.strip()):
             return None
         
         try:
-            json.loads
+            loaded: Any = json.loads(s)
         except json.JSONDecodeError:
-            #todo
+            raise fbe.TemporaryFeedbackError
         
+        # if isinstance(loaded, )
+        # elif isinstance(loaded, list):
+        #     values: list[T] = []
         results: list[T]
         match self.value_type:
             case builtins.bool:
@@ -281,21 +370,21 @@ class Attribute[T: AttributeValueTypeT]:
                 else:
                     raise fbe.NotAProperValue("boolean", value)
             case builtins.int | builtins.float:
-                if len(value) > self.__class__.NUMBER_MAX_LEN_AS_STR:
-                    raise fbe.OutsideOfValidRange(value, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX )
+                if len(value) > Attribute.NUMBER_MAX_LEN_AS_STR:
+                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
 
                 try:
                     res = self.value_type(value)
                 except ValueError:
                     raise fbe.NotAProperValue("number", value)
 
-                if not (self.__class__.NUMBER_MIN < res < self.__class__.NUMBER_MAX):
-                    raise fbe.OutsideOfValidRange(res, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX)
+                if not (Attribute.NUMBER_MIN < res < Attribute.NUMBER_MAX):
+                    raise fbe.OutsideOfValidRange(res, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
             case builtins.str:
-                if len(value) > self.__class__.STR_MAX_LEN:
-                    raise fbe.TooLongValue("string", value, self.__class__.STR_MAX_LEN)
+                if len(value) > Attribute.STR_MAX_LEN:
+                    raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)
                 
-                res = re.sub(_DUPLICATE_WHITESPACE_PATTERN, " ", value)
+                res = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", value)
             case _:
                 raise ValueError
 
@@ -344,9 +433,9 @@ class Attribute[T: AttributeValueTypeT]:
 #         if value is None or not (value := value.strip()):
 #             return None
         
-#         if len(value) > self.__class__.NUMBER_MAX_LEN_AS_STR:
+#         if len(value) > Attribute.NUMBER_MAX_LEN_AS_STR:
 #             raise fbe.OutsideOfValidRange(
-#                 value, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX
+#                 value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX
 #             )
         
 #         try:
@@ -354,9 +443,9 @@ class Attribute[T: AttributeValueTypeT]:
 #         except ValueError:
 #             raise fbe.NotAProperValue("integer", value)
 
-#         if not (self.__class__.NUMBER_MIN < result < self.__class__.NUMBER_MAX):
+#         if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
 #             raise fbe.OutsideOfValidRange(
-#                 result, self.__class__.NUMBER_MIN, self.__class__.NUMBER_MAX
+#                 result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX
 #             )
         
 #         return result
@@ -365,7 +454,7 @@ class Attribute[T: AttributeValueTypeT]:
 #         v = self._from_str(value)
 
 #         if v is None:
-#             v = self.NUMBER_MAX + 1
+#             v = Attribute.NUMBER_MAX + 1
             
 #         return v * sign
     
@@ -379,8 +468,8 @@ class Attribute[T: AttributeValueTypeT]:
 #         if value is None or not (value := value.strip()):
 #             return None
         
-#         if len(value) > self.__class__.MAX_STR_LEN:
-#             raise fbe.TooLongValue("string", value, self.__class__.MAX_STR_LEN)
+#         if len(value) > Attribute.MAX_STR_LEN:
+#             raise fbe.TooLongValue("string", value, Attribute.MAX_STR_LEN)
         
 #         return value
 
@@ -425,9 +514,9 @@ class Attribute[T: AttributeValueTypeT]:
 #         # dict[casefolded_val, tuple[val, index]]
 #         self._collection: dict[str, tuple[str, int]] = {}
 
-#         if len(collection) > self.__class__.MAX_COLLECTION_LEN:
+#         if len(collection) > Attribute.MAX_COLLECTION_LEN:
 #             raise fbe.TooManyCollectionElements(
-#                 self.name, self.__class__.MAX_COLLECTION_LEN
+#                 self.name, Attribute.MAX_COLLECTION_LEN
 #             )
         
 #         for i, elem in enumerate(collection):
