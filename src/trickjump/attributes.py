@@ -2,6 +2,7 @@
 
 import ast
 from collections import Counter, defaultdict
+import itertools
 from trickjump.context import Context
 import datetime as dt
 import functools
@@ -19,6 +20,7 @@ import builtins
 from collections2.range import Range
 from decimal import Decimal
 import decimal
+import string
 
 type AttrT = 'Attribute'
 type AttributeValueTypeT = (
@@ -30,14 +32,83 @@ type AttributeValueTypeT = (
 
 #------#   Module Constants & Helper Functions   #------#
 
-_RECURSION_LIMIT = 2 ** 6
-
 _NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 _ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'/\.')
-
 _VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
+
+_TIMEDELTA_PARSE_PATTERN = re.compile(r'''
+    ^                     # String start
+    ([-+])?               # [Group 1: Optional '-' or '+' sign]
+    \s*                   # Whitespace 0 to ∞ times
+    (?:                   # Group without capturing:
+        ([0-9]+)              # [Group 2: Any digit 0 to ∞ times]
+        \s*                   # Whitespace 0 to ∞ times
+        (d|days?)             # [Group 3: 'd', 'day' or 'days']
+    )?                    # End group, its insides must either fully match or not exist at all
+    \s*                   # Whitespace 0 to ∞ times
+    (?:                   # Group without capturing:
+        ([0-1]?[0-9]|2[0-3])  # [Group 4: 0 to 23] with optional leading 0 for single digit numbers
+        \s*                   # Whitespace 0 to ∞ times
+        (h|hrs?|hours?)        # [Group 5: 'h', 'hr', 'hrs', 'hour' or 'hours']
+    )?                    # End group, its insides must either fully match or not exist at all
+    \s*                   # Whitespace 0 to ∞ times
+    (?:                   # Group without capturing:
+        ([0-5]?[0-9])         # [Group 6: 0 to 59] with optional leading 0 for single digit numbers
+        \s*                   # Whitespace 0 to ∞ times
+        (m|mins?|minutes?)    # [Group 7: 'm', 'min', 'mins', 'minute' or 'minutes']
+    )?                    # End group, its insides must either fully match or not exist at all
+    \s*                   # Whitespace 0 to ∞ times
+    (?:                   # Group without capturing:
+        (                     # [Group 8: 
+            [0-5]?[0-9]           # 0 to 59, with optional leading 0 for single digit numbers
+            (?:\.[0-9]*)?         # followed by optional: '.' followed by any digits 0 to ∞ times
+        )                     # ]
+        \s*                   # Whitespace 0 to ∞ times
+        (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
+    )?                    # End group, its insides must either fully match or not exist at all
+    $                     # String end
+''', re.VERBOSE | re.IGNORECASE)
+
+def _parse_timedelta(s: str) -> dt.timedelta:
+    match = _TIMEDELTA_PARSE_PATTERN.match(s.strip())
+
+    if match is None:
+        raise ValueError("Invalid timedelta format")
+
+    # Pairs of unit and value, possibly with single sign at the end
+    groups = [g for g in reversed(match.groups()) if g is not None]
+
+    if len(groups) < 2:
+        raise ValueError("Timedelta format is either empty or only a sign")
     
+    total_seconds = Decimal()
+    sign = 1
+
+    if groups[-1] in '-+':
+        if groups[-1] == '-':
+            sign = -1
+
+        groups.pop()
+
+    for i in range(0, len(groups), 2):
+        unit = groups[i].lower()[0]
+        value = Decimal(groups[i + 1])
+
+        if unit == 'd':
+            total_seconds += value * 86400
+        elif unit == 'h':
+            total_seconds += value * 3600
+        elif unit == 'm':
+            total_seconds += value * 60
+        else:
+            total_seconds += value
+    
+    try:
+        return dt.timedelta(seconds=float(total_seconds * sign))
+    except Exception:
+        raise ValueError("Number too small or big")
+
 def _get_plural_from_str_method[TParent](
     singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
 ) -> Callable[[Any, Opt[str]], Opt[list[TParent]]]:
@@ -80,10 +151,6 @@ def _get_plural_from_str_method[TParent](
         return filtered_v or None
     
     return _from_str
-
-def _parse_timedelta_str(s: str) -> dt.timedelta:
-    # TODO
-
 
 
 class ValueCollectionType(Enum):
@@ -306,8 +373,7 @@ class Attribute[T: AttributeValueTypeT]:
                 parts = value.split(" ")
 
                 for part in parts:
-
-
+                    pass
             case builtins.str:
                 if len(value) > Attribute.STR_MAX_LEN:
                     raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)

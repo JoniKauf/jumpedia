@@ -18,8 +18,8 @@ class Trickjump(dict[str, Any]):
 
             result: list = cursor.fetchall()
 
-        for data in result
-        #TODO
+        for data in result:
+            pass
             
 
         return cat.List(
