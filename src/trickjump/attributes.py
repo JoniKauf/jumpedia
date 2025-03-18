@@ -34,7 +34,7 @@ type AttributeValueTypeT = (
 
 _NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 _ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
-_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'/\.')
+_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 _VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
 
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
@@ -42,7 +42,7 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
     \s*                   # Whitespace 0 to ∞ times
     (?:                   # Group without capturing:
-        ([0-9]+)              # [Group 2: Any digit 0 to ∞ times]
+        ([0-9]{1,9})          # [Group 2: Any digit 1 to 9 times]
         \s*                   # Whitespace 0 to ∞ times
         (d|days?)             # [Group 3: 'd', 'day' or 'days']
     )?                    # End group, its insides must either fully match or not exist at all
@@ -50,7 +50,7 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     (?:                   # Group without capturing:
         ([0-1]?[0-9]|2[0-3])  # [Group 4: 0 to 23] with optional leading 0 for single digit numbers
         \s*                   # Whitespace 0 to ∞ times
-        (h|hrs?|hours?)        # [Group 5: 'h', 'hr', 'hrs', 'hour' or 'hours']
+        (h|hrs?|hours?)       # [Group 5: 'h', 'hr', 'hrs', 'hour' or 'hours']
     )?                    # End group, its insides must either fully match or not exist at all
     \s*                   # Whitespace 0 to ∞ times
     (?:                   # Group without capturing:
@@ -74,13 +74,13 @@ def _parse_timedelta(s: str) -> dt.timedelta:
     match = _TIMEDELTA_PARSE_PATTERN.match(s.strip())
 
     if match is None:
-        raise ValueError("Invalid timedelta format")
+        raise fbe.TemporaryFeedbackError("Invalid timedelta format")
 
     # Pairs of unit and value, possibly with single sign at the end
     groups = [g for g in reversed(match.groups()) if g is not None]
 
     if len(groups) < 2:
-        raise ValueError("Timedelta format is either empty or only a sign")
+        raise fbe.TemporaryFeedbackError("Timedelta format is either empty or only a sign")
     
     total_seconds = Decimal()
     sign = 1
@@ -92,7 +92,7 @@ def _parse_timedelta(s: str) -> dt.timedelta:
         groups.pop()
 
     for i in range(0, len(groups), 2):
-        unit = groups[i].lower()[0]
+        unit = groups[i][0].lower()
         value = Decimal(groups[i + 1])
 
         if unit == 'd':
@@ -107,7 +107,7 @@ def _parse_timedelta(s: str) -> dt.timedelta:
     try:
         return dt.timedelta(seconds=float(total_seconds * sign))
     except Exception:
-        raise ValueError("Number too small or big")
+        raise fbe.TemporaryFeedbackError("Number too small or big")
 
 def _get_plural_from_str_method[TParent](
     singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
@@ -259,9 +259,6 @@ class Attribute[T: AttributeValueTypeT]:
 
             self.unique_slots = unique_slots
 
-            if unique_values_per_list and user_bound:
-                raise fbe.TemporaryFeedbackError("dont work together")
-            
             self.unique_value_per_list = unique_values_per_list
             self.user_bound = user_bound
 
@@ -315,7 +312,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         return normalized
     
-    def _from_str_singular[T1: AttributeValueTypeT](self, context: Context, value: str, value_type: Opt[type[T1]] = None) -> T1:
+    def _from_str_singular(self, context: Context, value: str, value_type: Opt[type[T]] = None):
         if value_type is None:
             value_type = self.value_type  # type: ignore
             
@@ -329,7 +326,7 @@ class Attribute[T: AttributeValueTypeT]:
                     result = True
                 else:
                     raise fbe.NotAProperValue("boolean", value)
-                
+
             case builtins.int:
                 if len(value) > Attribute.INT_PART_MAX_LEN:
                     raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
@@ -370,18 +367,16 @@ class Attribute[T: AttributeValueTypeT]:
                         result = result.replace(tzinfo=dt.timezone.utc)
 
             case dt.timedelta:
-                parts = value.split(" ")
+                result = _parse_timedelta(value)
 
-                for part in parts:
-                    pass
             case builtins.str:
                 if len(value) > Attribute.STR_MAX_LEN:
                     raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)
                 
                 result = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", value)
-
+        
             case _:
-                raise ValueError
+                raise TypeError
         
         return result
 
@@ -400,11 +395,11 @@ class Attribute[T: AttributeValueTypeT]:
             return 8
         if isinstance(value, float):
             return 8
-        if isinstance(value, time):
+        if isinstance(value, dt.time):
             return 4
-        if isinstance(value, datetime):
+        if isinstance(value, dt.datetime):
             return 8
-        if isinstance(value, timedelta):
+        if isinstance(value, dt.timedelta):
             return 8
         
         raise TypeError
