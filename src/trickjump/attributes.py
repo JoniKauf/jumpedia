@@ -38,11 +38,10 @@ _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 _VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
 
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
-    ^                     # String start
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
     \s*                   # Whitespace 0 to ∞ times
     (?:                   # Group without capturing:
-        ([0-9]{1,9})          # [Group 2: Any digit 1 to 9 times]
+        ([0-9]+)              # [Group 2: Any digit 0 to ∞ times]
         \s*                   # Whitespace 0 to ∞ times
         (d|days?)             # [Group 3: 'd', 'day' or 'days']
     )?                    # End group, its insides must either fully match or not exist at all
@@ -62,12 +61,11 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     (?:                   # Group without capturing:
         (                     # [Group 8: 
             [0-5]?[0-9]           # 0 to 59, with optional leading 0 for single digit numbers
-            (?:\.[0-9]*)?         # followed by optional: '.' followed by any digits 0 to ∞ times
+            (?:[.,][0-9]*)?         # followed by optional: '.' or ',' followed by any digits 0 to ∞ times
         )                     # ]
         \s*                   # Whitespace 0 to ∞ times
         (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
     )?                    # End group, its insides must either fully match or not exist at all
-    $                     # String end
 ''', re.VERBOSE | re.IGNORECASE)
 
 def _parse_timedelta(s: str) -> dt.timedelta:
@@ -93,7 +91,7 @@ def _parse_timedelta(s: str) -> dt.timedelta:
 
     for i in range(0, len(groups), 2):
         unit = groups[i][0].lower()
-        value = Decimal(groups[i + 1])
+        value = Decimal(groups[i + 1].replace('.', ',', 1))
 
         if unit == 'd':
             total_seconds += value * 86400
@@ -117,12 +115,15 @@ def _get_plural_from_str_method[TParent](
         if value is None or not (value := value.strip()):
             return None
 
-        v: list[str] = json.loads(value)
+        v: list[str] | str = json.loads(value)
 
-        if not isinstance(v, list):
+        if isinstance(v, str):
+            v = [v]
+
+        elif not isinstance(v, list):
             raise Exception
         
-        if self.max > 0 and len(v) > self.max:
+        if self > 0 and len(v) > self.max:
             raise Exception
         
         counter: Counter[TParent] = Counter()
@@ -152,20 +153,24 @@ def _get_plural_from_str_method[TParent](
     
     return _from_str
 
-
-class ValueCollectionType(Enum):
-    NONE = auto()
-    LIST = auto()
-    TREE = auto()
-
 #------#   Attribute   #------#	
 
 class Attribute[T: AttributeValueTypeT]:
-    TYPE_ID: int
+    """Represent an attribute of a Trickjump.
+
+    In a relational database model 'Trickjump' would represent a table,
+    'Attribute' a column and specific values interacting with the
+    'Attribute' class would be rows.
+
+    Instead of specific types, values are passed in mostly as str, None
+    or other basic data types, which are especially supported by discord.py.
+    """
+
+    # --- CONSTANTS ---
+
+    # General
     MAX_SYN_LEN = 32
     MAX_ATTRIBUTES_PER_COMMUNITY = 50
-    
-    LOOKUP: dict[Community, dict[str, 'Attribute']] = {}
 
     # int | decimal
     NUMBER_MAX: int = 2 ** 63 - 1
@@ -176,7 +181,7 @@ class Attribute[T: AttributeValueTypeT]:
     DECIMAL_MAX_LEN: int = DECIMAL_PRECISION if DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
  
     # str
-    STR_MAX_LEN = 1024
+    STR_MAX_LEN = 512
 
     # Collection
     COLLECTION_MAX_MEMORY = 1024 * 32
@@ -184,7 +189,14 @@ class Attribute[T: AttributeValueTypeT]:
 
     MAX_DEPTH = 64
 
-    LOCK = Lock()
+    # --- CLASS CONSTANTS ---
+
+    CREATION_LOCK = Lock()
+    LOOKUP: dict[Community, dict[str, 'Attribute']] = {}
+
+    SORT_KEY_LAST_NUMBER = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    
+    # --- Init ---
 
     def __init__(
         self, 
@@ -199,42 +211,42 @@ class Attribute[T: AttributeValueTypeT]:
         unique_values_per_list: bool,
         user_bound: bool
     ):
-        with Attribute.LOCK:
-            self.community = community
+        with Attribute.CREATION_LOCK:
+            self._community = community
 
-            self.name = self._normalize_and_validate_syn(name)
-            self.alias = set(self._normalize_and_validate_syn(a) for a in alias)
+            self._name = self._normalize_and_validate_syn(name)
+            self._alias = set(self._normalize_and_validate_syn(a) for a in alias)
 
-            if self.value_type not in AttributeValueTypeT.__value__.__args__:
+            if self._value_type not in AttributeValueTypeT.__value__.__args__:
                 raise TypeError
             
-            self.value_type = value_type
+            self._value_type = value_type
 
-            self.list: Opt[None | list[T]] = None
-            self.tree: Opt[tree.Tree] = None
+            self._list: Opt[None | list[T]] = None
+            self._tree: Opt[tree.Tree] = None
 
-            self.sort_value: dict[T, int] = {}
-            self.unnormalize = {}
+            self._sort_value: dict[T, int] = {}
+            self._unnormalize: dict[T, T] = {}
 
             if not value_collection:
                 pass
             elif isinstance(value_collection, Sequence):
-                self.list = []
+                self._list = []
 
                 for value in value_collection:
-                    v_norm = self._normalize_and_implement(value)
-                    self.list.append(v_norm)
+                    v_norm = self._normalize_and_implement_value(value)
+                    self._list.append(v_norm)
                     
-                if len(self.list) > Attribute.COLLECTION_MAX_ELEMS:
+                if len(self._list) > Attribute.COLLECTION_MAX_ELEMS:
                     raise fbe.TemporaryFeedbackError
                 
-                if sum(self.value_to_memory(v) for v in self.list) > Attribute.COLLECTION_MAX_MEMORY:
+                if sum(self.value_to_memory(v) for v in self._list) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
             else:
                 try:
-                    self.tree = tree.Tree(
+                    self._tree = tree.Tree(
                         value_collection, 
-                        self._normalize_and_implement, 
+                        self._normalize_and_implement_value, 
                         Attribute.MAX_DEPTH, 
                         Attribute.COLLECTION_MAX_ELEMS, 
                         Attribute.NUMBER_MAX
@@ -244,7 +256,7 @@ class Attribute[T: AttributeValueTypeT]:
                 
                 if sum(
                     self.value_to_memory(n.value) 
-                    for n in self.tree._node_lookup.values()
+                    for n in self._tree._node_lookup.values()
                 ) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
 
@@ -254,13 +266,13 @@ class Attribute[T: AttributeValueTypeT]:
             if max_value_slots < 1 or max_value_slots < min_value_slots:
                 raise fbe.TemporaryFeedbackError
             
-            self.min_value_slots = min_value_slots
-            self.max_value_slots = max_value_slots
+            self._min_value_slots = min_value_slots
+            self._max_value_slots = max_value_slots
 
-            self.unique_slots = unique_slots
+            self._unique_slots = unique_slots
 
-            self.unique_value_per_list = unique_values_per_list
-            self.user_bound = user_bound
+            self._unique_value_per_list = unique_values_per_list
+            self._user_bound = user_bound
 
             lookup = Attribute.LOOKUP.setdefault(community, {})
 
@@ -269,6 +281,7 @@ class Attribute[T: AttributeValueTypeT]:
                 
             # TODO:
             # - Add to database
+            # - Make everything string based
 
     def _normalize_and_validate_syn(self, syn: str) -> str:
         syn = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
@@ -279,7 +292,7 @@ class Attribute[T: AttributeValueTypeT]:
         if len(syn) > Attribute.MAX_SYN_LEN:
             raise fbe.TemporaryFeedbackError
         
-        if syn in Attribute.LOOKUP.setdefault(self.community, {}):
+        if syn in Attribute.LOOKUP.setdefault(self._community, {}):
             raise fbe.TemporaryFeedbackError
         
         illegal_chars: set[str] = set()
@@ -293,72 +306,75 @@ class Attribute[T: AttributeValueTypeT]:
         
         return syn
     
-    def _normalize_and_implement(self, value: tuple[T, int]) -> T:
+    def _normalize_and_implement_value(self, value: tuple[T, int]) -> T:
         unnormalized, sort_value = value
 
-        if isinstance(value, self.value_type):
+        if not isinstance(value, self._value_type):
             raise TypeError
+        
+        if sort_value > Attribute.NUMBER_MAX:
+            raise fbe.TemporaryFeedbackError
         
         normalized = self.normalize(unnormalized)
 
-        self.sort_value[normalized] = sort_value
+        self._sort_value[normalized] = sort_value
         
-        prev_unnormalized = self.unnormalize.get(normalized, None)
+        prev_unnormalized = self._unnormalize.get(normalized, None)
 
         if prev_unnormalized is None:
-            self.unnormalize[normalized] = unnormalized
+            self._unnormalize[normalized] = unnormalized
         else: 
             raise fbe.TemporaryFeedbackError()
         
         return normalized
     
-    def _from_str_singular(self, context: Context, value: str, value_type: Opt[type[T]] = None):
-        if value_type is None:
-            value_type = self.value_type  # type: ignore
-            
-        match value_type:
-            case builtins.bool:
-                value = value.lower()
 
-                if value in "false":
+    # --- Methods ---
+
+    def _from_str_singular(self, s: str) -> T:
+        match self._value_type:
+            case builtins.bool:
+                s = s.lower()
+
+                if s in "false":
                     result = False
-                elif value == "true":
+                elif s == "true":
                     result = True
                 else:
-                    raise fbe.NotAProperValue("boolean", value)
+                    raise fbe.NotAProperValue("boolean", s)
 
             case builtins.int:
-                if len(value) > Attribute.INT_PART_MAX_LEN:
-                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+                if len(s) > Attribute.INT_PART_MAX_LEN:
+                    raise fbe.OutsideOfValidRange(s, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
 
                 try:
-                    result = int(value)
+                    result = int(s)
                 except Exception:
-                    raise fbe.NotAProperValue("integer", value)
+                    raise fbe.NotAProperValue("integer", s)
 
                 if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
                     raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
                 
             case decimal.Decimal:
-                if len(value) > Attribute.DECIMAL_MAX_LEN:
-                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+                if len(s) > Attribute.DECIMAL_MAX_LEN:
+                    raise fbe.OutsideOfValidRange(s, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
                 
                 try:
-                    result = Decimal(value)
+                    result = Decimal(s)
                     result = result.quantize(Decimal(f"1E-{Attribute.DEC_PART_MAX_LEN}"))
                 except Exception:
-                    raise fbe.NotAProperValue("decimal", value)
+                    raise fbe.NotAProperValue("decimal", s)
                 
                 if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
                     raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
             
             case dt.time | dt.date | dt.datetime:
                 # If a date is in the type
-                if issubclass(value_type, (dt.date, dt.datetime)):
-                    value = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", value)
+                if issubclass(self._value_type, (dt.date, dt.datetime)):
+                    s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", s)
                 
                 try:
-                    result = value_type.fromisoformat(value)
+                    result = self._value_type.fromisoformat(s)
                 except Exception:
                     raise fbe.TemporaryFeedbackError("Invalid datetime repr")
                 
@@ -367,19 +383,65 @@ class Attribute[T: AttributeValueTypeT]:
                         result = result.replace(tzinfo=dt.timezone.utc)
 
             case dt.timedelta:
-                result = _parse_timedelta(value)
+                result = _parse_timedelta(s)
 
             case builtins.str:
-                if len(value) > Attribute.STR_MAX_LEN:
-                    raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)
+                if len(s) > Attribute.STR_MAX_LEN:
+                    raise fbe.TooLongValue("string", s, Attribute.STR_MAX_LEN)
                 
-                result = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", value)
+                result = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", s)
         
             case _:
-                raise TypeError
+                raise TypeError("Type was forgotten to be added here")
         
-        return result
+        return result  # type: ignore
+    
+    def from_str(self, s: str, keep_normalized: bool) -> list[T]:
+        if not (s := s.strip()):
+            return []
+        
+        try:
+            v: str | list[str] = json.loads(s)
+        except json.JSONDecodeError:
+            raise fbe.TemporaryFeedbackError
 
+        if isinstance(v, str):
+            v = [v]
+        elif isinstance(v, list):
+            if not v:
+                return []
+            
+            for elem in v:
+                if not isinstance(elem, str):
+                    raise fbe.TemporaryFeedbackError
+        else:
+            raise fbe.TemporaryFeedbackError
+        
+        converted: list[T] = [self._from_str_singular(elem) for elem in v]
+
+        if self.is_collection():
+            # Normalize to lookup, unnormalize to get correct version
+            to_collection = []
+            
+            for elem in converted:
+                try:
+                    normalized = self.normalize(elem)
+
+                    if keep_normalized:
+                        if normalized not in self._unnormalize:
+                            raise KeyError
+                        
+                        to_collection.append(normalized)
+                    else:
+                        to_collection.append(self._unnormalize[normalized])
+                except KeyError:
+                    raise fbe.TemporaryFeedbackError("Not a valid collection value")
+                
+            return to_collection
+        
+        return converted
+
+    @functools.lru_cache()
     def normalize(self, unnormalized: T) -> T:
         if isinstance(unnormalized, str):
             normalized: T = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", unnormalized.strip().casefold())  # type: ignore
@@ -387,7 +449,75 @@ class Attribute[T: AttributeValueTypeT]:
             normalized = unnormalized
         
         return normalized
+
+    @staticmethod
+    def _sort_key_anything_time(value: dt.time | dt.date | dt.datetime | dt.timedelta) -> float:
+        if isinstance(value, dt.time):
+            return (
+                value.microsecond +
+                value.second *   1_000_000 +
+                value.minute *  60_000_000 +
+                value.hour * 3_600_000_000
+            )
+        
+        elif isinstance(value, dt.datetime):
+            return value.timestamp()
+         
+        elif isinstance(value, dt.date):
+            return value.timetuple().tm_yday
+        
+        elif isinstance(value, dt.timedelta):
+            return value.total_seconds()
+        
+        raise TypeError
+
+    def _sort_key_singular(self, value: Opt[T], sign: Literal[+1, -1]):
+        if isinstance(value, bool):
+            if value is None:
+                return 2 * sign
+            
+            return int(value) * sign
+            
+        if isinstance(value, (int, Decimal)):
+            if value is None:
+                return Attribute.SORT_KEY_LAST_NUMBER * sign
+            
+            return value * sign  # type: ignore
+        
+        if isinstance(value, (dt.time, dt.date, dt.datetime, dt.timedelta)):
+            if value is None:
+                return Attribute._sort_key_anything_time(self._value_type.) + 1
     
+
+    def sort_key(self, value: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
+        values = self.from_str(value, True)
+        
+        
+            
+        if self.is_collection():
+            if not values:
+                return Attribute.SORT_KEY_LAST_NUMBER
+            
+            try:
+                return tuple(
+                    self._sort_value[elem] * sign for elem in values
+                )
+            except KeyError as e:
+                raise RuntimeError(
+                    f"Sort value for elem '{e.args[0]}' not found, which " +
+                    f"should not happen. {self._sort_value=}"
+                )
+        
+        
+
+
+
+    def is_collection(self) -> bool:
+        return self._list is not None or self._tree is not None
+
+    def is_empty(self, value: str) -> bool:
+        return bool(self.from_str(value, True)) 
+
     def value_to_memory(self, value: T) -> int:
         if isinstance(value, str):
             return len(value)
@@ -402,55 +532,9 @@ class Attribute[T: AttributeValueTypeT]:
         if isinstance(value, dt.timedelta):
             return 8
         
-        raise TypeError
+        raise TypeError  
+    
 
-    def is_empty(self, value: Opt[str]) -> bool:
-        return self.from_str(value) is None
-            
-    def from_str(self, s: Opt[str]) -> Opt[T]:
-        if s is None or not (s := s.strip()):
-            return None
-        
-        try:
-            loaded: Any = json.loads(s)
-        except json.JSONDecodeError:
-            raise fbe.TemporaryFeedbackError
-        
-        # if isinstance(loaded, )
-        # elif isinstance(loaded, list):
-        #     values: list[T] = []
-        results: list[T]
-        match self.value_type:
-            case builtins.bool:
-                value = value.lower()
-
-                if value == "false":
-                    res = False
-                elif value == "true":
-                    res = True
-                else:
-                    raise fbe.NotAProperValue("boolean", value)
-            case builtins.int | builtins.float:
-                if len(value) > Attribute.NUMBER_MAX_LEN_AS_STR:
-                    raise fbe.OutsideOfValidRange(value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
-
-                try:
-                    res = self.value_type(value)
-                except ValueError:
-                    raise fbe.NotAProperValue("number", value)
-
-                if not (Attribute.NUMBER_MIN < res < Attribute.NUMBER_MAX):
-                    raise fbe.OutsideOfValidRange(res, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
-            case builtins.str:
-                if len(value) > Attribute.STR_MAX_LEN:
-                    raise fbe.TooLongValue("string", value, Attribute.STR_MAX_LEN)
-                
-                res = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", value)
-            case _:
-                raise ValueError
-
-        return res  # type: ignore
-            
     
             
     
