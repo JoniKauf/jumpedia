@@ -1,18 +1,11 @@
-
-
-import ast
-from collections import Counter, defaultdict
-import itertools
+import enum
 from trickjump.context import Context
 import datetime as dt
 import functools
 import json
-import sys
 from threading import Lock
-from typing import Any, Callable, Hashable, Iterable, Literal, Optional as Opt, Self, Sequence, TypeVar, cast
-from enum import Enum, auto
-from discordtools import errors, feedbackerrors as fbe
-from people.person import Person
+from typing import Any, Iterable, Literal, Optional as Opt, Sequence
+from discordtools import feedbackerrors as fbe
 import re
 from collections2 import tree
 from trickjump.community import Community
@@ -20,23 +13,35 @@ import builtins
 from collections2.range import Range
 from decimal import Decimal
 import decimal
-import string
+
+
+#------#   Module Constants & Helper Functions   #------#
 
 type AttrT = 'Attribute'
+
 type AttributeValueTypeT = (
     bool | int | Decimal | 
     dt.time | dt.date | dt.datetime | dt.timedelta | 
     str
 )
 
+class AttributeValueTypeEnum(enum.Enum):
+    boolean = bool
+    integer = int
+    decimal = Decimal
+    time = dt.time
+    date = dt.date
+    date_and_time = dt.datetime
+    time_span = dt.timedelta
+    text = str
 
-#------#   Module Constants & Helper Functions   #------#
+AttributeValueTypes: set[type[AttributeValueTypeT]] = {elem.value for elem in AttributeValueTypeEnum}
 
-_NAME_CONVERSION_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 _ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 _VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
 
+# Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
     \s*                   # Whitespace 0 to ∞ times
@@ -61,7 +66,7 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     (?:                   # Group without capturing:
         (                     # [Group 8: 
             [0-5]?[0-9]           # 0 to 59, with optional leading 0 for single digit numbers
-            (?:[.,][0-9]*)?         # followed by optional: '.' or ',' followed by any digits 0 to ∞ times
+            (?:[.,][0-9]*)?       # followed by optional: '.' or ',' followed by any digits 0 to ∞ times
         )                     # ]
         \s*                   # Whitespace 0 to ∞ times
         (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
@@ -106,52 +111,7 @@ def _parse_timedelta(s: str) -> dt.timedelta:
         return dt.timedelta(seconds=float(total_seconds * sign))
     except Exception:
         raise fbe.TemporaryFeedbackError("Number too small or big")
-
-def _get_plural_from_str_method[TParent](
-    singular_from_str: Callable[[Any, Opt[str]], Opt[TParent]]
-) -> Callable[[Any, Opt[str]], Opt[list[TParent]]]:
-
-    def _from_str(self, value: Opt[str]) -> Opt[list[TParent]]:
-        if value is None or not (value := value.strip()):
-            return None
-
-        v: list[str] | str = json.loads(value)
-
-        if isinstance(v, str):
-            v = [v]
-
-        elif not isinstance(v, list):
-            raise Exception
-        
-        if self > 0 and len(v) > self.max:
-            raise Exception
-        
-        counter: Counter[TParent] = Counter()
-        unfiltered_v = v
-        filtered_v: list[TParent] = []
-
-        for elem in unfiltered_v:
-            if not isinstance(elem, str):
-                raise Exception
-            
-            elem = singular_from_str(self, elem)
-            
-            if elem is None:
-                continue
-                
-            if elem not in counter:
-                counter[elem] = 1
-            else:
-                counter[elem] += 1
-
-            if counter[elem] > self.max_duplicates:
-                raise fbe.TemporaryFeedbackError
-
-            filtered_v.append(elem)
-
-        return filtered_v or None
     
-    return _from_str
 
 #------#   Attribute   #------#	
 
@@ -171,6 +131,7 @@ class Attribute[T: AttributeValueTypeT]:
     # General
     MAX_SYN_LEN = 32
     MAX_ATTRIBUTES_PER_COMMUNITY = 50
+    MAX_VALUE_SLOTS = 32
 
     # int | decimal
     NUMBER_MAX: int = 2 ** 63 - 1
@@ -179,7 +140,7 @@ class Attribute[T: AttributeValueTypeT]:
     INT_PART_MAX_LEN: int = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
     DEC_PART_MAX_LEN: int = DECIMAL_PRECISION - INT_PART_MAX_LEN
     DECIMAL_MAX_LEN: int = DECIMAL_PRECISION if DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
- 
+    
     # str
     STR_MAX_LEN = 512
 
@@ -212,16 +173,33 @@ class Attribute[T: AttributeValueTypeT]:
         user_bound: bool
     ):
         with Attribute.CREATION_LOCK:
+            # --- BASIC ASSIGNMENTS ---
             self._community = community
 
-            self._name = self._normalize_and_validate_syn(name)
-            self._alias = set(self._normalize_and_validate_syn(a) for a in alias)
-
-            if self._value_type not in AttributeValueTypeT.__value__.__args__:
+            if value_type not in set(vt.value for vt in AttributeValueTypeEnum):
                 raise TypeError
-            
             self._value_type = value_type
 
+            if min_value_slots < 0:
+                raise fbe.TemporaryFeedbackError
+            if max_value_slots < 1 or max_value_slots < min_value_slots or max_value_slots > Attribute.MAX_VALUE_SLOTS:
+                raise fbe.TemporaryFeedbackError
+            self._min_value_slots = min_value_slots
+            self._max_value_slots = max_value_slots
+
+            self._unique_slots = unique_slots
+
+            if unique_values_per_list and user_bound:
+                raise fbe.TemporaryFeedbackError("A user bound attribute cannot be set to be unique per list.")
+            
+            self._unique_value_per_list = unique_values_per_list
+            self._user_bound = user_bound
+
+            # --- NAME & ALIAS ---
+            self._name = self._normalize_and_validate_syn(name)
+            self._alias = set(self._normalize_and_validate_syn(a) for a in alias)
+            
+            # --- COLLECTION SETUP ---
             self._list: Opt[None | list[T]] = None
             self._tree: Opt[tree.Tree] = None
 
@@ -259,21 +237,8 @@ class Attribute[T: AttributeValueTypeT]:
                     for n in self._tree._node_lookup.values()
                 ) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
-
-            if min_value_slots < 0:
-                raise fbe.TemporaryFeedbackError
             
-            if max_value_slots < 1 or max_value_slots < min_value_slots:
-                raise fbe.TemporaryFeedbackError
-            
-            self._min_value_slots = min_value_slots
-            self._max_value_slots = max_value_slots
-
-            self._unique_slots = unique_slots
-
-            self._unique_value_per_list = unique_values_per_list
-            self._user_bound = user_bound
-
+            # --- DANGER ZONE ---
             lookup = Attribute.LOOKUP.setdefault(community, {})
 
             for syn in (name, *alias):
@@ -282,6 +247,93 @@ class Attribute[T: AttributeValueTypeT]:
             # TODO:
             # - Add to database
             # - Make everything string based
+
+    @classmethod
+    def init_for_discord_command(
+        cls,
+        community: Community,
+        name: str,
+        alias: str,
+        value_type: AttributeValueTypeEnum,
+        value_collection: str,
+        min_value_slots: int,
+        max_value_slots: int,
+        unique_slots: bool,
+        unique_values_per_list: bool,
+        user_bound: bool
+    ) -> 'Attribute':
+        # vc_tmp should be one of the following to be valid (tuple syntax for inner list):
+        # list[T], list[list[T, int]], TreeT[T], TreeT[list[T, int]]
+        if not value_collection:
+            return Attribute(
+                community,
+                name,
+                alias,
+                value_type.value,  
+                None,
+                min_value_slots,
+                max_value_slots,
+                unique_slots,
+                unique_values_per_list,
+                user_bound
+            )
+
+        try:
+            vc_tmp: Any = json.loads(value_collection)
+        except json.JSONDecodeError:
+            raise fbe.TemporaryFeedbackError
+        
+        if not isinstance(vc_tmp, (list, dict)):
+            raise fbe.TemporaryFeedbackError("Must be list or tree")
+        
+        if not vc_tmp:
+            raise fbe.TemporaryFeedbackError("Empty collection")
+
+        simple: bool = not isinstance(next(iter(vc_tmp)), list)
+
+        result = 
+        for i, elem in enumerate(vc_tmp):
+            if isinstance(elem, list):
+                if simple:
+                    raise fbe.TemporaryFeedbackError("All elems but be either a list or not")
+
+                if len(elem) != 2:
+                    raise fbe.TemporaryFeedbackError("Length 2 list required")
+                
+                sort_value = elem[1]
+
+                if not isinstance(sort_value, int):
+                    raise fbe.TemporaryFeedbackError("Sort value must be an int")
+                
+                value: T = elem[0]
+            else:
+                if not simple:
+                    raise fbe.TemporaryFeedbackError("All elems but be either a list or not")
+                
+                value: T = elem
+                sort_value = i
+
+            if not isinstance(value, value_type.value):
+                raise fbe.TemporaryFeedbackError("Type of value must be the given value_type")
+        
+            if isinstance(vc_tmp, dict):
+                vc_tmp
+            
+            # TODO check tree recursively
+                
+
+        return Attribute(
+            community,
+            name,
+            alias,
+            value_type.value,  
+            "tmp",
+            min_value_slots,
+            max_value_slots,
+            unique_slots,
+            unique_values_per_list,
+            user_bound
+        )
 
     def _normalize_and_validate_syn(self, syn: str) -> str:
         syn = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
@@ -419,7 +471,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         converted: list[T] = [self._from_str_singular(elem) for elem in v]
 
-        if self.is_collection():
+        if self.collection:
             # Normalize to lookup, unnormalize to get correct version
             to_collection = []
             
@@ -472,32 +524,31 @@ class Attribute[T: AttributeValueTypeT]:
         raise TypeError
 
     def _sort_key_singular(self, value: Opt[T], sign: Literal[+1, -1]):
-        if isinstance(value, bool):
+        if issubclass(self._value_type, bool):
             if value is None:
                 return 2 * sign
             
-            return int(value) * sign
+            return int(value) * sign  # type: ignore
             
-        if isinstance(value, (int, Decimal)):
+        if issubclass(self._value_type, (int, Decimal)):
             if value is None:
                 return Attribute.SORT_KEY_LAST_NUMBER * sign
             
             return value * sign  # type: ignore
         
-        if isinstance(value, (dt.time, dt.date, dt.datetime, dt.timedelta)):
+        if issubclass(self._value_type, (dt.time, dt.date, dt.datetime, dt.timedelta)):
             if value is None:
-                return Attribute._sort_key_anything_time(self._value_type.) + 1
-    
+                return (Attribute._sort_key_anything_time(self._value_type.max) + 1) * sign
+            
+            return Attribute._sort_key_anything_time(value) * sign  # type: ignore
 
     def sort_key(self, value: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
         values = self.from_str(value, True)
         
+        if not values:
+            return Attribute.SORT_KEY_LAST_NUMBER + 1
         
-            
-        if self.is_collection():
-            if not values:
-                return Attribute.SORT_KEY_LAST_NUMBER
-            
+        if self.collection:
             try:
                 return tuple(
                     self._sort_value[elem] * sign for elem in values
@@ -508,13 +559,16 @@ class Attribute[T: AttributeValueTypeT]:
                     f"should not happen. {self._sort_value=}"
                 )
         
-        
+        return tuple(self._sort_key_singular(value, sign) for value in values)
 
-
-
-    def is_collection(self) -> bool:
+    @property
+    def collection(self) -> bool:
         return self._list is not None or self._tree is not None
 
+    @property
+    def required(self) -> bool:
+        return self._min_value_slots > 0
+    
     def is_empty(self, value: str) -> bool:
         return bool(self.from_str(value, True)) 
 
@@ -526,7 +580,7 @@ class Attribute[T: AttributeValueTypeT]:
         if isinstance(value, float):
             return 8
         if isinstance(value, dt.time):
-            return 4
+            return 8
         if isinstance(value, dt.datetime):
             return 8
         if isinstance(value, dt.timedelta):
@@ -535,422 +589,8 @@ class Attribute[T: AttributeValueTypeT]:
         raise TypeError  
     
 
+def module_integrity():
+    if AttributeValueTypeT.__value__.__args__ != tuple(vt.value for vt in AttributeValueTypeEnum):
+        raise RuntimeError("Enum does not equal type!!")
     
-            
-    
-            
-        
-    
-
-# #------#   Attribute Specific Implementations   #------#
-
-# class AttributeBool(Attribute[bool]):
-#     TYPE_ID = 1
-
-#     def _from_str(self, value: Opt[str]) -> Opt[bool]:
-#         if value is None or not (value := value.strip()):
-#             return None
-        
-#         value = value.lower()
-
-#         if value == "true":
-#             return True
-#         if value == "false":
-#             return False
-        
-#         raise fbe.NotAProperValue("boolean", value)
-    
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return 2 * sign
-        
-#         return (not v) * sign
-    
-
-# class AttributeInt(Attribute[int]):
-#     TYPE_ID = 2
-
-    
-
-#     def _from_str(self, value: Opt[str]) -> Opt[int]:
-#         if value is None or not (value := value.strip()):
-#             return None
-        
-#         if len(value) > Attribute.NUMBER_MAX_LEN_AS_STR:
-#             raise fbe.OutsideOfValidRange(
-#                 value, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX
-#             )
-        
-#         try:
-#             result = int(value)
-#         except ValueError:
-#             raise fbe.NotAProperValue("integer", value)
-
-#         if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
-#             raise fbe.OutsideOfValidRange(
-#                 result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX
-#             )
-        
-#         return result
-
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             v = Attribute.NUMBER_MAX + 1
-            
-#         return v * sign
-    
-
-# class AttributeStr(Attribute[str]):
-#     TYPE_ID = 3
-
-#     MAX_STR_LEN = 2 ** 10
-
-#     def _from_str(self, value: Opt[str]) -> Opt[str]:
-#         if value is None or not (value := value.strip()):
-#             return None
-        
-#         if len(value) > Attribute.MAX_STR_LEN:
-#             raise fbe.TooLongValue("string", value, Attribute.MAX_STR_LEN)
-        
-#         return value
-
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return ((sys.maxunicode + 1) * sign,)
-        
-#         if not case_sensitive:
-#             v = v.casefold()
-
-#         return tuple(ord(char) * sign for char in v)
-
-
-# class AttributeStrCollection(AttributeStr):
-#     TYPE_ID = 4
-
-#     MAX_COLLECTION_LEN = 2 ** 12
-
-#     def __init__(
-#         self, 
-#         context: ContextT,
-#         name: str, 
-#         alias: Iterable[str], 
-#         required: bool,
-#         unique: bool,
-#         hidden: bool, 
-#         *args: *tuple[Sequence[str]]
-#     ):
-#         collection, = args             
-
-#         super().__init__(
-#             context=context,
-#             name=name, 
-#             alias=alias, 
-#             required=required,
-#             unique_in_list=unique,
-#             interactability=hidden
-#         )
-
-#         # dict[casefolded_val, tuple[val, index]]
-#         self._collection: dict[str, tuple[str, int]] = {}
-
-#         if len(collection) > Attribute.MAX_COLLECTION_LEN:
-#             raise fbe.TooManyCollectionElements(
-#                 self.name, Attribute.MAX_COLLECTION_LEN
-#             )
-        
-#         for i, elem in enumerate(collection):
-#             elem = elem.strip()
-#             elem_cf = elem.casefold()
-            
-#             if elem_cf in collection:
-#                 raise fbe.CollectionElementCollision(self.name, elem_cf)
-            
-#             self._collection[elem_cf] = (elem, i)
-
-#     @property
-#     def collection(self) -> dict[str, tuple[str, int]]:
-#         return self._collection
-    
-#     def _from_str(self, value: Opt[str]) -> Opt[str]:
-#         v = super()._from_str(value)
-
-#         if v is None:
-#             return None
-        
-#         if v not in self.collection:
-#             raise fbe.NotPartOfTheCollection(self.name, v)
-        
-#         return v.casefold()
-    
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return len(self.collection) * sign
-        
-#         return self.collection[v][1] * sign
-    
-# class AttributeStrCollectionTree(Attribute[str]):
-#     def __init__(
-#         self, 
-#         context: str, 
-#         name: str, 
-#         alias: Iterable[str], 
-#         required: bool, 
-#         unique: bool, 
-#         hidden: bool, 
-#         normalize: Callable[[str], str],
-#         tree: TreeT[str]
-#     ):
-#         self.tree = tree_.Tree(tree, normalize)
-
-#         super().__init__(
-#             context, 
-#             name, 
-#             alias, 
-#             required, 
-#             unique, 
-#             hidden
-#         )
-
-
-
-# class AttributePerson(Attribute[Person]):
-#     TYPE_ID = 5
-#     MAX_PERSON_NAME_LEN = Person.MAX_PERSON_NAME_LEN
-
-#     def _from_str(self, value: Opt[str]) -> Opt[Person]:
-#         if value is None or not (value := value.strip()):
-#             return None
-        
-#         return Person.get(value)
-    
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return ((sys.maxunicode + 1) * sign,)
-        
-#         name: str = v.name if case_sensitive else v.name.casefold()
-
-#         return tuple(ord(char) * sign for char in name)
-
-
-# #------#   Attribute Plural Implementations   #------#
-
-# ATTRIBUTE_PLURAL_BASE_ID = 128
-
-# class AttributePluralStr(AttributeStr, _AttributePluralMixin[str]):
-#     TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributeStr.TYPE_ID
-
-#     def __init__(
-#         self, 
-#         context: ContextT,
-#         name: str, 
-#         alias: Iterable[str], 
-#         required: bool,
-#         unique: bool,
-#         hidden: bool, 
-#         *other: *tuple[int, int]
-#     ):
-#         max, max_duplicates = other
-
-#         super().__init__(
-#             context=context,
-#             name=name, 
-#             alias=alias, 
-#             required=required,
-#             unique_in_list=unique,
-#             interactability=hidden 
-#         )
-
-#         _AttributePluralMixin.__init__(
-#             self,
-#             max=max,
-#             max_duplicates=max_duplicates
-#         )
-    
-#     _from_str: Callable[[Opt[str]], Opt[list[str]]] = _get_plural_from_str_method(AttributeStr._from_str)  # type: ignore
-    
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return (((sys.maxunicode + 1) * sign,),)
-        
-#         return tuple(
-#             tuple(ord(char) * sign for char in (
-#                 s if case_sensitive else s.casefold()
-#             )) 
-#             for s in v
-#         )
-
-# class AttributePluralStrCollection(AttributeStrCollection, _AttributePluralMixin[str]):
-#     TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributeStrCollection.TYPE_ID
-
-#     def __init__(
-#         self, 
-#         context: ContextT,
-#         name: str, 
-#         alias: Iterable[str], 
-#         required: bool, 
-#         unique: bool,
-#         hidden: bool,
-#         *other: *tuple[int, int, Sequence[str]]
-#     ):
-#         max, max_duplicates, collection = other
-
-#         super().__init__(
-#             context,
-#             name,
-#             alias,
-#             required,
-#             unique,
-#             hidden,
-#             *(collection,)
-#         )
-
-#         _AttributePluralMixin.__init__(
-#             self, 
-#             max=max,
-#             max_duplicates=max_duplicates
-#         )
-
-#     _from_str: Callable[[Opt[str]], Opt[list[str]]] = _get_plural_from_str_method(AttributeStrCollection._from_str)  # type: ignore
-    
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return (len(self.collection) * sign,)
-        
-#         return tuple(
-#             self.collection[elem][1] for elem in v
-#         )
-    
-
-# class AttributePluralPerson(AttributePerson, _AttributePluralMixin[Person]):
-#     TYPE_ID = ATTRIBUTE_PLURAL_BASE_ID + AttributePerson.TYPE_ID
-    
-#     def __init__(
-#         self, 
-#         context: ContextT, 
-#         name: str, 
-#         alias: Iterable[str], 
-#         required: bool,
-#         unique: bool,
-#         hidden: bool,
-#         *other: *tuple[int, int]
-#     ):
-#         max, max_duplicates = other
-
-#         super().__init__(
-#             context=context, 
-#             name=name, 
-#             alias=alias, 
-#             required=required,
-#             unique_in_list=unique,
-#             interactability=hidden
-#         )
-
-#         _AttributePluralMixin.__init__(
-#             self, 
-#             max=max,
-#             max_duplicates=max_duplicates
-#         )
-
-#     _from_str: Callable[[Opt[str]], Opt[list[Person]]] = _get_plural_from_str_method(AttributePerson._from_str)  # type: ignore
-     
-#     def sort_key(self, value: Opt[str], sign: Literal[+1, -1], case_sensitive: bool):
-#         v = self._from_str(value)
-
-#         if v is None:
-#             return (((sys.maxunicode + 1) * sign,),)
-        
-#         return tuple(
-#             tuple(ord(char) * sign for char in (
-#                 person.name if case_sensitive else person.name.casefold()
-#             )) 
-#             for person in v
-#         )
-
-
-#------#   Module Functionality   #------#
-
-def get(context: Context, attr: str) -> Attribute:
-    try:
-        lookup = Attribute.LOOKUP[context.community]
-    except KeyError:
-        raise fbe.TemporaryFeedbackError
-    
-    try:
-        return lookup[attr]
-    except KeyError:
-        raise fbe.InvalidAttribute(attr)
-
-def get_all(context: Context) -> tuple[Attribute, ...]:
-    return tuple(Attribute.LOOKUP[context.community].values())
-    
-
-if __name__ == '__main__':
-    def debug_print(attr: Attribute):
-        print("\n\n" + "\n".join(f"{k} = {v!r}" for k, v in attr.__dict__.items() if not k.startswith("__")))
-    
-    attr_name = Attribute(Community(), "difficulty", ["diff", "d"], str, [("0/10", 0), ("0.5/10", 1), ("1/10", 2)], 0, 1, True, True, False)
-    attr_count = Attribute(Community(), "count", ["c"], int, [(1, 1), (2, 2), (3, 3)], 1, 1, True, True, False)
-    debug_print(attr_name)
-    debug_print(attr_count)
-    
-    # attr = AttributePluralStr(TMP_CTX, "test", ["test"], True, True, True, 10, 100)
-    # print(attr._from_str(f'[""]'))
-
-
-
-#hello schatz i love you
-
-# def _tree_worker[T: Hashable](tree: TreeT[T], normalize: Callable[[T], T]) -> tuple[dict[T, set[T]], dict[T, T]]:
-#     children: dict[T, set[T]] = {}
-#     unnormalize: dict[T, T] = {}
-#     all_visited: set[T] = set()
-
-#     def _visit_node(node_names: tuple[T, T], child_nodes: TreeT[T], depth: int):
-#         if depth > _RECURSION_LIMIT:
-#             raise fbe.TemporaryFeedbackError
-
-#         node_name, norm_node_name = node_names
-        
-#         # Check if duplicate node, otherwise add to collection 
-#         if norm_node_name in all_visited:
-#             raise fbe.TemporaryFeedbackError("Cyclic")
-        
-#         all_visited.add(norm_node_name)
-        
-#         unnormalize[norm_node_name] = node_name
-
-#         for child_node_name, child_child_nodes in child_nodes.items():
-#             norm_child_node_name = normalize(child_node_name)
-                
-#             children.setdefault(norm_node_name, set()).add(norm_child_node_name)
-            
-#             _visit_node(
-#                 (child_node_name, norm_child_node_name), 
-#                 child_child_nodes, 
-#                 depth + 1
-#             )
-
-#     for child_node_name, child_child_nodes in tree.items():
-#         norm_child_node_name = normalize(child_node_name)
-
-#         _visit_node(
-#             (child_node_name, norm_child_node_name), 
-#             child_child_nodes, 
-#             1
-#         )
-
-#     return children, unnormalize
+module_integrity()
