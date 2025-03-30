@@ -61,4 +61,8 @@
 class Community:
     DEFAULT: 'Community' = ... # type: ignore
 
+    def __hash__(self) -> int:
+        ...
+        
+
 Community.DEFAULT = Community()
