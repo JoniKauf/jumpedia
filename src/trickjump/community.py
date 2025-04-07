@@ -58,11 +58,105 @@
 #     def id(self) -> int:
 #         return self._id
 
+from types import MappingProxyType
+from typing import Self, TypedDict, Unpack
+from threading import RLock
+from utils import text
+from database import queries
+import discordtools.feedbackerrors as fbe
+from typing import Optional as Opt
+
+class CommunityTableT(TypedDict, total=True):
+    id: int
+    name: str
+    display_name: str
+    database_name: str
+
 class Community:
-    DEFAULT: 'Community' = ... # type: ignore
+    _RLOCK = RLock()
+
+    DATABASE_PREFIX = "c_"
+    META_TABLE_NAME = "community"
+
+    MAX_COMMUNITY_NAME_LENGTH = 50
+    LOOKUP: MappingProxyType[str, 'Community'] = MappingProxyType({})
+
+    def __init__(self, **kwargs: Unpack[CommunityTableT]) -> None:
+        self.id = kwargs['id']
+        self.name = kwargs['name']
+        self.display_name = kwargs['display_name']
+        self.database_name = kwargs['database_name']
 
     def __hash__(self) -> int:
-        ...
-        
+        return hash(self.id)
 
-Community.DEFAULT = Community()
+    @classmethod
+    def create(cls, bad_name: str) -> Self:
+        with Community._RLOCK:
+            display_name = text.fix_whitespace(bad_name.strip(), ' ')
+            name = Community._normalize_name(bad_name)
+
+            if bad_chars := text.invalid_identifier_chars(bad_name):
+                raise fbe.TemporaryFeedbackError(bad_chars)
+            
+            if any(len(n) > Community.MAX_COMMUNITY_NAME_LENGTH for n in (bad_name, display_name)):
+                raise fbe.TemporaryFeedbackError("Too long name")
+            
+            if bad_name.endswith("community"):
+                raise fbe.TemporaryFeedbackError("Please leave out 'community' from you community's name, as it is redundant!")
+            
+            database_name = f"{Community.DATABASE_PREFIX}{name}"
+
+            with queries.connected(queries.MetaDatabase) as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT *
+                    FROM ?
+                    WHERE name = ?
+                """, (Community.META_TABLE_NAME, database_name,))
+
+                result_opt: Opt[CommunityTableT] = cursor.fetchone()
+
+                if result_opt:
+                    raise fbe.TemporaryFeedbackError("Community with that name exists already")
+                
+                cursor.execute("""
+                    INSERT INTO ?
+                    (name, display_name, database_name)
+                    VALUES (?, ?, ?)
+                """, (Community.META_TABLE_NAME, name, display_name, database_name))
+
+                cursor.execute("""
+                    SELECT * FROM ? WHERE name = ?
+                """, Community.META_TABLE_NAME, name)
+
+                result: CommunityTableT = cursor.fetchone()
+                obj = cls(**result)  # type: ignore
+
+                # Must be last thing to occur in database, because rolling
+                # meta things back is not possible
+                cursor.execute(f"CREATE DATABASE `{database_name}`")
+
+            Community.reload_communities()
+            return obj
+
+    @classmethod
+    def reload_communities(cls) -> None:
+        with cls._RLOCK:
+            with queries.connected(queries.MetaDatabase) as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT * FROM ?
+                """, (Community.META_TABLE_NAME,))
+
+                result: list[CommunityTableT] = cursor.fetchall()
+
+            cls.LOOKUP = MappingProxyType({
+                c['name']: cls(**c) for c in result  # type: ignore
+            })
+        
+    @classmethod
+    def _normalize_name(cls, bad_name: str) -> str:
+        return text.fix_whitespace(bad_name.strip(), '_').lower()
+    
+    @classmethod
+    def get(cls, bad_name: str) -> 'Community':
+        return cls.LOOKUP[cls._normalize_name(bad_name)]

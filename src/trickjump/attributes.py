@@ -1,10 +1,10 @@
 import enum
-from trickjump.context import Context
 import datetime as dt
 import functools
 import json
 from threading import Lock
-from typing import Any, Iterable, Literal, Optional as Opt, Sequence
+from typing import Any, Iterable, Literal, NamedTuple, Optional as Opt, Sequence, TypedDict
+import typing
 from discordtools import feedbackerrors as fbe
 import re
 from collections2 import tree
@@ -13,18 +13,22 @@ import builtins
 from collections2.range import Range
 from decimal import Decimal
 import decimal
+from trickjump.list import List
+from utils import text
 
 
 #------#   Module Constants & Helper Functions   #------#
 
 type AttrT = 'Attribute'
 
+# As Type
 type AttributeValueTypeT = (
     bool | int | Decimal | 
     dt.time | dt.date | dt.datetime | dt.timedelta | 
     str
 )
 
+# As Enum
 class AttributeValueTypeEnum(enum.Enum):
     boolean = bool
     integer = int
@@ -35,11 +39,19 @@ class AttributeValueTypeEnum(enum.Enum):
     time_span = dt.timedelta
     text = str
 
+# As tuple
 AttributeValueTypes: set[type[AttributeValueTypeT]] = {elem.value for elem in AttributeValueTypeEnum}
 
-_ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
+class JsonParsableTreeT[T](TypedDict):
+    value: T
+    sort_value: int
+    children: 'JsonParsableTreeT[T]'
+
+class CollectionItemT[T](NamedTuple):
+    value: T
+    sort_value: int
+
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
-_VALID_SYN_CHARS: set[str] = set('abcdefghijklmnopqrstuvwxyz_0123456789')
 
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
@@ -111,7 +123,14 @@ def _parse_timedelta(s: str) -> dt.timedelta:
         return dt.timedelta(seconds=float(total_seconds * sign))
     except Exception:
         raise fbe.TemporaryFeedbackError("Number too small or big")
+
+def validate_collection_item[T](value_type: type[T], value: T, sort_value: int) -> None:
+    if not isinstance(value, value_type):
+        raise fbe.TemporaryFeedbackError("Not right type for value")
     
+    if not isinstance(sort_value, int):
+        raise fbe.TemporaryFeedbackError("Not right type for value, must be int")
+
 
 #------#   Attribute   #------#	
 
@@ -153,7 +172,7 @@ class Attribute[T: AttributeValueTypeT]:
     # --- CLASS CONSTANTS ---
 
     CREATION_LOCK = Lock()
-    LOOKUP: dict[Community, dict[str, 'Attribute']] = {}
+    LOOKUP: dict[List, dict[str, 'Attribute']] = {}
 
     SORT_KEY_LAST_NUMBER = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
     
@@ -161,11 +180,11 @@ class Attribute[T: AttributeValueTypeT]:
 
     def __init__(
         self, 
-        community: Community,
+        list_: List,
         name: str,
         alias: Iterable[str],
         value_type: type[T],
-        value_collection: None | Sequence[tuple[T, int]] | tree.TreeT[tuple[T, int]],
+        value_collection: None | Sequence[CollectionItemT] | tree.TreeT[CollectionItemT],
         min_value_slots: int,
         max_value_slots: int,
         unique_slots: bool,
@@ -174,7 +193,7 @@ class Attribute[T: AttributeValueTypeT]:
     ):
         with Attribute.CREATION_LOCK:
             # --- BASIC ASSIGNMENTS ---
-            self._community = community
+            self._community = list_
 
             if value_type not in set(vt.value for vt in AttributeValueTypeEnum):
                 raise TypeError
@@ -200,8 +219,8 @@ class Attribute[T: AttributeValueTypeT]:
             self._alias = set(self._normalize_and_validate_syn(a) for a in alias)
             
             # --- COLLECTION SETUP ---
-            self._list: Opt[None | list[T]] = None
-            self._tree: Opt[tree.Tree] = None
+            self._collection_list: Opt[None | list[T]] = None
+            self._collection_tree: Opt[tree.Tree] = None
 
             self._sort_value: dict[T, int] = {}
             self._unnormalize: dict[T, T] = {}
@@ -209,20 +228,20 @@ class Attribute[T: AttributeValueTypeT]:
             if not value_collection:
                 pass
             elif isinstance(value_collection, Sequence):
-                self._list = []
+                self._collection_list = []
 
                 for value in value_collection:
                     v_norm = self._normalize_and_implement_value(value)
-                    self._list.append(v_norm)
+                    self._collection_list.append(v_norm)
                     
-                if len(self._list) > Attribute.COLLECTION_MAX_ELEMS:
+                if len(self._collection_list) > Attribute.COLLECTION_MAX_ELEMS:
                     raise fbe.TemporaryFeedbackError
                 
-                if sum(self.value_to_memory(v) for v in self._list) > Attribute.COLLECTION_MAX_MEMORY:
+                if sum(self.value_to_memory(v) for v in self._collection_list) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
             else:
                 try:
-                    self._tree = tree.Tree(
+                    self._collection_tree = tree.Tree(
                         value_collection, 
                         self._normalize_and_implement_value, 
                         Attribute.MAX_DEPTH, 
@@ -234,12 +253,12 @@ class Attribute[T: AttributeValueTypeT]:
                 
                 if sum(
                     self.value_to_memory(n.value) 
-                    for n in self._tree._node_lookup.values()
+                    for n in self._collection_tree._node_lookup.values()
                 ) > Attribute.COLLECTION_MAX_MEMORY:
                     raise fbe.TemporaryFeedbackError
             
             # --- DANGER ZONE ---
-            lookup = Attribute.LOOKUP.setdefault(community, {})
+            lookup = Attribute.LOOKUP.setdefault(list_, {})
 
             for syn in (name, *alias):
                 lookup[syn] = self
@@ -251,22 +270,20 @@ class Attribute[T: AttributeValueTypeT]:
     @classmethod
     def init_for_discord_command(
         cls,
-        community: Community,
+        list_: List,
         name: str,
         alias: str,
         value_type: AttributeValueTypeEnum,
-        value_collection: str,
+        value_collection: Opt[str],
         min_value_slots: int,
         max_value_slots: int,
         unique_slots: bool,
         unique_values_per_list: bool,
         user_bound: bool
     ) -> 'Attribute':
-        # vc_tmp should be one of the following to be valid (tuple syntax for inner list):
-        # list[T], list[list[T, int]], TreeT[T], TreeT[list[T, int]]
-        if not value_collection:
+        if value_collection is None or not value_collection.strip():
             return Attribute(
-                community,
+                list_,
                 name,
                 alias,
                 value_type.value,  
@@ -279,55 +296,47 @@ class Attribute[T: AttributeValueTypeT]:
             )
 
         try:
-            vc_tmp: Any = json.loads(value_collection)
+            value_collection_obj = json.loads(value_collection)
         except json.JSONDecodeError:
             raise fbe.TemporaryFeedbackError
         
-        if not isinstance(vc_tmp, (list, dict)):
+        if not isinstance(value_collection_obj, (list, dict)):
             raise fbe.TemporaryFeedbackError("Must be list or tree")
         
-        if not vc_tmp:
+        if not value_collection_obj:
             raise fbe.TemporaryFeedbackError("Empty collection")
 
-        simple: bool = not isinstance(next(iter(vc_tmp)), list)
+        value_collection_result: list[CollectionItemT[T]] | tree.TreeT[CollectionItemT[T]]
+        value_type.value = typing.cast(type[T], value_type.value)   # type: ignore
 
-        result = 
-        for i, elem in enumerate(vc_tmp):
-            if isinstance(elem, list):
-                if simple:
-                    raise fbe.TemporaryFeedbackError("All elems but be either a list or not")
+        if isinstance(value_collection_obj, list):
+            value_collection_result = []
 
-                if len(elem) != 2:
-                    raise fbe.TemporaryFeedbackError("Length 2 list required")
+            for item in value_collection_obj:
+                if not isinstance(item, list):
+                    raise fbe.TemporaryFeedbackError("Not a list of data")
                 
-                sort_value = elem[1]
+                if len(item) != len(CollectionItemT._fields):
+                    raise fbe.TemporaryFeedbackError("Not right length")
+                
+                coll_item = CollectionItemT(cls._from_str_singular(item[0], value_type.value) , item[1])
+                validate_collection_item(value_type.value, *coll_item)
 
-                if not isinstance(sort_value, int):
-                    raise fbe.TemporaryFeedbackError("Sort value must be an int")
-                
-                value: T = elem[0]
-            else:
-                if not simple:
-                    raise fbe.TemporaryFeedbackError("All elems but be either a list or not")
-                
-                value: T = elem
-                sort_value = i
+                value_collection_result.append(coll_item)
+        else:
+            value_collection_obj: JsonParsableTreeT[str]
 
-            if not isinstance(value, value_type.value):
-                raise fbe.TemporaryFeedbackError("Type of value must be the given value_type")
-        
-            if isinstance(vc_tmp, dict):
-                vc_tmp
-            
-            # TODO check tree recursively
-                
+            value_collection_result = cls._parse_tree(
+                value_type.value,
+                value_collection_obj
+            )
 
         return Attribute(
-            community,
-            name,
-            alias,
-            value_type.value,  
-            "tmp",
+            list_,
+            name, 
+            alias, 
+            value_type.value,
+            value_collection_result,
             min_value_slots,
             max_value_slots,
             unique_slots,
@@ -335,8 +344,32 @@ class Attribute[T: AttributeValueTypeT]:
             user_bound
         )
 
+    @classmethod
+    def _parse_tree(cls, value_type: type[T], tree_: JsonParsableTreeT[str]) -> tree.TreeT[CollectionItemT]:
+        validate_collection_item(
+            value_type, 
+            tree_.get('value', None),
+            tree_.get('sort_value', None)
+        )
+
+        if not isinstance(tree_['children'], dict):
+            raise fbe.TemporaryFeedbackError("Not right type for children, must be dict")
+        
+        result: tree.TreeT[CollectionItemT[T]] = {}
+
+        for sub_tree in tree_['children']:  # type: ignore
+            sub_tree: JsonParsableTreeT[str]  # For some reason type checker thinks this is str
+
+            # First parse tree as it checks if the keys even exist for k
+            v = cls._parse_tree(value_type, sub_tree)
+            k = CollectionItemT(cls._from_str_singular(sub_tree['value'], value_type), sub_tree['sort_value'])
+
+            result[k] = v
+
+        return result
+
     def _normalize_and_validate_syn(self, syn: str) -> str:
-        syn = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, '_', syn.strip().casefold())
+        syn = text.fix_whitespace(syn.strip().lower(), '_')
 
         if not syn:
             raise fbe.TemporaryFeedbackError
@@ -346,22 +379,16 @@ class Attribute[T: AttributeValueTypeT]:
         
         if syn in Attribute.LOOKUP.setdefault(self._community, {}):
             raise fbe.TemporaryFeedbackError
-        
-        illegal_chars: set[str] = set()
 
-        for char in syn:
-            if char not in _VALID_SYN_CHARS:
-                illegal_chars.add(char)
-
-        if illegal_chars:
+        if illegal_chars := text.invalid_identifier_chars(syn):
             raise fbe.TemporaryFeedbackError(illegal_chars)
         
         return syn
     
-    def _normalize_and_implement_value(self, value: tuple[T, int]) -> T:
+    def _normalize_and_implement_value(self, value: CollectionItemT) -> T:
         unnormalized, sort_value = value
 
-        if not isinstance(value, self._value_type):
+        if not isinstance(unnormalized, self._value_type):
             raise TypeError
         
         if sort_value > Attribute.NUMBER_MAX:
@@ -383,8 +410,9 @@ class Attribute[T: AttributeValueTypeT]:
 
     # --- Methods ---
 
-    def _from_str_singular(self, s: str) -> T:
-        match self._value_type:
+    @classmethod
+    def _from_str_singular(cls, s: str, value_type: type[T]) -> T:
+        match value_type:
             case builtins.bool:
                 s = s.lower()
 
@@ -422,11 +450,11 @@ class Attribute[T: AttributeValueTypeT]:
             
             case dt.time | dt.date | dt.datetime:
                 # If a date is in the type
-                if issubclass(self._value_type, (dt.date, dt.datetime)):
+                if issubclass(value_type, (dt.date, dt.datetime)):
                     s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", s)
                 
                 try:
-                    result = self._value_type.fromisoformat(s)
+                    result = value_type.fromisoformat(s)
                 except Exception:
                     raise fbe.TemporaryFeedbackError("Invalid datetime repr")
                 
@@ -441,14 +469,14 @@ class Attribute[T: AttributeValueTypeT]:
                 if len(s) > Attribute.STR_MAX_LEN:
                     raise fbe.TooLongValue("string", s, Attribute.STR_MAX_LEN)
                 
-                result = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", s)
+                result = text.fix_whitespace(s, " ")
         
             case _:
                 raise TypeError("Type was forgotten to be added here")
         
         return result  # type: ignore
     
-    def from_str(self, s: str, keep_normalized: bool) -> list[T]:
+    def from_str(self, s: str, keep_normalized: bool, value_type: Opt[type[T]] = None) -> list[T]:
         if not (s := s.strip()):
             return []
         
@@ -469,7 +497,9 @@ class Attribute[T: AttributeValueTypeT]:
         else:
             raise fbe.TemporaryFeedbackError
         
-        converted: list[T] = [self._from_str_singular(elem) for elem in v]
+        value_type = value_type or self._value_type
+
+        converted: list[T] = [self._from_str_singular(elem, value_type) for elem in v]
 
         if self.collection:
             # Normalize to lookup, unnormalize to get correct version
@@ -496,7 +526,7 @@ class Attribute[T: AttributeValueTypeT]:
     @functools.lru_cache()
     def normalize(self, unnormalized: T) -> T:
         if isinstance(unnormalized, str):
-            normalized: T = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", unnormalized.strip().casefold())  # type: ignore
+            normalized: T = text.fix_whitespace(unnormalized.strip().casefold(), " ")  # type: ignore
         else:
             normalized = unnormalized
         
@@ -563,7 +593,7 @@ class Attribute[T: AttributeValueTypeT]:
 
     @property
     def collection(self) -> bool:
-        return self._list is not None or self._tree is not None
+        return self._collection_list is not None or self._collection_tree is not None
 
     @property
     def required(self) -> bool:
