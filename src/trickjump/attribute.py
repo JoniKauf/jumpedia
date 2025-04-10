@@ -2,9 +2,10 @@ import enum
 import datetime as dt
 import functools
 import json
-from threading import Lock
+from threading import Lock, RLock
 from typing import Any, Iterable, Literal, NamedTuple, Optional as Opt, Sequence, TypedDict
 import typing
+from database import queries
 from discordtools import feedbackerrors as fbe
 import re
 from collections2 import tree
@@ -152,6 +153,8 @@ class Attribute[T: AttributeValueTypeT]:
     MAX_ATTRIBUTES_PER_COMMUNITY = 50
     MAX_VALUE_SLOTS = 32
 
+    TABLE_NAME = "attribute"
+
     # int | decimal
     NUMBER_MAX: int = 2 ** 63 - 1
     NUMBER_MIN: int = -NUMBER_MAX - 1
@@ -171,8 +174,8 @@ class Attribute[T: AttributeValueTypeT]:
 
     # --- CLASS CONSTANTS ---
 
-    CREATION_LOCK = Lock()
-    LOOKUP: dict[List, dict[str, 'Attribute']] = {}
+    _EDIT_LOCK = RLock()
+    _LOOKUP: dict[List, dict[str, 'Attribute']] = {}
 
     SORT_KEY_LAST_NUMBER = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
     
@@ -191,7 +194,7 @@ class Attribute[T: AttributeValueTypeT]:
         unique_values_per_list: bool,
         user_bound: bool
     ):
-        with Attribute.CREATION_LOCK:
+        with Attribute._EDIT_LOCK:
             # --- BASIC ASSIGNMENTS ---
             self._community = list_
 
@@ -258,14 +261,14 @@ class Attribute[T: AttributeValueTypeT]:
                     raise fbe.TemporaryFeedbackError
             
             # --- DANGER ZONE ---
-            lookup = Attribute.LOOKUP.setdefault(list_, {})
+            with queries.connected(list_._community):
+                
+            lookup = Attribute._LOOKUP.setdefault(list_, {})
 
             for syn in (name, *alias):
                 lookup[syn] = self
                 
-            # TODO:
-            # - Add to database
-            # - Make everything string based
+            
 
     @classmethod
     def init_for_discord_command(
@@ -377,7 +380,7 @@ class Attribute[T: AttributeValueTypeT]:
         if len(syn) > Attribute.MAX_SYN_LEN:
             raise fbe.TemporaryFeedbackError
         
-        if syn in Attribute.LOOKUP.setdefault(self._community, {}):
+        if syn in Attribute._LOOKUP.setdefault(self._community, {}):
             raise fbe.TemporaryFeedbackError
 
         if illegal_chars := text.invalid_identifier_chars(syn):

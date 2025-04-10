@@ -58,13 +58,18 @@
 #     def id(self) -> int:
 #         return self._id
 
+from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Self, TypedDict, Unpack
+from typing import ClassVar, Self, TypedDict, Unpack
 from threading import RLock
+
+import mariadb
+from trickjump.parent import Lookupable
 from utils import text
 from database import queries
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
+from trickjump.list import List
 
 class CommunityTableT(TypedDict, total=True):
     id: int
@@ -72,34 +77,33 @@ class CommunityTableT(TypedDict, total=True):
     display_name: str
     database_name: str
 
-class Community:
-    _RLOCK = RLock()
+@dataclass(frozen=True)
+class Community(Lookupable):
+    display_name: str
+    database_name: str
+    lists: set[List] = field(init=False, default_factory=set)
 
-    DATABASE_PREFIX = "c_"
-    META_TABLE_NAME = "community"
+    DATABASE_PREFIX: ClassVar[str] = "c_"
+    META_TABLE_NAME: ClassVar[str] = "community"
 
-    MAX_COMMUNITY_NAME_LENGTH = 50
-    LOOKUP: MappingProxyType[str, 'Community'] = MappingProxyType({})
+    MAX_NAME_LENGTH: ClassVar[int] = 50
 
-    def __init__(self, **kwargs: Unpack[CommunityTableT]) -> None:
-        self.id = kwargs['id']
-        self.name = kwargs['name']
-        self.display_name = kwargs['display_name']
-        self.database_name = kwargs['database_name']
+    _EDIT_LOCK: ClassVar[RLock] = RLock()
+    _LOOKUP: ClassVar[MappingProxyType[str, 'Community']] = MappingProxyType({})
 
     def __hash__(self) -> int:
         return hash(self.id)
 
     @classmethod
     def create(cls, bad_name: str) -> Self:
-        with Community._RLOCK:
+        with Community._EDIT_LOCK:
             display_name = text.fix_whitespace(bad_name.strip(), ' ')
             name = Community._normalize_name(bad_name)
 
             if bad_chars := text.invalid_identifier_chars(bad_name):
                 raise fbe.TemporaryFeedbackError(bad_chars)
             
-            if any(len(n) > Community.MAX_COMMUNITY_NAME_LENGTH for n in (bad_name, display_name)):
+            if any(len(n) > Community.MAX_NAME_LENGTH for n in (bad_name, display_name)):
                 raise fbe.TemporaryFeedbackError("Too long name")
             
             if bad_name.endswith("community"):
@@ -136,12 +140,20 @@ class Community:
                 # meta things back is not possible
                 cursor.execute(f"CREATE DATABASE `{database_name}`")
 
+            with queries.connected(obj) as (conn, cursor):
+                cursor.execute("""
+                    CREATE TABLE ? (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR()
+                    )
+                """, (List.TABLE_NAME,))
+
             Community.reload_communities()
             return obj
 
     @classmethod
     def reload_communities(cls) -> None:
-        with cls._RLOCK:
+        with cls._EDIT_LOCK:
             with queries.connected(queries.MetaDatabase) as (conn, cursor):
                 cursor.execute(f"""
                     SELECT * FROM ?
@@ -149,14 +161,39 @@ class Community:
 
                 result: list[CommunityTableT] = cursor.fetchall()
 
-            cls.LOOKUP = MappingProxyType({
+            cls._LOOKUP = MappingProxyType({
                 c['name']: cls(**c) for c in result  # type: ignore
             })
-        
+    
     @classmethod
     def _normalize_name(cls, bad_name: str) -> str:
         return text.fix_whitespace(bad_name.strip(), '_').lower()
     
     @classmethod
     def get(cls, bad_name: str) -> 'Community':
-        return cls.LOOKUP[cls._normalize_name(bad_name)]
+        return cls._LOOKUP[cls._normalize_name(bad_name)]
+    
+    def delete(self) -> bool:
+        """Delete the community entirely.
+        
+        Returns True if it was successful, otherwise 
+        """
+
+        # This order does secure data integrity if anything goes wrong
+        try:
+            with queries.connected(queries.MetaDatabase) as (conn, cursor):
+                cursor.execute("""
+                    DELETE FROM ?
+                    WHERE id = ?
+                """, (Community.META_TABLE_NAME, self.id))
+
+                with queries.connected(self) as (conn, cursor):
+                    cursor.execute(f"""
+                        DROP DATABASE `{self.database_name}`
+                    """)
+        except mariadb.Error:
+            return False
+        
+        Community.reload_communities()
+
+        return True
