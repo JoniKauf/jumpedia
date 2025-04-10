@@ -1,34 +1,39 @@
 from contextlib import contextmanager
 import functools
 import json
-from typing import Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, NewType, Optional as Opt
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, NewType, Optional as Opt
 from types import EllipsisType
+from trickjump import jumpedia
 from trickjump.community import Community
 import sqlite3
 import discord as dc
 
 import mariadb.cursors
+
 from . import mariadb_extensions as mdbe
 from database import secret
 import mariadb
 from discordtools import feedbackerrors as fbe
 
+if TYPE_CHECKING:
+    from trickjump.jumpedia import Jumpedia
+
 @functools.lru_cache(maxsize=1)
 def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
-_MetaDatabaseType = NewType("_MetaDatabaseType", type(NotImplemented))
-MetaDatabase: _MetaDatabaseType = _MetaDatabaseType(NotImplemented)
-META_DATABASE_NAME = 'meta'
-
 @contextmanager
-def connected(db: Opt[Community | _MetaDatabaseType], auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(db: Opt[Community | Jumpedia], auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+    from trickjump.jumpedia import Jumpedia
+    
+    K = 'db'
+
     if db is None:
         database = {}
     elif isinstance(db, Community):
-        database = {'db': db.database_name}
+        database = {K: db.database_name}
     else:
-        database = {'db': META_DATABASE_NAME}
+        database = {K: jumpedia.JUMPEDIA.database_name}
 
     conn: Opt[mariadb.Connection] = None
     
@@ -46,7 +51,8 @@ def connected(db: Opt[Community | _MetaDatabaseType], auto_commit: bool = True) 
     except mariadb.Error as e:
         if conn:
             conn.rollback()
-        raise fbe.InternalDatabaseError(e)
+        raise e
+    
     finally:
         if conn:
             if auto_commit:

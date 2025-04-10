@@ -1,6 +1,6 @@
 import ast
 from typing import Iterable, Optional as Opt
-from trickjump import attributes as attrs
+from trickjump import attribute as attrs
 from trickjump.catalog import List
 from trickjump.trickjump import Trickjump
 from utils import devtools as dev
