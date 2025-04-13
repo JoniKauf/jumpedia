@@ -6,7 +6,8 @@ from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Iterable, Literal, Optional, Self, Sequence, TypeAlias, TypedDict, cast, get_args, TYPE_CHECKING
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures.attribute import Attribute, AttributeTableT
+from structures.attribute import Attribute
+from structures import attribute as attr
 from structures.community import Community
 from structures.task import Task
 from utils import text
@@ -54,37 +55,80 @@ class List:
                 SELECT * FROM ?
             """, [Attribute.TABLE_NAME])
 
-            result: list[AttributeTableT] = cursor.fetchall()
+            result: list[attr.AttributeTableT] = cursor.fetchall()
 
         with self.edit_lock:
             self.attributes.clear()
+            self.attribute_id_mapping.clear()
+            self.attribute_name_mapping.clear()
 
             for a_data in result:
-                self.attributes.add(Attribute(
+                self._add_to_attribute_collection(Attribute(
                     a_data['id'],
+                    self,
                     a_data['name'],
                     a_data['display_name'],
                     set(a_data['alias']),
-                    a_data['value_type'], #
+                    attr.AttributeValueType.lookup_by_id(a_data['value_type']),
                     a_data['value_collection'],
                     a_data['min_value_slots'],
                     a_data['max_value_slots'],
                     a_data['unique_slots'],
                     a_data['user_bound'],
-                    a_data['list_behaviour'],
-                    self
+                    a_data['unique_in_list']
                 ))
 
-            self.task_id_mapping.clear()
-            self.task_name_mapping.clear()
-
-            for list_ in self.lists:
-                self.task_id_mapping[list_.id] = list_
-                self.task_name_mapping[list_.name] = list_
-
-    def create_attribute(self, default_value):
+    def create_attribute[T: attr.AttributeValueTypeT](
+        self,
+        bad_name: str,
+        alias: set[str],
+        value_type: attr.AttributeValueType[T],
+        value_collection: str,
+        min_value_slots: int,
+        max_value_slots: int,
+        unique_slots: bool,
+        user_bound: bool,
+        unique_in_list: bool,
+    ):
         with self.edit_lock:
-            
+            name, display_name = text.create_name_and_display_name(
+                bad_name, True, self.attribute_name_mapping
+            )
+
+    
+    @classmethod
+    def parse_user_tree[T](cls, tree: attr.CollectionTreeByUserT, value_type: attr.AttributeValueType) -> attr.CollectionTree[T]:
+        try:
+            sort_value_str = str(tree['sort_value'])
+        except KeyError as e:
+            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+        
+        # Parse int to check if it valid and in bounce...
+        sort_value: int = Attribute._parse_str_singular(str(sort_value_str), attr.AttributeValueType.lookup_by_type(int))
+
+        try:
+            bad_value = tree['value']
+        except KeyError as e:
+            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+        
+        display_value: T = Attribute._parse_str_singular(bad_value, value_type)
+        value: T = Attribute.normalize(display_value)
+
+        sub_trees = tree.get('children', [])
+
+        if not isinstance(sub_trees, list):
+            raise fbe.TemporaryFeedbackError("Not a sub tree")
+        
+        return {
+            'value': value,
+            'display_value': display_value,
+            'sort_value': sort_value,
+            'children': [
+                List.parse_user_tree(sub_tree, value_type) for sub_tree in sub_trees
+            ]
+        }
+
+
             
 
     @classmethod

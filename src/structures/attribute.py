@@ -15,7 +15,7 @@ from collections2.range import Range
 from decimal import Decimal
 import decimal
 from structures.list import List
-from utils import text
+from utils import text, timetools
 
 
 #------#   Module Constants & Helper Functions   #------#
@@ -32,10 +32,10 @@ type AttributeValueTypeT = (
 type_ = type
 
 @dataclass(frozen=True)
-class AttributeValueType:
+class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
-    type: type
+    type: type[T]
 
     _attribute_value_types: ClassVar[list[Self]] = field(init=False, default_factory=list)
     _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = field(init=False, default_factory=dict)
@@ -70,7 +70,7 @@ class AttributeValueType:
             raise LookupError(*e.args)
         
     @classmethod
-    def lookup_by_type(cls, type: type_) -> Self:
+    def lookup_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
         try:
             return cls._attribute_value_type_type_lookup[type.__qualname__]
         except KeyError as e:
@@ -90,11 +90,23 @@ AttributeValueTypeEnum = enum.Enum(
     'AttributeValueTypeEnum', {avt.name: avt for avt in AttributeValueType._attribute_value_types}
 )
 
-class CollectionTreeT[T](TypedDict, total=True):
-    value: T
+class CollectionTreeByUserT(TypedDict, total=True):
+    value: str
     sort_value: int
-    children: NotRequired['CollectionTreeT[T]']
+    children: NotRequired[list['CollectionTreeByUserT']]
 
+@dataclass(frozen=True)
+class CollectionTreeNode[T]:
+    value: T
+    display_value: T
+    sort_value: int
+    nodes: 'CollectionTree[T]'
+
+@dataclass(frozen=True)
+class CollectionTree[T]:
+    nodes: list[CollectionTreeNode[T]] 
+
+CollectionTree([Coll])
 class CollectionItemT[T](NamedTuple):
     value: T
     sort_value: int
@@ -106,20 +118,14 @@ class AttributeTableT[T](TypedDict):
     display_name: str
     alias: list[str]
     value_type: int
-    value_collection: None | list[CollectionItemT[T]] | CollectionTreeT[T]
+    value_collection: None | list[CollectionItemT[T]] | CollectionTreeByUserT[T]
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
     user_bound: bool
     unique_in_list: bool
 
-def validate_collection_item[T](value_type: type[T], value: T, sort_value: int) -> None:
-    if not isinstance(value, value_type):
-        raise fbe.TemporaryFeedbackError("Not right type for value")
-    
-    if not isinstance(sort_value, int):
-        raise fbe.TemporaryFeedbackError("Not right type for value, must be int")
-
+_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 
 #------#   Attribute   #------#	
 
@@ -140,8 +146,8 @@ class Attribute[T: AttributeValueTypeT]:
     name: str
     display_name: str
     alias: set[str]
-    value_type: type[T]
-    value_collection: None | list[CollectionItemT[T]] | CollectionTreeT[T]
+    value_type: AttributeValueType
+    value_collection: None | list[CollectionItemT[T]] | CollectionTreeByUserT[T]
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
@@ -176,7 +182,7 @@ class Attribute[T: AttributeValueTypeT]:
     SORT_KEY_LAST_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
     @classmethod
-    def _parse_tree(cls, value_type: type[T], tree_: CollectionTreeT[str]) -> tree.TreeT[CollectionItemT]:
+    def _parse_tree(cls, value_type: type[T], tree_: CollectionTreeByUserT[str]) -> tree.TreeT[CollectionItemT]:
         validate_collection_item(
             value_type, 
             tree_.get('value', None),
@@ -189,11 +195,11 @@ class Attribute[T: AttributeValueTypeT]:
         result: tree.TreeT[CollectionItemT[T]] = {}
 
         for sub_tree in tree_['children']:  # type: ignore
-            sub_tree: CollectionTreeT[str]  # For some reason type checker thinks this is str
+            sub_tree: CollectionTreeByUserT[str]  # For some reason type checker thinks this is str
 
             # First parse tree as it checks if the keys even exist for k
             v = cls._parse_tree(value_type, sub_tree)
-            k = CollectionItemT(cls._from_str_singular(sub_tree['value'], value_type), sub_tree['sort_value'])
+            k = CollectionItemT(cls._parse_str_singular(sub_tree['value'], value_type), sub_tree['sort_value'])
 
             result[k] = v
 
@@ -242,7 +248,10 @@ class Attribute[T: AttributeValueTypeT]:
     # --- Methods ---
 
     @classmethod
-    def _from_str_singular(cls, s: str, value_type: type[T]) -> T:
+    def _parse_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
+        if not isinstance(s, str):
+            raise fbe.TemporaryFeedbackError("Not a string")
+        
         match value_type:
             case builtins.bool:
                 s = s.lower()
@@ -294,26 +303,26 @@ class Attribute[T: AttributeValueTypeT]:
                         result = result.replace(tzinfo=dt.timezone.utc)
 
             case dt.timedelta:
-                result = _parse_timedelta(s)
+                result = timetools.parse_timedelta(s)
 
             case builtins.str:
                 if len(s) > Attribute.STR_MAX_LEN:
                     raise fbe.TooLongValue("string", s, Attribute.STR_MAX_LEN)
                 
-                result = text.fix_whitespace(s, " ")
-        
+                result = text.fix_whitespace(s, " ", True)
+                
             case _:
                 raise TypeError("Type was forgotten to be added here")
         
         return result  # type: ignore
     
-    def from_str(self, s: str, keep_normalized: bool, value_type: Opt[type[T]] = None) -> list[T]:
+    def parse_str(self, s: str, keep_normalized: bool, value_type: Opt[type[T]] = None) -> list[T]:
         if not (s := s.strip()):
             return []
         
         try:
             v: str | list[str] = json.loads(s)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, RecursionError):
             raise fbe.TemporaryFeedbackError
 
         if isinstance(v, str):
@@ -330,7 +339,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         value_type = value_type or self._value_type
 
-        converted: list[T] = [self._from_str_singular(elem, value_type) for elem in v]
+        converted: list[T] = [self._parse_str_singular(elem, value_type) for elem in v]
 
         if self.collection:
             # Normalize to lookup, unnormalize to get correct version
@@ -357,7 +366,7 @@ class Attribute[T: AttributeValueTypeT]:
     @functools.lru_cache()
     def normalize(self, unnormalized: T) -> T:
         if isinstance(unnormalized, str):
-            normalized: T = text.fix_whitespace(unnormalized.strip().casefold(), " ")  # type: ignore
+            normalized: T = text.fix_whitespace(unnormalized.lower(), " ", True)  # type: ignore
         else:
             normalized = unnormalized
         
@@ -385,26 +394,26 @@ class Attribute[T: AttributeValueTypeT]:
         raise TypeError
 
     def _sort_key_singular(self, value: Opt[T], sign: Literal[+1, -1]):
-        if issubclass(self._value_type, bool):
+        if issubclass(self.value_type.type, bool):
             if value is None:
                 return 2 * sign
             
             return int(value) * sign  # type: ignore
             
-        if issubclass(self._value_type, (int, Decimal)):
+        if issubclass(self.value_type.type, (int, Decimal)):
             if value is None:
                 return Attribute.SORT_KEY_LAST_NUMBER * sign
             
             return value * sign  # type: ignore
         
-        if issubclass(self._value_type, (dt.time, dt.date, dt.datetime, dt.timedelta)):
+        if issubclass(self.value_type.type, (dt.time, dt.date, dt.datetime, dt.timedelta)):
             if value is None:
-                return (Attribute._sort_key_anything_time(self._value_type.max) + 1) * sign
+                return (Attribute._sort_key_anything_time(self.value_type.type.max) + 1) * sign
             
             return Attribute._sort_key_anything_time(value) * sign  # type: ignore
 
     def sort_key(self, value: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
-        values = self.from_str(value, True)
+        values = self.parse_str(value, True)
         
         if not values:
             return Attribute.SORT_KEY_LAST_NUMBER + 1
@@ -431,7 +440,7 @@ class Attribute[T: AttributeValueTypeT]:
         return self._min_value_slots > 0
     
     def is_empty(self, value: str) -> bool:
-        return bool(self.from_str(value, True)) 
+        return bool(self.parse_str(value, True)) 
 
     def value_to_memory(self, value: T) -> int:
         if isinstance(value, str):
