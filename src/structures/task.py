@@ -1,56 +1,22 @@
 from typing import TYPE_CHECKING, Annotated, Any, Generator, Sequence, overload, override, Optional as Opt
 from dataclasses import dataclass
 from database import queries
-from trickjump import attributes as attrs
+from structures import attributes as attrs
 from people import person
 from discordtools import feedbackerrors as fbe
+from structures import attribute
+from structures.attribute import Attribute
+from structures.list import List
 
-class Trickjump(dict[str, Any]):
+@dataclass(frozen=True)
+class Task:
+    id: int
+    values: dict[str, attribute.AttributeValueTypeT]
+    parent: List
+
     def as_info(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.items())
     
-    @classmethod
-    def get_all(cls):
-        all_attrs = attrs.get_all('Jumpedia')
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute("SELECT * FROM trickjump")
-
-            result: list = cursor.fetchall()
-
-        for data in result:
-            pass
-            
-
-        return cat.List(
-            Trickjump(tj, required=True, lower=False) 
-            for tj in tjs_data
-        )
-    
-    @classmethod
-    def get_all_names(cls) -> list[str]:
-        with queries.connected() as (conn, cursor):
-            cursor.execute("""SELECT name FROM trickjump""")
-
-            result: list[TrickjumpDataT] = cursor.fetchall()
-
-        return [tj['name'] for tj in result]
-    
-    @classmethod
-    def get_by_name(cls, name: str) -> 'Trickjump':
-        with queries.connected() as (conn, cursor):
-            cursor.execute(
-                f"{cls.select_attrs()} WHERE name = ? LIMIT 1", 
-                (name,)
-            )
-
-            result: TrickjumpDataT = cursor.fetchone()
-
-        if result is None:
-            raise fbe.NotAJump(name)
-        
-        return cls(result)
-        
     def get_contributor_line(self) -> str:
         def join_grammatically(elems: Sequence[str]):
             if len(elems) < 2:

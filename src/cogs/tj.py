@@ -42,17 +42,17 @@ class Tj(cmds.GroupCog, group_name="tj"):
 
     @acmds.command()
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
-        tj.Trickjump.get_all_names()
+        tj.Task.get_all_names()
     ))
     async def info(self, ia: dc.Interaction, jump_name: str):
-        await ia.response.send_message(tj.Trickjump.get_by_name(jump_name).as_info())
+        await ia.response.send_message(tj.Task.get_by_name(jump_name).as_info())
 
     @acmds.command()
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
-        tj.Trickjump.get_all_names()
+        tj.Task.get_all_names()
     ))
     async def give(self, ia: dc.Interaction, jump_name: str, proof: Opt[str] = None, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_by_name(jump_name)
+        tj_data = tj.Task.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -101,10 +101,10 @@ class Tj(cmds.GroupCog, group_name="tj"):
 
     @acmds.command()
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
-        tj.Trickjump.get_all_names()
+        tj.Task.get_all_names()
     ))
     async def remove(self, ia: dc.Interaction, jump_name: str, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_by_name(jump_name)
+        tj_data = tj.Task.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -146,10 +146,10 @@ class Tj(cmds.GroupCog, group_name="tj"):
 
     @proof_group.command(name="set")
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
-        tj.Trickjump.get_all_names()
+        tj.Task.get_all_names()
     ))
     async def proof_set(self, ia: dc.Interaction, jump_name: str, proof: str, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_by_name(jump_name)
+        tj_data = tj.Task.get_by_name(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
@@ -198,10 +198,10 @@ class Tj(cmds.GroupCog, group_name="tj"):
     
     @proof_group.command(name="get")
     @acmds.autocomplete(jump_name=autocompletes.best_match_paged(
-        tj.Trickjump.get_all_names()
+        tj.Task.get_all_names()
     ))
     async def proof_get(self, ia: dc.Interaction, jump_name: str, user: Opt[str] = None):
-        tj_data = tj.Trickjump.get_raw(jump_name)
+        tj_data = tj.Task.get_raw(jump_name)
 
         ia_user, other_user = users.User.get_if_permitted(
             ia, 
