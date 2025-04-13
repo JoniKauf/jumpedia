@@ -2,8 +2,6 @@ import datetime
 from decimal import Decimal
 import re
 
-_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
-
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     ([-+])?               # [Group 1: Optional '-' or '+' sign]

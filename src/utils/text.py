@@ -11,7 +11,7 @@ def pascal_to_snake(s: str):
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
 
-def fix_whitespace(s: str, repl: str, strip: bool = True) -> str:
+def fix_whitespace(s: str, repl: str, strip: bool) -> str:
     return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
 
 
@@ -24,7 +24,7 @@ def invalid_identifier_chars(s: str) -> set[str]:
 def create_name_and_display_name(bad_name: str, identifiers_only: bool, existing_names: Iterable[str] = ()) -> tuple[str, str]:
     tidy_name: str = bad_name.strip()
 
-    name: str = fix_whitespace(tidy_name, '_').lower()
+    name: str = fix_whitespace(tidy_name, '_', False).lower()
 
     if identifiers_only and (inv := invalid_identifier_chars(name)):
         raise fbe.TemporaryFeedbackError(inv)
@@ -32,7 +32,7 @@ def create_name_and_display_name(bad_name: str, identifiers_only: bool, existing
     if name in existing_names:
         raise fbe.TemporaryFeedbackError()
     
-    display_name: str = fix_whitespace(tidy_name, " ")
+    display_name: str = fix_whitespace(tidy_name, " ", False)
 
     return (name, display_name)
         
