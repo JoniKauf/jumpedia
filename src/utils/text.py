@@ -27,10 +27,10 @@ def create_name_and_display_name(bad_name: str, identifiers_only: bool, existing
     name: str = fix_whitespace(tidy_name, '_').lower()
 
     if identifiers_only and (inv := invalid_identifier_chars(name)):
-        raise ValueError(inv)
+        raise fbe.TemporaryFeedbackError(inv)
     
     if name in existing_names:
-        raise ValueError()
+        raise fbe.TemporaryFeedbackError()
     
     display_name: str = fix_whitespace(tidy_name, " ")
 

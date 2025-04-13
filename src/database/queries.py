@@ -25,15 +25,13 @@ def __get_connection_data() -> dict[str, Any]:
 @contextmanager
 def connected(db: Opt[Community | Jumpedia], auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from trickjump.jumpedia import Jumpedia
-    
-    K = 'db'
 
     if db is None:
         database = {}
-    elif isinstance(db, Community):
-        database = {K: db.database_name}
+    elif isinstance(db, (Community, Jumpedia)):
+        database = {'db': db.database_name}
     else:
-        database = {K: jumpedia.JUMPEDIA.database_name}
+        raise TypeError
 
     conn: Opt[mariadb.Connection] = None
     

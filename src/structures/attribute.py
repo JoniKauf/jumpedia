@@ -1,20 +1,20 @@
+from dataclasses import dataclass, field
 import enum
 import datetime as dt
 import functools
 import json
 from threading import Lock, RLock
-from typing import Any, Iterable, Literal, NamedTuple, Optional as Opt, Sequence, TypedDict
+from typing import Any, ClassVar, Iterable, Literal, NamedTuple, NotRequired, Optional as Opt, Self, Sequence, TypedDict
 import typing
 from database import queries
 from discordtools import feedbackerrors as fbe
 import re
-from collections2 import tree
-from trickjump.community import Community
+from structures.community import Community
 import builtins
 from collections2.range import Range
 from decimal import Decimal
 import decimal
-from trickjump.list import List
+from structures.list import List
 from utils import text
 
 
@@ -29,101 +29,89 @@ type AttributeValueTypeT = (
     str
 )
 
-# As Enum
-class AttributeValueTypeEnum(enum.Enum):
-    boolean = bool
-    integer = int
-    decimal = Decimal
-    time = dt.time
-    date = dt.date
-    date_and_time = dt.datetime
-    time_span = dt.timedelta
-    text = str
+type_ = type
 
-# As tuple
-AttributeValueTypes: set[type[AttributeValueTypeT]] = {elem.value for elem in AttributeValueTypeEnum}
+@dataclass(frozen=True)
+class AttributeValueType:
+    id: int
+    name: str
+    type: type
 
-class JsonParsableTreeT[T](TypedDict):
+    _attribute_value_types: ClassVar[list[Self]] = field(init=False, default_factory=list)
+    _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = field(init=False, default_factory=dict)
+    _attribute_value_type_name_lookup: ClassVar[dict[str, Self]] = field(init=False, default_factory=dict)
+    _attribute_value_type_type_lookup: ClassVar[dict[str, Self]] = field(init=False, default_factory=dict)
+
+    def __hash__(self):
+        return hash((self.id, self.name, self.type.__qualname__))
+    
+    def __post_init__(self):
+        for elem in AttributeValueType._attribute_value_types:
+            if self.name == elem.name or self.id == elem.id or self.type == elem.type:
+                raise RuntimeError()
+            
+        AttributeValueType._attribute_value_types.append(self)
+        AttributeValueType._attribute_value_type_id_lookup[self.id] = self
+        AttributeValueType._attribute_value_type_name_lookup[self.name] = self
+        AttributeValueType._attribute_value_type_type_lookup[self.type.__qualname__] = self
+
+    @classmethod
+    def lookup_by_id(cls, id: int) -> Self:
+        try:
+            return cls._attribute_value_type_id_lookup[id]
+        except KeyError as e:
+            raise LookupError(*e.args)
+        
+    @classmethod
+    def lookup_by_name(cls, name: str) -> Self:
+        try:
+            return cls._attribute_value_type_name_lookup[name]
+        except KeyError as e:
+            raise LookupError(*e.args)
+        
+    @classmethod
+    def lookup_by_type(cls, type: type_) -> Self:
+        try:
+            return cls._attribute_value_type_type_lookup[type.__qualname__]
+        except KeyError as e:
+            raise LookupError(*e.args)
+
+            
+AttributeValueType(1, 'boolean', bool)
+AttributeValueType(2, 'integer', int)
+AttributeValueType(3, 'decimal', Decimal)
+AttributeValueType(4, 'time', dt.time)
+AttributeValueType(5, 'date', dt.date)
+AttributeValueType(6, 'date_and_time', dt.datetime)
+AttributeValueType(7, 'timespan', dt.timedelta)
+AttributeValueType(8, 'text', str)
+
+AttributeValueTypeEnum = enum.Enum(
+    'AttributeValueTypeEnum', {avt.name: avt for avt in AttributeValueType._attribute_value_types}
+)
+
+class CollectionTreeT[T](TypedDict, total=True):
     value: T
     sort_value: int
-    children: 'JsonParsableTreeT[T]'
+    children: NotRequired['CollectionTreeT[T]']
 
 class CollectionItemT[T](NamedTuple):
     value: T
     sort_value: int
 
-_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
-
-# Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
-_TIMEDELTA_PARSE_PATTERN = re.compile(r'''
-    ([-+])?               # [Group 1: Optional '-' or '+' sign]
-    \s*                   # Whitespace 0 to ∞ times
-    (?:                   # Group without capturing:
-        ([0-9]+)              # [Group 2: Any digit 0 to ∞ times]
-        \s*                   # Whitespace 0 to ∞ times
-        (d|days?)             # [Group 3: 'd', 'day' or 'days']
-    )?                    # End group, its insides must either fully match or not exist at all
-    \s*                   # Whitespace 0 to ∞ times
-    (?:                   # Group without capturing:
-        ([0-1]?[0-9]|2[0-3])  # [Group 4: 0 to 23] with optional leading 0 for single digit numbers
-        \s*                   # Whitespace 0 to ∞ times
-        (h|hrs?|hours?)       # [Group 5: 'h', 'hr', 'hrs', 'hour' or 'hours']
-    )?                    # End group, its insides must either fully match or not exist at all
-    \s*                   # Whitespace 0 to ∞ times
-    (?:                   # Group without capturing:
-        ([0-5]?[0-9])         # [Group 6: 0 to 59] with optional leading 0 for single digit numbers
-        \s*                   # Whitespace 0 to ∞ times
-        (m|mins?|minutes?)    # [Group 7: 'm', 'min', 'mins', 'minute' or 'minutes']
-    )?                    # End group, its insides must either fully match or not exist at all
-    \s*                   # Whitespace 0 to ∞ times
-    (?:                   # Group without capturing:
-        (                     # [Group 8: 
-            [0-5]?[0-9]           # 0 to 59, with optional leading 0 for single digit numbers
-            (?:[.,][0-9]*)?       # followed by optional: '.' or ',' followed by any digits 0 to ∞ times
-        )                     # ]
-        \s*                   # Whitespace 0 to ∞ times
-        (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
-    )?                    # End group, its insides must either fully match or not exist at all
-''', re.VERBOSE | re.IGNORECASE)
-
-def _parse_timedelta(s: str) -> dt.timedelta:
-    match = _TIMEDELTA_PARSE_PATTERN.match(s.strip())
-
-    if match is None:
-        raise fbe.TemporaryFeedbackError("Invalid timedelta format")
-
-    # Pairs of unit and value, possibly with single sign at the end
-    groups = [g for g in reversed(match.groups()) if g is not None]
-
-    if len(groups) < 2:
-        raise fbe.TemporaryFeedbackError("Timedelta format is either empty or only a sign")
-    
-    total_seconds = Decimal()
-    sign = 1
-
-    if groups[-1] in '-+':
-        if groups[-1] == '-':
-            sign = -1
-
-        groups.pop()
-
-    for i in range(0, len(groups), 2):
-        unit = groups[i][0].lower()
-        value = Decimal(groups[i + 1].replace('.', ',', 1))
-
-        if unit == 'd':
-            total_seconds += value * 86400
-        elif unit == 'h':
-            total_seconds += value * 3600
-        elif unit == 'm':
-            total_seconds += value * 60
-        else:
-            total_seconds += value
-    
-    try:
-        return dt.timedelta(seconds=float(total_seconds * sign))
-    except Exception:
-        raise fbe.TemporaryFeedbackError("Number too small or big")
+class AttributeTableT[T](TypedDict):
+    id: int
+    list_id: int
+    name: str
+    display_name: str
+    alias: list[str]
+    value_type: int
+    value_collection: None | list[CollectionItemT[T]] | CollectionTreeT[T]
+    min_value_slots: int
+    max_value_slots: int
+    unique_slots: bool
+    user_bound: bool
+    unique_in_list: bool
 
 def validate_collection_item[T](value_type: type[T], value: T, sort_value: int) -> None:
     if not isinstance(value, value_type):
@@ -135,6 +123,7 @@ def validate_collection_item[T](value_type: type[T], value: T, sort_value: int) 
 
 #------#   Attribute   #------#	
 
+@dataclass(frozen=True)
 class Attribute[T: AttributeValueTypeT]:
     """Represent an attribute of a Trickjump.
 
@@ -146,209 +135,48 @@ class Attribute[T: AttributeValueTypeT]:
     or other basic data types, which are especially supported by discord.py.
     """
 
+    id: int
+    list_: List
+    name: str
+    display_name: str
+    alias: set[str]
+    value_type: type[T]
+    value_collection: None | list[CollectionItemT[T]] | CollectionTreeT[T]
+    min_value_slots: int
+    max_value_slots: int
+    unique_slots: bool
+    user_bound: bool
+    unique_in_list: bool
+
     # --- CONSTANTS ---
 
-    # General
-    MAX_SYN_LEN = 32
-    MAX_ATTRIBUTES_PER_COMMUNITY = 50
-    MAX_VALUE_SLOTS = 32
-
-    TABLE_NAME = "attribute"
-
     # int | decimal
-    NUMBER_MAX: int = 2 ** 63 - 1
-    NUMBER_MIN: int = -NUMBER_MAX - 1
-    DECIMAL_PRECISION: int = decimal.getcontext().prec
-    INT_PART_MAX_LEN: int = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
-    DEC_PART_MAX_LEN: int = DECIMAL_PRECISION - INT_PART_MAX_LEN
-    DECIMAL_MAX_LEN: int = DECIMAL_PRECISION if DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
+    NUMBER_MAX: ClassVar[int] = 2 ** 63 - 1
+    NUMBER_MIN: ClassVar[int] = -NUMBER_MAX - 1
+    DECIMAL_PRECISION: ClassVar[int] = decimal.getcontext().prec
+    INT_PART_MAX_LEN: ClassVar[int] = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
+    DEC_PART_MAX_LEN: ClassVar[int] = DECIMAL_PRECISION - INT_PART_MAX_LEN
+    DECIMAL_MAX_LEN: ClassVar[int] = DECIMAL_PRECISION if DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
     
     # str
-    STR_MAX_LEN = 512
+    STR_MAX_LEN: ClassVar[int] = 512
 
     # Collection
-    COLLECTION_MAX_MEMORY = 1024 * 32
-    COLLECTION_MAX_ELEMS = 1024
+    COLLECTION_MAX_MEMORY: ClassVar[int] = 1024 * 32
+    COLLECTION_MAX_ELEMS: ClassVar[int] = 1024
 
-    MAX_DEPTH = 64
-
-    # --- CLASS CONSTANTS ---
-
-    _EDIT_LOCK = RLock()
-    _LOOKUP: dict[List, dict[str, 'Attribute']] = {}
-
-    SORT_KEY_LAST_NUMBER = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    MAX_DEPTH: ClassVar[int] = 64
     
-    # --- Init ---
+    # General
+    MAX_SYN_LEN: ClassVar[int] = 32
+    MAX_ATTRIBUTES_PER_COMMUNITY: ClassVar[int] = 50
+    MAX_VALUE_SLOTS: ClassVar[int] = 32
 
-    def __init__(
-        self, 
-        list_: List,
-        name: str,
-        alias: Iterable[str],
-        value_type: type[T],
-        value_collection: None | Sequence[CollectionItemT] | tree.TreeT[CollectionItemT],
-        min_value_slots: int,
-        max_value_slots: int,
-        unique_slots: bool,
-        unique_values_per_list: bool,
-        user_bound: bool
-    ):
-        with Attribute._EDIT_LOCK:
-            # --- BASIC ASSIGNMENTS ---
-            self._community = list_
-
-            if value_type not in set(vt.value for vt in AttributeValueTypeEnum):
-                raise TypeError
-            self._value_type = value_type
-
-            if min_value_slots < 0:
-                raise fbe.TemporaryFeedbackError
-            if max_value_slots < 1 or max_value_slots < min_value_slots or max_value_slots > Attribute.MAX_VALUE_SLOTS:
-                raise fbe.TemporaryFeedbackError
-            self._min_value_slots = min_value_slots
-            self._max_value_slots = max_value_slots
-
-            self._unique_slots = unique_slots
-
-            if unique_values_per_list and user_bound:
-                raise fbe.TemporaryFeedbackError("A user bound attribute cannot be set to be unique per list.")
-            
-            self._unique_value_per_list = unique_values_per_list
-            self._user_bound = user_bound
-
-            # --- NAME & ALIAS ---
-            self._name = self._normalize_and_validate_syn(name)
-            self._alias = set(self._normalize_and_validate_syn(a) for a in alias)
-            
-            # --- COLLECTION SETUP ---
-            self._collection_list: Opt[None | list[T]] = None
-            self._collection_tree: Opt[tree.Tree] = None
-
-            self._sort_value: dict[T, int] = {}
-            self._unnormalize: dict[T, T] = {}
-
-            if not value_collection:
-                pass
-            elif isinstance(value_collection, Sequence):
-                self._collection_list = []
-
-                for value in value_collection:
-                    v_norm = self._normalize_and_implement_value(value)
-                    self._collection_list.append(v_norm)
-                    
-                if len(self._collection_list) > Attribute.COLLECTION_MAX_ELEMS:
-                    raise fbe.TemporaryFeedbackError
-                
-                if sum(self.value_to_memory(v) for v in self._collection_list) > Attribute.COLLECTION_MAX_MEMORY:
-                    raise fbe.TemporaryFeedbackError
-            else:
-                try:
-                    self._collection_tree = tree.Tree(
-                        value_collection, 
-                        self._normalize_and_implement_value, 
-                        Attribute.MAX_DEPTH, 
-                        Attribute.COLLECTION_MAX_ELEMS, 
-                        Attribute.NUMBER_MAX
-                    )
-                except tree.TreeError as e:
-                    raise fbe.TemporaryFeedbackError(e)
-                
-                if sum(
-                    self.value_to_memory(n.value) 
-                    for n in self._collection_tree._node_lookup.values()
-                ) > Attribute.COLLECTION_MAX_MEMORY:
-                    raise fbe.TemporaryFeedbackError
-            
-            # --- DANGER ZONE ---
-            with queries.connected(list_._community):
-                
-            lookup = Attribute._LOOKUP.setdefault(list_, {})
-
-            for syn in (name, *alias):
-                lookup[syn] = self
-                
-            
+    TABLE_NAME: ClassVar[str] = "attribute"
+    SORT_KEY_LAST_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
     @classmethod
-    def init_for_discord_command(
-        cls,
-        list_: List,
-        name: str,
-        alias: str,
-        value_type: AttributeValueTypeEnum,
-        value_collection: Opt[str],
-        min_value_slots: int,
-        max_value_slots: int,
-        unique_slots: bool,
-        unique_values_per_list: bool,
-        user_bound: bool
-    ) -> 'Attribute':
-        if value_collection is None or not value_collection.strip():
-            return Attribute(
-                list_,
-                name,
-                alias,
-                value_type.value,  
-                None,
-                min_value_slots,
-                max_value_slots,
-                unique_slots,
-                unique_values_per_list,
-                user_bound
-            )
-
-        try:
-            value_collection_obj = json.loads(value_collection)
-        except json.JSONDecodeError:
-            raise fbe.TemporaryFeedbackError
-        
-        if not isinstance(value_collection_obj, (list, dict)):
-            raise fbe.TemporaryFeedbackError("Must be list or tree")
-        
-        if not value_collection_obj:
-            raise fbe.TemporaryFeedbackError("Empty collection")
-
-        value_collection_result: list[CollectionItemT[T]] | tree.TreeT[CollectionItemT[T]]
-        value_type.value = typing.cast(type[T], value_type.value)   # type: ignore
-
-        if isinstance(value_collection_obj, list):
-            value_collection_result = []
-
-            for item in value_collection_obj:
-                if not isinstance(item, list):
-                    raise fbe.TemporaryFeedbackError("Not a list of data")
-                
-                if len(item) != len(CollectionItemT._fields):
-                    raise fbe.TemporaryFeedbackError("Not right length")
-                
-                coll_item = CollectionItemT(cls._from_str_singular(item[0], value_type.value) , item[1])
-                validate_collection_item(value_type.value, *coll_item)
-
-                value_collection_result.append(coll_item)
-        else:
-            value_collection_obj: JsonParsableTreeT[str]
-
-            value_collection_result = cls._parse_tree(
-                value_type.value,
-                value_collection_obj
-            )
-
-        return Attribute(
-            list_,
-            name, 
-            alias, 
-            value_type.value,
-            value_collection_result,
-            min_value_slots,
-            max_value_slots,
-            unique_slots,
-            unique_values_per_list,
-            user_bound
-        )
-
-    @classmethod
-    def _parse_tree(cls, value_type: type[T], tree_: JsonParsableTreeT[str]) -> tree.TreeT[CollectionItemT]:
+    def _parse_tree(cls, value_type: type[T], tree_: CollectionTreeT[str]) -> tree.TreeT[CollectionItemT]:
         validate_collection_item(
             value_type, 
             tree_.get('value', None),
@@ -361,7 +189,7 @@ class Attribute[T: AttributeValueTypeT]:
         result: tree.TreeT[CollectionItemT[T]] = {}
 
         for sub_tree in tree_['children']:  # type: ignore
-            sub_tree: JsonParsableTreeT[str]  # For some reason type checker thinks this is str
+            sub_tree: CollectionTreeT[str]  # For some reason type checker thinks this is str
 
             # First parse tree as it checks if the keys even exist for k
             v = cls._parse_tree(value_type, sub_tree)

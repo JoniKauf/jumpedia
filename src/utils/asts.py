@@ -2,13 +2,13 @@ import ast
 from typing import Iterable, Optional as Opt
 from trickjump import attribute as attrs
 from trickjump.catalog import List
-from trickjump.trickjump import Trickjump
+from trickjump.trickjump import Task
 from utils import devtools as dev
 
 class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
-    def __init__(self, trickjumps: Iterable[Trickjump]) -> None:
+    def __init__(self, trickjumps: Iterable[Task]) -> None:
         self.parents = []
-        self.filtered: set[Trickjump] = set(trickjumps)
+        self.filtered: set[Task] = set(trickjumps)
 
         super().__init__()
 
@@ -47,7 +47,7 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
                 self.filtered = self.visit(n)
 
         elif isinstance(node.op, ast.Or):
-            result: set[Trickjump] = set()
+            result: set[Task] = set()
 
             for n in node.values:
                 result |= self.visit(n)
@@ -97,9 +97,9 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
         attr: attrs.AttrNormalT = self.visit(node.left)
         literal: str = self.visit(node.comparators[0])
         
-        result: set[Trickjump] = set()
+        result: set[Task] = set()
 
-        if Trickjump.field_value_type_info()[attr.value_cls]:
+        if Task.field_value_type_info()[attr.value_cls]:
             for tj in self.filtered:
                 attr_obj = tj.get_attr(attr.value_cls.NAME)
 
@@ -138,7 +138,7 @@ code = """name == 'Vault' or name == 'Metro Impossible'"""
 tree = ast.parse(code, mode='eval')
 
 with dev.timed("Get all jumps"):
-    jumps = Trickjump.get_all()
+    jumps = Task.get_all()
 
 with dev.timed("Create visitor"):
     visitor = TrickjumpFilterNodeVisitor(jumps)
