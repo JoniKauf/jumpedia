@@ -3,8 +3,8 @@ import functools
 import json
 from typing import TYPE_CHECKING, Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, NewType, Optional as Opt
 from types import EllipsisType
-from trickjump import jumpedia
-from trickjump.community import Community
+from structures import jumpedia
+from structures.community import Community
 import sqlite3
 import discord as dc
 
@@ -16,7 +16,7 @@ import mariadb
 from discordtools import feedbackerrors as fbe
 
 if TYPE_CHECKING:
-    from trickjump.jumpedia import Jumpedia
+    from structures.jumpedia import Jumpedia
 
 @functools.lru_cache(maxsize=1)
 def __get_connection_data() -> dict[str, Any]:
@@ -24,7 +24,7 @@ def __get_connection_data() -> dict[str, Any]:
 
 @contextmanager
 def connected(db: Opt[Community | Jumpedia], auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
-    from trickjump.jumpedia import Jumpedia
+    from structures.jumpedia import Jumpedia
 
     if db is None:
         database = {}

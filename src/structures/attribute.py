@@ -15,14 +15,16 @@ from collections2.range import Range
 from decimal import Decimal
 import decimal
 from structures.list import List
-from utils import text, timetools
+from utils import text, timetools, jsonutils
 
 
-#------#   Module Constants & Helper Functions   #------#
+#------#   Module Constants, Types & Helper Functions   #------#
 
 type AttrT = 'Attribute'
 
-# As Type
+
+# --- Attribute Value Type --- #
+
 type AttributeValueTypeT = (
     bool | int | Decimal | 
     dt.time | dt.date | dt.datetime | dt.timedelta | 
@@ -76,7 +78,6 @@ class AttributeValueType[T: AttributeValueTypeT]:
         except KeyError as e:
             raise LookupError(*e.args)
 
-            
 AttributeValueType(1, 'boolean', bool)
 AttributeValueType(2, 'integer', int)
 AttributeValueType(3, 'decimal', Decimal)
@@ -90,35 +91,49 @@ AttributeValueTypeEnum = enum.Enum(
     'AttributeValueTypeEnum', {avt.name: avt for avt in AttributeValueType._attribute_value_types}
 )
 
-class CollectionTreeByUserT(TypedDict, total=True):
+# --- Collection Types --- #
+
+class UserCollectionListItemT(TypedDict, total=True):
     value: str
     sort_value: int
-    children: NotRequired[list['CollectionTreeByUserT']]
+type UserCollectionListT = list[UserCollectionListItemT]
 
 @dataclass(frozen=True)
-class CollectionTreeNode[T]:
+class CollectionListItem[T]:
     value: T
     display_value: T
     sort_value: int
-    nodes: 'CollectionTree[T]'
+type CollectionListT[T] = list[CollectionListItem[T]]
+
+
+class UserCollectionTreeItemT(TypedDict, total=True):
+    value: str
+    sort_value: int
+    children: NotRequired[list['UserCollectionTreeItemT']]
+type UserCollectionTreeT = list[UserCollectionTreeItemT]
 
 @dataclass(frozen=True)
-class CollectionTree[T]:
-    nodes: list[CollectionTreeNode[T]] 
-
-CollectionTree([Coll])
-class CollectionItemT[T](NamedTuple):
+class CollectionTreeItem[T]:
     value: T
+    display_value: T
     sort_value: int
+    nodes: 'CollectionTreeT[T]'
+type CollectionTreeT[T] = list[CollectionTreeItem[T]]
+
+
+type UserCollectionT = None | UserCollectionListT | UserCollectionTreeT
+type CollectionT[T] = None | CollectionListT[T] | CollectionTreeT[T]
+
 
 class AttributeTableT[T](TypedDict):
     id: int
     list_id: int
     name: str
     display_name: str
+    sort_value: int
     alias: list[str]
     value_type: int
-    value_collection: None | list[CollectionItemT[T]] | CollectionTreeByUserT[T]
+    value_collection: bytes
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
@@ -126,6 +141,7 @@ class AttributeTableT[T](TypedDict):
     unique_in_list: bool
 
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
+    
 
 #------#   Attribute   #------#	
 
@@ -141,13 +157,14 @@ class Attribute[T: AttributeValueTypeT]:
     or other basic data types, which are especially supported by discord.py.
     """
 
-    id: int
     list_: List
+    id: int 
     name: str
     display_name: str
+    sort_value: int
     alias: set[str]
     value_type: AttributeValueType
-    value_collection: None | list[CollectionItemT[T]] | CollectionTreeByUserT[T]
+    value_collection: CollectionT
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
@@ -175,78 +192,24 @@ class Attribute[T: AttributeValueTypeT]:
     
     # General
     MAX_SYN_LEN: ClassVar[int] = 32
+    MAX_ALIASES: ClassVar[int] = 31
     MAX_ATTRIBUTES_PER_COMMUNITY: ClassVar[int] = 50
     MAX_VALUE_SLOTS: ClassVar[int] = 32
 
     TABLE_NAME: ClassVar[str] = "attribute"
     SORT_KEY_LAST_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
-    @classmethod
-    def _parse_tree(cls, value_type: type[T], tree_: CollectionTreeByUserT[str]) -> tree.TreeT[CollectionItemT]:
-        validate_collection_item(
-            value_type, 
-            tree_.get('value', None),
-            tree_.get('sort_value', None)
-        )
-
-        if not isinstance(tree_['children'], dict):
-            raise fbe.TemporaryFeedbackError("Not right type for children, must be dict")
-        
-        result: tree.TreeT[CollectionItemT[T]] = {}
-
-        for sub_tree in tree_['children']:  # type: ignore
-            sub_tree: CollectionTreeByUserT[str]  # For some reason type checker thinks this is str
-
-            # First parse tree as it checks if the keys even exist for k
-            v = cls._parse_tree(value_type, sub_tree)
-            k = CollectionItemT(cls._parse_str_singular(sub_tree['value'], value_type), sub_tree['sort_value'])
-
-            result[k] = v
-
-        return result
-
-    def _normalize_and_validate_syn(self, syn: str) -> str:
-        syn = text.fix_whitespace(syn.strip().lower(), '_')
-
-        if not syn:
-            raise fbe.TemporaryFeedbackError
-        
-        if len(syn) > Attribute.MAX_SYN_LEN:
-            raise fbe.TemporaryFeedbackError
-        
-        if syn in Attribute._LOOKUP.setdefault(self._community, {}):
-            raise fbe.TemporaryFeedbackError
-
-        if illegal_chars := text.invalid_identifier_chars(syn):
-            raise fbe.TemporaryFeedbackError(illegal_chars)
-        
-        return syn
-    
-    def _normalize_and_implement_value(self, value: CollectionItemT) -> T:
-        unnormalized, sort_value = value
-
-        if not isinstance(unnormalized, self._value_type):
-            raise TypeError
-        
-        if sort_value > Attribute.NUMBER_MAX:
-            raise fbe.TemporaryFeedbackError
-        
-        normalized = self.normalize(unnormalized)
-
-        self._sort_value[normalized] = sort_value
-        
-        prev_unnormalized = self._unnormalize.get(normalized, None)
-
-        if prev_unnormalized is None:
-            self._unnormalize[normalized] = unnormalized
-        else: 
-            raise fbe.TemporaryFeedbackError()
-        
-        return normalized
-    
-
     # --- Methods ---
 
+    @property
+    def syns(self) -> set[str]:
+        return {self.name} | self.alias
+    
+    @classmethod
+    def _check_generic_number_valid(cls, number: int | float | Decimal) -> None:
+        if not (Attribute.NUMBER_MIN < number < Attribute.NUMBER_MAX):
+            raise fbe.OutsideOfValidRange(number, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+        
     @classmethod
     def _parse_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
         if not isinstance(s, str):
@@ -264,29 +227,21 @@ class Attribute[T: AttributeValueTypeT]:
                     raise fbe.NotAProperValue("boolean", s)
 
             case builtins.int:
-                if len(s) > Attribute.INT_PART_MAX_LEN:
-                    raise fbe.OutsideOfValidRange(s, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
-
                 try:
                     result = int(s)
                 except Exception:
                     raise fbe.NotAProperValue("integer", s)
-
-                if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
-                    raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
                 
+                cls._check_generic_number_valid(result)
+    
             case decimal.Decimal:
-                if len(s) > Attribute.DECIMAL_MAX_LEN:
-                    raise fbe.OutsideOfValidRange(s, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
-                
                 try:
                     result = Decimal(s)
                     result = result.quantize(Decimal(f"1E-{Attribute.DEC_PART_MAX_LEN}"))
                 except Exception:
                     raise fbe.NotAProperValue("decimal", s)
                 
-                if not (Attribute.NUMBER_MIN < result < Attribute.NUMBER_MAX):
-                    raise fbe.OutsideOfValidRange(result, Attribute.NUMBER_MIN, Attribute.NUMBER_MAX)
+                cls._check_generic_number_valid(result)
             
             case dt.time | dt.date | dt.datetime:
                 # If a date is in the type
@@ -316,12 +271,12 @@ class Attribute[T: AttributeValueTypeT]:
         
         return result  # type: ignore
     
-    def parse_str(self, s: str, keep_normalized: bool, value_type: Opt[type[T]] = None) -> list[T]:
+    def parse_str(self, s: str, keep_normalized: bool, value_type: Opt[AttributeValueType] = None) -> list[T]:
         if not (s := s.strip()):
             return []
         
         try:
-            v: str | list[str] = json.loads(s)
+            v: str | list[str] = jsonutils.json_loads_safe(s, 1)
         except (json.JSONDecodeError, RecursionError):
             raise fbe.TemporaryFeedbackError
 
@@ -337,7 +292,7 @@ class Attribute[T: AttributeValueTypeT]:
         else:
             raise fbe.TemporaryFeedbackError
         
-        value_type = value_type or self._value_type
+        value_type = value_type or self.value_type
 
         converted: list[T] = [self._parse_str_singular(elem, value_type) for elem in v]
 

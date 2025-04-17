@@ -1,7 +1,10 @@
+import decimal
+import json
 import re
 import string
-from typing import Container, Iterable
+from typing import Any, Container, Iterable
 from discordtools import feedbackerrors as fbe
+import datetime as dt
 
 PASCAL_REPLACE_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 
@@ -20,23 +23,36 @@ IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + '_')
 def invalid_identifier_chars(s: str) -> set[str]:
     return set(char for char in s if char not in IDENTIFIER_CHARS)
 
+def norm(s: str) -> str:
+    return fix_whitespace(s.casefold(), '_', True) 
 
-def create_name_and_display_name(bad_name: str, identifiers_only: bool, existing_names: Iterable[str] = ()) -> tuple[str, str]:
-    tidy_name: str = bad_name.strip()
+def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> set[str]:
+    result: set[str] = set()
 
-    name: str = fix_whitespace(tidy_name, '_', False).lower()
+    for alias in aliases:
+        alias = norm(alias)
 
+        if len(alias) > max_length:
+            raise 
+
+    if (length := len(result)) > max_aliases:
+        raise fbe.TemporaryFeedbackError(length, max_aliases)
+    
+    return result
+
+
+def create_name_and_display_name(bad_name: str, identifiers_only: bool, max_length: int, existing_names: Iterable[str]) -> tuple[str, str]:
+    name: str = norm(bad_name)
+    
+    if (length := len(name)) > max_length:
+        raise fbe.TemporaryFeedbackError(length, max_length)
+    
     if identifiers_only and (inv := invalid_identifier_chars(name)):
         raise fbe.TemporaryFeedbackError(inv)
     
     if name in existing_names:
         raise fbe.TemporaryFeedbackError()
     
-    display_name: str = fix_whitespace(tidy_name, " ", False)
+    display_name: str = fix_whitespace(bad_name, ' ', False)
 
     return (name, display_name)
-        
-    
-
-
-    
