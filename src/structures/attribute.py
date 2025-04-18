@@ -93,19 +93,6 @@ AttributeValueTypeEnum = enum.Enum(
 
 # --- Collection Types --- #
 
-class UserCollectionListItemT(TypedDict, total=True):
-    value: str
-    sort_value: int
-type UserCollectionListT = list[UserCollectionListItemT]
-
-@dataclass(frozen=True)
-class CollectionListItem[T]:
-    value: T
-    display_value: T
-    sort_value: int
-type CollectionListT[T] = list[CollectionListItem[T]]
-
-
 class UserCollectionTreeItemT(TypedDict, total=True):
     value: str
     sort_value: int
@@ -121,11 +108,11 @@ class CollectionTreeItem[T]:
 type CollectionTreeT[T] = list[CollectionTreeItem[T]]
 
 
-type UserCollectionT = None | UserCollectionListT | UserCollectionTreeT
-type CollectionT[T] = None | CollectionListT[T] | CollectionTreeT[T]
+type UserCollectionT = None | UserCollectionTreeT
+type CollectionT[T] = None | CollectionTreeT[T]
 
 
-class AttributeTableT[T](TypedDict):
+class AttributeTableT(TypedDict):
     id: int
     list_id: int
     name: str
