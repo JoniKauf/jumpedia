@@ -47,7 +47,7 @@ class List:
         bad_aliases: set[str],
         sort_value: int,
         value_type: attr.AttributeValueType[T],
-        str_value_collection: str | None,
+        user_value_collection: str | None,
         min_value_slots: int,
         max_value_slots: int,
         unique_slots: bool,
@@ -66,13 +66,34 @@ class List:
             
             Attribute._check_generic_number_valid(sort_value)
             
+            if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
+                raise fbe.TemporaryFeedbackError()
+
+            if not (0 <= min_value_slots <= max_value_slots):
+                raise fbe.TemporaryFeedbackError()
+            
+            with queries.connected(self.community) as (conn, cursor):
+                cursor.execute("""
+
+                """)
+                
             obj = Attribute(
                 self,
                 id,
                 name,
                 display_name,
+                sort_value,
                 alias,
-
+                value_type,
+                List.parse_user_collection(
+                    jsonutils.json_loads_safe(user_value_collection, Attribute.MAX_DEPTH),
+                    value_type,
+                ),
+                min_value_slots,
+                max_value_slots,
+                unique_slots,
+                user_bound,
+                unique_in_list
             ) 
 
             return obj
@@ -87,22 +108,9 @@ class List:
             return None
         
         if not isinstance(user_value_collection, list):
-            raise fbe.TemporaryFeedbackError("")
-
-    @classmethod
-    def parse_user_collection_list[T: attr.AttributeValueTypeT](
-        cls,
-        user_collection_list: attr.UserCollectionListT,
-        value_type: attr.AttributeValueType[T]
-    ) -> attr.CollectionListT[T]:
-        result: attr.CollectionListT = []
-
-        for item in user_collection_list:
-            result.append(attr.CollectionListItem(
-                *cls.extract_generic_data_from_collection_item(item, value_type)
-            ))
-
-        return result
+            raise fbe.TemporaryFeedbackError("Not a tree")
+        
+        return cls.parse_user_collection_tree(user_value_collection, value_type)
 
     
     @classmethod
@@ -133,7 +141,7 @@ class List:
     @classmethod
     def extract_generic_data_from_collection_item[T: attr.AttributeValueTypeT](
         cls, 
-        item: attr.UserCollectionListItemT | attr.UserCollectionTreeItemT,
+        item: attr.UserCollectionTreeItemT,
         value_type: attr.AttributeValueType[T]
     ) -> tuple[T, T, int]:
         try:
