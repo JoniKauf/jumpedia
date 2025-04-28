@@ -81,6 +81,25 @@ def get_database_names(meta: bool = False, system: bool = False) -> list[str]:
     return final
 
 
+class ParamHelper:
+    DEFAULT_PLACEHOLDER: str = "?"
+
+    def __init__(self, placeholder: str = DEFAULT_PLACEHOLDER) -> None:
+        self._params: list[Any] = []
+        self._placeholder = placeholder
+
+    def __call__(self, param: Any) -> str:
+        self._params.append(param)
+        return self._placeholder
+    
+    def __getitem__(self, index: int):
+        return self._params[index]
+    
+    def params(self) -> list[Any]:
+        return self._params.copy()
+    
+    
+
 # def collapse_rows[T: Hashable](
 #     rows: list[dict[str, T | Hashable]], 
 #     collapse_columns: str, 

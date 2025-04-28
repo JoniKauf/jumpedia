@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, ClassVar, Self, TypedDict, Unpack
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, Unpack
 from threading import RLock
 
 import mariadb
@@ -35,49 +35,108 @@ class Community:
     DATABASE_PREFIX: ClassVar[str] = "c_"
     META_TABLE_NAME: ClassVar[str] = "community"
     
-    def __hash__(self) -> int:
-        return hash(self.id)
-
-    def create_list(self, bad_name: str) -> List:
-        with self.edit_lock:
+    @classmethod
+    def create(cls, jumpedia: Jumpedia, bad_name: str) -> 'Community':
+        with jumpedia.edit_lock:
             name, display_name = text.create_name_and_display_name(
                 bad_name, 
-                True, 
+                True,
                 Community.MAX_NAME_LENGTH,
-                (list.name for list in self.get_lists())
+                (c.name for c in jumpedia.get_communities())
             )
             
-            INVALID_ENDING = List.__name__.lower()
+            INVALID_ENDING = Community.__name__.lower()
 
             if name.endswith(INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out `{INVALID_ENDING}` from the name, as it is redundant!")
+                raise fbe.TemporaryFeedbackError(f"Please leave out '{INVALID_ENDING}' from the name as it is redundant!")
             
-            with queries.connected(self) as (conn, cursor):
+            database_name = f"{Community.DATABASE_PREFIX}{name}"
+
+            with queries.connected(jumpedia) as (conn, cursor):
+                p = queries.ParamHelper()
+
                 cursor.execute(f"""
                     SELECT *
-                    FROM ?
-                    WHERE name = ?
-                """, [List.TABLE_NAME, name])
+                    FROM {p(Community.META_TABLE_NAME)}
+                    WHERE name = {p(name)}
+                """, p.params())
 
-                result_opt: Opt[list_module.ListTableT] = cursor.fetchone()
+                result_opt: Opt[CommunityTableT] = cursor.fetchone()
 
                 if result_opt:
-                    raise fbe.TemporaryFeedbackError(f"{List.TABLE_NAME.title()} with that name exists already")
+                    raise fbe.TemporaryFeedbackError(f"{Community.META_TABLE_NAME.title()} with that name exists already")
                 
                 cursor.execute("""
                     INSERT INTO ?
-                    (name, display_name)
-                    VALUES (?, ?)
-                """, [List.TABLE_NAME, name, display_name])
-            
-            obj = List(
-                cursor.lastrowid,  # type: ignore
-                name,
-                display_name,
-                self
-            ) 
+                    (name, display_name, database_name)
+                    VALUES (?, ?, ?)
+                """, [Community.META_TABLE_NAME, name, display_name, database_name])
+                
+                obj = Community(
+                    jumpedia,
+                    cursor.lastrowid,  # type: ignore
+                    name,
+                    display_name,
+                    database_name
+                )  
+
+                # If anything goes wrong here, exception will cause it to 
+                # rollback step above, where we add the community to meta table
+                obj._init_database()
 
             return obj
+        
+    def _init_database(self) -> None:
+        with self.edit_lock:
+            # Create database
+
+            # Database either already exists or some other random error
+            # happened. Anyways, this should not be able to happen!! If so
+            # this makes it abort.
+            with queries.connected(None) as (conn, cursor):
+                cursor.execute(f"CREATE DATABASE `{self.jumpedia.database_name}`")
+            
+            # Create tables
+            with queries.connected(self):
+                cursor.execute("""
+                    CREATE TABLE ? (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        community_id INT NOT NULL,
+                        name VARCHAR(?) NOT NULL UNIQUE,
+                        display_name VARCHAR(?) NOT NULL UNIQUE,
+                        
+                        CHECK (name REGEXP '^[a-z_]+$')
+                    )
+                """, [List.TABLE_NAME, List.MAX_NAME_LENGTH, List.MAX_NAME_LENGTH])
+
+                p = queries.ParamHelper()
+
+                cursor.execute(f"""
+                    CREATE TABLE {p(Attribute.TABLE_NAME)} (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        list_id INT NOT NULL,
+                        name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
+                        display_name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
+                        sort_value INT NOT NULL,
+                        alias JSON NOT NULL,
+                        value_type INT NOT NULL,
+                        value_collection BLOB,
+                        min_value_slots INT NOT NULL,
+                        max_value_slots INT NOT NULL,
+                        unique_slots BOOL NOT NULL,
+                        user_bound BOOL NOT NULL,
+                        unique_in_list BOOL NOT NULL,
+
+                        FOREIGN KEY (list_id) REFERENCES {p(List.TABLE_NAME)}(id)
+                            ON DELETE RESTRICT
+                        CHECK (name REGEXP '^[a-z_]+$'),
+                        CHECK (display_name REGEXP '^[a-zA-Z ]+$'),
+                        CHECK (NOT (user_bound AND unique_in_list))
+                    )
+                """, p.params())
+        
+    def __hash__(self) -> int:
+        return hash(self.id)
     
     def get_lists(self) -> list[List]:
         with queries.connected(self) as (conn, cursor):
@@ -91,10 +150,10 @@ class Community:
 
         for l_data in result:
             lists.append(List(
+                self,
                 l_data['id'],
                 l_data['name'],
                 l_data['display_name'],
-                self
             ))
 
         return lists

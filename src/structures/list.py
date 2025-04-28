@@ -25,10 +25,10 @@ class ListTableT(TypedDict):
 
 @dataclass(frozen=True, kw_only=False)
 class List:
+    community: Community
     id: int
     name: str
     display_name: str
-    community: Community
 
     edit_lock: RLock = field(init=False, default_factory=RLock)
 
@@ -40,129 +40,49 @@ class List:
 
     def __hash__(self) -> int:
         return hash(self.id)
-
-    def create_attribute[T: attr.AttributeValueTypeT](
-        self,
-        bad_name: str,
-        bad_aliases: set[str],
-        sort_value: int,
-        value_type: attr.AttributeValueType[T],
-        user_value_collection: str | None,
-        min_value_slots: int,
-        max_value_slots: int,
-        unique_slots: bool,
-        user_bound: bool,
-        unique_in_list: bool,
-    ):
-        with self.edit_lock:
+    
+    @classmethod
+    def create(cls, community: Community, bad_name: str) -> 'List':
+        with community.edit_lock:
             name, display_name = text.create_name_and_display_name(
                 bad_name, 
                 True, 
-                Attribute.MAX_SYN_LEN, 
-                (a.name for a in self.get_attributes())
+                Community.MAX_NAME_LENGTH,
+                (list.name for list in community.get_lists())
             )
-
-            alias = text.fix_aliases(bad_aliases, Attribute.MAX_SYN_LEN, Attribute.MAX_ALIASES)
             
-            Attribute._check_generic_number_valid(sort_value)
-            
-            if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
-                raise fbe.TemporaryFeedbackError()
+            INVALID_ENDING = List.__name__.lower()
 
-            if not (0 <= min_value_slots <= max_value_slots):
-                raise fbe.TemporaryFeedbackError()
+            if name.endswith(INVALID_ENDING):
+                raise fbe.TemporaryFeedbackError(f"Please leave out `{INVALID_ENDING}` from the name, as it is redundant!")
             
-            with queries.connected(self.community) as (conn, cursor):
-                cursor.execute("""
+            with queries.connected(community) as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT *
+                    FROM ?
+                    WHERE name = ?
+                """, [List.TABLE_NAME, name])
 
-                """)
+                result_opt: ListTableT | None = cursor.fetchone()
+
+                if result_opt:
+                    raise fbe.TemporaryFeedbackError(f"{List.TABLE_NAME.title()} with that name exists already")
                 
-            obj = Attribute(
-                self,
-                id,
+                cursor.execute("""
+                    INSERT INTO ?
+                    (name, display_name)
+                    VALUES (?, ?)
+                """, [List.TABLE_NAME, name, display_name])
+            
+            obj = List(
+                community,
+                cursor.lastrowid,  # type: ignore
                 name,
-                display_name,
-                sort_value,
-                alias,
-                value_type,
-                List.parse_user_collection(
-                    jsonutils.json_loads_safe(user_value_collection, Attribute.MAX_DEPTH),
-                    value_type,
-                ),
-                min_value_slots,
-                max_value_slots,
-                unique_slots,
-                user_bound,
-                unique_in_list
+                display_name
             ) 
 
             return obj
-
-    @classmethod
-    def parse_user_collection[T: attr.AttributeValueTypeT](
-        cls, 
-        user_value_collection: attr.UserCollectionT, 
-        value_type: attr.AttributeValueType[T]
-    ) -> attr.CollectionT:
-        if user_value_collection is None:
-            return None
         
-        if not isinstance(user_value_collection, list):
-            raise fbe.TemporaryFeedbackError("Not a tree")
-        
-        return cls.parse_user_collection_tree(user_value_collection, value_type)
-
-    
-    @classmethod
-    def parse_user_collection_tree[T: attr.AttributeValueTypeT](
-        cls, 
-        user_collection_tree: attr.UserCollectionTreeT, 
-        value_type: attr.AttributeValueType[T]
-    ) -> attr.CollectionTreeT[T]:
-        result: attr.CollectionTreeT = []
-
-        for item in user_collection_tree:
-            value, display_value, sort_value = cls.extract_generic_data_from_collection_item(item, value_type)
-
-            sub_trees = item.get('children', [])
-
-            if not isinstance(sub_trees, list):
-                raise fbe.TemporaryFeedbackError("Not a sub tree")
-            
-            result.append(attr.CollectionTreeItem(
-                value,
-                display_value,
-                sort_value,
-                List.parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type) 
-            ))
-
-        return result
-    
-    @classmethod
-    def extract_generic_data_from_collection_item[T: attr.AttributeValueTypeT](
-        cls, 
-        item: attr.UserCollectionTreeItemT,
-        value_type: attr.AttributeValueType[T]
-    ) -> tuple[T, T, int]:
-        try:
-            sort_value: int = int(item['sort_value'])
-        except KeyError as e:
-            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-        except ValueError as e:
-            raise fbe.TemporaryFeedbackError("Not an int")
-            
-        Attribute._check_generic_number_valid(sort_value)
-
-        try:
-            bad_value = item['value']
-        except KeyError as e:
-            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-        
-        display_value: T = Attribute._parse_str_singular(bad_value, value_type)
-        value: T = Attribute.normalize(display_value)
-
-        return (value, display_value, sort_value)
-    
     def get_attributes(self) -> list[Attribute]:
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute("""
@@ -192,11 +112,6 @@ class List:
 
         return attributes
     
-    
-        
-        
-
-
     @classmethod
     def filter(cls, list_: list[Task] | Self, expression: str) -> list[Task]:
         ...
