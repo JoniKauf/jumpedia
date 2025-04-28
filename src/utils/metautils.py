@@ -14,6 +14,8 @@ def express(f_string_expr: str) -> tuple[str, str]:
     return expr.strip(), result.strip()
 
 
+
+
 # From: https://stackoverflow.com/a/6798042/20895654
 class Singleton(type):
     """If a class uses this metaclass, it will behave like a singleton.
