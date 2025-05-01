@@ -131,6 +131,10 @@ def _parse_user_collection[T: AttributeValueTypeT](
     
     tree = _parse_user_collection_tree(user_value_collection, value_type, yet_empty_lookup)
 
+    _add_roots(tree, None)
+
+    return tree
+
 def _add_roots[T: AttributeValueTypeT](
     tree: CollectionTreeT[T],
     root: CollectionTreeItem[T] | None
@@ -262,7 +266,7 @@ class Attribute[T: AttributeValueTypeT]:
     alias: set[str]
     value_type: AttributeValueType
     value_collection: CollectionT
-    value_collection_lookup: dict[T, CollectionTreeItem]  # Generated, not in DB
+    value_collection_lookup: dict[T, CollectionTreeItem] = field(init=False, default_factory=dict)  # Generated, not in DB
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
@@ -271,6 +275,8 @@ class Attribute[T: AttributeValueTypeT]:
 
     # --- Methods ---
 
+    def __post_init__(self) -> None:
+        self.value_collection_lookup = _
     @classmethod
     def create(
         cls,
