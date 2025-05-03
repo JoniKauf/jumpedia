@@ -121,7 +121,6 @@ type CollectionT[T] = None | CollectionTreeT[T]
 def _parse_user_collection[T: AttributeValueTypeT](
     user_value_collection: UserCollectionT, 
     value_type: AttributeValueType[T],
-    yet_empty_lookup: dict[T, CollectionTreeItem[T]]
 ) -> CollectionT:
     if user_value_collection is None:
         return None
@@ -129,7 +128,7 @@ def _parse_user_collection[T: AttributeValueTypeT](
     if not isinstance(user_value_collection, list):
         raise fbe.TemporaryFeedbackError("Not a tree")
     
-    tree = _parse_user_collection_tree(user_value_collection, value_type, yet_empty_lookup)
+    tree = _parse_user_collection_tree(user_value_collection, value_type)
 
     _add_roots(tree, None)
 
@@ -147,7 +146,6 @@ def _add_roots[T: AttributeValueTypeT](
 def _parse_user_collection_tree[T: AttributeValueTypeT](
     user_collection_tree: UserCollectionTreeT, 
     value_type: AttributeValueType[T],
-    yet_empty_lookup: dict[T, CollectionTreeItem[T]],
 ) -> CollectionTreeT[T]:
     result: CollectionTreeT = []
 
@@ -163,11 +161,10 @@ def _parse_user_collection_tree[T: AttributeValueTypeT](
             value,
             display_value,
             sort_value,
-            _parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type, yet_empty_lookup)
+            _parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type)
         )
 
         result.append(item)
-        yet_empty_lookup[value] = item
 
     return result
 
@@ -194,7 +191,19 @@ def _extract_generic_data_from_collection_item[T: AttributeValueTypeT](
 
     return (value, display_value, sort_value)
 
+def _create_collection_lookup[T: AttributeValueTypeT](
+    collection_tree: CollectionTreeT[T],
+    yet_empty_collection: dict[T, CollectionTreeItem[T]]
+) -> dict[T, CollectionTreeItem[T]]:
+    for item in collection_tree:
+        if item.value in yet_empty_collection:
+            raise fbe.TemporaryFeedbackError()
+        
+        yet_empty_collection[item.value] = item
 
+        _create_collection_lookup(item.nodes, yet_empty_collection)
+    
+    return yet_empty_collection
 
 # --- Attribute Table --- #
 
