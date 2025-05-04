@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True, kw_only=False)
 class Jumpedia(metaclass=metautils.Singleton):
+    id: int = field(init=False, default=1)
     database_name: str = field(init=False, default='meta')
     edit_lock: RLock = field(init=False, default_factory=RLock)
     
@@ -40,6 +41,12 @@ class Jumpedia(metaclass=metautils.Singleton):
                 )
             """, [Community.META_TABLE_NAME, *([Community.MAX_NAME_LENGTH] * 3)])
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Jumpedia) and self.id == value.id
+        
     def get_communities(self) -> list[Community]:
         with queries.connected(self) as (conn, cursor):
             cursor.execute("""

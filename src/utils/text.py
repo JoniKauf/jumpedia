@@ -23,8 +23,8 @@ IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + '_')
 def invalid_identifier_chars(s: str) -> set[str]:
     return set(char for char in s if char not in IDENTIFIER_CHARS)
 
-def norm(s: str) -> str:
-    return fix_whitespace(s.casefold(), '_', True) 
+def norm(s: str, whitespace_repl: str = '_') -> str:
+    return fix_whitespace(s.casefold(), whitespace_repl, True) 
 
 def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> set[str]:
     result: set[str] = set()

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, Unpack
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, TypedDict, Unpack
 from threading import RLock
 
 import mariadb
@@ -31,9 +31,10 @@ class Community:
 
     edit_lock: RLock = field(init=False, default_factory=RLock)
 
-    MAX_NAME_LENGTH: ClassVar[int] = 50
-    DATABASE_PREFIX: ClassVar[str] = "c_"
-    META_TABLE_NAME: ClassVar[str] = "community"
+    MAX_NAME_LENGTH: ClassVar[Final[int]] = 50
+    DATABASE_PREFIX: ClassVar[Final[str]] = "c_"
+    META_TABLE_NAME: ClassVar[Final[str]] = __name__.lower()
+    INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
     
     @classmethod
     def create(cls, jumpedia: Jumpedia, bad_name: str) -> 'Community':
@@ -44,11 +45,9 @@ class Community:
                 Community.MAX_NAME_LENGTH,
                 (c.name for c in jumpedia.get_communities())
             )
-            
-            INVALID_ENDING = Community.__name__.lower()
 
-            if name.endswith(INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out '{INVALID_ENDING}' from the name as it is redundant!")
+            if name.endswith(cls.INVALID_ENDING):
+                raise fbe.TemporaryFeedbackError(f"Please leave out '{cls.INVALID_ENDING}' from the name as it is redundant!")
             
             database_name = f"{Community.DATABASE_PREFIX}{name}"
 
@@ -89,54 +88,58 @@ class Community:
     def _init_database(self) -> None:
         with self.edit_lock:
             # Create database
-
-            # Database either already exists or some other random error
-            # happened. Anyways, this should not be able to happen!! If so
-            # this makes it abort.
             with queries.connected(None) as (conn, cursor):
-                cursor.execute(f"CREATE DATABASE `{self.jumpedia.database_name}`")
+                cursor.execute(f"CREATE DATABASE `{self.database_name}`")
             
-            # Create tables
-            with queries.connected(self):
-                cursor.execute("""
-                    CREATE TABLE ? (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        community_id INT NOT NULL,
-                        name VARCHAR(?) NOT NULL UNIQUE,
-                        display_name VARCHAR(?) NOT NULL UNIQUE,
-                        
-                        CHECK (name REGEXP '^[a-z_]+$')
-                    )
-                """, [List.TABLE_NAME, List.MAX_NAME_LENGTH, List.MAX_NAME_LENGTH])
+            # If anything goes wrong here, delete database and raise error
+            try:
+                # Create tables
+                with queries.connected(self):
+                    cursor.execute("""
+                        CREATE TABLE ? (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            community_id INT NOT NULL,
+                            name VARCHAR(?) NOT NULL UNIQUE,
+                            display_name VARCHAR(?) NOT NULL UNIQUE,
+                            
+                            CHECK (name REGEXP '^[a-z_]+$')
+                        )
+                    """, [List.TABLE_NAME, List.MAX_NAME_LENGTH, List.MAX_NAME_LENGTH])
 
-                p = queries.ParamHelper()
+                    p = queries.ParamHelper()
 
-                cursor.execute(f"""
-                    CREATE TABLE {p(Attribute.TABLE_NAME)} (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        list_id INT NOT NULL,
-                        name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
-                        display_name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
-                        sort_value INT NOT NULL,
-                        alias JSON NOT NULL,
-                        value_type INT NOT NULL,
-                        value_collection BLOB,
-                        min_value_slots INT NOT NULL,
-                        max_value_slots INT NOT NULL,
-                        unique_slots BOOL NOT NULL,
-                        user_bound BOOL NOT NULL,
-                        unique_in_list BOOL NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE {p(Attribute.TABLE_NAME)} (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            list_id INT NOT NULL,
+                            name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
+                            display_name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
+                            sort_value INT NOT NULL,
+                            alias JSON NOT NULL,
+                            value_type INT NOT NULL,
+                            value_collection BLOB,
+                            min_value_slots INT NOT NULL,
+                            max_value_slots INT NOT NULL,
+                            unique_slots BOOL NOT NULL,
+                            user_bound BOOL NOT NULL,
+                            unique_in_list BOOL NOT NULL,
 
-                        FOREIGN KEY (list_id) REFERENCES {p(List.TABLE_NAME)}(id)
-                            ON DELETE RESTRICT
-                        CHECK (name REGEXP '^[a-z_]+$'),
-                        CHECK (display_name REGEXP '^[a-zA-Z ]+$'),
-                        CHECK (NOT (user_bound AND unique_in_list))
-                    )
-                """, p.params())
-        
+                            FOREIGN KEY (list_id) REFERENCES {p(List.TABLE_NAME)}(id)
+                                ON DELETE RESTRICT
+                            CHECK (name REGEXP '^[a-z_]+$'),
+                            CHECK (display_name REGEXP '^[a-zA-Z ]+$'),
+                            CHECK (NOT (user_bound AND unique_in_list))
+                        )
+                    """, p.params())
+            except mariadb.Error:
+                cursor.execute(f"DROP DATABASE `{self.database_name}`")
+                raise fbe.TemporaryFeedbackError()
+    
     def __hash__(self) -> int:
-        return hash(self.id)
+        return hash((self.id, hash(self.jumpedia)))
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Community) and self.id == value.id and self.jumpedia == self.jumpedia
     
     def get_lists(self) -> list[List]:
         with queries.connected(self) as (conn, cursor):

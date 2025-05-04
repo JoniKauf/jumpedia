@@ -39,7 +39,10 @@ class List:
         self.get_attributes()
 
     def __hash__(self) -> int:
-        return hash(self.id)
+        return hash((self.id, hash(self.community)))
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, List) and self.id == value.id and self.community == value.community
     
     @classmethod
     def create(cls, community: Community, bad_name: str) -> 'List':
