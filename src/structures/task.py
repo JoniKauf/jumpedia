@@ -9,10 +9,26 @@ from structures.list import List
 
 @dataclass(frozen=True)
 class Task:
+    list_: List
     id: int
-    values: dict[str, attribute.AttributeValueTypeT]
-    parent: List
+    values: dict[Attribute, attribute.AttributeValueTypeT]
 
+    def __hash__(self) -> int:
+        return hash((self.id, hash(self.list_)))
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Task) and self.id == value.id and self.list_ == value.list_
+    
+    def get_attributes(self):
+        return self.list_.get_attributes()
+
+    def cleanup(self):
+        attrs: set[Attribute] = set(self.get_attributes())
+
+        for attr in self.values:
+            if attr not in attrs:
+                self.values.pop(attr)
+                
     def as_info(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.values.items())
     
