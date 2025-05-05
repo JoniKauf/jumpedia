@@ -23,7 +23,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     database_name: str = field(init=False, default='meta')
     edit_lock: RLock = field(init=False, default_factory=RLock)
     
-    def __post_init__(self) -> None:
+    def _init(self) -> None:
         with queries.connected(self) as (conn, cursor):
             try:
                 cursor.execute(f"""
@@ -32,14 +32,20 @@ class Jumpedia(metaclass=metautils.Singleton):
             except mariadb.Error:
                 return
 
-            cursor.execute("""
-                CREATE TABLE ? (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(?) UNIQUE,
-                    display_name VARCHAR(?) UNIQUE,
-                    database_name VARCHAR(?) UNIQUE
-                )
-            """, [Community.META_TABLE_NAME, *([Community.MAX_NAME_LENGTH] * 3)])
+            try:
+                cursor.execute("""
+                    CREATE TABLE ? (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        guild_id BIGINT UNSIGNED NOT NULL,
+                        name VARCHAR(?) UNIQUE,
+                        display_name VARCHAR(?) UNIQUE,
+                        database_name VARCHAR(?) UNIQUE
+                    )
+                """, [Community.META_TABLE_NAME, *([Community.MAX_NAME_LENGTH] * 3)])
+            except Exception:
+                exit()
+
+        
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -61,6 +67,7 @@ class Jumpedia(metaclass=metautils.Singleton):
             communities.append(Community(
                 self,
                 c_data['id'],
+                c_data['guild_id'],
                 c_data['name'],
                 c_data['display_name'],
                 c_data['database_name'],
@@ -75,6 +82,7 @@ class Jumpedia(metaclass=metautils.Singleton):
         return Community(
             jumpedia=self,
             id=data['id'],
+            guild_id=data['guild_id'],
             name=data['name'],
             display_name=data['display_name'],
             database_name=data['database_name']
@@ -101,3 +109,16 @@ class Jumpedia(metaclass=metautils.Singleton):
             result: Opt[community.CommunityTableT] = cursor.fetchone()
 
         return self._get_community(result)
+    
+    def get_community_by_guild_id(self, guild_id: int) -> Community:
+        h = queries.ArgHelper()
+        with queries.connected(self) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT * FROM {h*Community.META_TABLE_NAME} WHERE guild_id = {h*guild_id}
+            """, h.steal())
+
+            result: CommunityTableT | None = cursor.fetchone()
+
+        return self._get_community(result)
+    
+Jumpedia()._init()

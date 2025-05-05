@@ -1,32 +1,32 @@
 
 
 import functools
-from typing import NamedTuple, Self, Optional as Opt, TYPE_CHECKING
+from typing import NamedTuple, Self, TYPE_CHECKING
 import discord as dc
 
 from discordtools import errors, feedbackerrors as fbe
-
-if TYPE_CHECKING:
-    from people import users
+from structures.context import Context
 
 _init_module_done: bool = False
 
+
 @functools.total_ordering
 class _Rank:
-    _identifiers: dict[int | str, '_Rank']
-
     def __init__(self, power: int, name: str) -> None:
         if _init_module_done:
             raise errors.ProgrammingError("module init already done")
-        if power in self.__class__._identifiers:
-            raise errors.ProgrammingError("power used twice")
-        if name in self.__class__._identifiers:
-            raise errors.ProgrammingError("name used twice")
-
-        self.__class__._identifiers |= {power: self, name.casefold(): self}
 
         self.power = power
         self.name = name
+
+        self.__class__._lookup[power] = self
+
+    def __init_subclass__(cls) -> None:
+        cls._lookup: dict[int, Self] = {}
+
+    @classmethod
+    def get(cls, power: int) -> Self:
+        return cls._lookup[power]
 
     def __lt__(self, value: '_Rank') -> bool:
         if type(self) != type(value):
@@ -41,71 +41,69 @@ class _Rank:
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.power, self.name})"
-        
-    @classmethod
-    def get(cls, rank: int | str) -> Self:
-        # possibly raises KeyError
-        return cls._identifiers[
-            rank.casefold() if
-            isinstance(rank, str) else 
-            rank
-        ] # type: ignore
     
+    
+    
+
 class UserRank(_Rank):
-    _identifiers: dict[int | str, 'UserRank'] = {}
+    @classmethod
+    def _init(cls):
+        if _init_module_done:
+            raise errors.ProgrammingError()
+        
+        cls.USER = UserRank(0, "User")
+        cls.HELPER = UserRank(1, "Helper")
+        cls.MODERATOR = UserRank(2, "Moderator")
+        cls.ADMINISTRATOR = UserRank(3, "Administrator")
+        cls.OWNER = UserRank(4, "Owner")
+        cls.JONIKAUF = UserRank(100, "JoniKauf")
+
 
 class ServerRank(_Rank):
-    _identifiers: dict[int | str, 'ServerRank'] = {}
+    @classmethod
+    def _init(cls):
+        if _init_module_done:
+            raise errors.ProgrammingError()
+        
+        cls.MEMBER = ServerRank(0, "Member")
+        cls.SERVER_ADMINISTRATOR = ServerRank(1, "Server Administrator")
+        cls.SERVER_OWNER = ServerRank(2, "Server Owner")
 
-
-class USER_RANKS(NamedTuple):
-    USER = UserRank(0, "User")
-    HELPER = UserRank(1, "Helper")
-    MODERATOR = UserRank(2, "Moderator")
-    ADMINISTRATOR = UserRank(3, "Administrator")
-    OWNER = UserRank(4, "Owner")
-    JONIKAUF = UserRank(5, "JoniKauf")
-
-class SERVER_RANKS(NamedTuple):
-    MEMBER = ServerRank(0, "Member")
-    SERVER_ADMINISTRATOR = ServerRank(1, "Server Administrator")
-    SERVER_OWNER = ServerRank(2, "Server Owner")
-
-    # If we want to not allow any server ranks
-    UNREACHABLE = ServerRank(3, "Unreachable")
+        # If we want to not allow any server ranks
+        cls.UNREACHABLE = ServerRank(3, "Unreachable")
 
 
 def get_server_rank(dc_user: dc.User | dc.Member) -> ServerRank:
     if not isinstance(dc_user, dc.Member):
-        return SERVER_RANKS.MEMBER
+        return ServerRank.MEMBER
     
     if dc_user.id == dc_user.guild.owner_id:
-        return SERVER_RANKS.SERVER_OWNER
+        return ServerRank.SERVER_OWNER
     
     if dc_user.guild_permissions.administrator:
-        return SERVER_RANKS.SERVER_ADMINISTRATOR
+        return ServerRank.SERVER_ADMINISTRATOR
     
-    return SERVER_RANKS.MEMBER
-
+    return ServerRank.MEMBER
 
 def permitted(
-    dc_user: dc.User | dc.Member,
-    min_user_rank: UserRank = USER_RANKS.JONIKAUF,
-    min_server_rank: ServerRank = SERVER_RANKS.UNREACHABLE,
-    user_rank: Opt[UserRank] = None,
-    server_rank: Opt[ServerRank] = None
+    ctx: Context,
+    user_id: int,
+    min_user_rank: UserRank = UserRank.JONIKAUF,
+    min_server_rank: ServerRank = ServerRank.UNREACHABLE,
+    user_rank: UserRank | None = None,
+    server_rank: ServerRank | None = None
 ) -> tuple[bool, UserRank, ServerRank]:
-    from people import users
-    
+    from people.user import User
+
     still_permitted: bool = True
     
-    server_rank = server_rank or get_server_rank(dc_user)
+    server_rank = server_rank or get_server_rank(ctx.interaction.user)
 
     if server_rank < min_server_rank:
         still_permitted = False
     
     try:
-        user_rank = user_rank or users.User.get(dc_user.id).rank
+        user_rank = user_rank or User.get(ctx, user_id).
     except fbe.PersonDoesNotExist:
         user_rank = USER_RANKS.USER
 

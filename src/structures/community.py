@@ -2,8 +2,10 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, TypedDict, Unpack
 from threading import RLock
+import discord as dc
 
 import mariadb
+from people.user import User
 from structures.attribute import Attribute
 from utils import text
 from database import queries
@@ -17,6 +19,7 @@ if TYPE_CHECKING:
 
 class CommunityTableT(TypedDict, total=True):
     id: int
+    guild_id: int
     name: str
     display_name: str
     database_name: str
@@ -25,6 +28,7 @@ class CommunityTableT(TypedDict, total=True):
 class Community:
     jumpedia: Jumpedia
     id: int
+    guild_id: int
     name: str
     display_name: str
     database_name: str
@@ -37,7 +41,7 @@ class Community:
     INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
     
     @classmethod
-    def create(cls, jumpedia: Jumpedia, bad_name: str) -> 'Community':
+    def create(cls, jumpedia: Jumpedia, guild_id: int, bad_name: str) -> 'Community':
         with jumpedia.edit_lock:
             name, display_name = text.create_name_and_display_name(
                 bad_name, 
@@ -52,28 +56,30 @@ class Community:
             database_name = f"{Community.DATABASE_PREFIX}{name}"
 
             with queries.connected(jumpedia) as (conn, cursor):
-                p = queries.ParamHelper()
+                h = queries.ArgHelper()
 
                 cursor.execute(f"""
                     SELECT *
-                    FROM {p(Community.META_TABLE_NAME)}
-                    WHERE name = {p(name)}
-                """, p.params())
+                    FROM {h*Community.META_TABLE_NAME}
+                    WHERE name = {h*name}
+                """, h.steal())
 
                 result_opt: Opt[CommunityTableT] = cursor.fetchone()
 
                 if result_opt:
                     raise fbe.TemporaryFeedbackError(f"{Community.META_TABLE_NAME.title()} with that name exists already")
                 
-                cursor.execute("""
-                    INSERT INTO ?
-                    (name, display_name, database_name)
-                    VALUES (?, ?, ?)
-                """, [Community.META_TABLE_NAME, name, display_name, database_name])
+                cursor.execute(f"""
+                    INSERT INTO {h*Community.META_TABLE_NAME}
+                    (guild_id, name, display_name, database_name)
+                    VALUES 
+                    ({h*guild_id}, {h*name}, {h*display_name}, {h*database_name})
+                """, h.steal())
                 
                 obj = Community(
                     jumpedia,
                     cursor.lastrowid,  # type: ignore
+                    guild_id,
                     name,
                     display_name,
                     database_name
@@ -95,42 +101,41 @@ class Community:
             try:
                 # Create tables
                 with queries.connected(self):
-                    cursor.execute("""
-                        CREATE TABLE ? (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            community_id INT NOT NULL,
-                            name VARCHAR(?) NOT NULL UNIQUE,
-                            display_name VARCHAR(?) NOT NULL UNIQUE,
-                            
-                            CHECK (name REGEXP '^[a-z_]+$')
-                        )
-                    """, [List.TABLE_NAME, List.MAX_NAME_LENGTH, List.MAX_NAME_LENGTH])
-
-                    p = queries.ParamHelper()
+                    h = queries.ArgHelper()
 
                     cursor.execute(f"""
-                        CREATE TABLE {p(Attribute.TABLE_NAME)} (
+                        CREATE TABLE {h*List.TABLE_NAME} (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                            display_name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                        )
+                    """, h.steal())
+
+                    cursor.execute(f"""
+                        CREATE TABLE {h*Attribute.TABLE_NAME} (
                             id INT AUTO_INCREMENT PRIMARY KEY,
                             list_id INT NOT NULL,
-                            name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
-                            display_name VARCHAR({p(List.MAX_NAME_LENGTH)}) NOT NULL,
+                            name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL,
+                            display_name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL,
                             sort_value INT NOT NULL,
                             alias JSON NOT NULL,
                             value_type INT NOT NULL,
-                            value_collection BLOB,
+                            collection BLOB NOT NULL,
                             min_value_slots INT NOT NULL,
                             max_value_slots INT NOT NULL,
                             unique_slots BOOL NOT NULL,
                             user_bound BOOL NOT NULL,
-                            unique_in_list BOOL NOT NULL,
-
-                            FOREIGN KEY (list_id) REFERENCES {p(List.TABLE_NAME)}(id)
-                                ON DELETE RESTRICT
-                            CHECK (name REGEXP '^[a-z_]+$'),
-                            CHECK (display_name REGEXP '^[a-zA-Z ]+$'),
-                            CHECK (NOT (user_bound AND unique_in_list))
+                            unique_in_list BOOL NOT NULL
                         )
-                    """, p.params())
+                    """, h.steal())
+
+                    cursor.execute(f"""
+                        CREATE TABLE {h*User.TABLE_NAME} (
+                            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            power INT NOT NULL,
+                            selected_list_id INT
+                        )
+                    """)
             except mariadb.Error:
                 cursor.execute(f"DROP DATABASE `{self.database_name}`")
                 raise fbe.TemporaryFeedbackError()
