@@ -236,16 +236,6 @@ class AttributeTableT(TypedDict):
 
 @dataclass(frozen=True)
 class Attribute[T: AttributeValueTypeT]:
-    """Represent an attribute of a Trickjump.
-
-    In a relational database model 'Trickjump' would represent a table,
-    'Attribute' a column and specific values interacting with the
-    'Attribute' class would be rows.
-
-    Instead of specific types, values are passed in mostly as str, None
-    or other basic data types, which are especially supported by discord.py.
-    """
-
     # --- CONSTANTS ---
 
     # number
@@ -342,10 +332,10 @@ class Attribute[T: AttributeValueTypeT]:
             pickled_value_collection: bytes = pickle.dumps(collection)
 
             with queries.connected(list.community) as (conn, cursor):
-                p = queries.ParamHelper()
+                h = queries.ArgHelper()
 
                 cursor.execute(f"""
-                    INSERT INTO {p(Attribute.TABLE_NAME)} (
+                    INSERT INTO {h(Attribute.TABLE_NAME)} (
                         list_id,
                         name,
                         display_name
@@ -355,23 +345,25 @@ class Attribute[T: AttributeValueTypeT]:
                         collection,
                         min_value_slots,
                         max_value_slots,
+                        unique_slots,
                         user_bound,
                         unique_in_list
                     )
                     VALUES (
-                        {p(list.id)},
-                        {p(name)},
-                        {p(display_name)},
-                        {p(sort_value)},
-                        {p(alias)},
-                        {p(value_type.id)},
-                        {p(pickled_value_collection)},
-                        {p(min_value_slots)},
-                        {p(max_value_slots)},
-                        {p(user_bound)},
-                        {p(unique_in_list)}
+                        {h(list.id)},
+                        {h(name)},
+                        {h(display_name)},
+                        {h(sort_value)},
+                        {h(alias)},
+                        {h(value_type.id)},
+                        {h(pickled_value_collection)},
+                        {h(min_value_slots)},
+                        {h(max_value_slots)},
+                        {h(unique_slots)},
+                        {h(user_bound)},
+                        {h(unique_in_list)}
                     )
-                """, p.params())
+                """, h.steal())
                 
                 obj = Attribute(
                     list,

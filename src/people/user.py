@@ -1,103 +1,67 @@
+from dataclasses import dataclass, field
 import enum
 import re
 
 import mariadb
 from database import queries
-from typing import Any, NamedTuple, Optional as Opt, Self
+from typing import Any, ClassVar, Final, NamedTuple, Self, TypedDict
 
 from discordtools import errors, feedbackerrors as fbe
-from people import ranks
 
 import discord as dc
+
+from people.ranks import UserRank
+from structures.context import Context
+from structures.list import List
 
 _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
 type UserIdentifierT = int | str | 'User' | dc.User | dc.Member
 
+class UserTableT(TypedDict):
+    id: int
+    power: int
+    selected_list_id: int
+
+@dataclass()
 class User:
-    def __init__(
-        self, 
-        id: int, 
-        name: str, 
-        rank: ranks.UserRank, 
-        person_id: Opt[int] = None
-    ) -> None:
-        self.id = id
-        self.name = name
-        self.rank = rank
-        self.person_id = person_id
-    
-    def __str__(self) -> str:
-        return self.name
-    
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}"
-            f"({self.id}, {self.name}, {self.rank}, {self.person_id})"
-        )
+    TABLE_NAME: ClassVar[str] = __name__.lower()
+    MAX_NAME_LENGTH: ClassVar[int] = 32
+
+    id: int
+    power: int
+    selected_list: List | None
     
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, User):
-            return False
-        return self.id == value.id
+        return isinstance(value, User) and self.id == value.id
     
-    def __ne__(self, value: object) -> bool:
-        return not (self.__eq__(value)) 
-            
     @classmethod
-    def get(
-        cls, 
-        id: str | int, 
-        *, 
-        name: Opt[str] = None, 
-        rank: ranks.UserRank = ranks.USER_RANKS.USER,
-        person_id: Opt[int] = None
-    ) -> 'User':
-        """If name is specified, it saves/overwrites the user."""
-
-        if not isinstance(id, (str, int)):
-            raise TypeError("expected int | str for user")
-        
+    def get(cls, ctx: Context, id: str | int) -> 'User':
         id = cls._user_id_to_int(id)
         
-        with queries.connected() as (conn, cursor):
-            cursor.execute("""
-               SELECT name, rank_power, person_id FROM user WHERE user.id = ?        
-            """, [id])
+        with queries.connected(ctx.community) as (conn, cursor):
+            h = queries.ArgHelper()
 
-            result: Opt[dict[str, Any]] = cursor.fetchone()
+            cursor.execute(f"""
+                SELECT *
+                FROM {h*cls.TABLE_NAME} WHERE user.id = {h*id}        
+            """, h.steal())
+
+            result: UserTableT | None = cursor.fetchone()
             
         if result is None:
-            if not name:
-                raise fbe.PersonDoesNotExist(id)
-
+            with 
             user_obj = cls(
                 id=id,
-                name=name,
-                rank=rank,
-                person_id=person_id
+                power=UserRank.USER.power,
+                selected_list=None
+            )
+        else:
+            user_obj = cls(
+                id=
             )
 
-            user_obj.save(overwrite=True)
-            return user_obj
-        
-        # here result: dict[str, Any] (not None)
-        # Keep best rank of new and old data
-        if (power := result['rank_power']) > rank.power:
-            rank = ranks.UserRank.get(power)
-
-        user_obj = cls(
-            id=id, 
-            name=result['name'], # prefer old name because it could be custom
-            rank=rank, 
-            person_id=person_id or result['person_id'],  # overwrite person_id
-        )
-
-        if name:
-            user_obj.save(overwrite=True)
-
         return user_obj
-    
 
     @staticmethod
     def _user_id_to_int(user_id: str | int) -> int:
