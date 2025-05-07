@@ -11,7 +11,7 @@ from utils import text
 from database import queries
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
-from structures.list import List
+from structures.list import List, ListTableT
 from structures import list as list_module
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class CommunityTableT(TypedDict, total=True):
     display_name: str
     database_name: str
 
-@dataclass(frozen=True, kw_only=False)
+@dataclass(frozen=True, kw_only=True)
 class Community:
     jumpedia: Jumpedia
     id: int
@@ -54,14 +54,13 @@ class Community:
                 raise fbe.TemporaryFeedbackError(f"Please leave out '{cls.INVALID_ENDING}' from the name as it is redundant!")
             
             database_name = f"{Community.DATABASE_PREFIX}{name}"
+            h = queries.ArgHelper()
 
             with queries.connected(jumpedia) as (conn, cursor):
-                h = queries.ArgHelper()
-
                 cursor.execute(f"""
                     SELECT *
-                    FROM {h*Community.META_TABLE_NAME}
-                    WHERE name = {h*name}
+                    FROM {h|Community.META_TABLE_NAME}
+                    WHERE name = {h|name}
                 """, h.steal())
 
                 result_opt: Opt[CommunityTableT] = cursor.fetchone()
@@ -70,19 +69,19 @@ class Community:
                     raise fbe.TemporaryFeedbackError(f"{Community.META_TABLE_NAME.title()} with that name exists already")
                 
                 cursor.execute(f"""
-                    INSERT INTO {h*Community.META_TABLE_NAME}
+                    INSERT INTO {h|Community.META_TABLE_NAME}
                     (guild_id, name, display_name, database_name)
                     VALUES 
-                    ({h*guild_id}, {h*name}, {h*display_name}, {h*database_name})
+                    ({h|guild_id}, {h|name}, {h|display_name}, {h|database_name})
                 """, h.steal())
                 
                 obj = Community(
-                    jumpedia,
-                    cursor.lastrowid,  # type: ignore
-                    guild_id,
-                    name,
-                    display_name,
-                    database_name
+                    jumpedia=jumpedia,
+                    id=cursor.lastrowid,  # type: ignore
+                    guild_id=guild_id,
+                    name=name,
+                    display_name=display_name,
+                    database_name=database_name
                 )  
 
                 # If anything goes wrong here, exception will cause it to 
@@ -104,19 +103,19 @@ class Community:
                     h = queries.ArgHelper()
 
                     cursor.execute(f"""
-                        CREATE TABLE {h*List.TABLE_NAME} (
+                        CREATE TABLE {h|List.TABLE_NAME} (
                             id INT AUTO_INCREMENT PRIMARY KEY,
-                            name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                            display_name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                            name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                            display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
                         )
                     """, h.steal())
 
                     cursor.execute(f"""
-                        CREATE TABLE {h*Attribute.TABLE_NAME} (
+                        CREATE TABLE {h|Attribute.TABLE_NAME} (
                             id INT AUTO_INCREMENT PRIMARY KEY,
                             list_id INT NOT NULL,
-                            name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL,
-                            display_name VARCHAR({h*List.MAX_NAME_LENGTH}) NOT NULL,
+                            name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
+                            display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
                             sort_value INT NOT NULL,
                             alias JSON NOT NULL,
                             value_type INT NOT NULL,
@@ -130,7 +129,7 @@ class Community:
                     """, h.steal())
 
                     cursor.execute(f"""
-                        CREATE TABLE {h*User.TABLE_NAME} (
+                        CREATE TABLE {h|User.TABLE_NAME} (
                             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             power INT NOT NULL,
                             selected_list_id INT
@@ -158,17 +157,17 @@ class Community:
 
         for l_data in result:
             lists.append(List(
-                self,
-                l_data['id'],
-                l_data['name'],
-                l_data['display_name'],
+                community=self,
+                id=l_data['id'],
+                name=l_data['name'],
+                display_name=l_data['display_name'],
             ))
 
         return lists
     
-    def _get_community(self, data: Opt[list_module.ListTableT]) -> List:
+    def _get_list(self, data: ListTableT | None) -> List:
         if data is None:
-            raise fbe.TemporaryFeedbackError("Community does not exist!")
+            raise fbe.TemporaryFeedbackError("List does not exist!")
         
         return List(
             community=self,
@@ -176,25 +175,33 @@ class Community:
             name=data['name'],
             display_name=data['display_name']
         )
+
+    def get_list_by_id(self, id: int):
+        h = queries.ArgHelper()
+
+        with queries.connected(self) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT *
+                FROM {h|List.TABLE_NAME}
+                WHERE id = {h|id}
+            """, h.steal())
+
+            result: ListTableT | None = cursor.fetchone()
+
+        return self._get_list(result)
     
-    def get_community_by_id(self, id: int) -> List:
-        with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ? WHERE id = ?
-            """, [List.TABLE_NAME, id])
-
-            result: Opt[list_module.ListTableT] = cursor.fetchone()
-
-        return self._get_community(result)
-        
-    def get_community_by_name(self, name: str) -> List:
+    def get_list_by_name(self, name: str):
         name = text.norm(name)
+        h = queries.ArgHelper()
 
         with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ? WHERE name = ?
-            """, [List.TABLE_NAME, name])
+            cursor.execute(f"""
+                SELECT *
+                FROM {h|List.TABLE_NAME}
+                WHERE name = {h|name}
+            """, h.steal())
 
-            result: Opt[list_module.ListTableT] = cursor.fetchone()
+            result: ListTableT | None = cursor.fetchone()
 
-        return self._get_community(result)
+        return self._get_list(result)
+    

@@ -234,7 +234,7 @@ class AttributeTableT(TypedDict):
 
 #------#   Attribute   #------#	
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Attribute[T: AttributeValueTypeT]:
     # --- CONSTANTS ---
 
@@ -330,12 +330,11 @@ class Attribute[T: AttributeValueTypeT]:
                 collection = _parse_user_collection(str_user_collection, value_type)
 
             pickled_value_collection: bytes = pickle.dumps(collection)
+            h = queries.ArgHelper()
 
             with queries.connected(list.community) as (conn, cursor):
-                h = queries.ArgHelper()
-
                 cursor.execute(f"""
-                    INSERT INTO {h(Attribute.TABLE_NAME)} (
+                    INSERT INTO {h|Attribute.TABLE_NAME} (
                         list_id,
                         name,
                         display_name
@@ -350,35 +349,35 @@ class Attribute[T: AttributeValueTypeT]:
                         unique_in_list
                     )
                     VALUES (
-                        {h(list.id)},
-                        {h(name)},
-                        {h(display_name)},
-                        {h(sort_value)},
-                        {h(alias)},
-                        {h(value_type.id)},
-                        {h(pickled_value_collection)},
-                        {h(min_value_slots)},
-                        {h(max_value_slots)},
-                        {h(unique_slots)},
-                        {h(user_bound)},
-                        {h(unique_in_list)}
+                        {h|list.id},
+                        {h|name},
+                        {h|display_name},
+                        {h|sort_value},
+                        {h|alias},
+                        {h|value_type.id},
+                        {h|pickled_value_collection},
+                        {h|min_value_slots},
+                        {h|max_value_slots},
+                        {h|unique_slots},
+                        {h|user_bound},
+                        {h|unique_in_list}
                     )
                 """, h.steal())
                 
                 obj = Attribute(
-                    list,
-                    cursor.lastrowid,  # type: ignore
-                    name,
-                    display_name,
-                    sort_value,
-                    alias,
-                    value_type,
-                    collection,
-                    min_value_slots,
-                    max_value_slots,
-                    unique_slots,
-                    user_bound,
-                    unique_in_list
+                    list_=list,
+                    id=cursor.lastrowid,  # type: ignore
+                    name=name,
+                    display_name=display_name,
+                    sort_value=sort_value,
+                    alias=alias,
+                    value_type=value_type,
+                    collection=collection,
+                    min_value_slots=min_value_slots,
+                    max_value_slots=max_value_slots,
+                    unique_slots=unique_slots,
+                    user_bound=user_bound,
+                    unique_in_list=unique_in_list
                 ) 
 
             return obj

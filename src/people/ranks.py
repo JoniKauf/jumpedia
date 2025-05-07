@@ -103,7 +103,7 @@ def permitted(
         still_permitted = False
     
     try:
-        user_rank = user_rank or User.get(ctx, user_id).
+        user_rank = user_rank or User.get_other(ctx, user_id).
     except fbe.PersonDoesNotExist:
         user_rank = USER_RANKS.USER
 

@@ -7,7 +7,7 @@ from structures import attribute
 from structures.attribute import Attribute
 from structures.list import List
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Task:
     list_: List
     id: int
@@ -22,13 +22,6 @@ class Task:
     def get_attributes(self):
         return self.list_.get_attributes()
 
-    def cleanup(self):
-        attrs: set[Attribute] = set(self.get_attributes())
-
-        for attr in self.values:
-            if attr not in attrs:
-                self.values.pop(attr)
-                
     def as_info(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.values.items())
     

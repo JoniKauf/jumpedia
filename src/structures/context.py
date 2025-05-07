@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import discord as dc
 
+from functools import cached_property
 from people.user import User
 from structures.community import Community
 from structures.jumpedia import Jumpedia
@@ -8,8 +9,20 @@ from structures.list import List
 
 @dataclass(frozen=True, slots=True)
 class Context:
+    """A short lived, per-interaction object that gives easy access to
+    context regarding the user and other things.
+    """
+
     interaction: dc.Interaction
     
-    @property
+    @cached_property
+    def user(self) -> User:
+        return User.get(self)
+    
+    @cached_property
     def community(self) -> Community:
         return Jumpedia().get_community_by_guild_id(self.interaction.guild_id or -1)
+    
+    @cached_property
+    def list(self) -> List | None:
+        return self.user.selected_list

@@ -96,7 +96,7 @@ class ArgHelper:
         self._params: list[Any] = []
         self._placeholder = placeholder
 
-    def __mul__(self, param: Any) -> str:
+    def __or__(self, param: Any) -> str:
         self._params.append(param)
         return self._placeholder
     
@@ -107,6 +107,9 @@ class ArgHelper:
         tmp = self._params
         self._params = []
         return tmp
+    
+    def peek(self) -> list[Any]:
+        return self._params.copy()
     
 
 # def collapse_rows[T: Hashable](
