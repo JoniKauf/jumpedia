@@ -5,10 +5,12 @@ import sys
 from threading import RLock
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Self, Sequence, TypeAlias, TypedDict, cast, get_args, TYPE_CHECKING
+
+import mariadb
 from database import queries
 from discordtools import feedbackerrors as fbe
 from structures import attribute
-from structures.attribute import Attribute
+from structures.attribute import Attribute, AttributeTableT
 from structures import attribute as attr
 from structures.community import Community
 from structures.task import Task
@@ -31,8 +33,6 @@ class List:
     name: str
     display_name: str
 
-    edit_lock: RLock = field(init=False, default_factory=RLock)
-
     TABLE_NAME: ClassVar[str] = "list"
     MAX_NAME_LENGTH: ClassVar[int] = 50
 
@@ -47,79 +47,84 @@ class List:
     
     @classmethod
     def create(cls, community: Community, bad_name: str) -> 'List':
-        with community.edit_lock:
-            name, display_name = text.create_name_and_display_name(
-                bad_name, 
-                True, 
-                Community.MAX_NAME_LENGTH,
-                (list.name for list in community.get_lists())
-            )
-            
-            INVALID_ENDING = List.__name__.lower()
+        name, display_name = text.create_name_and_display_name(
+            bad_name, 
+            True, 
+            Community.MAX_NAME_LENGTH,
+            (list.name for list in community.get_lists())
+        )
+        
+        INVALID_ENDING = List.__name__.lower()
 
-            if name.endswith(INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out `{INVALID_ENDING}` from the name, as it is redundant!")
-            
-            h = queries.ArgHelper()
+        if name.endswith(INVALID_ENDING):
+            raise fbe.TemporaryFeedbackError(f"Please leave out `{INVALID_ENDING}` from the name, as it is redundant!")
+        
+        h = queries.ArgHelper()
 
-            with queries.connected(community) as (conn, cursor):
-                cursor.execute(f"""
-                    SELECT *
-                    FROM {h|List.TABLE_NAME}
-                    WHERE name = {h|name}
-                """, h.steal())
-
-                result_opt: ListTableT | None = cursor.fetchone()
-
-                if result_opt:
-                    raise fbe.TemporaryFeedbackError(f"{List.TABLE_NAME.title()} with that name exists already")
-                
+        with queries.connected(community) as (conn, cursor):
+            try:
                 cursor.execute(f"""
                     INSERT INTO {h|List.TABLE_NAME}
                     (name, display_name)
                     VALUES ({h|name}, {h|display_name})
                 """, h.steal())
+            except mariadb.IntegrityError:
+                raise fbe.TemporaryFeedbackError(f"List with that name exists already")
             
-            obj = List(
-                community,
-                cursor.lastrowid,  # type: ignore
-                name,
-                display_name
-            ) 
+        obj = List(
+            community=community,
+            id=cursor.lastrowid,  # type: ignore
+            name=name,
+            display_name=display_name
+        ) 
 
-            return obj
-        
-    def get_attributes(self) -> list[Attribute]:
+        return obj
+    
+    def _fetch_atttributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeTableT]:
         h = queries.ArgHelper()
-
+        
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute(f"""
-                SELECT * 
+                SELECT *
                 FROM {h|Attribute.TABLE_NAME}
+                {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[attr.AttributeTableT] = cursor.fetchall()
-        
-        attributes: list[Attribute] = []
+            result: list[AttributeTableT] = cursor.fetchall()
 
-        for a_data in result:
-            attributes.append(Attribute(
-                self,
-                a_data['id'],
-                a_data['name'],
-                a_data['display_name'],
-                a_data['sort_value'],
-                set(a_data['alias']),
-                attr.AttributeValueType.lookup_by_id(a_data['value_type']),
-                pickle.loads(a_data['collection']),
-                a_data['min_value_slots'],
-                a_data['max_value_slots'],
-                a_data['unique_slots'],
-                a_data['user_bound'],
-                a_data['unique_in_list']
-            ))
+        return result
+    
+    def _attribute_data_to_obj(self, data: AttributeTableT | None) -> Attribute:
+        if data is None:
+            raise fbe.TemporaryFeedbackError("Attribute does not exist!")
 
-        return attributes
+        return Attribute(
+            list=self,
+            id=data['id'],
+            name=data['name'],
+            display_name=data['display_name'],
+            sort_value=data['sort_value'],
+            alias=set(data['alias']),
+            value_type=attr.AttributeValueType.lookup_by_id(data['value_type']),
+            collection=pickle.loads(data['collection']),
+            min_value_slots=data['min_value_slots'],
+            max_value_slots=data['max_value_slots'],
+            unique_slots=data['unique_slots'],
+            user_bound=data['user_bound'],
+            unique_in_list=data['unique_in_list']
+        )
+    
+    def get_attributes(self) -> list[Attribute]:
+        return [self._attribute_data_to_obj(data) for data in self._fetch_atttributes_from_table(None)]
+
+    def get_attribute_by_id(self, id: int) -> Attribute:
+        data = self._fetch_atttributes_from_table(lambda h: f"id = {h|id}")
+        return self._attribute_data_to_obj(data[0] if data else None)
+    
+    def get_attribute_by_name(self, name: str) -> Attribute:
+        name = text.norm(name)
+        data = self._fetch_atttributes_from_table(lambda h: f"id = {h|name}")
+        return self._attribute_data_to_obj(data[0] if data else None)
     
     @classmethod
     def filter(cls, list_: list[Task] | Self, expression: str) -> list[Task]:

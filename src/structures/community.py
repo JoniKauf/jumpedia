@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, TypedDict, Unpack
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Self, TypedDict, Unpack
 from threading import RLock
 import discord as dc
 
 import mariadb
-from people.user import User
+from structures.ranks import UserRank
+from structures.user import User, UserTableT
 from structures.attribute import Attribute
 from utils import text
 from database import queries
@@ -33,8 +34,6 @@ class Community:
     display_name: str
     database_name: str
 
-    edit_lock: RLock = field(init=False, default_factory=RLock)
-
     MAX_NAME_LENGTH: ClassVar[Final[int]] = 50
     DATABASE_PREFIX: ClassVar[Final[str]] = "c_"
     META_TABLE_NAME: ClassVar[Final[str]] = __name__.lower()
@@ -57,23 +56,15 @@ class Community:
             h = queries.ArgHelper()
 
             with queries.connected(jumpedia) as (conn, cursor):
-                cursor.execute(f"""
-                    SELECT *
-                    FROM {h|Community.META_TABLE_NAME}
-                    WHERE name = {h|name}
-                """, h.steal())
-
-                result_opt: Opt[CommunityTableT] = cursor.fetchone()
-
-                if result_opt:
-                    raise fbe.TemporaryFeedbackError(f"{Community.META_TABLE_NAME.title()} with that name exists already")
-                
-                cursor.execute(f"""
-                    INSERT INTO {h|Community.META_TABLE_NAME}
-                    (guild_id, name, display_name, database_name)
-                    VALUES 
-                    ({h|guild_id}, {h|name}, {h|display_name}, {h|database_name})
-                """, h.steal())
+                try:
+                    cursor.execute(f"""
+                        INSERT INTO {h|Community.META_TABLE_NAME}
+                        (guild_id, name, display_name, database_name)
+                        VALUES 
+                        ({h|guild_id}, {h|name}, {h|display_name}, {h|database_name})
+                    """, h.steal())
+                except mariadb.IntegrityError:
+                    raise fbe.TemporaryFeedbackError(f"Community with that name exists already")
                 
                 obj = Community(
                     jumpedia=jumpedia,
@@ -91,53 +82,52 @@ class Community:
             return obj
         
     def _init_database(self) -> None:
-        with self.edit_lock:
-            # Create database
-            with queries.connected(None) as (conn, cursor):
-                cursor.execute(f"CREATE DATABASE `{self.database_name}`")
-            
-            # If anything goes wrong here, delete database and raise error
-            try:
-                # Create tables
-                with queries.connected(self):
-                    h = queries.ArgHelper()
+        # Create database
+        with queries.connected(None) as (conn, cursor):
+            cursor.execute(f"CREATE DATABASE `{self.database_name}`")
+        
+        # If anything goes wrong here, delete database and raise error
+        try:
+            # Create tables
+            with queries.connected(self):
+                h = queries.ArgHelper()
 
-                    cursor.execute(f"""
-                        CREATE TABLE {h|List.TABLE_NAME} (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                            display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                        )
-                    """, h.steal())
+                cursor.execute(f"""
+                    CREATE TABLE {h|List.TABLE_NAME} (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                        display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                    )
+                """, h.steal())
 
-                    cursor.execute(f"""
-                        CREATE TABLE {h|Attribute.TABLE_NAME} (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            list_id INT NOT NULL,
-                            name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
-                            display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
-                            sort_value INT NOT NULL,
-                            alias JSON NOT NULL,
-                            value_type INT NOT NULL,
-                            collection BLOB NOT NULL,
-                            min_value_slots INT NOT NULL,
-                            max_value_slots INT NOT NULL,
-                            unique_slots BOOL NOT NULL,
-                            user_bound BOOL NOT NULL,
-                            unique_in_list BOOL NOT NULL
-                        )
-                    """, h.steal())
+                cursor.execute(f"""
+                    CREATE TABLE {h|Attribute.TABLE_NAME} (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        list_id INT NOT NULL,
+                        name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
+                        display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
+                        sort_value INT NOT NULL,
+                        alias JSON NOT NULL,
+                        value_type INT NOT NULL,
+                        collection BLOB NOT NULL,
+                        min_value_slots INT NOT NULL,
+                        max_value_slots INT NOT NULL,
+                        unique_slots BOOL NOT NULL,
+                        user_bound BOOL NOT NULL,
+                        unique_in_list BOOL NOT NULL
+                    )
+                """, h.steal())
 
-                    cursor.execute(f"""
-                        CREATE TABLE {h|User.TABLE_NAME} (
-                            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            power INT NOT NULL,
-                            selected_list_id INT
-                        )
-                    """)
-            except mariadb.Error:
-                cursor.execute(f"DROP DATABASE `{self.database_name}`")
-                raise fbe.TemporaryFeedbackError()
+                cursor.execute(f"""
+                    CREATE TABLE {h|User.TABLE_NAME} (
+                        id BIGINT UNSIGNED PRIMARY KEY,
+                        power INT NOT NULL,
+                        selected_list_id INT
+                    )
+                """)
+        except mariadb.Error:
+            cursor.execute(f"DROP DATABASE `{self.database_name}`")
+            raise fbe.TemporaryFeedbackError()
     
     def __hash__(self) -> int:
         return hash((self.id, hash(self.jumpedia)))
@@ -145,27 +135,21 @@ class Community:
     def __eq__(self, value: object) -> bool:
         return isinstance(value, Community) and self.id == value.id and self.jumpedia == self.jumpedia
     
-    def get_lists(self) -> list[List]:
+    def _fetch_lists_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[ListTableT]:
+        h = queries.ArgHelper()
+        
         with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ?
-            """, [List.TABLE_NAME])
+            cursor.execute(f"""
+                SELECT *
+                FROM {h|List.TABLE_NAME}
+                {f"WHERE {where(h)}" if where is not None else ""}
+            """, h.steal())
 
-            result: list[list_module.ListTableT] = cursor.fetchall()
+            result: list[ListTableT] = cursor.fetchall()
 
-        lists: list[List] = []
-
-        for l_data in result:
-            lists.append(List(
-                community=self,
-                id=l_data['id'],
-                name=l_data['name'],
-                display_name=l_data['display_name'],
-            ))
-
-        return lists
+        return result
     
-    def _get_list(self, data: ListTableT | None) -> List:
+    def _list_data_to_obj(self, data: ListTableT | None) -> List:
         if data is None:
             raise fbe.TemporaryFeedbackError("List does not exist!")
         
@@ -175,33 +159,53 @@ class Community:
             name=data['name'],
             display_name=data['display_name']
         )
-
-    def get_list_by_id(self, id: int):
-        h = queries.ArgHelper()
-
-        with queries.connected(self) as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM {h|List.TABLE_NAME}
-                WHERE id = {h|id}
-            """, h.steal())
-
-            result: ListTableT | None = cursor.fetchone()
-
-        return self._get_list(result)
     
-    def get_list_by_name(self, name: str):
-        name = text.norm(name)
-        h = queries.ArgHelper()
+    def get_lists(self) -> list[List]:
+        return [self._list_data_to_obj(data) for data in self._fetch_lists_from_table(None)]
 
+    def get_list_by_id(self, id: int) -> List:
+        data = self._fetch_lists_from_table(lambda h: f"id = {h|id}")
+        return self._list_data_to_obj(data[0] if data else None)
+    
+    def get_list_by_name(self, name: str) -> List:
+        name = text.norm(name)
+        data = self._fetch_lists_from_table(lambda h: f"id = {h|name}")
+        return self._list_data_to_obj(data[0] if data else None)
+    
+    def _fetch_users_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[UserTableT]:
+        h = queries.ArgHelper()
+        
         with queries.connected(self) as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {h|List.TABLE_NAME}
-                WHERE name = {h|name}
+                FROM {h|User.TABLE_NAME}
+                {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: ListTableT | None = cursor.fetchone()
+            result: list[UserTableT] = cursor.fetchall()
 
-        return self._get_list(result)
+        return result
+    
+    def _user_data_to_obj(self, data: UserTableT | None) -> User:
+        if data is None:
+            raise fbe.TemporaryFeedbackError("User does not exist!")
+        
+        return User(
+            community=self,
+            id=data['id'],
+            user_rank=UserRank.get(data['power']),
+            selected_list=(self.get_list_by_id(id) if (id := data['selected_list_id']) is not None else None)
+        )
+    
+    def get_users(self) -> list[User]:
+        return [self._user_data_to_obj(data) for data in self._fetch_users_from_table(None)]
+
+    def get_user_by_id(self, id: int) -> User:
+        data = self._fetch_users_from_table(lambda h: f"id = {h|id}")
+        return self._user_data_to_obj(data[0] if data else None)
+    
+    def get_user_by_name(self, name: str) -> User:
+        name = text.norm(name)
+        data = self._fetch_users_from_table(lambda h: f"id = {h|name}")
+        return self._user_data_to_obj(data[0] if data else None)
     

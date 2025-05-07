@@ -22,7 +22,7 @@ class Task:
     def get_attributes(self):
         return self.list_.get_attributes()
 
-    def as_info(self) -> str:
+    def debug_info(self) -> str:
         return "\n".join(f"{k}: {v}" for k, v in self.values.items())
     
 

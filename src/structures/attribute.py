@@ -1,3 +1,4 @@
+import builtins
 from dataclasses import dataclass, field
 import enum
 import datetime as dt
@@ -265,7 +266,7 @@ class Attribute[T: AttributeValueTypeT]:
     SORT_KEY_LAST_NUMBER: ClassVar[Final[int]] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
 
-    list_: List
+    list: List
     id: int 
     name: str
     display_name: str
@@ -303,90 +304,89 @@ class Attribute[T: AttributeValueTypeT]:
         user_bound: bool,
         unique_in_list: bool
     ):
-        with list.edit_lock:
-            name, display_name = text.create_name_and_display_name(
-                bad_name, 
-                True, 
-                Attribute.MAX_SYN_LEN, 
-                (a.name for a in list.get_attributes())
-            )
+        name, display_name = text.create_name_and_display_name(
+            bad_name, 
+            True, 
+            Attribute.MAX_SYN_LEN, 
+            (a.name for a in list.get_attributes())
+        )
 
-            alias = text.fix_aliases(bad_aliases, Attribute.MAX_SYN_LEN, Attribute.MAX_ALIASES)
+        alias = text.fix_aliases(bad_aliases, Attribute.MAX_SYN_LEN, Attribute.MAX_ALIASES)
+        
+        Attribute.generic_number_valid(sort_value)
+        
+        if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
+            raise fbe.TemporaryFeedbackError()
+
+        if not (0 <= min_value_slots <= max_value_slots):
+            raise fbe.TemporaryFeedbackError()
+        
+        if user_bound and unique_in_list:
+            raise fbe.TemporaryFeedbackError()
+        
+        if str_user_collection is None or not str_user_collection.strip():
+            collection: CollectionT[T] = []
+        else:
+            collection = _parse_user_collection(str_user_collection, value_type)
+
+        pickled_value_collection: bytes = pickle.dumps(collection)
+        h = queries.ArgHelper()
+
+        with queries.connected(list.community) as (conn, cursor):
+            cursor.execute(f"""
+                INSERT INTO {h|Attribute.TABLE_NAME} (
+                    list_id,
+                    name,
+                    display_name
+                    sort_value,
+                    alias,
+                    value_type,
+                    collection,
+                    min_value_slots,
+                    max_value_slots,
+                    unique_slots,
+                    user_bound,
+                    unique_in_list
+                )
+                VALUES (
+                    {h|list.id},
+                    {h|name},
+                    {h|display_name},
+                    {h|sort_value},
+                    {h|alias},
+                    {h|value_type.id},
+                    {h|pickled_value_collection},
+                    {h|min_value_slots},
+                    {h|max_value_slots},
+                    {h|unique_slots},
+                    {h|user_bound},
+                    {h|unique_in_list}
+                )
+            """, h.steal())
             
-            Attribute.generic_number_valid(sort_value)
-            
-            if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
-                raise fbe.TemporaryFeedbackError()
+            obj = Attribute(
+                list=list,
+                id=cursor.lastrowid,  # type: ignore
+                name=name,
+                display_name=display_name,
+                sort_value=sort_value,
+                alias=alias,
+                value_type=value_type,
+                collection=collection,
+                min_value_slots=min_value_slots,
+                max_value_slots=max_value_slots,
+                unique_slots=unique_slots,
+                user_bound=user_bound,
+                unique_in_list=unique_in_list
+            ) 
 
-            if not (0 <= min_value_slots <= max_value_slots):
-                raise fbe.TemporaryFeedbackError()
-            
-            if user_bound and unique_in_list:
-                raise fbe.TemporaryFeedbackError()
-            
-            if str_user_collection is None or not str_user_collection.strip():
-                collection: CollectionT[T] = []
-            else:
-                collection = _parse_user_collection(str_user_collection, value_type)
-
-            pickled_value_collection: bytes = pickle.dumps(collection)
-            h = queries.ArgHelper()
-
-            with queries.connected(list.community) as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO {h|Attribute.TABLE_NAME} (
-                        list_id,
-                        name,
-                        display_name
-                        sort_value,
-                        alias,
-                        value_type,
-                        collection,
-                        min_value_slots,
-                        max_value_slots,
-                        unique_slots,
-                        user_bound,
-                        unique_in_list
-                    )
-                    VALUES (
-                        {h|list.id},
-                        {h|name},
-                        {h|display_name},
-                        {h|sort_value},
-                        {h|alias},
-                        {h|value_type.id},
-                        {h|pickled_value_collection},
-                        {h|min_value_slots},
-                        {h|max_value_slots},
-                        {h|unique_slots},
-                        {h|user_bound},
-                        {h|unique_in_list}
-                    )
-                """, h.steal())
-                
-                obj = Attribute(
-                    list_=list,
-                    id=cursor.lastrowid,  # type: ignore
-                    name=name,
-                    display_name=display_name,
-                    sort_value=sort_value,
-                    alias=alias,
-                    value_type=value_type,
-                    collection=collection,
-                    min_value_slots=min_value_slots,
-                    max_value_slots=max_value_slots,
-                    unique_slots=unique_slots,
-                    user_bound=user_bound,
-                    unique_in_list=unique_in_list
-                ) 
-
-            return obj
+        return obj
     
     def __hash__(self) -> int:
-        return hash((self.id, hash(self.list_)))
+        return hash((self.id, hash(self.list)))
     
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, Attribute) and self.id == value.id and self.list_ == value.list_
+        return isinstance(value, Attribute) and self.id == value.id and self.list == value.list
     
     @property
     def syns(self) -> set[str]:
@@ -476,7 +476,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         return result  # type: ignore
     
-    def parse_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> list[T]:
+    def parse_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> builtins.list[T]:
         """normed == None -> Do fastest operation because we don't care"""
         if not (s := s.strip()):
             return []

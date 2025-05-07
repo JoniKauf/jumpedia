@@ -1,34 +1,38 @@
 
 
 import functools
-from typing import NamedTuple, Self, TYPE_CHECKING
+from typing import Self
+from discordtools import errors
 import discord as dc
 
-from discordtools import errors, feedbackerrors as fbe
-from structures.context import Context
-
-_init_module_done: bool = False
-
-
 @functools.total_ordering
-class _Rank:
+class _RankBase:
+    _init_done: bool = False
+
     def __init__(self, power: int, name: str) -> None:
-        if _init_module_done:
+        if self._init_done:
             raise errors.ProgrammingError("module init already done")
 
         self.power = power
         self.name = name
 
+        if self.power in self.__class__._lookup:
+            raise errors.ProgrammingError("same power twice")
+        
         self.__class__._lookup[power] = self
 
     def __init_subclass__(cls) -> None:
         cls._lookup: dict[int, Self] = {}
 
     @classmethod
+    def _init(cls) -> None:
+        raise NotImplementedError()
+
+    @classmethod
     def get(cls, power: int) -> Self:
         return cls._lookup[power]
 
-    def __lt__(self, value: '_Rank') -> bool:
+    def __lt__(self, value: '_RankBase') -> bool:
         if type(self) != type(value):
             raise errors.ProgrammingError("cannot compare different rank types")
         return self.power < value.power
@@ -40,17 +44,14 @@ class _Rank:
         return self.name
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.power, self.name})"
-    
-    
+        return f"{self.__class__.__name__}({self.power}, {self.name})"
     
 
-class UserRank(_Rank):
+class UserRank(_RankBase):
+    _init_done: bool = False
+
     @classmethod
     def _init(cls):
-        if _init_module_done:
-            raise errors.ProgrammingError()
-        
         cls.USER = UserRank(0, "User")
         cls.HELPER = UserRank(1, "Helper")
         cls.MODERATOR = UserRank(2, "Moderator")
@@ -59,12 +60,11 @@ class UserRank(_Rank):
         cls.JONIKAUF = UserRank(100, "JoniKauf")
 
 
-class ServerRank(_Rank):
+class ServerRank(_RankBase):
+    _init_done: bool = False
+
     @classmethod
     def _init(cls):
-        if _init_module_done:
-            raise errors.ProgrammingError()
-        
         cls.MEMBER = ServerRank(0, "Member")
         cls.SERVER_ADMINISTRATOR = ServerRank(1, "Server Administrator")
         cls.SERVER_OWNER = ServerRank(2, "Server Owner")
@@ -85,32 +85,10 @@ def get_server_rank(dc_user: dc.User | dc.Member) -> ServerRank:
     
     return ServerRank.MEMBER
 
-def permitted(
-    ctx: Context,
-    user_id: int,
-    min_user_rank: UserRank = UserRank.JONIKAUF,
-    min_server_rank: ServerRank = ServerRank.UNREACHABLE,
-    user_rank: UserRank | None = None,
-    server_rank: ServerRank | None = None
-) -> tuple[bool, UserRank, ServerRank]:
-    from people.user import User
 
-    still_permitted: bool = True
-    
-    server_rank = server_rank or get_server_rank(ctx.interaction.user)
-
-    if server_rank < min_server_rank:
-        still_permitted = False
-    
-    try:
-        user_rank = user_rank or User.get_other(ctx, user_id).
-    except fbe.PersonDoesNotExist:
-        user_rank = USER_RANKS.USER
-
-    if still_permitted and user_rank < min_user_rank:
-        still_permitted = False
-    
-    return still_permitted, user_rank, server_rank 
-
-
-_init_module_done = True
+def _init():
+    for cls in _RankBase.__subclasses__():
+        cls._init()
+        cls._init_done = True
+        
+_init()

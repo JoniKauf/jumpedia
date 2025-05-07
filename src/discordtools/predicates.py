@@ -4,7 +4,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 from discordtools import feedbackerrors as fbe
 
-from people import ranks
+from structures import ranks
 
 type PredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, bool]]
 
