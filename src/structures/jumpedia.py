@@ -1,5 +1,5 @@
 from threading import RLock
-from typing import Any, ClassVar, overload, Optional as Opt
+from typing import Any, ClassVar, overload
 
 import mariadb
 from structures import community
@@ -17,7 +17,7 @@ from database import queries
 
 from dataclasses import dataclass, field
 
-@dataclass(frozen=True, kw_only=False)
+@dataclass(frozen=True, kw_only=True)
 class Jumpedia(metaclass=metautils.Singleton):
     id: int = field(init=False, default=1)
     database_name: str = field(init=False, default='meta')
@@ -32,20 +32,20 @@ class Jumpedia(metaclass=metautils.Singleton):
             except mariadb.Error:
                 return
 
+            h = queries.ArgHelper()
+
             try:
-                cursor.execute("""
-                    CREATE TABLE ? (
+                cursor.execute(f"""
+                    CREATE TABLE {h|Community.META_TABLE_NAME} (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         guild_id BIGINT UNSIGNED NOT NULL,
-                        name VARCHAR(?) UNIQUE,
-                        display_name VARCHAR(?) UNIQUE,
-                        database_name VARCHAR(?) UNIQUE
+                        name VARCHAR({h|Community.MAX_NAME_LENGTH}) UNIQUE,
+                        display_name VARCHAR({h|Community.MAX_NAME_LENGTH}) UNIQUE,
+                        database_name VARCHAR({h|Community.MAX_NAME_LENGTH + len(Community.DATABASE_PREFIX)}) UNIQUE
                     )
-                """, [Community.META_TABLE_NAME, *([Community.MAX_NAME_LENGTH] * 3)])
+                """, h.steal())
             except Exception:
                 exit()
-
-        
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -54,10 +54,13 @@ class Jumpedia(metaclass=metautils.Singleton):
         return isinstance(value, Jumpedia) and self.id == value.id
         
     def get_communities(self) -> list[Community]:
+        h = queries.ArgHelper()
+
         with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ?
-            """, [Community.META_TABLE_NAME])
+            cursor.execute(f"""
+                SELECT * 
+                FROM {h|Community.META_TABLE_NAME}
+            """, h.steal())
             
             result: list[CommunityTableT] = cursor.fetchall()
 
@@ -75,7 +78,7 @@ class Jumpedia(metaclass=metautils.Singleton):
 
         return communities
     
-    def _get_community(self, data: Opt[community.CommunityTableT]) -> Community:
+    def _get_community(self, data: community.CommunityTableT | None) -> Community:
         if data is None:
             raise fbe.TemporaryFeedbackError("Community does not exist!")
         
@@ -89,32 +92,42 @@ class Jumpedia(metaclass=metautils.Singleton):
         )
     
     def get_community_by_id(self, id: int) -> Community:
-        with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ? WHERE id = ?
-            """, [Community.META_TABLE_NAME, id])
+        h = queries.ArgHelper()
 
-            result: Opt[community.CommunityTableT] = cursor.fetchone()
+        with queries.connected(self) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT * 
+                FROM {h|Community.META_TABLE_NAME} 
+                WHERE id = {h|id}
+            """, h.steal())
+
+            result: community.CommunityTableT | None = cursor.fetchone()
 
         return self._get_community(result)
         
     def get_community_by_name(self, name: str) -> Community:
         name = text.norm(name)
+        h = queries.ArgHelper()
 
         with queries.connected(self) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ? WHERE name = ?
-            """, [Community.META_TABLE_NAME, name])
+            cursor.execute(f"""
+                SELECT * 
+                FROM {h|Community.META_TABLE_NAME} 
+                WHERE name = {h|name}
+            """, h.steal())
 
-            result: Opt[community.CommunityTableT] = cursor.fetchone()
+            result: community.CommunityTableT | None = cursor.fetchone()
 
         return self._get_community(result)
     
     def get_community_by_guild_id(self, guild_id: int) -> Community:
         h = queries.ArgHelper()
+
         with queries.connected(self) as (conn, cursor):
             cursor.execute(f"""
-                SELECT * FROM {h*Community.META_TABLE_NAME} WHERE guild_id = {h*guild_id}
+                SELECT * 
+                FROM {h|Community.META_TABLE_NAME} 
+                WHERE guild_id = {h|guild_id}
             """, h.steal())
 
             result: CommunityTableT | None = cursor.fetchone()

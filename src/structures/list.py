@@ -12,9 +12,10 @@ from structures.attribute import Attribute
 from structures import attribute as attr
 from structures.community import Community
 from structures.task import Task
-from utils import jsonutils, text
 
 import pickle
+
+from utils import text
 
 
 class ListTableT(TypedDict):
@@ -23,7 +24,7 @@ class ListTableT(TypedDict):
     display_name: str
     community_id: int
 
-@dataclass(frozen=True, kw_only=False)
+@dataclass(frozen=True, kw_only=True)
 class List:
     community: Community
     id: int
@@ -59,23 +60,25 @@ class List:
             if name.endswith(INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out `{INVALID_ENDING}` from the name, as it is redundant!")
             
+            h = queries.ArgHelper()
+
             with queries.connected(community) as (conn, cursor):
                 cursor.execute(f"""
                     SELECT *
-                    FROM ?
-                    WHERE name = ?
-                """, [List.TABLE_NAME, name])
+                    FROM {h|List.TABLE_NAME}
+                    WHERE name = {h|name}
+                """, h.steal())
 
                 result_opt: ListTableT | None = cursor.fetchone()
 
                 if result_opt:
                     raise fbe.TemporaryFeedbackError(f"{List.TABLE_NAME.title()} with that name exists already")
                 
-                cursor.execute("""
-                    INSERT INTO ?
+                cursor.execute(f"""
+                    INSERT INTO {h|List.TABLE_NAME}
                     (name, display_name)
-                    VALUES (?, ?)
-                """, [List.TABLE_NAME, name, display_name])
+                    VALUES ({h|name}, {h|display_name})
+                """, h.steal())
             
             obj = List(
                 community,
@@ -87,10 +90,13 @@ class List:
             return obj
         
     def get_attributes(self) -> list[Attribute]:
+        h = queries.ArgHelper()
+
         with queries.connected(self.community) as (conn, cursor):
-            cursor.execute("""
-                SELECT * FROM ?
-            """, [Attribute.TABLE_NAME])
+            cursor.execute(f"""
+                SELECT * 
+                FROM {h|Attribute.TABLE_NAME}
+            """, h.steal())
 
             result: list[attr.AttributeTableT] = cursor.fetchall()
         
@@ -105,7 +111,7 @@ class List:
                 a_data['sort_value'],
                 set(a_data['alias']),
                 attr.AttributeValueType.lookup_by_id(a_data['value_type']),
-                pickle.loads(a_data['value_collection']),
+                pickle.loads(a_data['collection']),
                 a_data['min_value_slots'],
                 a_data['max_value_slots'],
                 a_data['unique_slots'],
