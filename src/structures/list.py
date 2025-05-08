@@ -1,17 +1,10 @@
-import ast
-from dataclasses import astuple, dataclass, field
-import json
-import sys
-from threading import RLock
-from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Self, Sequence, TypeAlias, TypedDict, cast, get_args, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Callable, ClassVar, Self, TypedDict
 
 import mariadb
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures import attribute
-from structures.attribute import Attribute, AttributeTableT
-from structures import attribute as attr
+from structures.attribute import Attribute, AttributeResultT, AttributeValueType
 from structures.community import Community
 from structures.task import Task
 
@@ -19,8 +12,7 @@ import pickle
 
 from utils import text
 
-
-class ListTableT(TypedDict):
+class ListResultT(TypedDict):
     id: int
     name: str
     display_name: str
@@ -33,7 +25,6 @@ class List:
     name: str
     display_name: str
 
-    TABLE_NAME: ClassVar[str] = "list"
     MAX_NAME_LENGTH: ClassVar[int] = 50
 
     def __post_init__(self) -> None:
@@ -64,7 +55,7 @@ class List:
         with queries.connected(community) as (conn, cursor):
             try:
                 cursor.execute(f"""
-                    INSERT INTO {h|List.TABLE_NAME}
+                    INSERT INTO list
                     (name, display_name)
                     VALUES ({h|name}, {h|display_name})
                 """, h.steal())
@@ -80,7 +71,7 @@ class List:
 
         return obj
     
-    def _fetch_atttributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeTableT]:
+    def _fetch_atttributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeResultT]:
         h = queries.ArgHelper()
         
         with queries.connected(self.community) as (conn, cursor):
@@ -90,11 +81,11 @@ class List:
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[AttributeTableT] = cursor.fetchall()
+            result: list[AttributeResultT] = cursor.fetchall()
 
         return result
     
-    def _attribute_data_to_obj(self, data: AttributeTableT | None) -> Attribute:
+    def _attribute_data_to_obj(self, data: AttributeResultT | None) -> Attribute:
         if data is None:
             raise fbe.TemporaryFeedbackError("Attribute does not exist!")
 
@@ -105,7 +96,7 @@ class List:
             display_name=data['display_name'],
             sort_value=data['sort_value'],
             alias=set(data['alias']),
-            value_type=attr.AttributeValueType.lookup_by_id(data['value_type']),
+            value_type=AttributeValueType.lookup_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
             min_value_slots=data['min_value_slots'],
             max_value_slots=data['max_value_slots'],

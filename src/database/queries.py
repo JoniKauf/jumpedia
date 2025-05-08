@@ -1,30 +1,25 @@
 from contextlib import contextmanager
 import functools
 import json
-from typing import TYPE_CHECKING, Any, Callable, ContextManager, Hashable, Iterable, Iterator, Literal, NewType, Optional as Opt
-from types import EllipsisType
-from structures import jumpedia
-from structures.community import Community
-import sqlite3
-import discord as dc
+from typing import TYPE_CHECKING, Any, Iterator
 
 import mariadb.cursors
 
-from . import mariadb_extensions as mdbe
 from database import secret
 import mariadb
-from discordtools import feedbackerrors as fbe
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
+    from structures.community import Community
 
 @functools.lru_cache(maxsize=1)
 def __get_connection_data() -> dict[str, Any]:
     return secret.listen()['DB_CONNECTION_INFO']
 
 @contextmanager
-def connected(db: Opt[Community | Jumpedia], auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from structures.jumpedia import Jumpedia
+    from structures.community import Community
 
     if db is None:
         database = {}

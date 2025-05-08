@@ -2,13 +2,8 @@ import platform
 import runpy
 import sys
 
-import discord
 from discord.ext import commands
 import pickle
-
-pickle.DEFAULT_PROTOCOL = 5
-
-BOT = commands.Bot(intents=discord.Intents.all(), command_prefix=" ", help_command=None)
 
 def main():
     if sys.version_info < (3, 12):
@@ -17,7 +12,12 @@ def main():
     if platform.python_implementation() != 'CPython':
         raise RuntimeError('Developed for CPython, other Python implementation may not be compatible!')
 
-    runpy.run_module('running', init_globals={'BOT': BOT})
+    pickle.DEFAULT_PROTOCOL = 5
+
+    from structures import jumpedia
+    
+    #BOT = commands.Bot(command_prefix=" ", help_command=None)
+    #runpy.run_module('running', init_globals={'BOT': BOT})
     
 
 if __name__ == '__main__':

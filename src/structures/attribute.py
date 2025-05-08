@@ -3,11 +3,8 @@ from dataclasses import dataclass, field
 import enum
 import datetime as dt
 import functools
-import json
 import pickle
-from threading import Lock, RLock
-from typing import Any, ClassVar, Final, Iterable, Literal, NamedTuple, NotRequired, Optional, Self, Sequence, TypedDict, Union
-import typing
+from typing import Any, ClassVar, Final, Literal, NotRequired, Optional, Self, TypedDict
 from database import queries
 from discordtools import feedbackerrors as fbe
 import re
@@ -214,9 +211,9 @@ def _create_collection_lookup[T: AttributeValueTypeT](
 
 
 
-# --- Attribute Table --- #
+# --- Attribute Result --- #
 
-class AttributeTableT(TypedDict):
+class AttributeResultT(TypedDict):
     id: int
     list_id: int
     name: str

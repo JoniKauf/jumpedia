@@ -3,7 +3,7 @@ from typing import Any, Optional as Opt, Sequence
 from discordtools import messagetools as msgt
 from numbers import Real
 
-from people import ranks
+from structures import ranks
 
 sh = msgt.shorten
 spaced = lambda *s: ' '.join(s)
