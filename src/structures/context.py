@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import discord as dc
 from discordtools import feedbackerrors as fbe
 

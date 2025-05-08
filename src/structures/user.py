@@ -1,13 +1,10 @@
-from dataclasses import dataclass, field
-import enum
+from dataclasses import dataclass
 import re
-from threading import Lock, RLock
 
-import mariadb
 from database import queries
-from typing import Any, Callable, ClassVar, Final, NamedTuple, Self, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
-from discordtools import errors, feedbackerrors as fbe
+from discordtools import feedbackerrors as fbe
 
 import discord as dc
 
@@ -20,14 +17,13 @@ _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
 type UserIdentifierT = int | str | 'User' | dc.User | dc.Member
 
-class UserTableT(TypedDict):
+class UserResultT(TypedDict):
     id: int
     power: int
     selected_list_id: int | None
 
 @dataclass(frozen=True, kw_only=True)
 class User:
-    TABLE_NAME: ClassVar[str] = __name__.lower()
     MAX_NAME_LENGTH: ClassVar[int] = 32
 
     community: Community
@@ -43,26 +39,24 @@ class User:
     
     @classmethod
     def _get(cls, community: Community, id: int) -> 'User':
-        with queries.connected(community) as (conn, cursor):
-            result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
+        result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
 
         if not result:
             raise fbe.TemporaryFeedbackError("Person does not exist")
         
         return community._user_data_to_obj(result[0])
-        
 
     @classmethod 
     def _get_or_create(cls, community: Community, id: int, user_rank: UserRank = UserRank.USER, selected_list: List | None = None) -> 'User':
         h = queries.ArgHelper()
 
-        with queries.connected(community) as (conn, cursor):
-            result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
+        result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
 
+        with queries.connected(community) as (conn, cursor):
             # TODO lock per id, not critical but avoids exceptions
             if not result:
                 cursor.execute(f"""
-                    INSERT INTO {h|User.TABLE_NAME}
+                    INSERT INTO user
                     (id, power, selected_list_id)
                     VALUES
                     ({h|id}, {h|user_rank.power}, {h|(None if selected_list is None else selected_list.id)})
@@ -79,7 +73,7 @@ class User:
     
     # Because we have a context, we can be sure the actor exists and therefore
     # we always save them. The other person might not exist due to us only
-    # having their id, therefore we try to get them.
+    # having their id, therefore we only try to get them.
     @classmethod
     def get_actor(cls, ctx: Context) -> 'User':
         return cls._get_or_create(ctx.community, ctx.interaction.user.id)
@@ -91,9 +85,18 @@ class User:
     @classmethod
     def get_both(cls, ctx: Context, other_user: UserIdentifierT) -> tuple['User', 'User']:
         actor = cls.get_actor(ctx)
-        other = cls._get(ctx.community, cls.identify(other_user))
+        other = cls._get(ctx.community, cls.find_id(other_user))
         return (actor, other)
 
+    @classmethod
+    def find_id(cls, user: UserIdentifierT) -> int:
+        if isinstance(user, (str, int)):
+            return cls._user_id_to_int(user)
+        elif isinstance(user, (cls, dc.User, dc.Member)):
+            return user.id
+        
+        raise TypeError()
+    
     @staticmethod
     def _user_id_to_int(user_id: str | int) -> int:
         if isinstance(user_id, int):
@@ -110,13 +113,4 @@ class User:
             raise fbe.InvalidUserFormat(user_id)
         
         return id
-
-    @classmethod
-    def identify(cls, user: UserIdentifierT) -> int:
-        if isinstance(user, (str, int)):
-            return cls._user_id_to_int(user)
-        elif isinstance(user, (cls, dc.User, dc.Member)):
-            return user.id
-        
-        raise TypeError()
     

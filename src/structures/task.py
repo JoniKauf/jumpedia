@@ -1,8 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Any, Generator, Sequence, overload, override, Optional as Opt
 from dataclasses import dataclass
-from database import queries
-from people import person
-from discordtools import feedbackerrors as fbe
 from structures import attribute
 from structures.attribute import Attribute
 from structures.list import List
