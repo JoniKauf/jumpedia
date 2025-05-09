@@ -6,13 +6,13 @@ import discord as dc
 
 import mariadb
 from structures.ranks import UserRank
-from structures.attribute import Attribute
 from utils import text
 from database import queries
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 from structures.list import List, ListResultT
 from structures import list as list_module
+import jumpedia as jumpedia_
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
@@ -22,7 +22,7 @@ class CommunityResultT(TypedDict, total=True):
     id: int
     name: str
     display_name: str
-    database_name: str
+    database_name: str  # virtual
     guild_ids: str
 
     
@@ -33,20 +33,27 @@ class Community:
     guild_ids: frozenset[int]
     name: str
     display_name: str
-    database_name: str
 
-    MAX_NAME_LENGTH: ClassVar[Final[int]] = 50
-    DATABASE_PREFIX: ClassVar[Final[str]] = "c_"
+    edit_lock: RLock = field(init=False, default_factory=RLock)
+
+    @property
+    def database_name(self) -> str:
+        return f"{Community.DATABASE_PREFIX}{self.id}"
+    
+    MAX_NAME_LENGTH: ClassVar[Final[int]] = 64
+    DATABASE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
     INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
     
     @classmethod
     def create(cls, jumpedia: Jumpedia, guild_ids: Iterable[int], bad_name: str) -> 'Community':
         with jumpedia.edit_lock:
+            communities = jumpedia.get_communities()
+
             name, display_name = text.create_name_and_display_name(
                 bad_name, 
                 True,
                 Community.MAX_NAME_LENGTH,
-                (c.name for c in jumpedia.get_communities())
+                (c.name for c in communities)
             )
 
             if name.endswith(cls.INVALID_ENDING):
@@ -57,24 +64,21 @@ class Community:
             h = queries.ArgHelper()
 
             with queries.connected(jumpedia) as (conn, cursor):
-                try:
-                    cursor.execute(f"""
-                        INSERT INTO community
-                        (name, display_name, database_name)
-                        VALUES 
-                        ({h|name}, {h|display_name}, {h|database_name})
-                    """, h.steal())
+                cursor.execute(f"""
+                    INSERT INTO community
+                    (name, display_name, database_name)
+                    VALUES 
+                    ({h|name}, {h|display_name}, {h|database_name})
+                """, h.steal())
 
-                    community_id: int = cursor.lastrowid  # type: ignore
+                community_id: int = cursor.lastrowid  # type: ignore
 
-                    cursor.execute(f"""
-                        INSERT INTO guild
-                        (id, community_id)
-                        VALUES
-                        {",".join(f"({h|guild_id}, {h|community_id})" for guild_id in guild_ids)}
-                    """, h.steal())
-                except mariadb.IntegrityError:
-                    raise fbe.TemporaryFeedbackError(f"Community with that name exists already")
+                cursor.execute(f"""
+                    INSERT INTO guild
+                    (id, community_id)
+                    VALUES
+                    {",".join(f"({h|guild_id}, {h|community_id})" for guild_id in guild_ids)}
+                """, h.steal())
                 
                 obj = Community(
                     jumpedia=jumpedia,
@@ -82,7 +86,7 @@ class Community:
                     guild_ids=guild_ids,
                     name=name,
                     display_name=display_name,
-                    database_name=database_name
+
                 )  
 
                 # If anything goes wrong here, exception will cause it to 
@@ -92,60 +96,37 @@ class Community:
             return obj
         
     def _init_database(self) -> None:
-        # Create database
-        with queries.connected(None) as (conn, cursor):
-            cursor.execute(f"CREATE DATABASE `{self.database_name}`")
-        
-        # If anything goes wrong here, delete database and raise error
-        try:
-            # Create tables
-            with queries.connected(self):
-                h = queries.ArgHelper()
+        with self.jumpedia.edit_lock:
+            # Create database
+            with queries.connected(None) as (conn, cursor):
+                cursor.execute(f"CREATE DATABASE `{self.database_name}`")
+            
+            # If anything goes wrong here, delete database and raise error
+            try:
+                # Create tables
+                with queries.connected(self):
+                    cursor.execute(f"""
+                        CREATE TABLE list (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                            display_name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE list (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                        display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                    )
-                """, h.steal())
-
-                cursor.execute(f"""
-                    CREATE TABLE attribute (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        list_id INT NOT NULL,
-                        name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
-                        display_name VARCHAR({h|List.MAX_NAME_LENGTH}) NOT NULL,
-                        sort_value INT NOT NULL,
-                        alias JSON NOT NULL,
-                        value_type INT NOT NULL,
-                        collection BLOB NOT NULL,
-                        min_value_slots INT NOT NULL,
-                        max_value_slots INT NOT NULL,
-                        unique_slots BOOL NOT NULL,
-                        user_bound BOOL NOT NULL,
-                        unique_in_list BOOL NOT NULL,
-
-                        FOREIGN KEY (list_id)
-                            REFERENCES list(id)
-                            ON DELETE CASCADE
-                    )
-                """, h.steal())
-
-                cursor.execute(f"""
-                    CREATE TABLE user (
-                        id BIGINT UNSIGNED PRIMARY KEY,
-                        power INT NOT NULL,
-                        selected_list_id INT,
-                               
-                        FOREIGN KEY (selected_list_id) 
-                            REFERENCES list(id) 
-                            ON DELETE SET NULL
-                    )
-                """)
-        except mariadb.Error:
-            cursor.execute(f"DROP DATABASE `{self.database_name}`")
-            raise fbe.TemporaryFeedbackError()
+                    cursor.execute("""
+                        CREATE TABLE user (
+                            id BIGINT UNSIGNED PRIMARY KEY,
+                            power INT NOT NULL,
+                            selected_list_id INT,
+                                
+                            FOREIGN KEY (selected_list_id) 
+                                REFERENCES list(id) 
+                                ON DELETE SET NULL
+                        )
+                    """)
+            except mariadb.Error:
+                cursor.execute(f"DROP DATABASE `{self.database_name}`")
+                raise fbe.TemporaryFeedbackError()
     
     def __hash__(self) -> int:
         return hash((self.id, hash(self.jumpedia)))

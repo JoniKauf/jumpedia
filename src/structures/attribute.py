@@ -4,9 +4,9 @@ import enum
 import datetime as dt
 import functools
 import pickle
-from typing import Any, ClassVar, Final, Literal, NotRequired, Optional, Self, TypedDict
+from typing import Any, ClassVar, Final, Iterable, Literal, NotRequired, Optional, Self, TypedDict
 from database import queries
-from discordtools import feedbackerrors as fbe
+from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
@@ -46,7 +46,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     def __post_init__(self):
         for elem in AttributeValueType._attribute_value_types:
             if self.name == elem.name or self.id == elem.id or self.type == elem.type:
-                raise RuntimeError()
+                raise errors.ProgrammingError()
             
         AttributeValueType._attribute_value_types.append(self)
         AttributeValueType._attribute_value_type_id_lookup[self.id] = self
@@ -54,21 +54,21 @@ class AttributeValueType[T: AttributeValueTypeT]:
         AttributeValueType._attribute_value_type_type_lookup[self.type.__qualname__] = self
 
     @classmethod
-    def lookup_by_id(cls, id: int) -> Self:
+    def get_by_id(cls, id: int) -> Self:
         try:
             return cls._attribute_value_type_id_lookup[id]
         except KeyError as e:
             raise LookupError(*e.args)
         
     @classmethod
-    def lookup_by_name(cls, name: str) -> Self:
+    def get_by_name(cls, name: str) -> Self:
         try:
             return cls._attribute_value_type_name_lookup[name]
         except KeyError as e:
             raise LookupError(*e.args)
         
     @classmethod
-    def lookup_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
+    def get_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
         try:
             return cls._attribute_value_type_type_lookup[type.__qualname__]
         except KeyError as e:
@@ -226,7 +226,8 @@ class AttributeResultT(TypedDict):
     max_value_slots: int
     unique_slots: bool
     user_bound: bool
-    unique_in_list: bool
+    unique_value_per_list: bool
+    predefined: bool
     
 
 
@@ -256,12 +257,12 @@ class Attribute[T: AttributeValueTypeT]:
     # General
     MAX_SYN_LEN: ClassVar[Final[int]] = 32
     MAX_ALIASES: ClassVar[Final[int]] = 31
-    MAX_ATTRIBUTES_PER_COMMUNITY: ClassVar[Final[int]] = 50
     MAX_VALUE_SLOTS: ClassVar[Final[int]] = 32
-
-    TABLE_NAME: ClassVar[Final[str]] = "attribute"
     SORT_KEY_LAST_NUMBER: ClassVar[Final[int]] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    
+    TABLE_PREFIX: ClassVar[Final[str]] = "attribute_"
 
+    MAX_ATTRIBUTES_PER_LIST: ClassVar[Final[int]] = 32
 
     list: List
     id: int 
@@ -276,9 +277,20 @@ class Attribute[T: AttributeValueTypeT]:
     max_value_slots: int
     unique_slots: bool
     user_bound: bool
-    unique_in_list: bool
+    unique_value_per_list: bool
+    predefined: bool
 
-
+    @property
+    def syns(self) -> set[str]:
+        return {self.name} | self.alias
+    
+    @property
+    def required(self) -> bool:
+        return self.min_value_slots > 0
+    
+    @property
+    def has_collection(self) -> bool:
+        return bool(self.collection)
 
     # --- Methods ---
 
@@ -291,7 +303,7 @@ class Attribute[T: AttributeValueTypeT]:
         cls,
         list: List,
         bad_name: str,
-        bad_aliases: set[str],
+        bad_aliases: Iterable[str],
         sort_value: int,
         value_type: AttributeValueType[T],
         str_user_collection: str | None,
@@ -299,18 +311,27 @@ class Attribute[T: AttributeValueTypeT]:
         max_value_slots: int,
         unique_slots: bool,
         user_bound: bool,
-        unique_in_list: bool
+        unique_value_per_list: bool,
+        predefined: bool
     ):
+        attributes = list.get_attributes()
+
         name, display_name = text.create_name_and_display_name(
             bad_name, 
             True, 
             Attribute.MAX_SYN_LEN, 
-            (a.name for a in list.get_attributes())
+            (a.name for a in attributes)
         )
+
+        if len(attributes) >= Attribute.MAX_ATTRIBUTES_PER_LIST:
+            raise fbe.TemporaryFeedbackError("Limit reached")
 
         alias = text.fix_aliases(bad_aliases, Attribute.MAX_SYN_LEN, Attribute.MAX_ALIASES)
         
         Attribute.generic_number_valid(sort_value)
+
+        if not (0 <= sort_value < len(attributes)):
+            raise fbe.TemporaryFeedbackError()
         
         if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
             raise fbe.TemporaryFeedbackError()
@@ -318,7 +339,7 @@ class Attribute[T: AttributeValueTypeT]:
         if not (0 <= min_value_slots <= max_value_slots):
             raise fbe.TemporaryFeedbackError()
         
-        if user_bound and unique_in_list:
+        if user_bound and unique_value_per_list:
             raise fbe.TemporaryFeedbackError()
         
         if str_user_collection is None or not str_user_collection.strip():
@@ -331,7 +352,7 @@ class Attribute[T: AttributeValueTypeT]:
 
         with queries.connected(list.community) as (conn, cursor):
             cursor.execute(f"""
-                INSERT INTO {h|Attribute.TABLE_NAME} (
+                INSERT INTO {h|list.attribute_table_name} (
                     list_id,
                     name,
                     display_name
@@ -343,7 +364,8 @@ class Attribute[T: AttributeValueTypeT]:
                     max_value_slots,
                     unique_slots,
                     user_bound,
-                    unique_in_list
+                    unique_value_per_list,
+                    predefined
                 )
                 VALUES (
                     {h|list.id},
@@ -357,7 +379,8 @@ class Attribute[T: AttributeValueTypeT]:
                     {h|max_value_slots},
                     {h|unique_slots},
                     {h|user_bound},
-                    {h|unique_in_list}
+                    {h|unique_value_per_list}
+                    {h|predefined}
                 )
             """, h.steal())
             
@@ -374,7 +397,8 @@ class Attribute[T: AttributeValueTypeT]:
                 max_value_slots=max_value_slots,
                 unique_slots=unique_slots,
                 user_bound=user_bound,
-                unique_in_list=unique_in_list
+                unique_value_per_list=unique_value_per_list,
+                predefined=predefined
             ) 
 
         return obj
@@ -384,18 +408,6 @@ class Attribute[T: AttributeValueTypeT]:
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, Attribute) and self.id == value.id and self.list == value.list
-    
-    @property
-    def syns(self) -> set[str]:
-        return {self.name} | self.alias
-    
-    @property
-    def required(self) -> bool:
-        return self.min_value_slots > 0
-    
-    @property
-    def has_collection(self) -> bool:
-        return bool(self.collection)
     
     @classmethod
     def generic_number_valid(cls, number: int | float | Decimal) -> None:

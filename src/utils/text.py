@@ -29,7 +29,7 @@ def norm(s: str, whitespace_repl: str = '_') -> str:
 def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> set[str]:
     result: set[str] = set()
 
-    for alias in aliases:
+    for alias in frozenset(aliases):
         alias = norm(alias)
 
         if len(alias) > max_length:

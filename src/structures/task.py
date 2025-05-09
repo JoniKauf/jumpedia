@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from typing import ClassVar, Final
 from structures import attribute
 from structures.attribute import Attribute
 from structures.list import List
+from structures.user import User
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
@@ -9,6 +11,9 @@ class Task:
     id: int
     values: dict[Attribute, attribute.AttributeValueTypeT]
 
+    TABLE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
+    USER_TABLE_PREFIX: ClassVar[Final[str]] = f"{User.__name__}_{__name__}_"
+    
     def __hash__(self) -> int:
         return hash((self.id, hash(self.list_)))
     

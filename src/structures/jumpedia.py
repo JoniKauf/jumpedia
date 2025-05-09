@@ -1,5 +1,5 @@
 from threading import RLock
-from typing import Callable
+from typing import Callable, Final
 
 import mariadb
 from structures import community
@@ -7,6 +7,7 @@ from discordtools import feedbackerrors as fbe
 from structures.community import Community, CommunityResultT
 from utils import metautils, text
 from database import queries
+from dataclasses import dataclass, field
 
 # -> Jumpedia has many:
 #  -> Community has many:
@@ -14,8 +15,6 @@ from database import queries
 #   -> List has many:
 #    -> Task
 #    -> Attribute
-
-from dataclasses import dataclass, field
 
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(metaclass=metautils.Singleton):
@@ -32,20 +31,19 @@ class Jumpedia(metaclass=metautils.Singleton):
             except mariadb.Error:
                 return
 
-            h = queries.ArgHelper()
-
             try:
                 cursor.execute(f"""
-                    CREATE TABLE community (
+                    CREATE TABLE `community` (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR({h|Community.MAX_NAME_LENGTH}) UNIQUE,
-                        display_name VARCHAR({h|Community.MAX_NAME_LENGTH}) UNIQUE,
-                        database_name VARCHAR({h|Community.MAX_NAME_LENGTH + len(Community.DATABASE_PREFIX)}) UNIQUE
+                        name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
+                        display_name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
+                        database_name VARCHAR({Community.MAX_NAME_LENGTH}) 
+                            AS (CONCAT({Community.DATABASE_PREFIX}, id)) VIRTUAL
                     )
-                """, h.steal())
+                """)
 
                 cursor.execute(f"""
-                    CREATE TABLE guild (
+                    CREATE TABLE `guild` (
                         id BIGINT UNSIGNED PRIMARY KEY,
                         community_id INT NOT NULL,
 
@@ -53,7 +51,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                             REFERENCES community(id) 
                             ON DELETE CASCADE
                     )
-                """, h.steal())
+                """)
 
             except Exception:
                 try:
@@ -118,8 +116,7 @@ class Jumpedia(metaclass=metautils.Singleton):
             id=data['id'],
             guild_ids=frozenset(int(id) for id in data['guild_ids'].split(',')),
             name=data['name'],
-            display_name=data['display_name'],
-            database_name=data['database_name']
+            display_name=data['display_name']
         )
     
     def get_communities(self) -> list[Community]:
@@ -131,7 +128,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     
     def get_community_by_name(self, name: str) -> Community:
         name = text.norm(name)
-        data = self._fetch_from_community_table(lambda h: f"id = {h|name}")
+        data = self._fetch_from_community_table(lambda h: f"name = {h|name}")
         return self._community_data_to_obj(data[0] if data else None)
     
     def get_community_by_guild_id(self, guild_id: int) -> Community:
