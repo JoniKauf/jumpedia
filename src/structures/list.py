@@ -155,8 +155,8 @@ class List:
         name = text.norm(name)
         data = self._fetch_attributes_from_table(lambda h: f"name = {h|name}")
         return self._attribute_data_to_obj(data[0] if data else None)
-    
-    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None, user_id: int | None) -> list[TaskResultT]:
+
+    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None, user: User | None) -> list[TaskResultT]:
         h = queries.ArgHelper()
         
         with queries.connected(self.community) as (conn, cursor):
@@ -174,7 +174,7 @@ class List:
                     attribute AS a ON atu.attribute_id = a.id
                 WHERE 
                     t.list_id = {h|self.id}
-                    {f"AND atu.user_id = {h|user_id}" if user_id is not None else ""}
+                    AND atu.user_id {f"= {h|user.id}" if user is not None else f"!= {h|User.JUMPEDIA_USER.id}"}
                     {f"AND {where(h)}" if where is not None else ""}
                 GROUP BY 
                     task_id,
@@ -218,25 +218,40 @@ class List:
                 result[user].append(task)
             
             attribute = ATTRIBUTES[row['attribute_id']]
-            
-            value_list = task.values.setdefault(, [])
-            
-            
-            
-    
+            value = pickle.loads(row['value'])
 
+            value_list = task.values.setdefault(attribute, [value] * row['max_idx'])
+            value_list[row['idx']] = value
+
+        return result
+            
+    def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None, user: User | None = User.JUMPEDIA_USER) -> dict[User, list[Task]]:
+        return self._tasks_data_to_objs(self._fetch_tasks_from_table(where, user))
+
+    def get_task_by_id(self, id: int, user: User | None = User.JUMPEDIA_USER) -> dict[User, Task]:
+        result = self._tasks_data_to_objs(self._fetch_tasks_from_table(lambda h: f"task_id = {h|id}", user))
+
+        if not result:
+            raise fbe.TemporaryFeedbackError()
         
-    def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None, user_id: int | None = User.JUMPEDIA_USER_ID) -> list[Task]:
-        return self._tasks_data_to_objs(self._fetch_tasks_from_table(where, user_id))
-
-    def get_task_by_id(self, id: int, user_id: int | None = User.JUMPEDIA_USER_ID) -> Task:
-        data = self._fetch_tasks_from_table(lambda h: f"id = {h|id}", user_id)
-        return self._tasks_data_to_objs(data[0] if data else None)
+        return {user: tasks[0] for user, tasks in result.items() if tasks}
     
-    def get_task_by_name(self, name: str, user_id: int | None = User.JUMPEDIA_USER_ID) -> Task:
+    def get_task_by_name(self, name: str, user: User | None = User.JUMPEDIA_USER) -> dict[User, Task]:
+        result = self._tasks_data_to_objs(self._fetch_tasks_from_table(None, User.JUMPEDIA_USER))
+        tasks: list[Task] = result[User.JUMPEDIA_USER]
+
         name = text.norm(name)
-        data = self._fetch_tasks_from_table(lambda h: f"name = {h|name}", user_id)
-        return self._tasks_data_to_objs(data[0] if data else None)
+        task_id: int = -1
+
+        for task in tasks:
+            if task.values[self.name_attribute][0] == name:
+                task_id = task.id
+                break
+
+
+
+            
+
     
     @classmethod
     def filter(cls, list_: list[Task] | Self, expression: str) -> list[Task]:

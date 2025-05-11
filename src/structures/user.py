@@ -26,7 +26,7 @@ class UserResultT(TypedDict):
 @dataclass(frozen=True, kw_only=True)
 class User:
     MAX_NAME_LENGTH: ClassVar[Final[int]] = 32
-    JUMPEDIA: ClassVar['User'] = None  # type: ignore
+    JUMPEDIA_USER: ClassVar['User'] = None  # type: ignore
 
     community: Community
     id: int
@@ -45,14 +45,8 @@ class User:
     
     @classmethod
     def _init(cls) -> None:
-        cls.JUMPEDIA = User(
-            community=Community(
-                jumpedia=Jumpedia(),
-                id=0,
-                guild_ids=frozenset(),
-                name="",
-                display_name=""
-            ),
+        cls.JUMPEDIA_USER = User(
+            community=Community.JUMPEDIA_COMMUNITY,
             id=0,
             user_rank=UserRank.USER,
             selected_list=None
@@ -60,8 +54,8 @@ class User:
 
     @classmethod
     def _get(cls, community: Community, id: int) -> 'User':
-        if id == cls.JUMPEDIA.id:
-            return cls.JUMPEDIA
+        if id == cls.JUMPEDIA_USER.id:
+            return cls.JUMPEDIA_USER
         
         result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
 

@@ -34,6 +34,8 @@ class Community:
     DATABASE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
     INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
 
+    JUMPEDIA_COMMUNITY: ClassVar['Community'] = None  # type: ignore
+
     jumpedia: Jumpedia
     id: int
     guild_ids: frozenset[int]
@@ -56,6 +58,16 @@ class Community:
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
+    @classmethod
+    def _init(cls) -> None:
+        cls.JUMPEDIA_COMMUNITY = Community(
+            jumpedia=Jumpedia(),
+            id=0,
+            guild_ids=frozenset(),
+            name="",
+            display_name=""
+        )
+
     @classmethod
     def create(cls, jumpedia: Jumpedia, guild_ids: Iterable[int], bad_name: str) -> 'Community':
         with jumpedia.edit_lock:
@@ -197,7 +209,7 @@ class Community:
                         attribute_id INT NOT NULL,
                         user_id BIGINT UNSIGNED NOT NULL,
                         idx INT UNSIGNED NOT NULL,
-                        value VARCHAR({Attribute.STR_MAX_LEN}),
+                        value BLOB NOT NULL,
 
                         PRIMARY KEY (task_id, attribute_id, user_id, idx),
 
@@ -287,3 +299,4 @@ class Community:
         data = self._fetch_users_from_table(lambda h: f"name = {h|name}")
         return self._user_data_to_obj(data[0] if data else None)
     
+Community._init()
