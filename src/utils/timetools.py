@@ -73,3 +73,29 @@ def parse_timedelta(s: str) -> datetime.timedelta:
         return datetime.timedelta(seconds=float(total_seconds * sign))
     except Exception:
         raise ValueError("Number too small or big")
+    
+
+def unparse_timedelta(obj: datetime.timedelta) -> str:
+    if obj.total_seconds() < 0:
+        parts = ["-"]
+    else:
+        parts = []
+    
+    mins, seconds = divmod(obj.seconds, 60)
+    hours, mins = divmod(mins, 60)
+
+    if obj.microseconds:
+        seconds += (obj.microseconds / 1_000_000)
+
+    parts: list[str] = []
+
+    if obj.days: 
+        parts.append(f"{abs(obj.days)}d")
+    if hours: 
+        parts.append(f"{abs(hours)}h")
+    if mins: 
+        parts.append(f"{abs(mins)}m")
+    if seconds:
+        parts.append(f"{abs(seconds)}s")
+        
+    return ''.join(parts)

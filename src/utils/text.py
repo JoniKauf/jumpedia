@@ -29,7 +29,7 @@ def norm(s: str, whitespace_repl: str = '_') -> str:
 def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> set[str]:
     result: set[str] = set()
 
-    for alias in aliases:
+    for alias in frozenset(aliases):
         alias = norm(alias)
 
         if len(alias) > max_length:
@@ -47,8 +47,12 @@ def create_name_and_display_name(bad_name: str, identifiers_only: bool, max_leng
     if (length := len(name)) > max_length:
         raise fbe.TemporaryFeedbackError(length, max_length)
     
-    if identifiers_only and (inv := invalid_identifier_chars(name)):
-        raise fbe.TemporaryFeedbackError(inv)
+    if identifiers_only:
+        if (inv := invalid_identifier_chars(name)):
+            raise fbe.TemporaryFeedbackError(inv)
+        
+        if name.startswith('_'):
+            raise fbe.TemporaryFeedbackError("Name may not start with underscore")
     
     if name in existing_names:
         raise fbe.TemporaryFeedbackError()

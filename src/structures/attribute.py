@@ -4,14 +4,14 @@ import enum
 import datetime as dt
 import functools
 import pickle
-from typing import Any, ClassVar, Final, Literal, NotRequired, Optional, Self, TypedDict
+from typing import Any, ClassVar, Final, Iterable, Literal, NotRequired, Optional, Self, TypedDict
 from database import queries
-from discordtools import feedbackerrors as fbe
+from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
 from structures.list import List
-from utils import parsetools, text, timetools
+from utils import metautils, parsetools, text, timetools
 
 # --- Constants --- #
 
@@ -46,7 +46,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     def __post_init__(self):
         for elem in AttributeValueType._attribute_value_types:
             if self.name == elem.name or self.id == elem.id or self.type == elem.type:
-                raise RuntimeError()
+                raise errors.ProgrammingError()
             
         AttributeValueType._attribute_value_types.append(self)
         AttributeValueType._attribute_value_type_id_lookup[self.id] = self
@@ -54,21 +54,21 @@ class AttributeValueType[T: AttributeValueTypeT]:
         AttributeValueType._attribute_value_type_type_lookup[self.type.__qualname__] = self
 
     @classmethod
-    def lookup_by_id(cls, id: int) -> Self:
+    def get_by_id(cls, id: int) -> Self:
         try:
             return cls._attribute_value_type_id_lookup[id]
         except KeyError as e:
             raise LookupError(*e.args)
         
     @classmethod
-    def lookup_by_name(cls, name: str) -> Self:
+    def get_by_name(cls, name: str) -> Self:
         try:
             return cls._attribute_value_type_name_lookup[name]
         except KeyError as e:
             raise LookupError(*e.args)
         
     @classmethod
-    def lookup_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
+    def get_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
         try:
             return cls._attribute_value_type_type_lookup[type.__qualname__]
         except KeyError as e:
@@ -142,7 +142,7 @@ def _add_roots[T: AttributeValueTypeT](
     root: CollectionTreeItem[T] | None
 ) -> None:
     for item in tree:
-        object.__setattr__(item, 'root', root)
+        object.__setattr__(item, metautils.varname(f"{root=}", False), root)
 
         _add_roots(item.nodes, item)
 
@@ -189,7 +189,7 @@ def _extract_data_from_collection_item[T: AttributeValueTypeT](
     except KeyError as e:
         raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
     
-    display_value: T = Attribute._parse_str_singular(bad_value, value_type)
+    display_value: T = Attribute._from_str_singular(bad_value, value_type)
     value: T = Attribute.normalize(display_value)
 
     return (value, display_value, sort_value)
@@ -219,14 +219,15 @@ class AttributeResultT(TypedDict):
     name: str
     display_name: str
     sort_value: int
-    alias: list[str]
+    alias: str
     value_type: int
     collection: bytes
     min_value_slots: int
     max_value_slots: int
     unique_slots: bool
     user_bound: bool
-    unique_in_list: bool
+    unique_value_per_list: bool
+    predefined: bool
     
 
 
@@ -256,12 +257,12 @@ class Attribute[T: AttributeValueTypeT]:
     # General
     MAX_SYN_LEN: ClassVar[Final[int]] = 32
     MAX_ALIASES: ClassVar[Final[int]] = 31
-    MAX_ATTRIBUTES_PER_COMMUNITY: ClassVar[Final[int]] = 50
     MAX_VALUE_SLOTS: ClassVar[Final[int]] = 32
-
-    TABLE_NAME: ClassVar[Final[str]] = "attribute"
     SORT_KEY_LAST_NUMBER: ClassVar[Final[int]] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    
+    TABLE_PREFIX: ClassVar[Final[str]] = "attribute_"
 
+    MAX_ATTRIBUTES_PER_LIST: ClassVar[Final[int]] = 32
 
     list: List
     id: int 
@@ -276,9 +277,24 @@ class Attribute[T: AttributeValueTypeT]:
     max_value_slots: int
     unique_slots: bool
     user_bound: bool
-    unique_in_list: bool
+    unique_value_per_list: bool
+    predefined: bool
 
-
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.list.identity
+    
+    @property
+    def syns(self) -> set[str]:
+        return {self.name} | self.alias
+    
+    @property
+    def required(self) -> bool:
+        return self.min_value_slots > 0
+    
+    @property
+    def has_collection(self) -> bool:
+        return bool(self.collection)
 
     # --- Methods ---
 
@@ -286,12 +302,18 @@ class Attribute[T: AttributeValueTypeT]:
         if self.has_collection:
             _create_collection_lookup(self.collection, self.collection_lookup)
 
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__) and self.identity == value.identity
+    
     @classmethod
     def create(
         cls,
         list: List,
         bad_name: str,
-        bad_aliases: set[str],
+        bad_aliases: Iterable[str],
         sort_value: int,
         value_type: AttributeValueType[T],
         str_user_collection: str | None,
@@ -299,18 +321,27 @@ class Attribute[T: AttributeValueTypeT]:
         max_value_slots: int,
         unique_slots: bool,
         user_bound: bool,
-        unique_in_list: bool
+        unique_value_per_list: bool,
+        predefined: bool
     ):
+        attributes = list.get_attributes()
+
         name, display_name = text.create_name_and_display_name(
             bad_name, 
             True, 
             Attribute.MAX_SYN_LEN, 
-            (a.name for a in list.get_attributes())
+            (a.name for a in attributes)
         )
+
+        if len(attributes) >= Attribute.MAX_ATTRIBUTES_PER_LIST:
+            raise fbe.TemporaryFeedbackError("Limit reached")
 
         alias = text.fix_aliases(bad_aliases, Attribute.MAX_SYN_LEN, Attribute.MAX_ALIASES)
         
         Attribute.generic_number_valid(sort_value)
+
+        if not (0 <= sort_value < len(attributes)):
+            raise fbe.TemporaryFeedbackError()
         
         if not (1 <= max_value_slots <= Attribute.MAX_VALUE_SLOTS):
             raise fbe.TemporaryFeedbackError()
@@ -318,7 +349,7 @@ class Attribute[T: AttributeValueTypeT]:
         if not (0 <= min_value_slots <= max_value_slots):
             raise fbe.TemporaryFeedbackError()
         
-        if user_bound and unique_in_list:
+        if user_bound and unique_value_per_list:
             raise fbe.TemporaryFeedbackError()
         
         if str_user_collection is None or not str_user_collection.strip():
@@ -331,7 +362,7 @@ class Attribute[T: AttributeValueTypeT]:
 
         with queries.connected(list.community) as (conn, cursor):
             cursor.execute(f"""
-                INSERT INTO {h|Attribute.TABLE_NAME} (
+                INSERT INTO attribute (
                     list_id,
                     name,
                     display_name
@@ -343,7 +374,8 @@ class Attribute[T: AttributeValueTypeT]:
                     max_value_slots,
                     unique_slots,
                     user_bound,
-                    unique_in_list
+                    unique_value_per_list,
+                    predefined
                 )
                 VALUES (
                     {h|list.id},
@@ -357,7 +389,8 @@ class Attribute[T: AttributeValueTypeT]:
                     {h|max_value_slots},
                     {h|unique_slots},
                     {h|user_bound},
-                    {h|unique_in_list}
+                    {h|unique_value_per_list}
+                    {h|predefined}
                 )
             """, h.steal())
             
@@ -374,29 +407,12 @@ class Attribute[T: AttributeValueTypeT]:
                 max_value_slots=max_value_slots,
                 unique_slots=unique_slots,
                 user_bound=user_bound,
-                unique_in_list=unique_in_list
+                unique_value_per_list=unique_value_per_list,
+                predefined=predefined
             ) 
 
         return obj
-    
-    def __hash__(self) -> int:
-        return hash((self.id, hash(self.list)))
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Attribute) and self.id == value.id and self.list == value.list
-    
-    @property
-    def syns(self) -> set[str]:
-        return {self.name} | self.alias
-    
-    @property
-    def required(self) -> bool:
-        return self.min_value_slots > 0
-    
-    @property
-    def has_collection(self) -> bool:
-        return bool(self.collection)
-    
+
     @classmethod
     def generic_number_valid(cls, number: int | float | Decimal) -> None:
         if not (Attribute.NUMBER_MIN < number < Attribute.NUMBER_MAX):
@@ -412,7 +428,7 @@ class Attribute[T: AttributeValueTypeT]:
         return normalized
     
     @classmethod
-    def _parse_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
+    def _from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
         vt = value_type.type
 
         if issubclass(vt, bool):
@@ -472,8 +488,8 @@ class Attribute[T: AttributeValueTypeT]:
             result = text.fix_whitespace(s, " ", True)
         
         return result  # type: ignore
-    
-    def parse_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> builtins.list[T]:
+
+    def from_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> builtins.list[T]:
         """normed == None -> Do fastest operation because we don't care"""
         if not (s := s.strip()):
             return []
@@ -497,7 +513,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         value_type = value_type or self.value_type
 
-        converted: list[T] = [self._parse_str_singular(elem, value_type) for elem in v]
+        converted: list[T] = [self._from_str_singular(elem, value_type) for elem in v]
 
         if not self.has_collection:
             if normed is True:
@@ -514,6 +530,13 @@ class Attribute[T: AttributeValueTypeT]:
                     converted[i] = self.collection_lookup[elem].display_value
 
         return converted
+
+    def to_str(self, obj: T) -> str:
+        if isinstance(obj, (bool, int, Decimal, str)):
+            return str(obj)
+        
+        if isinstance(obj, (dt.time, dt.date, dt.datetime)):
+            return obj.isoformat()
 
     def _sort_key_singular(self, value: T | None, sign: Literal[+1, -1]):
         vt: type[T] = self.value_type.type
@@ -570,7 +593,7 @@ class Attribute[T: AttributeValueTypeT]:
             return (value.total_seconds() + add) * sign  # type: ignore
         
     def sort_key(self, value: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
-        values = self.parse_str(value, True)
+        values = self.from_str(value, True)
         
         if not values:
             return Attribute.SORT_KEY_LAST_NUMBER + 1
@@ -589,20 +612,21 @@ class Attribute[T: AttributeValueTypeT]:
         return tuple(self._sort_key_singular(value, sign) for value in values)
     
     def is_empty(self, value: str) -> bool:
-        return bool(self.parse_str(value, None)) 
-
-    def value_to_memory(self, value: T) -> int:
-        if isinstance(value, str):
-            return len(value)
-        if isinstance(value, int):
-            return 8
-        if isinstance(value, float):
-            return 8
-        if isinstance(value, dt.time):
-            return 8
-        if isinstance(value, dt.datetime):
-            return 8
-        if isinstance(value, dt.timedelta):
-            return 8
+        return bool(self.from_str(value, None)) 
+    
+    def column_creation_line(self) -> str:
+        name = f"`{self.name}`"
         
-        raise TypeError  
+        if self == self.list.id_attribute:
+            return f"{name} INT AUTO_INCREMENT PRIMARY KEY"
+        
+        result: list[str] = []
+
+        if self == self.list.name_attribute:
+            result.append(f"VARCHAR({Attribute.STR_MAX_LEN})")
+        else:
+            result.append(f"BLOB")
+        
+        if self.unique_value_per_list:
+            result.append()
+        return f"{name} BLOB"

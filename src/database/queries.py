@@ -1,10 +1,12 @@
 from contextlib import contextmanager
 import functools
 import json
-from typing import TYPE_CHECKING, Any, Iterator
+import pickle
+from typing import TYPE_CHECKING, Any, Callable, Final, Iterator
 
 import mariadb.cursors
 
+from discordtools import feedbackerrors as fbe
 from database import secret
 import mariadb
 
@@ -12,9 +14,21 @@ if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
     from structures.community import Community
 
-@functools.lru_cache(maxsize=1)
+CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
+    mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
+    mariadb.FIELD_TYPE.BLOB: lambda blob: pickle.loads(blob)
+}
+__connection_data: dict[str, Any] | None = None
+
 def __get_connection_data() -> dict[str, Any]:
-    return secret.listen()['DB_CONNECTION_INFO']
+    global __connection_data
+
+    if __connection_data is None:
+        __connection_data = secret.listen()['DB_CONNECTION_INFO']
+    
+    return __connection_data
+
+
 
 @contextmanager
 def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
@@ -28,22 +42,24 @@ def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> It
     else:
         raise TypeError
 
-    conn: Opt[mariadb.Connection] = None
+    conn: mariadb.Connection | None = None
     
     try:
         conn = mariadb.connect(
             **(__get_connection_data() | database),
-            converter={
-                mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str)
-            }
+            converter=
         )
         cursor = conn.cursor(dictionary=True)
 
         yield conn, cursor
 
-    except mariadb.Error as e:
+    except Exception as e:
         if conn:
             conn.rollback()
+
+        if isinstance(e, mariadb.Error):
+            raise fbe.InternalDatabaseError(e)
+        
         raise e
     
     finally:

@@ -2,12 +2,13 @@ from dataclasses import dataclass
 import re
 
 from database import queries
-from typing import TYPE_CHECKING, ClassVar, TypedDict
+from typing import TYPE_CHECKING, ClassVar, Final, TypedDict
 
 from discordtools import feedbackerrors as fbe
 
 import discord as dc
 
+from structures.jumpedia import Jumpedia
 from structures.ranks import UserRank
 from structures.community import Community
 from structures.context import Context
@@ -24,21 +25,44 @@ class UserResultT(TypedDict):
 
 @dataclass(frozen=True, kw_only=True)
 class User:
-    MAX_NAME_LENGTH: ClassVar[int] = 32
+    MAX_NAME_LENGTH: ClassVar[Final[int]] = 32
+    JUMPEDIA: ClassVar['User'] = None  # type: ignore
 
     community: Community
     id: int
     user_rank: UserRank
     selected_list: List | None
 
-    def __hash__(self) -> int:
-        return hash((self.id, hash(self.community)))
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.community.identity
     
-    def __eq__(self, value: object) -> bool: 
-        return isinstance(value, User) and self.id == value.id and self.community == value.community
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
+    def _init(cls) -> None:
+        cls.JUMPEDIA = User(
+            community=Community(
+                jumpedia=Jumpedia(),
+                id=0,
+                guild_ids=frozenset(),
+                name="",
+                display_name=""
+            ),
+            id=0,
+            user_rank=UserRank.USER,
+            selected_list=None
+        )
+
+    @classmethod
     def _get(cls, community: Community, id: int) -> 'User':
+        if id == cls.JUMPEDIA.id:
+            return cls.JUMPEDIA
+        
         result = community._fetch_users_from_table(lambda h: f"id = {h|id}")
 
         if not result:
@@ -79,14 +103,18 @@ class User:
         return cls._get_or_create(ctx.community, ctx.interaction.user.id)
     
     @classmethod
-    def get_other(cls, ctx: Context, other_user: UserIdentifierT) -> 'User':
-        return cls.get_both(ctx, other_user)[1]
+    def get_other(cls, ctx: Context | Community, other_user: UserIdentifierT) -> 'User':
+        other_id = cls.find_id(other_user)
+
+        if isinstance(ctx, Context):
+            cls.get_actor(ctx)
+            return cls._get(ctx.community, other_id)
+        
+        return cls._get(ctx, other_id)
     
     @classmethod
     def get_both(cls, ctx: Context, other_user: UserIdentifierT) -> tuple['User', 'User']:
-        actor = cls.get_actor(ctx)
-        other = cls._get(ctx.community, cls.find_id(other_user))
-        return (actor, other)
+        return (cls.get_actor(ctx), cls.get_other(ctx.community, other_user))
 
     @classmethod
     def find_id(cls, user: UserIdentifierT) -> int:
@@ -114,3 +142,8 @@ class User:
         
         return id
     
+    @classmethod
+    def is_jumpedia(cls, user: UserIdentifierT) -> bool:
+        return cls.find_id(user) == cls.JUMPEDIA_USER_ID
+    
+User._init()
