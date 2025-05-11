@@ -12,10 +12,8 @@ class TaskResultT(TypedDict):
     user_id: int
     attribute_id: int
     idx: int 
-    value: str
+    value: bytes
     max_idx: int
-
-
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
@@ -23,9 +21,6 @@ class Task:
     user: User
     id: int
     values: dict[Attribute, builtins.list[AttributeValueTypeT]]
-
-    TABLE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
-    USER_TABLE_PREFIX: ClassVar[Final[str]] = f"{User.__name__}_{__name__}_"
 
     @property
     def identity(self) -> tuple[int, ...]:
