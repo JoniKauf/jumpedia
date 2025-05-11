@@ -1,30 +1,43 @@
+import builtins
 from dataclasses import dataclass
-from typing import ClassVar, Final
+from typing import ClassVar, Final, NotRequired, TypedDict
 from structures import attribute
-from structures.attribute import Attribute
+from structures.attribute import Attribute, AttributeValueTypeT
 from structures.list import List
 from structures.user import User
 
+
+class TaskResultT(TypedDict):
+    task_id: int
+    user_id: int
+    attribute_id: int
+    idx: int 
+    value: str
+    max_idx: int
+
+
+
 @dataclass(frozen=True, kw_only=True)
 class Task:
-    list_: List
+    list: List
+    user: User
     id: int
-    values: dict[Attribute, attribute.AttributeValueTypeT]
+    values: dict[Attribute, builtins.list[AttributeValueTypeT]]
 
     TABLE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
     USER_TABLE_PREFIX: ClassVar[Final[str]] = f"{User.__name__}_{__name__}_"
+
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.list.identity
     
     def __hash__(self) -> int:
-        return hash((self.id, hash(self.list_)))
+        return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, Task) and self.id == value.id and self.list_ == value.list_
+        return isinstance(value, self.__class__) and self.identity == value.identity
     
-    def get_attributes(self):
-        return self.list_.get_attributes()
-
-    def debug_info(self) -> str:
-        return "\n".join(f"{k}: {v}" for k, v in self.values.items())
+    
     
 
 # def get_contributor_line(self) -> str:

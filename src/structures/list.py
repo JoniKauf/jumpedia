@@ -1,16 +1,20 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, ClassVar, Final, Iterable, Self, TypedDict
+from functools import cached_property
+import json
+from typing import Any, Callable, ClassVar, Final, Iterable, Literal, Self, TypedDict
 
 import mariadb
 from database import queries
 from discordtools import feedbackerrors as fbe
 from structures.attribute import Attribute, AttributeResultT, AttributeValueType
 from structures.community import Community
-from structures.task import Task
+from structures.task import Task, TaskResultT
 
 import pickle
 
-from utils import text
+from structures.user import User
+from utils import metautils, text
 
 class ListResultT(TypedDict):
     id: int
@@ -28,45 +32,39 @@ class List:
     id: int
     name: str
     display_name: str
-    
-    _id_attribute: Attribute[int] | None = field(init=False, default=None)
-    _key_attribute: Attribute[str] | None = field(init=False, default=None)
+
+    @cached_property
+    def name_attribute(self) -> Attribute[str]:
+        return Attribute.create(
+            list=self,
+            bad_name='name',
+            bad_aliases=(),
+            sort_value=1,
+            value_type=AttributeValueType.get_by_type(str),
+            str_user_collection=None,
+            min_value_slots=1,
+            max_value_slots=1,
+            unique_slots=False,
+            user_bound=False,
+            unique_value_per_list=True,
+            predefined=True
+        )
 
     @property
-    def id_attribute(self) -> Attribute[int]:
-        if self._id_attribute is None:
-            raise fbe.TemporaryFeedbackError()
-        return self._id_attribute
-    
-    @property
-    def key_attribute(self) -> Attribute[str]:
-        if self._key_attribute is None:
-            raise fbe.TemporaryFeedbackError()
-        return self._key_attribute
-
-    @property
-    def attribute_table_name(self) -> str:
-        return f"{Attribute.TABLE_PREFIX}{self.id}"
-    
-    @property
-    def task_table_name(self) -> str:
-        return f"{Task.TABLE_PREFIX}{self.id}"
-    
-    @property
-    def user_task_table_name(self) -> str:
-        return f"{Task.USER_TABLE_PREFIX}{self.id}"
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.community.identity
     
     def __post_init__(self) -> None:
         self.get_attributes()
 
     def __hash__(self) -> int:
-        return hash((self.id, hash(self.community)))
+        return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, List) and self.id == value.id and self.community == value.community
+        return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
-    def create(cls, community: Community, bad_name: str, key_attribute_name: str, key_attribute_alias: Iterable[str]) -> 'List':
+    def create(cls, community: Community, bad_name: str) -> 'List':
         with community.edit_lock:
             lists = community.get_lists()
 
@@ -102,73 +100,23 @@ class List:
                     display_name=display_name
                 )
 
-                # Like in community, if anything goes wrong in here, the rest
-                # from before will also be reset
-                obj._init_tables(key_attribute_name, key_attribute_alias)
-
             return obj
     
-    def _init_tables(self, key_attribute_name: str, key_attribute_alias: Iterable[str]) -> None:
-        with self.community.edit_lock:
-            with queries.connected(self.community) as (conn, cursor):
-                cursor.execute(f"""
-                    CREATE TABLE `{self.attribute_table_name}` (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        list_id INT NOT NULL,
-                        name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL,
-                        display_name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL,
-                        sort_value INT NOT NULL UNIQUE,
-                        alias JSON NOT NULL,
-                        value_type INT NOT NULL,
-                        collection BLOB NOT NULL,
-                        min_value_slots INT NOT NULL,
-                        max_value_slots INT NOT NULL,
-                        unique_slots BOOL NOT NULL,
-                        user_bound BOOL NOT NULL,
-                        unique_value_per_list BOOL NOT NULL,
-                        predefined BOOL NOT NULL,
-
-                        FOREIGN KEY (list_id)
-                            REFERENCES list(id)
-                            ON DELETE CASCADE
-                    )
-                """)
-
-                cursor.execute(f"""
-                    CREATE TABLE `{self.task_table_name}`
-                """)
-
-    def _generate_default_attributes(self, key_attribute_name: str, key_attribute_alias: Iterable[str]) -> None:
-        Attribute.create(
-            list=self,
-            bad_name='id',
-            bad_aliases=(),
-            sort_value=0,
-            value_type=AttributeValueType.get_by_type(int),
-            str_user_collection=None,
-            min_value_slots=1,
-            max_value_slots=1,
-            unique_slots=True,
-            user_bound=False,
-            unique_value_per_list=True,
-            predefined=False
-        )
-
-        Attribute.create(
-            list=self,
-            bad_name=key_attribute_name,
-            bad_aliases=key_attribute_alias,
-            sort_value=Attribute.SORT_KEY_LAST_NUMBER
-        )
-
-    def _fetch_atttributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeResultT]:
+    def _fetch_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeResultT]:
         h = queries.ArgHelper()
         
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute(f"""
-                SELECT *
-                FROM {h|self.attribute_table_name}
-                {f"WHERE {where(h)}" if where is not None else ""}
+                SELECT 
+                    a.*, 
+                    JSON_ARRAYAGG(JSON_QUOTE(al.alias)) AS alias
+                FROM attribute a
+                LEFT JOIN attribute_alias aa ON aa.attribute_id = a.id
+                LEFT JOIN alias al ON al.id = aa.alias_id
+                WHERE 
+                    list_id = {h|self.id}
+                    {f"AND {where(h)}" if where is not None else ""}
+                GROUP BY a.id 
             """, h.steal())
 
             result: list[AttributeResultT] = cursor.fetchall()
@@ -185,7 +133,7 @@ class List:
             name=data['name'],
             display_name=data['display_name'],
             sort_value=data['sort_value'],
-            alias=set(data['alias']),
+            alias=set(json.loads(data['alias'])),
             value_type=AttributeValueType.get_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
             min_value_slots=data['min_value_slots'],
@@ -196,17 +144,99 @@ class List:
             predefined=data['predefined']
         )
     
-    def get_attributes(self) -> list[Attribute]:
-        return [self._attribute_data_to_obj(data) for data in self._fetch_atttributes_from_table(None)]
+    def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Attribute]:
+        return [self._attribute_data_to_obj(data) for data in self._fetch_attributes_from_table(where)]
 
     def get_attribute_by_id(self, id: int) -> Attribute:
-        data = self._fetch_atttributes_from_table(lambda h: f"id = {h|id}")
+        data = self._fetch_attributes_from_table(lambda h: f"id = {h|id}")
         return self._attribute_data_to_obj(data[0] if data else None)
     
     def get_attribute_by_name(self, name: str) -> Attribute:
         name = text.norm(name)
-        data = self._fetch_atttributes_from_table(lambda h: f"id = {h|name}")
+        data = self._fetch_attributes_from_table(lambda h: f"name = {h|name}")
         return self._attribute_data_to_obj(data[0] if data else None)
+    
+    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None, user_id: int | None) -> list[TaskResultT]:
+        h = queries.ArgHelper()
+        
+        with queries.connected(self.community) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT 
+                    atu.task_id,
+                    atu.user_id,
+                    atu.attribute_id,
+                    atu.idx,
+                    atu.value,
+                    MAX(atu.idx) AS max_idx
+                FROM 
+                    attribute_task_user AS atu
+                JOIN 
+                    attribute AS a ON atu.attribute_id = a.id
+                WHERE 
+                    t.list_id = {h|self.id}
+                    {f"AND atu.user_id = {h|user_id}" if user_id is not None else ""}
+                    {f"AND {where(h)}" if where is not None else ""}
+                GROUP BY 
+                    task_id,
+                    attribute_id,
+                    user_id;
+            """, h.steal())
+
+            result: list[TaskResultT] = cursor.fetchall()
+
+        return result
+    
+    def _tasks_data_to_objs(self, data: list[TaskResultT]) -> dict[User, list[Task]]:
+        if not data:
+            return {}
+
+        ATTRIBUTES = {attr.id: attr for attr in self.get_attributes()}
+
+        get_user: dict[int, User] = {}
+        get_task: dict[tuple[int, int], Task] = {}
+        result: dict[User, list[Task]] = {}
+
+        for row in data:
+            user_id = row['user_id']
+
+            if (user := get_user.get(user_id, None)) is None:
+                user = User.get_other(self.community, user_id)
+                get_user[user_id] = user
+                result[user] = []
+
+            task_id = row['task_id']
+            user_task = (user_id, task_id)
+            
+            if (task := get_task.get(user_task, None)) is None:
+                task = Task(
+                    list=self, 
+                    user=user, 
+                    id=task_id, 
+                    values={}
+                )
+                get_task[user_task] = task
+                result[user].append(task)
+            
+            attribute = ATTRIBUTES[row['attribute_id']]
+            
+            value_list = task.values.setdefault(, [])
+            
+            
+            
+    
+
+        
+    def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None, user_id: int | None = User.JUMPEDIA_USER_ID) -> list[Task]:
+        return self._tasks_data_to_objs(self._fetch_tasks_from_table(where, user_id))
+
+    def get_task_by_id(self, id: int, user_id: int | None = User.JUMPEDIA_USER_ID) -> Task:
+        data = self._fetch_tasks_from_table(lambda h: f"id = {h|id}", user_id)
+        return self._tasks_data_to_objs(data[0] if data else None)
+    
+    def get_task_by_name(self, name: str, user_id: int | None = User.JUMPEDIA_USER_ID) -> Task:
+        name = text.norm(name)
+        data = self._fetch_tasks_from_table(lambda h: f"name = {h|name}", user_id)
+        return self._tasks_data_to_objs(data[0] if data else None)
     
     @classmethod
     def filter(cls, list_: list[Task] | Self, expression: str) -> list[Task]:

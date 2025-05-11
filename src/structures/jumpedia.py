@@ -22,18 +22,30 @@ class Jumpedia(metaclass=metautils.Singleton):
     database_name: str = field(init=False, default='meta')
     edit_lock: RLock = field(init=False, default_factory=RLock)
     
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,)
+    
+    def __hash__(self) -> int:
+        return hash(self.id)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Jumpedia) and self.id == value.id
+    
     def _init(self) -> None:
         with queries.connected(self) as (conn, cursor):
             try:
                 cursor.execute(f"""
                     CREATE DATABASE `{self.database_name}`
-                """)
+                        CHARACTER SET = utf8mb4
+                        COLLATE = utf8mb4_unicode_ci
+                    """)
             except mariadb.Error:
                 return
 
             try:
                 cursor.execute(f"""
-                    CREATE TABLE `community` (
+                    CREATE TABLE community (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
                         display_name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
@@ -43,7 +55,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE `guild` (
+                    CREATE TABLE guild (
                         id BIGINT UNSIGNED PRIMARY KEY,
                         community_id INT NOT NULL,
 
@@ -60,12 +72,6 @@ class Jumpedia(metaclass=metautils.Singleton):
                     """)
                 finally:
                     exit()
-
-    def __hash__(self) -> int:
-        return hash(self.id)
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Jumpedia) and self.id == value.id
     
     def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[CommunityResultT]:
         h = queries.ArgHelper()
@@ -119,8 +125,8 @@ class Jumpedia(metaclass=metautils.Singleton):
             display_name=data['display_name']
         )
     
-    def get_communities(self) -> list[Community]:
-        return [self._community_data_to_obj(data) for data in self._fetch_from_community_table(None)]
+    def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Community]:
+        return [self._community_data_to_obj(data) for data in self._fetch_from_community_table(where)]
         
     def get_community_by_id(self, id: int) -> Community:
         data = self._fetch_from_community_table(lambda h: f"id = {h|id}")

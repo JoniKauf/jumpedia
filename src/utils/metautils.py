@@ -4,14 +4,25 @@
 
 from typing import Any
 
-
-def express(f_string_expr: str) -> tuple[str, str]:
+def _express_inner(f_string_expr: str, full: bool, second_val: bool) -> tuple[str, ...]:
     expr, found, result = f_string_expr.partition("=")
 
     if not found:
         raise ValueError("should be an expression of form 'f\"{expr=}\"'")
     
-    return expr.strip(), result.strip()
+    expr = expr.strip()
+
+    if not full:
+        expr = expr.rsplit('.', 1)[-1]
+
+    return (expr, result.strip()) if second_val else (expr,)
+
+def varname(f_string_expr: str, full: bool) -> str:
+    return _express_inner(f_string_expr, full, False)[0]
+
+def express(f_string_expr: str, full: bool) -> tuple[str, str]:
+    result = _express_inner(f_string_expr, full, True)
+    return (result[0], result[1])
 
 
 

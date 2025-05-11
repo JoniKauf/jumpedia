@@ -11,7 +11,7 @@ import re
 from decimal import Decimal
 import decimal
 from structures.list import List
-from utils import parsetools, text, timetools
+from utils import metautils, parsetools, text, timetools
 
 # --- Constants --- #
 
@@ -142,7 +142,7 @@ def _add_roots[T: AttributeValueTypeT](
     root: CollectionTreeItem[T] | None
 ) -> None:
     for item in tree:
-        object.__setattr__(item, 'root', root)
+        object.__setattr__(item, metautils.varname(f"{root=}", False), root)
 
         _add_roots(item.nodes, item)
 
@@ -189,7 +189,7 @@ def _extract_data_from_collection_item[T: AttributeValueTypeT](
     except KeyError as e:
         raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
     
-    display_value: T = Attribute._parse_str_singular(bad_value, value_type)
+    display_value: T = Attribute._from_str_singular(bad_value, value_type)
     value: T = Attribute.normalize(display_value)
 
     return (value, display_value, sort_value)
@@ -219,7 +219,7 @@ class AttributeResultT(TypedDict):
     name: str
     display_name: str
     sort_value: int
-    alias: list[str]
+    alias: str
     value_type: int
     collection: bytes
     min_value_slots: int
@@ -281,6 +281,10 @@ class Attribute[T: AttributeValueTypeT]:
     predefined: bool
 
     @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.list.identity
+    
+    @property
     def syns(self) -> set[str]:
         return {self.name} | self.alias
     
@@ -298,6 +302,12 @@ class Attribute[T: AttributeValueTypeT]:
         if self.has_collection:
             _create_collection_lookup(self.collection, self.collection_lookup)
 
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__) and self.identity == value.identity
+    
     @classmethod
     def create(
         cls,
@@ -352,7 +362,7 @@ class Attribute[T: AttributeValueTypeT]:
 
         with queries.connected(list.community) as (conn, cursor):
             cursor.execute(f"""
-                INSERT INTO {h|list.attribute_table_name} (
+                INSERT INTO attribute (
                     list_id,
                     name,
                     display_name
@@ -402,13 +412,7 @@ class Attribute[T: AttributeValueTypeT]:
             ) 
 
         return obj
-    
-    def __hash__(self) -> int:
-        return hash((self.id, hash(self.list)))
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Attribute) and self.id == value.id and self.list == value.list
-    
+
     @classmethod
     def generic_number_valid(cls, number: int | float | Decimal) -> None:
         if not (Attribute.NUMBER_MIN < number < Attribute.NUMBER_MAX):
@@ -424,7 +428,7 @@ class Attribute[T: AttributeValueTypeT]:
         return normalized
     
     @classmethod
-    def _parse_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
+    def _from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
         vt = value_type.type
 
         if issubclass(vt, bool):
@@ -484,8 +488,8 @@ class Attribute[T: AttributeValueTypeT]:
             result = text.fix_whitespace(s, " ", True)
         
         return result  # type: ignore
-    
-    def parse_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> builtins.list[T]:
+
+    def from_str(self, s: str, normed: bool | None, value_type: AttributeValueType | None = None) -> builtins.list[T]:
         """normed == None -> Do fastest operation because we don't care"""
         if not (s := s.strip()):
             return []
@@ -509,7 +513,7 @@ class Attribute[T: AttributeValueTypeT]:
         
         value_type = value_type or self.value_type
 
-        converted: list[T] = [self._parse_str_singular(elem, value_type) for elem in v]
+        converted: list[T] = [self._from_str_singular(elem, value_type) for elem in v]
 
         if not self.has_collection:
             if normed is True:
@@ -526,6 +530,13 @@ class Attribute[T: AttributeValueTypeT]:
                     converted[i] = self.collection_lookup[elem].display_value
 
         return converted
+
+    def to_str(self, obj: T) -> str:
+        if isinstance(obj, (bool, int, Decimal, str)):
+            return str(obj)
+        
+        if isinstance(obj, (dt.time, dt.date, dt.datetime)):
+            return obj.isoformat()
 
     def _sort_key_singular(self, value: T | None, sign: Literal[+1, -1]):
         vt: type[T] = self.value_type.type
@@ -582,7 +593,7 @@ class Attribute[T: AttributeValueTypeT]:
             return (value.total_seconds() + add) * sign  # type: ignore
         
     def sort_key(self, value: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
-        values = self.parse_str(value, True)
+        values = self.from_str(value, True)
         
         if not values:
             return Attribute.SORT_KEY_LAST_NUMBER + 1
@@ -601,20 +612,21 @@ class Attribute[T: AttributeValueTypeT]:
         return tuple(self._sort_key_singular(value, sign) for value in values)
     
     def is_empty(self, value: str) -> bool:
-        return bool(self.parse_str(value, None)) 
-
-    def value_to_memory(self, value: T) -> int:
-        if isinstance(value, str):
-            return len(value)
-        if isinstance(value, int):
-            return 8
-        if isinstance(value, float):
-            return 8
-        if isinstance(value, dt.time):
-            return 8
-        if isinstance(value, dt.datetime):
-            return 8
-        if isinstance(value, dt.timedelta):
-            return 8
+        return bool(self.from_str(value, None)) 
+    
+    def column_creation_line(self) -> str:
+        name = f"`{self.name}`"
         
-        raise TypeError  
+        if self == self.list.id_attribute:
+            return f"{name} INT AUTO_INCREMENT PRIMARY KEY"
+        
+        result: list[str] = []
+
+        if self == self.list.name_attribute:
+            result.append(f"VARCHAR({Attribute.STR_MAX_LEN})")
+        else:
+            result.append(f"BLOB")
+        
+        if self.unique_value_per_list:
+            result.append()
+        return f"{name} BLOB"
