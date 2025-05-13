@@ -46,8 +46,7 @@ def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> It
     
     try:
         conn = mariadb.connect(
-            **(__get_connection_data() | database),
-            converter=
+            **(__get_connection_data() | database)
         )
         cursor = conn.cursor(dictionary=True)
 

@@ -77,17 +77,15 @@ def parse_timedelta(s: str) -> datetime.timedelta:
 
 def unparse_timedelta(obj: datetime.timedelta) -> str:
     if obj.total_seconds() < 0:
-        parts = ["-"]
+        parts: list[str] = ["-"]
     else:
-        parts = []
+        parts: list[str] = []
     
     mins, seconds = divmod(obj.seconds, 60)
     hours, mins = divmod(mins, 60)
 
     if obj.microseconds:
         seconds += (obj.microseconds / 1_000_000)
-
-    parts: list[str] = []
 
     if obj.days: 
         parts.append(f"{abs(obj.days)}d")
