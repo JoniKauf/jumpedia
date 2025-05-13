@@ -6,8 +6,9 @@ import discord as dc
 
 import mariadb
 import mariadb.connections
-from structures.attribute import Attribute
+from structures.attribute import AbstractAttribute
 from structures.ranks import UserRank
+from structures.task import Task
 from utils import text
 from database import queries
 import discordtools.feedbackerrors as fbe
@@ -31,7 +32,8 @@ class CommunityResultT(TypedDict, total=True):
 @dataclass(frozen=True, kw_only=True)
 class Community:
     MAX_NAME_LENGTH: ClassVar[Final[int]] = 64
-    DATABASE_PREFIX: ClassVar[Final[str]] = f"{__name__}_"
+    MAX_LISTS: ClassVar[Final[int]] = 1
+    DATABASE_PREFIX: ClassVar[Final[str]] = f"{__name__.lower()}_"
     INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
 
     JUMPEDIA_COMMUNITY: ClassVar['Community'] = None  # type: ignore
@@ -151,17 +153,15 @@ class Community:
                     CREATE TABLE attribute (
                         id INT AUTO_INCREMENT NOT NULL,
                         list_id INT NOT NULL,
-                        name VARCHAR({List.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
-                        display_name VARCHAR({List.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
-                        sort_value INT NOT NULL UNIQUE,
+                        name VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
                         value_type INT NOT NULL,
+                        index INT NOT NULL UNIQUE,
                         collection BLOB NOT NULL,
-                        min_value_slots INT NOT NULL,
-                        max_value_slots INT NOT NULL,
+                        min_slots INT NOT NULL,
+                        max_slots INT NOT NULL,
                         unique_slots BOOL NOT NULL,
-                        user_bound BOOL NOT NULL,
                         unique_value_per_list BOOL NOT NULL,
-                        predefined BOOL NOT NULL,
+                        special BOOL NOT NULL,
 
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
@@ -170,24 +170,43 @@ class Community:
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE alias (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        alias VARCHAR({Attribute.STR_MAX_LEN}) NOT NULL
+                    CREATE TABLE user_attribute (
+                        id INT AUTO_INCREMENT NOT NULL,
+                        list_id INT NOT NULL,
+                        name VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        index INT NOT NULL UNIQUE,
+                        value_type INT NOT NULL,
+                        collection BLOB NOT NULL,
+                        min_slots INT NOT NULL,
+                        max_slots INT NOT NULL,
+                        unique_slots BOOL NOT NULL,
+
+                        FOREIGN KEY (list_id)
+                            REFERENCES list(id)
+                            ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
                     CREATE TABLE attribute_alias (
-                        attribute_id INT NOT NULL, 
-                        alias_id INT NOT NULL,
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        attribute_id INT NOT NULL,
+                        alias VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
 
-                        PRIMARY KEY (alias_id, attribute_id),
-                            
-                        FOREIGN KEY (attribute_id) 
+                        FOREIGN KEY (attribute_id)
                             REFERENCES attribute(id)
-                            ON DELETE CASCADE,
-                        FOREIGN KEY (alias_id)
-                            REFERENCES alias(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE user_attribute_alias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_attribute_id INT NOT NULL,
+                        alias VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+
+                        FOREIGN KEY (user_attribute_id)
+                            REFERENCES user_attribute(id)
                             ON DELETE CASCADE
                     )
                 """)
@@ -196,6 +215,7 @@ class Community:
                     CREATE TABLE task (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         list_id INT NOT NULL,
+                        name VARCHAR({Task.MAX_SYN_LEN})
                                
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
@@ -204,15 +224,46 @@ class Community:
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE attribute_task_user (
+                    CREATE TABLE task_alias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        task_id INT NOT NULL,
+                        alias VARCHAR({Task.MAX_SYN_LEN}),
+
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_attribute_value (
                         task_id INT NOT NULL,
                         attribute_id INT NOT NULL,
-                        user_id BIGINT UNSIGNED NOT NULL,
-                        idx INT UNSIGNED NOT NULL,
                         value BLOB NOT NULL,
 
-                        PRIMARY KEY (task_id, attribute_id, user_id, idx),
+                        PRIMARY KEY (task_id, attribute_id),
 
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (attribute_id)
+                            REFERENCES attribute(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE user_task_attribute_value (
+                        task_id INT NOT NULL,
+                        user_id BIGINT UNSIGNED NOT NULL,
+                        user_attribute_id INT NOT NULL,
+                        value BLOB NOT NULL,
+
+                        PRIMARY KEY (task_id, user_id, user_attribute_id),
+
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE,
                         FOREIGN KEY (attribute_id)
                             REFERENCES attribute(id)
                             ON DELETE CASCADE,
@@ -246,8 +297,7 @@ class Community:
         return List(
             community=self,
             id=data['id'],
-            name=data['name'],
-            display_name=data['display_name']
+            name=data['name']
         )
     
     def get_lists(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[List]:
