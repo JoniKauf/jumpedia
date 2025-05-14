@@ -95,7 +95,7 @@ class ArgHelper:
     """Helper to make inserting parameters into a query easier and more
     intuitive.
 
-    By multiplying the `ArgHelper` object with an argument (via an f-string) 
+    By using the `|` operator after the `ArgHelper` object with an argument (via an f-string) 
     where one would usually put a query placeholder, it will put the placeholder
     in that spot, while being more readable. The parameters can then be
     extracted in that order with the `ArgHelper.params` method.

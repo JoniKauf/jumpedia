@@ -1,74 +1,105 @@
 import builtins
-from dataclasses import dataclass
-from typing import Any, ClassVar, Final, Never, NotRequired, Self, TypedDict
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Final, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
-from structures import attribute
-from structures.attribute import AttributeValueTypeT
+from structures.attribute import AnyAttributeT, AttributeValueTypeT, StaticAttribute, TaskAttribute
 from structures.list import List
+from structures.task_value_collection import TaskValueCollection
 from structures.user import User
 from utils import text
 
-
-type AnyTask = Task | UserTask
-
+class TaskAttributeValueResultT(TypedDict):
+    task_id: int
+    task_attribute_id: int
+    value: bytes
 
 @dataclass(frozen=True, kw_only=True)
-class AbstractTask:
+class Task:
     MAX_SYN_LEN: ClassVar[Final[int]] = 80
     
     list: List
     id: int
+    name: str
+    aliases: frozenset[str]
 
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
-    
-    def __post_init__(self) -> None:
-        if self.__class__ == AbstractTask:
-            raise NotImplementedError()
     
     def __hash__(self) -> int:
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-
-    @classmethod
-    def create(cls, *args: Any, **kwargs: Any) -> Never:
-        raise NotImplementedError()
     
-
-class TaskResultT(TypedDict):
-    id: int
-
-@dataclass(frozen=True, kw_only=True)
-class Task(AbstractTask):
     @classmethod
-    def create(cls, list: List, name: str) -> 'Task':
-        h = queries.ArgHelper()
-        name = text.validate_and_sanitize_name(name)
-
+    def create(cls, list: List, bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
         with list.edit_lock:
-            list.get_task_by_name()
+            tasks = list.get_tasks()
+
+            name, aliases = text.validate_and_sanitize_or_norm_syns(
+                bad_name, 
+                bad_aliases, 
+                cls.MAX_SYN_LEN, 
+                list.alias_attribute.max_slots,
+                (syn for task in tasks for syn in (task.name, *task.aliases))
+            )
+
+            aliases = frozenset(aliases)
+
+            h = queries.ArgHelper()
+
             with queries.connected(list.community) as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO task (
-                        list_id
+                        list_id,
+                        name
                     )
                     VALUES (
-                        {h|list.id}
+                        {h|list.id},
+                        {h|name}
                     )
-                """)
+                """, h.steal())
 
+                id: int = cursor.lastrowid  # type: ignore
+
+                cursor.execute(f"""
+                    INSERT INTO task_alias (
+                        task_id,
+                        alias
+                    ) 
+                    VALUES (
+                        {h|id},
+                        {','.join(f"({h|id}, {h|alias})" for alias in aliases)}        
+                    )
+                """, h.steal())
+
+            return cls(
+                list=list,
+                id=id,
+                name=name,
+                aliases=aliases
+            )
         
+    def get_task_value_collection(self) -> TaskValueCollection:
+        h = queries.ArgHelper()
 
+        with queries.connected(self.list.community) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT *
+                FROM task_attribute_value
+                WHERE task_id = {h|self.id}
+            """, h.steal())
 
+            result: list[TaskAttributeValueResultT] = cursor.fetchall()
 
+        self.list.get_task_attributes(lambda h: f"id = {h|}")
 
+    def get_user_task_value_collection(self, user: User) -> 
 
-@dataclass(frozen=True, kw_only=True)
-class UserTask(AbstractTask):
-    pass
+    # TODO continue
+        
+    
 
 
 # def get_contributor_line(self) -> str:

@@ -42,6 +42,9 @@ def sanitize(s: str, whitespace_repl: str = ' ') -> str:
 def norm(s: str, whitespace_repl: str = '_') -> str:
     return NORMALIZE_FUNC(sanitize(s, whitespace_repl))
 
+def norm_syn(s: str) -> str:
+    return norm(s, ' ')
+
 def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str]) -> str:
     name = sanitize(bad_name)
     
@@ -56,13 +59,13 @@ def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterab
     
     return name
 
-def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
+def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
     result: set[str] = set()
 
     forbidden = frozenset(NORMALIZE_FUNC(f) for f in forbidden)
 
     for alias in bad_aliases:
-        alias = norm(alias, ' ')
+        alias = norm_syn(alias)
 
         if not alias:
             continue
@@ -80,11 +83,11 @@ def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, m
     
     return result
 
-def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
+def validate_and_sanitize_or_norm_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
     forbidden = tuple(forbidden)
 
     name = validate_and_sanitize_name(bad_name, max_length, forbidden)
-    aliases = validate_and_sanitize_aliases(bad_aliases, max_length, max_count, forbidden)
+    aliases = validate_and_norm_aliases(bad_aliases, max_length, max_count, forbidden)
 
     if name in aliases:
         aliases.remove(name)
@@ -94,24 +97,3 @@ def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_le
         raise fbe.TemporaryFeedbackError("Too many aliases", aliases, count, max_count)
 
     return (name, aliases)
-
-    
-def create_name_and_display_name(bad_name: str, identifiers_only: bool, max_length: int, existing_names: Iterable[str]) -> tuple[str, str]:
-    name: str = norm(bad_name)
-    
-    if (length := len(name)) > max_length:
-        raise fbe.TemporaryFeedbackError(length, max_length)
-    
-    if identifiers_only:
-        if (inv := invalid_identifier_chars(name)):
-            raise fbe.TemporaryFeedbackError(inv)
-        
-        if name.startswith('_'):
-            raise fbe.TemporaryFeedbackError("Name may not start with underscore")
-    
-    if name in existing_names:
-        raise fbe.TemporaryFeedbackError()
-    
-    display_name: str = fix_whitespace(bad_name, ' ', False)
-
-    return (name, display_name)
