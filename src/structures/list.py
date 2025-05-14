@@ -8,19 +8,58 @@ from typing import Any, Callable, ClassVar, Final, Iterable, Literal, Self, Type
 import mariadb
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures.attribute import AnyAttribute, Attribute, AbstractAttribute, AttributeAliasResultT, AttributeResultT, AttributeValueType, UserAttribute, UserAttributeAliasResultT, UserAttributeResultT
+from structures.attribute import AnyAttributeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
 from structures.community import Community
-from structures.task import AbstractTask, Task, TaskResultT
+from structures.task import Task
 
 import pickle
 
 from structures.user import User
 from utils import metautils, text
 
-class ListResultT(TypedDict):
+
+
+class TaskAttributeResultT(TypedDict):
+    id: int
+    list_id: int
+    name: str
+    aliases: str
+    index: int
+    value_type: int
+    collection: bytes
+    min_slots: int
+    max_slots: int
+    unique_slots: bool
+    unique_value_per_list: bool
+
+class TaskAttributeAliasResultT(TypedDict):
+    task_attribute_id: int
+
+
+class UserAttributeResultT(TypedDict):
+    id: int
+    list_id: int
+    name: str
+    aliases: str
+    index: int
+    value_type: int
+    collection: bytes
+    min_slots: int
+    max_slots: int
+    unique_slots: bool
+
+class UserAttributeAliasResultT(TypedDict):
+    user_attribute_id: int
+
+
+class TaskResultT(TypedDict):
     id: int
     name: str
-    community_id: int
+    aliases: str
+
+class TaslAliasResultT(TypedDict):
+    task_id: int
+
 
 @dataclass(frozen=True, kw_only=True)
 class List:
@@ -36,46 +75,44 @@ class List:
 
     edit_lock: RLock = field(init=False, default_factory=RLock)
 
-    @cached_property
-    def special_name_attribute(self) -> Attribute[str]:
-        return Attribute.create(
+    @property
+    def name_attribute(self) -> StaticAttribute[str]:
+        return StaticAttribute(
             list=self,
-            bad_name='name',
-            bad_aliases=(),
+            id=0,
+            name='name',
+            aliases=frozenset(),
             value_type=AttributeValueType.get_by_type(str),
-            str_user_collection=None,
+            index=1,
+            collection=[],
             min_slots=1,
             max_slots=1,
             unique_slots=False,
-            unique_value_per_list=True,
-            special=True
+            get_value=lambda task: [task.name]
         )
     
-    @cached_property
-    def special_alias_attribute(self) -> Attribute[str]:
-        return Attribute.create(
-            list=self,
-            bad_name='alias',
-            bad_aliases=(),
-            value_type=AttributeValueType.get_by_type(str),
-            str_user_collection=None,
-            min_slots=0,
-            max_slots=Attribute.MAX_SLOTS,
-            unique_slots=True,
-            unique_value_per_list=True,
-            special=True
-        )
-
     @property
-    def special_attributes(self) -> list[Attribute[str]]:
-        return [self.special_name_attribute, self.special_alias_attribute]
+    def alias_attribute(self) -> StaticAttribute[str]:
+        return StaticAttribute(
+            list=self,
+            id=0,
+            name='alias',
+            aliases=frozenset(),
+            value_type=AttributeValueType.get_by_type(str),
+            index=2,
+            collection=[],
+            min_slots=0,
+            max_slots=StaticAttribute.MAX_SLOTS,
+            unique_slots=True,
+            get_value=lambda task: sorted(task.aliases)
+        )
     
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.community.identity
     
     def __post_init__(self) -> None:
-        self.get_attributes()
+        self.get_task_attributes()
 
     def __hash__(self) -> int:
         return hash(self.identity)
@@ -97,109 +134,204 @@ class List:
             if name.endswith(cls.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out `{cls.INVALID_ENDING}` from the name, as it is redundant!")
             
-            if len(lists) >= Community.MAX_LISTS:
+            if (count := len(lists)) >= Community.MAX_LISTS:
                 raise fbe.TemporaryFeedbackError("Limit reached")
             
             h = queries.ArgHelper()
 
             with queries.connected(community) as (conn, cursor):
-                try:
-                    cursor.execute(f"""
-                        INSERT INTO list
-                        (name)
-                        VALUES ({h|name})
-                    """, h.steal())
-                except mariadb.IntegrityError:
-                    raise fbe.TemporaryFeedbackError(f"List with that name exists already")
+                cursor.execute(f"""
+                    INSERT INTO list (
+                        name
+                    ) 
+                    VALUES (
+                        {h|name}
+                    )
+                """, h.steal())
                 
-                obj = List(
+                id: int = cursor.lastrowid  # type: ignore
+
+                obj = cls(
                     community=community,
-                    id=cursor.lastrowid,  # type: ignore
+                    id=id,
                     name=name
                 )
+            
+            if count == 0:
+                with queries.connected(community.jumpedia) as (conn, cursor):
+                    cursor.execute(f"""
+                        UPDATE community
+                        SET default_selected_list_id = {h|id}
+                        WHERE id = {h|community.id}
+                    """, h.steal())
 
-            _ = obj.special_attributes
             return obj
+            
+            
+            
+    def delete(self) -> None:
+        with self.edit_lock, self.community.edit_lock:
+            # Check if list already deleted, but object used
+            try:
+                self.community.get_list_by_id(self.id)
+            except fbe.TemporaryFeedbackError:  # TODO
+                return
+                
+            h = queries.ArgHelper()
 
-    # --- Attributes ---
+            with queries.connected(self.community) as (conn, cursor):
+                cursor.execute(f"""
+                    DELETE FROM list
+                    WHERE id = {h|self.id}
+                """, h.steal())
 
-    def _fetch_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[AttributeResultT]:
+                with queries.connected(self.community.jumpedia) as (meta_conn, meta_cursor):
+                    meta_cursor.execute(f"""
+                        UPDATE community
+                        SET default_selected_list_id = NULL
+                        WHERE 
+                            id = {h|self.community.id}
+                            AND default_selected_list_id = {h|self.id}
+                    """, h.steal())
+
+        
+
+
+    # --- All Attributes ---
+    
+    def get_attributes(self) -> list[AnyAttributeT]:
+        return self.get_static_attributes() + self.get_task_attributes() + self.get_user_attributes()
+
+    def get_attribute_by_name(self, name: str) -> AnyAttributeT:
+        try:
+            return self.get_static_task_attribute_by_name(name)
+        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
+            try:
+                return self.get_task_attribute_by_name(name)
+            except fbe.TemporaryFeedbackError:
+                return self.get_user_attribute_by_name(name)
+        
+    def get_attribute_by_alias(self, alias: str) -> AnyAttributeT:
+        try:
+            return self.get_static_attribute_by_alias(alias)
+        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
+            try:
+                return self.get_task_attribute_by_alias(alias)
+            except fbe.TemporaryFeedbackError:
+                return self.get_user_attribute_by_alias(alias)
+
+    def get_attribute_by_syn(self, syn: str) -> AnyAttributeT:
+        try:
+            return self.get_static_attribute_by_alias(syn)
+        except fbe.TemporaryFeedbackError:
+            try:
+                return self.get_task_attribute_by_syn(syn)
+            except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
+                return self.get_user_attribute_by_syn(syn)
+        
+
+    # --- Static Attribute ---
+
+    def _fetch_static_attribute(self, where: Callable[[StaticAttribute], bool], what: str) -> StaticAttribute:
+        for attr in self.get_static_attributes():
+            if where(attr):
+                return attr
+        raise fbe.TemporaryFeedbackError(f"Attribute with that {what} doesn't exist")
+    
+    def get_static_attributes(self) -> list[StaticAttribute]:
+        return [self.name_attribute, self.alias_attribute]
+    
+    def get_static_task_attribute_by_name(self, name: str) -> StaticAttribute:
+        name = text.norm_syn(name)
+        return self._fetch_static_attribute(lambda attr: name == text.norm_syn(attr.name), 'name')
+
+    def get_static_attribute_by_alias(self, alias: str) -> StaticAttribute:
+        alias = text.norm_syn(alias)
+        return self._fetch_static_attribute(lambda attr: alias in attr.aliases, 'alias')
+    
+    def get_static_attribute_by_syn(self, syn: str) -> StaticAttribute:
+        syn = text.norm_syn(syn)
+        return self._fetch_static_attribute(lambda attr: syn == text.norm_syn(attr.name) or syn in attr.aliases, 'syn')
+        
+
+    # --- Task Attributes ---
+        
+    def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[TaskAttributeResultT]:
         h = queries.ArgHelper()
         
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute(f"""
                 SELECT
-                    a.*,
-                    COALESCE(JSON_ARRAYAGG(aa.alias), JSON_ARRAY()) AS aliases
-                FROM attribute a
-                LEFT JOIN attribute_alias aa ON aa.attribute_id = a.id
+                    ta.*,
+                    COALESCE(JSON_ARRAYAGG(taa.alias), JSON_ARRAY()) AS aliases
+                FROM task_attribute ta
+                LEFT JOIN task_attribute_alias taa ON taa.attribute_id = ta.id
                 WHERE 
                     list_id = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
-                GROUP BY a.id
+                GROUP BY ta.id
             """, h.steal())
 
-            result: list[AttributeResultT] = cursor.fetchall()
+            result: list[TaskAttributeResultT] = cursor.fetchall()
 
         return result
     
-    def _attribute_data_to_obj(self, data: AttributeResultT | None) -> Attribute:
+    def _task_attribute_data_to_obj(self, data: TaskAttributeResultT | None) -> TaskAttribute:
         if data is None:
             raise fbe.TemporaryFeedbackError("Attribute does not exist!")
 
-        return Attribute(
+        return TaskAttribute(
             list=self,
             id=data['id'],
             name=data['name'],
-            aliases=json.loads(data['aliases']),
+            aliases=frozenset(json.loads(data['aliases'])),
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
             min_slots=data['min_slots'],
             max_slots=data['max_slots'],
             unique_slots=data['unique_slots'],
-            unique_value_per_list=data['unique_value_per_list'],
-            special=data['special']
+            unique_value_per_list=data['unique_value_per_list']
         )
     
-    def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Attribute]:
-        return [self.special_name_attribute, self.special_alias_attribute] + [self._attribute_data_to_obj(data) for data in self._fetch_attributes_from_table(where)]
+    def get_task_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[TaskAttribute]:
+        return [self._task_attribute_data_to_obj(data) for data in self._fetch_task_attributes_from_table(where)]
 
-    def get_attribute_by_id(self, id: int) -> Attribute:
-        data = self._fetch_attributes_from_table(lambda h: f"id = {h|id}")
-        return self._attribute_data_to_obj(data[0] if data else None)
+    def get_task_attribute_by_id(self, id: int) -> TaskAttribute:
+        data = self._fetch_task_attributes_from_table(lambda h: f"id = {h|id}")
+        return self._task_attribute_data_to_obj(data[0] if data else None)
     
-    def get_attribute_by_name(self, name: str) -> Attribute:
+    def get_task_attribute_by_name(self, name: str) -> TaskAttribute:
         name = text.sanitize(name)
-        data = self._fetch_attributes_from_table(lambda h: f"name = {h|name}")
-        return self._attribute_data_to_obj(data[0] if data else None)
+        data = self._fetch_task_attributes_from_table(lambda h: f"name = {h|name}")
+        return self._task_attribute_data_to_obj(data[0] if data else None)
     
-    def get_attribute_by_alias(self, alias: str) -> Attribute:
+    def get_task_attribute_by_alias(self, alias: str) -> TaskAttribute:
         alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
-                    attribute_id
+                    task_attribute_id
                 FROM 
-                    attribute_alias
+                    task_attribute_alias
                 WHERE 
                     alias = {h|alias}
             """, h.steal())
 
-            result: AttributeAliasResultT | None = cursor.fetchone()
+            result: TaskAttributeAliasResultT | None = cursor.fetchone()
 
         if result is None:
             raise fbe.TemporaryFeedbackError("Attribute with that alias doesn't exist")
         
-        return self.get_attribute_by_id(result['attribute_id'])
+        return self.get_task_attribute_by_id(result['task_attribute_id'])
 
-    def get_attribute_by_syn(self, syn: str) -> Attribute:
+    def get_task_attribute_by_syn(self, syn: str) -> TaskAttribute:
         try:
-            return self.get_attribute_by_name(syn)
+            return self.get_task_attribute_by_name(syn)
         except fbe.TemporaryFeedbackError:  # TODO NotAnAttributeError
-            return self.get_attribute_by_alias(syn)
+            return self.get_task_attribute_by_alias(syn)
 
 
     # --- User Attributes ---
@@ -232,7 +364,7 @@ class List:
             list=self,
             id=data['id'],
             name=data['name'],
-            aliases=json.loads(data['aliases']),
+            aliases=frozenset(json.loads(data['aliases'])),
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
@@ -280,35 +412,6 @@ class List:
         except fbe.TemporaryFeedbackError:  # TODO NotAnAttributeError
             return self.get_user_attribute_by_alias(syn)
 
-    # --- All Attributes ---
-    
-    def get_all_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttribute]:
-        return self.get_attributes(where) + self.get_user_attributes(where)
-
-    def get_any_attribute_by_id(self, id: int) -> AnyAttribute:
-        try:
-            return self.get_attribute_by_id(id)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            return self.get_user_attribute_by_id(id)
-    
-    def get_any_attribute_by_name(self, name: str) -> AnyAttribute:
-        try:
-            return self.get_attribute_by_name(name)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            return self.get_user_attribute_by_name(name)
-        
-    def get_any_attribute_by_alias(self, alias: str) -> AnyAttribute:
-        try:
-            return self.get_attribute_by_alias(alias)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            return self.get_user_attribute_by_alias(alias)
-        
-    def get_any_attribute_by_syn(self, syn: str) -> AnyAttribute:
-        try:
-            return self.get_attribute_by_syn(syn)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            return self.get_user_attribute_by_syn(syn)
-
 
     # --- Tasks ---
 
@@ -318,12 +421,17 @@ class List:
         with queries.connected(self.community) as (conn, cursor):
             cursor.execute(f"""
                 SELECT 
-                    id
+                    t.*,
+                    COALESCE(JSON_ARRAYAGG(ta.alias), JSON_ARRAY()) AS aliases
                 FROM 
-                    task
-                WHERE
-                    list_id = {h|self.id}
+                    task t
+                LEFT JOIN 
+                    task_alias ta ON ta.task_id = t.id
+                WHERE 
+                    t.list_id = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
+                GROUP BY 
+                    t.id
             """, h.steal())
 
             result: list[TaskResultT] = cursor.fetchall()
@@ -336,7 +444,9 @@ class List:
 
         return Task(
             list=self,
-            id=data['id']
+            id=data['id'],
+            name=data['name'],
+            aliases=frozenset(json.loads(data['aliases']))
         )
     
     def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Task]:
@@ -347,22 +457,26 @@ class List:
         return self._task_data_to_obj(data[0] if data else None)
     
     def get_task_by_name(self, name: str) -> Task:
-        data = self._fetch_tasks_from_table(lambda h: f"")
+        data = self._fetch_tasks_from_table(lambda h: f"name = {h|name}")
+        return self._task_data_to_obj(data[0] if data else None)
 
+    def get_task_by_alias(self, alias: str) -> Task:
+        alias = text.sanitize(alias)
+        h = queries.ArgHelper()
 
-    def update_task_names(self)
-    
-    @classmethod
-    def filter(cls, list_: list[AbstractTask] | Self, expression: str) -> list[AbstractTask]:
-        ...
+        with queries.connected(self.community) as (conn, cursor):
+            cursor.execute(f"""
+                SELECT 
+                    task_id
+                FROM 
+                    task_alias
+                WHERE 
+                    alias = {h|alias}
+            """, h.steal())
 
-    @classmethod
-    def sort(cls, list_: list[AbstractTask] | Self, expression: str) -> list[AbstractTask]:
-        ...
+            result: UserAttributeAliasResultT | None = cursor.fetchone()
 
-        expression = text.fix_whitespace(expression, " ", True)
-
-        parts = expression.split(" ")
-
-        return []
-
+        if result is None:
+            raise fbe.TemporaryFeedbackError("Task with that alias does not exist")
+        
+        return self.get_task_by_id(result['user_attribute_id'])

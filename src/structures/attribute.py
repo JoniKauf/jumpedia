@@ -5,20 +5,21 @@ import enum
 import datetime as dt
 import functools
 import pickle
-from typing import Any, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
+from typing import Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
 from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
 from structures.list import List
+from structures.task import Task
 from utils import metautils, parsetools, text, timetools
 
 # --- Constants --- #
 
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 
-type AnyAttribute[T: AttributeValueTypeT] = Attribute[T] | UserAttribute[T]
+type AnyAttributeT[T: AttributeValueTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
 
 
 # --- Attribute Value Type --- #
@@ -232,7 +233,7 @@ def _create_collection_lookup[T: AttributeValueTypeT](
 
 def norm_for_collection[T: AttributeValueTypeT](unnormalized: T) -> T:
     if isinstance(unnormalized, str):
-        normalized = text.norm(unnormalized, ' ')
+        normalized = text.norm_syn(unnormalized)
     else:
         normalized = unnormalized
     
@@ -263,7 +264,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     
     # General
     MAX_SYN_LEN: ClassVar[Final[int]] = 32
-    MAX_ALIASES: ClassVar[Final[int]] = 31
+    MAX_ALIAS_COUNT: ClassVar[Final[int]] = 32
     MAX_COLLECTION_ALIASES: ClassVar[Final[int]] = 7
     MAX_SLOTS: ClassVar[Final[int]] = 32
     SORT_KEY_LAST_NUMBER: ClassVar[Final[int]] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
@@ -325,21 +326,19 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         str_user_collection: str | None,
         min_slots: int,
         max_slots: int,
-        special: bool
     ) -> tuple[str, frozenset[str], tuple[CollectionT, bytes], int]:
         with list.edit_lock:
             attributes = list.get_attributes()
-            user_attributes = list.get_user_attributes()
             
             if len(attributes) >= list.MAX_ATTRIBUTES:
                 raise fbe.TemporaryFeedbackError("Max attributes reached")
             
-            name, aliases = text.validate_and_sanitize_syns(
+            name, aliases = text.validate_and_sanitize_or_norm_syns(
                 bad_name, 
                 bad_aliases, 
                 cls.MAX_SYN_LEN,
-                cls.MAX_ALIASES,
-                {syn for attr in (attributes + user_attributes) for syn in (attr.name, *attr.aliases)}
+                cls.MAX_ALIAS_COUNT,
+                (syn for attr in attributes for syn in (attr.name, *attr.aliases))
             )
             
             if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
@@ -355,12 +354,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
             pickled_value_collection: bytes = pickle.dumps(collection)
 
-            if special:
-                attrs = [attr.index for attr in attributes if attr.special]
-                index = max(attrs) + 1 if attrs else -2
-            else:
-                attrs = [attr.index for attr in attributes if not attr.special]
-                index = max(attrs) + 1 if attrs else 1
+            index = max(attr.index for attr in attributes) + 1
 
             return (name, frozenset(aliases), (collection, pickled_value_collection), index)
 
@@ -550,29 +544,17 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     
     def is_empty(self, value: str) -> bool:
         return bool(self.from_str(value, None)) 
-    
 
-class AttributeResultT(TypedDict):
-    id: int
-    list_id: int
-    name: str
-    aliases: str
-    index: int
-    value_type: int
-    collection: bytes
-    min_slots: int
-    max_slots: int
-    unique_slots: bool
-    unique_value_per_list: bool
-    special: bool
 
-class AttributeAliasResultT(TypedDict):
-    attribute_id: int
 
 @dataclass(frozen=True, kw_only=True)
-class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+    get_value: Callable[[Task], list[T]]
+
+
+@dataclass(frozen=True, kw_only=True)
+class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     unique_value_per_list: bool
-    special: bool
 
     @classmethod
     def create(
@@ -586,8 +568,7 @@ class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
         max_slots: int,
         unique_slots: bool,
         unique_value_per_list: bool,
-        special: bool
-    ) -> 'Attribute':
+    ) -> 'TaskAttribute':
         with list.edit_lock:
             name, aliases, (collection, pickled_collection), index = cls._base_create(
                 list=list,
@@ -597,14 +578,13 @@ class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                 str_user_collection=str_user_collection,
                 min_slots=min_slots,
                 max_slots=max_slots,
-                special=special
             )
 
             h = queries.ArgHelper()
 
             with queries.connected(list.community) as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO attribute (
+                    INSERT INTO task_attribute (
                         list_id,
                         name,
                         value_type,
@@ -614,7 +594,6 @@ class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                         max_slots,
                         unique_slots,
                         unique_value_per_list,
-                        special
                     )
                     VALUES (
                         {h|list.id},
@@ -626,21 +605,20 @@ class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                         {h|max_slots},
                         {h|unique_slots},
                         {h|unique_value_per_list},
-                        {h|special}
                     )
                 """, h.steal())
                 
                 id: int = cursor.lastrowid,  # type: ignore
 
                 cursor.execute(f"""
-                    INSERT INTO attribute_alias (
-                        attribute_id, alias
+                    INSERT INTO task_attribute_alias (
+                        task_attribute_id, alias
                     )
                     VALUES 
                         {','.join(f"({h|id}, {h|alias})" for alias in aliases)}
                 """)
 
-                obj = cls(
+                return cls(
                     list=list,
                     id=id,
                     name=name,
@@ -652,26 +630,8 @@ class Attribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                     max_slots=max_slots,
                     unique_slots=unique_slots,
                     unique_value_per_list=unique_value_per_list,
-                    special=special
                 ) 
 
-            return obj
-
-
-class UserAttributeResultT(TypedDict):
-    id: int
-    list_id: int
-    name: str
-    aliases: str
-    index: int
-    value_type: int
-    collection: bytes
-    min_slots: int
-    max_slots: int
-    unique_slots: bool
-
-class UserAttributeAliasResultT(TypedDict):
-    user_attribute_id: int
 
 @dataclass(frozen=True, kw_only=True)
 class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
@@ -695,8 +655,7 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                 value_type=value_type,
                 str_user_collection=str_user_collection,
                 min_slots=min_slots,
-                max_slots=max_slots,
-                special=False
+                max_slots=max_slots
             )
 
             h = queries.ArgHelper()

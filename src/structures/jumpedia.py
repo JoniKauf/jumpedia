@@ -1,10 +1,9 @@
 from threading import RLock
-from typing import Callable, Final
+from typing import Callable, Final, TypedDict
 
 import mariadb
-from structures import community
 from discordtools import feedbackerrors as fbe
-from structures.community import Community, CommunityResultT
+from structures.community import Community
 from utils import metautils, text
 from database import queries
 from dataclasses import dataclass, field
@@ -15,6 +14,13 @@ from dataclasses import dataclass, field
 #   -> List has many:
 #    -> Task
 #    -> Attribute
+
+
+class CommunityResultT(TypedDict, total=True):
+    id: int
+    name: str
+    default_selected_list_id: int | None
+    guild_ids: str
 
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(metaclass=metautils.Singleton):
@@ -48,9 +54,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE community (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
-                        display_name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
-                        database_name VARCHAR({Community.MAX_NAME_LENGTH}) 
-                            AS (CONCAT({Community.DATABASE_PREFIX}, id)) VIRTUAL
+                        default_selected_list_id INT DEFAULT NULL
                     )
                 """)
 
@@ -113,16 +117,16 @@ class Jumpedia(metaclass=metautils.Singleton):
 
         return result
     
-    def _community_data_to_obj(self, data: community.CommunityResultT | None) -> Community:
+    def _community_data_to_obj(self, data: CommunityResultT | None) -> Community:
         if data is None:
             raise fbe.TemporaryFeedbackError("Community does not exist!")
         
         return Community(
             jumpedia=self,
             id=data['id'],
-            guild_ids=frozenset(int(id) for id in data['guild_ids'].split(',')),
             name=data['name'],
-            display_name=data['display_name']
+            default_selected_list_id=data['default_selected_list_id'],
+            guild_ids=frozenset(int(id) for id in data['guild_ids'].split(','))
         )
     
     def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Community]:

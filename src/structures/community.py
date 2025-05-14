@@ -13,7 +13,7 @@ from utils import text
 from database import queries
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
-from structures.list import List, ListResultT
+from structures.list import List
 from structures import list as list_module
 import jumpedia as jumpedia_
 
@@ -21,14 +21,12 @@ if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
     from structures.user import User, UserResultT
 
-class CommunityResultT(TypedDict, total=True):
+
+class ListResultT(TypedDict):
     id: int
     name: str
-    display_name: str
-    database_name: str  # virtual
-    guild_ids: str
-
-    
+    community_id: int
+ 
 @dataclass(frozen=True, kw_only=True)
 class Community:
     MAX_NAME_LENGTH: ClassVar[Final[int]] = 64
@@ -40,9 +38,9 @@ class Community:
 
     jumpedia: Jumpedia
     id: int
-    guild_ids: frozenset[int]
     name: str
-    display_name: str
+    default_selected_list_id: int | None
+    guild_ids: frozenset[int]
 
     edit_lock: RLock = field(init=False, default_factory=RLock)
 
@@ -65,9 +63,9 @@ class Community:
         cls.JUMPEDIA_COMMUNITY = Community(
             jumpedia=Jumpedia(),
             id=0,
-            guild_ids=frozenset(),
             name="",
-            display_name=""
+            default_selected_list_id=None,
+            guild_ids=frozenset()
         )
 
     @classmethod
@@ -75,56 +73,63 @@ class Community:
         with jumpedia.edit_lock:
             communities = jumpedia.get_communities()
 
-            name, display_name = text.create_name_and_display_name(
-                bad_name, 
-                True,
-                Community.MAX_NAME_LENGTH,
+            name = text.validate_and_sanitize_name(
+                bad_name,
+                cls.MAX_NAME_LENGTH,
                 (c.name for c in communities)
             )
 
-            if name.endswith(cls.INVALID_ENDING):
+            if text.norm_syn(name).endswith(cls.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out '{cls.INVALID_ENDING}' from the name as it is redundant!")
             
-            database_name = f"{Community.DATABASE_PREFIX}{name}"
             guild_ids = frozenset(guild_ids)
             h = queries.ArgHelper()
 
             with queries.connected(jumpedia) as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO community
-                    (name, display_name, database_name)
-                    VALUES 
-                    ({h|name}, {h|display_name}, {h|database_name})
+                    INSERT INTO community (
+                        name
+                    )
+                    VALUES (
+                        {h|name}
+                    )
                 """, h.steal())
 
-                community_id: int = cursor.lastrowid  # type: ignore
+                id: int = cursor.lastrowid  # type: ignore
 
                 cursor.execute(f"""
-                    INSERT INTO guild
-                    (id, community_id)
+                    INSERT INTO guild (
+                        id, 
+                        community_id
+                    )
                     VALUES
-                    {",".join(f"({h|guild_id}, {h|community_id})" for guild_id in guild_ids)}
+                    {",".join(f"({h|guild_id}, {h|id})" for guild_id in guild_ids)}
                 """, h.steal())
                 
-                obj = Community(
+                obj = cls(
                     jumpedia=jumpedia,
-                    id=cursor.lastrowid,  # type: ignore
+                    id=id,
                     guild_ids=guild_ids,
-                    name=name,
-                    display_name=display_name,
-
+                    default_selected_list_id=10,
+                    name=name
                 )  
 
                 # If anything goes wrong here, exception will cause it to 
                 # rollback step above, where we add the community to meta table
                 obj._init_database(cursor)
 
-            return obj
+                List.create(obj, 'Main')
+
+                return obj
         
     def _init_database(self, cursor: mariadb.Cursor) -> None:
         with self.jumpedia.edit_lock:
             # Create database
-            cursor.execute(f"CREATE DATABASE `{self.database_name}`")
+            cursor.execute(f"""
+                CREATE DATABASE `{self.database_name}`
+                    CHARACTER SET = utf8mb4
+                    COLLATE = utf8mb4_unicode_ci
+            """)
             
             # If anything goes wrong here, delete database and raise error
             try:
@@ -132,8 +137,7 @@ class Community:
                 cursor.execute(f"""
                     CREATE TABLE list (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
-                        display_name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE,
+                        name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE
                     )
                 """)
 
@@ -150,7 +154,7 @@ class Community:
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE attribute (
+                    CREATE TABLE task_attribute (
                         id INT AUTO_INCREMENT NOT NULL,
                         list_id INT NOT NULL,
                         name VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
@@ -161,7 +165,6 @@ class Community:
                         max_slots INT NOT NULL,
                         unique_slots BOOL NOT NULL,
                         unique_value_per_list BOOL NOT NULL,
-                        special BOOL NOT NULL,
 
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
@@ -188,13 +191,13 @@ class Community:
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE attribute_alias (
+                    CREATE TABLE task_attribute_alias (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        attribute_id INT NOT NULL,
+                        task_attribute_id INT NOT NULL,
                         alias VARCHAR({AbstractAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
 
-                        FOREIGN KEY (attribute_id)
-                            REFERENCES attribute(id)
+                        FOREIGN KEY (task_attribute_id)
+                            REFERENCES task_attribute(id)
                             ON DELETE CASCADE
                     )
                 """)
@@ -215,7 +218,7 @@ class Community:
                     CREATE TABLE task (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         list_id INT NOT NULL,
-                        name VARCHAR({Task.MAX_SYN_LEN})
+                        name VARCHAR({Task.MAX_SYN_LEN}),
                                
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
@@ -238,22 +241,22 @@ class Community:
                 cursor.execute(f"""
                     CREATE TABLE task_attribute_value (
                         task_id INT NOT NULL,
-                        attribute_id INT NOT NULL,
+                        task_attribute_id INT NOT NULL,
                         value BLOB NOT NULL,
 
-                        PRIMARY KEY (task_id, attribute_id),
+                        PRIMARY KEY (task_id, task_attribute_id),
 
                         FOREIGN KEY (task_id)
                             REFERENCES task(id)
                             ON DELETE CASCADE,
-                        FOREIGN KEY (attribute_id)
-                            REFERENCES attribute(id)
+                        FOREIGN KEY (task_attribute_id)
+                            REFERENCES task_attribute(id)
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE user_task_attribute_value (
+                    CREATE TABLE task_user_attribute_value (
                         task_id INT NOT NULL,
                         user_id BIGINT UNSIGNED NOT NULL,
                         user_attribute_id INT NOT NULL,
@@ -264,8 +267,8 @@ class Community:
                         FOREIGN KEY (task_id)
                             REFERENCES task(id)
                             ON DELETE CASCADE,
-                        FOREIGN KEY (attribute_id)
-                            REFERENCES attribute(id)
+                        FOREIGN KEY (user_attribute_id)
+                            REFERENCES user_attribute(id)
                             ON DELETE CASCADE,
                         FOREIGN KEY (user_id)
                             REFERENCES user(id)
