@@ -41,13 +41,10 @@ async def on_ready():
         traceback.print_exc()
         exit(1)
 
-
 @BOT.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
     if isinstance(error, app_commands.CommandInvokeError):
         e = error.original
-    elif isinstance(error, app_commands.CheckFailure):
-        e = error.args[0]
     else:
         e = error
     
@@ -61,7 +58,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
     if not is_deferred:
         await interaction.response.defer()
     
-    await interaction.followup.send("Unhandled Exception!")
+    await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
     raise e
 
 BOT.run(TOKEN)

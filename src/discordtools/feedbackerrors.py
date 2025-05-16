@@ -145,7 +145,7 @@ class NoPermissionForOtherUsers(errors.FeedbackError):
     def __init__(
         self, 
         user_rank_and_min: Opt[tuple[ranks.UserRank, ranks.UserRank]] = None, 
-        server_rank_and_min: Opt[tuple[ranks.ServerRank, ranks.ServerRank]] = None,
+        server_rank_and_min: Opt[tuple[ranks.GuildRank, ranks.GuildRank]] = None,
     ):
         self.user_rank_and_min = user_rank_and_min
         self.server_rank_and_min = server_rank_and_min
@@ -345,9 +345,10 @@ class TemporaryFeedbackError(errors.FeedbackError):
         super().__init__(
             error="Temporary Feedback Error",
             details=(
-                "This error is used as a placeholder and shouldn't occur outside of development. If you see this, Joni missed a spot here!\n\n" +
-                "Barely describing placeholder text that might be given in code:\n```" +
-                '\n'.join(f"- {arg}" for arg in args) if args else "<None>" +
+                "This error is used as a placeholder and shouldn't occur outside of development." +
+                "If you see this, we are either still in development or Joni missed a spot.\n\n"
+                "Debug info placeholder text that might be given:\n```" +
+                ('\n'.join(f"- {arg}" for arg in args) if args else "<None>") +
                 "\n```"
             )
         ) 

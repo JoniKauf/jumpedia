@@ -1,23 +1,20 @@
 import builtins
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Final, Iterable, Never, NotRequired, Self, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
-from structures.attribute import AnyAttributeT, AttributeValueTypeT, StaticAttribute, TaskAttribute
-from structures.list import List
-from structures.task_value_collection import TaskValueCollection
-from structures.user import User
 from utils import text
 
-class TaskAttributeValueResultT(TypedDict):
-    task_id: int
-    task_attribute_id: int
-    value: bytes
+from structures.tavc import Tavc, Tuavc
+
+if TYPE_CHECKING:
+    from structures.list import List
+    from structures.user import UserIdentifierT
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
-    MAX_SYN_LEN: ClassVar[Final[int]] = 80
+    MAX_SYN_LEN: ClassVar[int] = 80
     
-    list: List
+    list: 'List'
     id: int
     name: str
     aliases: frozenset[str]
@@ -33,7 +30,7 @@ class Task:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
-    def create(cls, list: List, bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
+    def create(cls, list: 'List', bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
         with list.edit_lock:
             tasks = list.get_tasks()
 
@@ -80,24 +77,13 @@ class Task:
                 name=name,
                 aliases=aliases
             )
-        
-    def get_task_value_collection(self) -> TaskValueCollection:
-        h = queries.ArgHelper()
-
-        with queries.connected(self.list.community) as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM task_attribute_value
-                WHERE task_id = {h|self.id}
-            """, h.steal())
-
-            result: list[TaskAttributeValueResultT] = cursor.fetchall()
-
-        self.list.get_task_attributes(lambda h: f"id = {h|}")
-
-    def get_user_task_value_collection(self, user: User) -> 
-
-    # TODO continue
+    
+    def get_tavc(self) -> Tavc:
+        return Tavc(task=self)
+    
+    def get_tuavc(self, user: 'UserIdentifierT') -> Tuavc:
+        from structures.user import User
+        return Tuavc(task=self, user_id=User.find_id(user))
         
     
 

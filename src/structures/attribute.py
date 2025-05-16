@@ -5,15 +5,17 @@ import enum
 import datetime as dt
 import functools
 import pickle
-from typing import Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
 from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
-from structures.list import List
-from structures.task import Task
-from utils import metautils, parsetools, text, timetools
+from utils import parsetools, text, timetools
+
+if TYPE_CHECKING:
+    from structures.list import List
+    from structures.task import Task
 
 # --- Constants --- #
 
@@ -38,10 +40,10 @@ class AttributeValueType[T: AttributeValueTypeT]:
     name: str
     type: type[T]
 
-    _attribute_value_types: ClassVar[Final[list[Self]]] = field(init=False, default_factory=list)
-    _attribute_value_type_id_lookup: ClassVar[Final[dict[int, Self]]] = field(init=False, default_factory=dict)
-    _attribute_value_type_name_lookup: ClassVar[Final[dict[str, Self]]] = field(init=False, default_factory=dict)
-    _attribute_value_type_type_lookup: ClassVar[Final[dict[str, Self]]] = field(init=False, default_factory=dict)
+    _attribute_value_types: ClassVar[list[Self]] = []
+    _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
+    _attribute_value_type_name_lookup: ClassVar[dict[str, Self]] = {}
+    _attribute_value_type_type_lookup: ClassVar[dict[str, Self]] = {}
 
     def __hash__(self):
         return hash((self.id, self.name, self.type.__qualname__))
@@ -87,7 +89,7 @@ AttributeValueType(7, 'timespan', dt.timedelta)
 AttributeValueType(8, 'text', str)
 
 AttributeValueTypeEnum = enum.Enum(
-    'AttributeValueTypeEnum', {avt.name: avt for avt in AttributeValueType._attribute_value_types}
+    'AttributeValueTypeEnum', {avt.name: avt.type for avt in AttributeValueType._attribute_value_types}
 )
 
 if AttributeValueTypeT.__value__.__args__ != tuple(vt.value for vt in AttributeValueTypeEnum):  # type: ignore
@@ -247,29 +249,29 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     # --- CONSTANTS ---
 
     # number
-    NUMBER_MAX: ClassVar[Final[int]] = 2 ** 63 - 1
-    NUMBER_MIN: ClassVar[Final[int]] = -NUMBER_MAX - 1
-    DECIMAL_PRECISION: ClassVar[Final[int]] = decimal.getcontext().prec
-    DECIMAL_INT_PART_MAX_LEN: ClassVar[Final[int]] = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
-    DECIMAL_DEC_PART_MAX_LEN: ClassVar[Final[int]] = DECIMAL_PRECISION - DECIMAL_INT_PART_MAX_LEN
-    DECIMAL_MAX_STR_LEN: ClassVar[Final[int]] = DECIMAL_PRECISION if DECIMAL_DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
+    NUMBER_MAX: ClassVar[int] = 2 ** 63 - 1
+    NUMBER_MIN: ClassVar[int] = -NUMBER_MAX - 1
+    DECIMAL_PRECISION: ClassVar[int] = decimal.getcontext().prec
+    DECIMAL_INT_PART_MAX_LEN: ClassVar[int] = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
+    DECIMAL_DEC_PART_MAX_LEN: ClassVar[int] = DECIMAL_PRECISION - DECIMAL_INT_PART_MAX_LEN
+    DECIMAL_MAX_STR_LEN: ClassVar[int] = DECIMAL_PRECISION if DECIMAL_DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
     
     # str
-    STR_MAX_LEN: ClassVar[Final[int]] = 512
+    STR_MAX_LEN: ClassVar[int] = 512
 
     # Collection
-    COLLECTION_MAX_MEMORY: ClassVar[Final[int]] = 1024 * 32
-    COLLECTION_MAX_ELEMS: ClassVar[Final[int]] = 1024
-    COLLECTION_MAX_DEPTH: ClassVar[Final[int]] = 16
+    COLLECTION_MAX_MEMORY: ClassVar[int] = 1024 * 32
+    COLLECTION_MAX_ELEMS: ClassVar[int] = 1024
+    COLLECTION_MAX_DEPTH: ClassVar[int] = 16
     
     # General
-    MAX_SYN_LEN: ClassVar[Final[int]] = 32
-    MAX_ALIAS_COUNT: ClassVar[Final[int]] = 32
-    MAX_COLLECTION_ALIASES: ClassVar[Final[int]] = 7
-    MAX_SLOTS: ClassVar[Final[int]] = 32
-    SORT_KEY_LAST_NUMBER: ClassVar[Final[int]] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    MAX_SYN_LEN: ClassVar[int] = 32
+    MAX_ALIAS_COUNT: ClassVar[int] = 32
+    MAX_COLLECTION_ALIASES: ClassVar[int] = 7
+    MAX_SLOTS: ClassVar[int] = 32
+    SORT_KEY_LAST_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
-    list: List
+    list: 'List'
     id: int 
     name: str
     aliases: frozenset[str]
@@ -319,7 +321,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     @classmethod
     def _base_create(
         cls,
-        list: List,
+        list: 'List',
         bad_name: str,
         bad_aliases: Iterable[str],
         value_type: AttributeValueType[T],
@@ -549,7 +551,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
 @dataclass(frozen=True, kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    get_value: Callable[[Task], list[T]]
+    get_value: Callable[['Task'], list[T]]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -559,7 +561,7 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     @classmethod
     def create(
         cls,
-        list: List,
+        list: 'List',
         bad_name: str,
         bad_aliases: Iterable[str],
         value_type: AttributeValueType[T],
@@ -638,7 +640,7 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     @classmethod
     def create(
         cls,
-        list: List,
+        list: 'List',
         bad_name: str,
         bad_aliases: Iterable[str],
         value_type: AttributeValueType[T],
