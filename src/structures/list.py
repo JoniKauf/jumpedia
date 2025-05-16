@@ -3,20 +3,21 @@ from dataclasses import dataclass, field
 from functools import cached_property
 import json
 from threading import RLock
-from typing import Any, Callable, ClassVar, Final, Iterable, Literal, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Self, TypedDict
 
-import mariadb
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures.attribute import AnyAttributeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
-from structures.community import Community
-from structures.task import Task
+from utils import metautils, text
 
 import pickle
 
 from structures.user import User
-from utils import metautils, text
 
+from structures.attribute import AnyAttributeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
+from structures.task import Task
+
+if TYPE_CHECKING:
+    from structures.community import Community
 
 
 class TaskAttributeResultT(TypedDict):
@@ -63,13 +64,13 @@ class TaslAliasResultT(TypedDict):
 
 @dataclass(frozen=True, kw_only=True)
 class List:
-    MAX_NAME_LENGTH: ClassVar[Final[int]] = 64
-    MAX_ATTRIBUTES: ClassVar[Final[int]] = 1
-    MAX_TASKS: ClassVar[Final[int]] = 1
+    MAX_NAME_LENGTH: ClassVar[int] = 64
+    MAX_ATTRIBUTES: ClassVar[int] = 1
+    MAX_TASKS: ClassVar[int] = 1
 
-    INVALID_ENDING: ClassVar[Final[str]] = __name__.lower()
+    INVALID_ENDING: ClassVar[str] = __name__.lower()
 
-    community: Community
+    community: 'Community'
     id: int
     name: str
 
@@ -110,9 +111,6 @@ class List:
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.community.identity
-    
-    def __post_init__(self) -> None:
-        self.get_task_attributes()
 
     def __hash__(self) -> int:
         return hash(self.identity)
@@ -121,7 +119,9 @@ class List:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
-    def create(cls, community: Community, bad_name: str) -> 'List':
+    def create(cls, community: 'Community', bad_name: str) -> 'List':
+        from structures.community import Community
+
         with community.edit_lock:
             lists = community.get_lists()
 
@@ -165,16 +165,16 @@ class List:
                         WHERE id = {h|community.id}
                     """, h.steal())
 
+                varname: str = metautils.varname(f"{obj.community.default_selected_list_id=}", False)
+                object.__setattr__(obj.community, varname, obj)
+
             return obj
-            
             
             
     def delete(self) -> None:
         with self.edit_lock, self.community.edit_lock:
             # Check if list already deleted, but object used
-            try:
-                self.community.get_list_by_id(self.id)
-            except fbe.TemporaryFeedbackError:  # TODO
+            if self.community.get_list_by_id(self.id) is None:
                 return
                 
             h = queries.ArgHelper()
@@ -202,56 +202,50 @@ class List:
     def get_attributes(self) -> list[AnyAttributeT]:
         return self.get_static_attributes() + self.get_task_attributes() + self.get_user_attributes()
 
-    def get_attribute_by_name(self, name: str) -> AnyAttributeT:
-        try:
-            return self.get_static_task_attribute_by_name(name)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            try:
-                return self.get_task_attribute_by_name(name)
-            except fbe.TemporaryFeedbackError:
-                return self.get_user_attribute_by_name(name)
+    def get_attribute_by_name(self, name: str) -> AnyAttributeT | None:
+        return (
+            self.get_static_task_attribute_by_name(name)
+            or self.get_task_attribute_by_name(name)
+            or self.get_user_attribute_by_name(name)
+        )
         
-    def get_attribute_by_alias(self, alias: str) -> AnyAttributeT:
-        try:
-            return self.get_static_attribute_by_alias(alias)
-        except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-            try:
-                return self.get_task_attribute_by_alias(alias)
-            except fbe.TemporaryFeedbackError:
-                return self.get_user_attribute_by_alias(alias)
+    def get_attribute_by_alias(self, alias: str) -> AnyAttributeT | None:
+        return (
+            self.get_static_attribute_by_alias(alias)
+            or self.get_task_attribute_by_alias(alias)
+            or self.get_user_attribute_by_alias(alias)
+        )
 
-    def get_attribute_by_syn(self, syn: str) -> AnyAttributeT:
-        try:
-            return self.get_static_attribute_by_alias(syn)
-        except fbe.TemporaryFeedbackError:
-            try:
-                return self.get_task_attribute_by_syn(syn)
-            except fbe.TemporaryFeedbackError:  # TODO except AttributeDoesNotExist
-                return self.get_user_attribute_by_syn(syn)
+    def get_attribute_by_syn(self, syn: str) -> AnyAttributeT | None:
+        return (
+            self.get_static_attribute_by_alias(syn)
+            or self.get_task_attribute_by_syn(syn)
+            or self.get_user_attribute_by_syn(syn)
+        )
         
 
     # --- Static Attribute ---
 
-    def _fetch_static_attribute(self, where: Callable[[StaticAttribute], bool], what: str) -> StaticAttribute:
+    def _fetch_static_attribute(self, where: Callable[[StaticAttribute], bool]) -> StaticAttribute | None:
         for attr in self.get_static_attributes():
             if where(attr):
                 return attr
-        raise fbe.TemporaryFeedbackError(f"Attribute with that {what} doesn't exist")
+        return None
     
     def get_static_attributes(self) -> list[StaticAttribute]:
         return [self.name_attribute, self.alias_attribute]
     
-    def get_static_task_attribute_by_name(self, name: str) -> StaticAttribute:
+    def get_static_task_attribute_by_name(self, name: str) -> StaticAttribute | None:
         name = text.norm_syn(name)
-        return self._fetch_static_attribute(lambda attr: name == text.norm_syn(attr.name), 'name')
+        return self._fetch_static_attribute(lambda attr: name == text.norm_syn(attr.name))
 
-    def get_static_attribute_by_alias(self, alias: str) -> StaticAttribute:
+    def get_static_attribute_by_alias(self, alias: str) -> StaticAttribute | None:
         alias = text.norm_syn(alias)
-        return self._fetch_static_attribute(lambda attr: alias in attr.aliases, 'alias')
+        return self._fetch_static_attribute(lambda attr: alias in attr.aliases)
     
-    def get_static_attribute_by_syn(self, syn: str) -> StaticAttribute:
+    def get_static_attribute_by_syn(self, syn: str) -> StaticAttribute | None:
         syn = text.norm_syn(syn)
-        return self._fetch_static_attribute(lambda attr: syn == text.norm_syn(attr.name) or syn in attr.aliases, 'syn')
+        return self._fetch_static_attribute(lambda attr: syn == text.norm_syn(attr.name) or syn in attr.aliases)
         
 
     # --- Task Attributes ---
@@ -276,10 +270,7 @@ class List:
 
         return result
     
-    def _task_attribute_data_to_obj(self, data: TaskAttributeResultT | None) -> TaskAttribute:
-        if data is None:
-            raise fbe.TemporaryFeedbackError("Attribute does not exist!")
-
+    def _task_attribute_data_to_obj(self, data: TaskAttributeResultT) -> TaskAttribute:
         return TaskAttribute(
             list=self,
             id=data['id'],
@@ -295,18 +286,21 @@ class List:
         )
     
     def get_task_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[TaskAttribute]:
-        return [self._task_attribute_data_to_obj(data) for data in self._fetch_task_attributes_from_table(where)]
+        return [
+            self._task_attribute_data_to_obj(data) 
+            for data in self._fetch_task_attributes_from_table(where)
+        ]
 
-    def get_task_attribute_by_id(self, id: int) -> TaskAttribute:
+    def get_task_attribute_by_id(self, id: int) -> TaskAttribute | None:
         data = self._fetch_task_attributes_from_table(lambda h: f"id = {h|id}")
-        return self._task_attribute_data_to_obj(data[0] if data else None)
+        return self._task_attribute_data_to_obj(data[0]) if data else None
     
-    def get_task_attribute_by_name(self, name: str) -> TaskAttribute:
+    def get_task_attribute_by_name(self, name: str) -> TaskAttribute | None:
         name = text.sanitize(name)
         data = self._fetch_task_attributes_from_table(lambda h: f"name = {h|name}")
-        return self._task_attribute_data_to_obj(data[0] if data else None)
+        return self._task_attribute_data_to_obj(data[0]) if data else None
     
-    def get_task_attribute_by_alias(self, alias: str) -> TaskAttribute:
+    def get_task_attribute_by_alias(self, alias: str) -> TaskAttribute | None:
         alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
@@ -323,15 +317,15 @@ class List:
             result: TaskAttributeAliasResultT | None = cursor.fetchone()
 
         if result is None:
-            raise fbe.TemporaryFeedbackError("Attribute with that alias doesn't exist")
+            return None
         
         return self.get_task_attribute_by_id(result['task_attribute_id'])
 
-    def get_task_attribute_by_syn(self, syn: str) -> TaskAttribute:
-        try:
-            return self.get_task_attribute_by_name(syn)
-        except fbe.TemporaryFeedbackError:  # TODO NotAnAttributeError
-            return self.get_task_attribute_by_alias(syn)
+    def get_task_attribute_by_syn(self, syn: str) -> TaskAttribute | None:
+        return (
+            self.get_task_attribute_by_name(syn)
+            or self.get_task_attribute_by_alias(syn)
+        )
 
 
     # --- User Attributes ---
@@ -356,10 +350,7 @@ class List:
 
         return result
     
-    def _user_attribute_data_to_obj(self, data: UserAttributeResultT | None) -> UserAttribute:
-        if data is None:
-            raise fbe.TemporaryFeedbackError("Attribute does not exist!")
-
+    def _user_attribute_data_to_obj(self, data: UserAttributeResultT) -> UserAttribute:
         return UserAttribute(
             list=self,
             id=data['id'],
@@ -374,18 +365,21 @@ class List:
         )
     
     def get_user_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[UserAttribute]:
-        return [self._user_attribute_data_to_obj(data) for data in self._fetch_user_attributes_from_table(where)]
+        return [
+            self._user_attribute_data_to_obj(data) 
+            for data in self._fetch_user_attributes_from_table(where)
+        ]
 
-    def get_user_attribute_by_id(self, id: int) -> UserAttribute:
+    def get_user_attribute_by_id(self, id: int) -> UserAttribute | None:
         data = self._fetch_user_attributes_from_table(lambda h: f"id = {h|id}")
-        return self._user_attribute_data_to_obj(data[0] if data else None)
+        return self._user_attribute_data_to_obj(data[0]) if data else None
     
-    def get_user_attribute_by_name(self, name: str) -> UserAttribute:
+    def get_user_attribute_by_name(self, name: str) -> UserAttribute | None:
         name = text.sanitize(name)
         data = self._fetch_user_attributes_from_table(lambda h: f"name = {h|name}")
-        return self._user_attribute_data_to_obj(data[0] if data else None)
+        return self._user_attribute_data_to_obj(data[0]) if data else None
     
-    def get_user_attribute_by_alias(self, alias: str) -> UserAttribute:
+    def get_user_attribute_by_alias(self, alias: str) -> UserAttribute | None:
         alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
@@ -402,15 +396,15 @@ class List:
             result: UserAttributeAliasResultT | None = cursor.fetchone()
 
         if result is None:
-            raise fbe.TemporaryFeedbackError("Attribute with that alias doesn't exist")
+            return None
         
         return self.get_user_attribute_by_id(result['user_attribute_id'])
 
-    def get_user_attribute_by_syn(self, syn: str) -> UserAttribute:
-        try:
-            return self.get_user_attribute_by_name(syn)
-        except fbe.TemporaryFeedbackError:  # TODO NotAnAttributeError
-            return self.get_user_attribute_by_alias(syn)
+    def get_user_attribute_by_syn(self, syn: str) -> UserAttribute | None:
+        return (
+            self.get_user_attribute_by_name(syn)
+            or self.get_user_attribute_by_alias(syn)
+        )
 
 
     # --- Tasks ---
@@ -438,10 +432,7 @@ class List:
 
         return result
     
-    def _task_data_to_obj(self, data: TaskResultT | None) -> Task:
-        if data is None:
-            raise fbe.TemporaryFeedbackError("Task does not exist!")
-
+    def _task_data_to_obj(self, data: TaskResultT) -> Task:
         return Task(
             list=self,
             id=data['id'],
@@ -450,17 +441,20 @@ class List:
         )
     
     def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Task]:
-        return [self._task_data_to_obj(data) for data in self._fetch_tasks_from_table(where)]
+        return [
+            self._task_data_to_obj(data) 
+            for data in self._fetch_tasks_from_table(where)
+        ]
 
-    def get_task_by_id(self, id: int) -> Task:
+    def get_task_by_id(self, id: int) -> Task | None:
         data = self._fetch_tasks_from_table(lambda h: f"id = {h|id}")
-        return self._task_data_to_obj(data[0] if data else None)
+        return self._task_data_to_obj(data[0]) if data else None
     
-    def get_task_by_name(self, name: str) -> Task:
+    def get_task_by_name(self, name: str) -> Task | None:
         data = self._fetch_tasks_from_table(lambda h: f"name = {h|name}")
-        return self._task_data_to_obj(data[0] if data else None)
+        return self._task_data_to_obj(data[0]) if data else None
 
-    def get_task_by_alias(self, alias: str) -> Task:
+    def get_task_by_alias(self, alias: str) -> Task | None:
         alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
@@ -477,6 +471,6 @@ class List:
             result: UserAttributeAliasResultT | None = cursor.fetchone()
 
         if result is None:
-            raise fbe.TemporaryFeedbackError("Task with that alias does not exist")
+            return None
         
         return self.get_task_by_id(result['user_attribute_id'])

@@ -29,7 +29,6 @@ def __get_connection_data() -> dict[str, Any]:
     return __connection_data
 
 
-
 @contextmanager
 def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from structures.jumpedia import Jumpedia
@@ -55,9 +54,6 @@ def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> It
     except Exception as e:
         if conn:
             conn.rollback()
-
-        if isinstance(e, mariadb.Error):
-            raise fbe.InternalDatabaseError(e)
         
         raise e
     

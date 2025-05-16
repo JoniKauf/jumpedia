@@ -28,6 +28,7 @@ AUTOCOMPLETE_LIMIT = 25
 PAGING_SUFFIX: str = ">"
 REVERSE_PAGING_SUFFIX: str = "<"
 MAX_PAGE: int = 99_999
+
 BEST_MATCH_CRITERIAS: tuple[Callable[[str, str], bool], ...] = (
     lambda elem, current: elem == current,
     lambda elem, current: elem.startswith(current),
