@@ -40,8 +40,17 @@ class User:
         return isinstance(value, self.__class__) and self.identity == value.identity
 
     @classmethod
-    def _get(cls, community: 'Community', id: int) -> 'User':
+    def _get(cls, community: 'Community | None', id: int) -> 'User':
         meta_user_rank = UserRank.get_meta_from_user_id(id)
+
+        if community is None:
+            return cls(
+                community=None,
+                id=id,
+                user_rank=meta_user_rank or UserRank.DEFAULT,
+                selected_list=None
+            )
+        
         user = community.get_user_by_id(id)
         
         if meta_user_rank is None:
@@ -61,37 +70,23 @@ class User:
 
     @classmethod 
     def _get_or_create(cls, community: 'Community | None', id: int) -> 'User':
-        # TODO lock here for id, not critical but avoids exceptions
-        where_id_equal: Callable[[queries.ArgHelper], str] = lambda h: f"id = {h|id}"
-        
-        important_data = UserRank.get_meta_from_user_id(id)
+        # TODO lock here for id, not critical but avoids exceptions        
+        meta_user_rank = UserRank.get_meta_from_user_id(id)
 
         if community is None:
             return cls(
                 community=None,
                 id=id,
-                user_rank=important_data or UserRank.DEFAULT,
+                user_rank=meta_user_rank or UserRank.DEFAULT,
                 selected_list=None
             )
         
-        secondary_data = community._fetch_from_user_table(where_id_equal)
+        del meta_user_rank
 
-        selected_list: None | List = None
-        selected_list_id: None | int = None
+        user = community.get_user_by_id(id)
 
-        if secondary_data and (selected_list_id := secondary_data[0]['selected_list_id']) is not None:
-            selected_list = community.get_list_by_id(selected_list_id)
-
-        # If user already in community's database
-        if secondary_data is not None:
-            user_data = secondary_data[0]
-
-            return cls(
-                community=community,
-                id=user_data['id'],
-                user_rank=UserRank.get(user_data['power']),
-                selected_list=selected_list
-            )
+        if user is not None:
+            return user
 
         h = queries.ArgHelper()
 
@@ -100,7 +95,7 @@ class User:
                 INSERT INTO user
                 (id, power, selected_list_id)
                 VALUES
-                ({h|id}, {h|UserRank.DEFAULT.power}, {h|selected_list_id})
+                ({h|id}, {h|UserRank.DEFAULT.power}, {h|None})
             """, h.steal())
 
             return cls(
@@ -118,18 +113,18 @@ class User:
         return cls._get_or_create(ctx.community, ctx.ia.user.id)
     
     @classmethod
-    def get_other(cls, ctx: 'Context | Community', other_user: UserIdentifierT) -> 'User | None':
+    def get_other(cls, ctx: 'Context | Community', other_user: UserIdentifierT) -> 'User':
         other_id = cls.find_id(other_user)
 
         if isinstance(ctx, Context):
             cls.get_actor(ctx)
-            return cls._get(ctx.community, other_id) if ctx.community is not None else None
+            return cls._get(ctx.community, other_id)
         
         return cls._get(ctx, other_id)
     
     @classmethod
     def get_both(cls, ctx: Context, other_user: UserIdentifierT) -> tuple['User', 'User']:
-        return (cls.get_actor(ctx), cls.get_other(ctx.community, other_user))
+        return (cls.get_actor(ctx), cls.get_other(ctx, other_user))
 
     @classmethod
     def find_id(cls, user: UserIdentifierT) -> int:

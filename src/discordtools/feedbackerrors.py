@@ -345,7 +345,7 @@ class TemporaryFeedbackError(errors.FeedbackError):
         super().__init__(
             error="Temporary Feedback Error",
             details=(
-                "This error is used as a placeholder and shouldn't occur outside of development." +
+                "This error is used as a placeholder and shouldn't occur outside of development. " +
                 "If you see this, we are either still in development or Joni missed a spot.\n\n"
                 "Debug info placeholder text that might be given:\n```" +
                 ('\n'.join(f"- {arg}" for arg in args) if args else "<None>") +

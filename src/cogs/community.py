@@ -12,12 +12,18 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         self.bot = bot
 
     @acmds.command()
-    @acmds.check(predicates.permission_user_rank(UserRank.JONIKAUF))
     @acmds.check(predicates.in_guild(None))
+    @acmds.check(predicates.permission_user_rank(UserRank.JONIKAUF))
     async def create(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild is not None
 
-        Community.create(Jumpedia(), [ia.guild.id], name)
+        community = Community.create(Jumpedia(), [ia.guild.id], name)
+
+        await messagetools.success(
+            ia,
+            "Community Successfully Created",
+            f"The community with the name `{community.name}` was successfully created and is now bound to this server!"
+        )
 
 async def setup(bot: cmds.Bot):
     await bot.add_cog(CommunityCog(bot))

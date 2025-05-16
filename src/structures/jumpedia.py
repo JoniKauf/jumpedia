@@ -120,7 +120,7 @@ class Jumpedia(metaclass=metautils.Singleton):
             cursor.execute(f"""
                 SELECT
                     c.*,
-                    GROUP_CONCAT(g.guild_id) AS guild_ids
+                    GROUP_CONCAT(g.id) AS guild_ids
                 FROM community c
                 LEFT JOIN guild g ON c.id = g.community_id
                 {f"WHERE {where(h)}" if where is not None else ""}
