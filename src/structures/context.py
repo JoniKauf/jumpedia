@@ -23,10 +23,6 @@ class Context:
     ia: dc.Interaction
     
     @cached_property
-    def meta_user_rank(self) -> UserRank | None:
-        return UserRank.get_meta_from_user_id(self.ia.user.id)
-    
-    @cached_property
     def user(self) -> 'User':
         from structures.user import User
         return User.get_actor(self)

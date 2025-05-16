@@ -11,12 +11,12 @@ import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
 from structures.list import List
+from structures.user import User
+from structures.ranks import UserRank
+from structures.task import Task
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
-    from structures.user import User
-    from structures.ranks import UserRank
-    from structures.task import Task
 
 
 class UserResultT(TypedDict):
@@ -33,8 +33,8 @@ class ListResultT(TypedDict):
 class Community:
     MAX_NAME_LENGTH: ClassVar[int] = 64
     MAX_LISTS: ClassVar[int] = 1
-    DATABASE_PREFIX: ClassVar[str] = f"{__name__.lower()}_"
-    INVALID_ENDING: ClassVar[str] = __name__.lower()
+    DATABASE_PREFIX: ClassVar[str] = "community_".lower()
+    INVALID_ENDING: ClassVar[str] = "community".lower()
 
     jumpedia: 'Jumpedia'
     id: int
@@ -106,170 +106,173 @@ class Community:
 
                 # If anything goes wrong here, exception will cause it to 
                 # rollback step above, where we add the community to meta table
-                obj._init_database(cursor)
+                obj._init_database()
 
                 List.create(obj, 'Main')
 
                 return obj
         
-    def _init_database(self, cursor: mariadb.Cursor) -> None:
+    def _init_database(self) -> None:
+        # Lock should be obtained here already
+
         from structures.attribute import TaskAttribute, UserAttribute
-        
-        with self.jumpedia.edit_lock:
+
+        with queries.connected(None) as (none_conn, none_cursor):
             # Create database
-            cursor.execute(f"""
+            none_cursor.execute(f"""
                 CREATE DATABASE `{self.database_name}`
                     CHARACTER SET = utf8mb4
                     COLLATE = utf8mb4_unicode_ci
             """)
-            
-            # If anything goes wrong here, delete database and raise error
-            try:
-                # Create tables
-                cursor.execute(f"""
-                    CREATE TABLE list (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE
-                    )
-                """)
+        
+            with queries.connected(self) as (conn, cursor):
+                # If anything goes wrong here, delete database and raise error
+                try:
+                    # Create tables
+                    cursor.execute(f"""
+                        CREATE TABLE list (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL UNIQUE
+                        )
+                    """)
 
-                cursor.execute("""
-                    CREATE TABLE user (
-                        id BIGINT UNSIGNED PRIMARY KEY,
-                        power INT NOT NULL,
-                        selected_list_id INT,
-                            
-                        FOREIGN KEY (selected_list_id) 
-                            REFERENCES list(id) 
-                            ON DELETE SET NULL
-                    )
-                """)
+                    cursor.execute("""
+                        CREATE TABLE user (
+                            id BIGINT UNSIGNED PRIMARY KEY,
+                            power INT NOT NULL,
+                            selected_list_id INT,
+                                
+                            FOREIGN KEY (selected_list_id) 
+                                REFERENCES list(id) 
+                                ON DELETE SET NULL
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task_attribute (
-                        id INT AUTO_INCREMENT NOT NULL,
-                        list_id INT NOT NULL,
-                        name VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
-                        value_type INT NOT NULL,
-                        index INT NOT NULL UNIQUE,
-                        collection BLOB NOT NULL,
-                        min_slots INT NOT NULL,
-                        max_slots INT NOT NULL,
-                        unique_slots BOOL NOT NULL,
-                        unique_value_per_list BOOL NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE task_attribute (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            list_id INT NOT NULL,
+                            name VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                            value_type INT NOT NULL,
+                            `index` INT NOT NULL UNIQUE,
+                            collection BLOB NOT NULL,
+                            min_slots INT NOT NULL,
+                            max_slots INT NOT NULL,
+                            unique_slots BOOL NOT NULL,
+                            unique_value_per_list BOOL NOT NULL,
 
-                        FOREIGN KEY (list_id)
-                            REFERENCES list(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (list_id)
+                                REFERENCES list(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE user_attribute (
-                        id INT AUTO_INCREMENT NOT NULL,
-                        list_id INT NOT NULL,
-                        name VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
-                        index INT NOT NULL UNIQUE,
-                        value_type INT NOT NULL,
-                        collection BLOB NOT NULL,
-                        min_slots INT NOT NULL,
-                        max_slots INT NOT NULL,
-                        unique_slots BOOL NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE user_attribute (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            list_id INT NOT NULL,
+                            name VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                            `index` INT NOT NULL UNIQUE,
+                            value_type INT NOT NULL,
+                            collection BLOB NOT NULL,
+                            min_slots INT NOT NULL,
+                            max_slots INT NOT NULL,
+                            unique_slots BOOL NOT NULL,
 
-                        FOREIGN KEY (list_id)
-                            REFERENCES list(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (list_id)
+                                REFERENCES list(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task_attribute_alias (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        task_attribute_id INT NOT NULL,
-                        alias VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE task_attribute_alias (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            task_attribute_id INT NOT NULL,
+                            alias VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
 
-                        FOREIGN KEY (task_attribute_id)
-                            REFERENCES task_attribute(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (task_attribute_id)
+                                REFERENCES task_attribute(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE user_attribute_alias (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        user_attribute_id INT NOT NULL,
-                        alias VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE user_attribute_alias (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_attribute_id INT NOT NULL,
+                            alias VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
 
-                        FOREIGN KEY (user_attribute_id)
-                            REFERENCES user_attribute(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (user_attribute_id)
+                                REFERENCES user_attribute(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        list_id INT NOT NULL,
-                        name VARCHAR({Task.MAX_SYN_LEN}),
-                               
-                        FOREIGN KEY (list_id)
-                            REFERENCES list(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                    cursor.execute(f"""
+                        CREATE TABLE task (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            list_id INT NOT NULL,
+                            name VARCHAR({Task.MAX_SYN_LEN}),
+                                
+                            FOREIGN KEY (list_id)
+                                REFERENCES list(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task_alias (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        task_id INT NOT NULL,
-                        alias VARCHAR({Task.MAX_SYN_LEN}),
+                    cursor.execute(f"""
+                        CREATE TABLE task_alias (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            task_id INT NOT NULL,
+                            alias VARCHAR({Task.MAX_SYN_LEN}),
 
-                        FOREIGN KEY (task_id)
-                            REFERENCES task(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (task_id)
+                                REFERENCES task(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task_attribute_value (
-                        task_id INT NOT NULL,
-                        task_attribute_id INT NOT NULL,
-                        value BLOB NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE task_attribute_value (
+                            task_id INT NOT NULL,
+                            task_attribute_id INT NOT NULL,
+                            value BLOB NOT NULL,
 
-                        PRIMARY KEY (task_id, task_attribute_id),
+                            PRIMARY KEY (task_id, task_attribute_id),
 
-                        FOREIGN KEY (task_id)
-                            REFERENCES task(id)
-                            ON DELETE CASCADE,
-                        FOREIGN KEY (task_attribute_id)
-                            REFERENCES task_attribute(id)
-                            ON DELETE CASCADE
-                    )
-                """)
+                            FOREIGN KEY (task_id)
+                                REFERENCES task(id)
+                                ON DELETE CASCADE,
+                            FOREIGN KEY (task_attribute_id)
+                                REFERENCES task_attribute(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
 
-                cursor.execute(f"""
-                    CREATE TABLE task_user_attribute_value (
-                        task_id INT NOT NULL,
-                        user_id BIGINT UNSIGNED NOT NULL,
-                        user_attribute_id INT NOT NULL,
-                        value BLOB NOT NULL,
+                    cursor.execute(f"""
+                        CREATE TABLE task_user_attribute_value (
+                            task_id INT NOT NULL,
+                            user_id BIGINT UNSIGNED NOT NULL,
+                            user_attribute_id INT NOT NULL,
+                            value BLOB NOT NULL,
 
-                        PRIMARY KEY (task_id, user_id, user_attribute_id),
+                            PRIMARY KEY (task_id, user_id, user_attribute_id),
 
-                        FOREIGN KEY (task_id)
-                            REFERENCES task(id)
-                            ON DELETE CASCADE,
-                        FOREIGN KEY (user_attribute_id)
-                            REFERENCES user_attribute(id)
-                            ON DELETE CASCADE,
-                        FOREIGN KEY (user_id)
-                            REFERENCES user(id)
-                            ON DELETE CASCADE
-                    )
-                """)
-            except mariadb.Error:
-                cursor.execute(f"DROP DATABASE `{self.database_name}`")
-                raise fbe.TemporaryFeedbackError()
+                            FOREIGN KEY (task_id)
+                                REFERENCES task(id)
+                                ON DELETE CASCADE,
+                            FOREIGN KEY (user_attribute_id)
+                                REFERENCES user_attribute(id)
+                                ON DELETE CASCADE,
+                            FOREIGN KEY (user_id)
+                                REFERENCES user(id)
+                                ON DELETE CASCADE
+                        )
+                    """)
+                except mariadb.Error as e:
+                    none_cursor.execute(f"DROP DATABASE `{self.database_name}`")
+                    raise e
     
     def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[ListResultT]:
         h = queries.ArgHelper()
