@@ -1,9 +1,12 @@
 from collections import defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from functools import cached_property
 import json
 from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Self, TypedDict
+
+import mariadb
 
 from database import queries
 from discordtools import feedbackerrors as fbe
@@ -119,7 +122,7 @@ class List:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
-    def create(cls, community: 'Community', bad_name: str) -> 'List':
+    def create(cls, community: 'Community', bad_name: str, *, cursor: mariadb.Cursor | None = None) -> 'List':
         from structures.community import Community
 
         with community.edit_lock:
@@ -139,7 +142,7 @@ class List:
             
             h = queries.ArgHelper()
 
-            with queries.connected(community) as (conn, cursor):
+            with queries.connected(cursor) as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO list (
                         name
