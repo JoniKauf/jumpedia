@@ -26,7 +26,7 @@ class CommunityResultT(TypedDict):
     id: int
     name: str
     default_selected_list_id: int | None
-    guild_ids: str
+    guild_ids: str | None
 
 class MetaUserResultT(TypedDict):
     id: int
@@ -151,16 +151,21 @@ class Jumpedia(metaclass=metautils.Singleton):
             """, h.steal())
 
             result: list[CommunityResultT] = cursor.fetchall()
-
+            
         return result
     
     def _community_data_to_obj(self, data: CommunityResultT) -> 'Community':
+        guild_ids = data['guild_ids']
+
+        if guild_ids is not None:
+            guild_ids = frozenset(int(id) for id in guild_ids.split(','))
+
         return Community(
             jumpedia=self,
             id=data['id'],
             name=data['name'],
             default_selected_list_id=data['default_selected_list_id'],
-            guild_ids=frozenset(int(id) for id in data['guild_ids'].split(','))
+            guild_ids=guild_ids or frozenset()
         )
     
     def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list['Community']:
