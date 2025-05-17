@@ -5,8 +5,6 @@ from discordtools import feedbackerrors as fbe
 
 from functools import cached_property
 
-from structures.ranks import UserRank
-
 if TYPE_CHECKING:
     from structures.user import User
     from structures.community import Community

@@ -5,7 +5,7 @@ from threading import RLock
 import discord as dc
 
 import mariadb
-from utils import text
+from utils import metautils, text
 from database import queries
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
@@ -59,8 +59,15 @@ class Community:
         return isinstance(value, self.__class__) and self.identity == value.identity
 
     @classmethod
-    def create(cls, jumpedia: 'Jumpedia', guild_ids: Iterable[int], bad_name: str) -> 'Community':
+    def create(cls, jumpedia: 'Jumpedia', guild_id: int, bad_name: str) -> 'Community':
         with jumpedia.edit_lock:
+            community = jumpedia.get_community_by_guild_id(guild_id)
+
+            if community is not None:
+                raise fbe.TemporaryFeedbackError(
+                    f"This server is already hosting the community `{community.name}`."
+                )
+            
             communities = jumpedia.get_communities()
 
             name = text.validate_and_sanitize_name(
@@ -68,11 +75,10 @@ class Community:
                 cls.MAX_NAME_LENGTH,
                 (c.name for c in communities)
             )
-
+            
             if text.norm_syn(name).endswith(cls.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out '{cls.INVALID_ENDING}' from the name as it is redundant!")
-            
-            guild_ids = frozenset(guild_ids)
+
             h = queries.ArgHelper()
 
             with queries.connected(jumpedia) as (conn, cursor):
@@ -92,14 +98,16 @@ class Community:
                         id, 
                         community_id
                     )
-                    VALUES
-                    {",".join(f"({h|guild_id}, {h|id})" for guild_id in guild_ids)}
+                    VALUES (
+                        {h|guild_id},
+                        {h|id}
+                    )
                 """, h.steal())
                 
                 obj = cls(
                     jumpedia=jumpedia,
                     id=id,
-                    guild_ids=guild_ids,
+                    guild_ids=frozenset([guild_id]),
                     default_selected_list_id=None,
                     name=name
                 )  
@@ -108,10 +116,29 @@ class Community:
                 # rollback step above, where we add the community to meta table
                 obj._init_database()
 
-                List.create(obj, 'Main')
+                list = List.create(obj, 'Main')
+
+                cursor.execute(f"""
+                    UPDATE community
+                    SET default_selected_list_id = {h|list.id}
+                    WHERE id = {h|obj.id}
+                """, h.steal())
+
+                varname: str = metautils.varname(f"{obj.default_selected_list_id=}", False)
+                object.__setattr__(obj, varname, obj)
 
                 return obj
-        
+            
+    def delete(self) -> None:
+        with self.edit_lock, self.jumpedia.edit_lock:
+            if self.jumpedia.get_community_by_id(self.id) is None:
+                return
+            
+            with queries.connected(self.jumpedia) as (conn, cursor):
+                cursor.execute(f"""
+                    DROP DATABASE `{self.database_name}`
+                """)
+
     def _init_database(self) -> None:
         # Lock should be obtained here already
 
@@ -355,3 +382,51 @@ class Community:
         name = text.norm(name)
         data = self._fetch_from_user_table(lambda h: f"name = {h|name}")
         return self._user_data_to_obj(data[0]) if data else None
+    
+    def add_to_guild(self, guild_id: int) -> None:
+        with self.jumpedia.edit_lock:
+            existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
+
+            if existing_community is not None:
+                if self == existing_community:
+                    raise fbe.TemporaryFeedbackError(
+                        f"Your server already hosts this community."
+                    )
+                
+                raise fbe.TemporaryFeedbackError(
+                    f"Your server already hosts the community {existing_community.name}."
+                )
+            
+            h = queries.ArgHelper()
+
+            with queries.connected(self.jumpedia) as (conn, cursor):
+                cursor.execute(f"""
+                    INSERT INTO guild (
+                        id,
+                        community_id
+                    )
+                    VALUES (
+                        {h|guild_id},
+                        {h|self.id}
+                    )
+                """, h.steal())
+
+            varname = metautils.varname(f"{self.guild_ids=}", False)
+            object.__setattr__(self, varname, self.guild_ids.union([guild_id]))
+
+    
+    def remove_from_guild(self, guild_id: int) -> None:
+        with self.jumpedia.edit_lock:
+            existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
+
+            if existing_community is None:
+                fbe.TemporaryFeedbackError("This server doesn't host a community.")
+
+            h = queries.ArgHelper()
+
+            with queries.connected(self.jumpedia) as (conn, cursor):
+                cursor.execute(f"""
+                    DELETE FROM guild
+                    WHERE id = {h|guild_id}
+                """, h.steal())
+            

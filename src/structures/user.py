@@ -80,13 +80,16 @@ class User:
                 user_rank=meta_user_rank or UserRank.DEFAULT,
                 selected_list=None
             )
-        
-        del meta_user_rank
 
         user = community.get_user_by_id(id)
-
+        
         if user is not None:
-            return user
+            return cls(
+                community=community,
+                id=id,
+                user_rank=meta_user_rank or user.user_rank,
+                selected_list=user.selected_list
+            )
 
         h = queries.ArgHelper()
 
@@ -101,7 +104,7 @@ class User:
             return cls(
                 community=community,
                 id=id,
-                user_rank=UserRank.DEFAULT,
+                user_rank=meta_user_rank or UserRank.DEFAULT,
                 selected_list=None
             )
     

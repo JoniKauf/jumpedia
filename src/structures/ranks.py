@@ -6,6 +6,8 @@ from database import queries
 from discordtools import errors
 import discord as dc
 
+from structures.context import Context
+
 @functools.total_ordering
 class _RankBase:
     _init_done: bool = False
@@ -106,11 +108,11 @@ class GuildRank(_RankBase):
     def _init(cls):
         cls.MEMBER = GuildRank(0, "Member")
         cls.SERVER_ADMINISTRATOR = GuildRank(1, "Server Administrator")
-        cls.SERVER_OWNER = GuildRank(2, "Server Owner")
+        cls.GUILD_OWNER = GuildRank(2, "Server Owner")
 
         cls.DEFAULT = cls.MEMBER
         cls.LOWEST = cls.MEMBER
-        cls.HIGHEST = cls.SERVER_OWNER
+        cls.HIGHEST = cls.GUILD_OWNER
 
     @classmethod
     def get_from_discord_user(cls, dc_user: dc.User | dc.Member) -> 'GuildRank':
@@ -118,12 +120,18 @@ class GuildRank(_RankBase):
             return GuildRank.MEMBER
         
         if dc_user.id == dc_user.guild.owner_id:
-            return GuildRank.SERVER_OWNER
+            return GuildRank.GUILD_OWNER
         
         if dc_user.guild_permissions.administrator:
             return GuildRank.SERVER_ADMINISTRATOR
         
         return GuildRank.MEMBER
+    
+    def permitted(self, user_rank: UserRank, min_required_rank: Self) -> bool:
+        if super().permitted(min_required_rank):
+            return True
+        
+        return user_rank.meta
 
 
 def _init():

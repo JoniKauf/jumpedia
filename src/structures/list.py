@@ -134,7 +134,7 @@ class List:
             if name.endswith(cls.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out `{cls.INVALID_ENDING}` from the name, as it is redundant!")
             
-            if (count := len(lists)) >= Community.MAX_LISTS:
+            if len(lists) >= Community.MAX_LISTS:
                 raise fbe.TemporaryFeedbackError("Limit reached")
             
             h = queries.ArgHelper()
@@ -156,17 +156,6 @@ class List:
                     id=id,
                     name=name
                 )
-            
-            if count == 0:
-                with queries.connected(community.jumpedia) as (conn, cursor):
-                    cursor.execute(f"""
-                        UPDATE community
-                        SET default_selected_list_id = {h|id}
-                        WHERE id = {h|community.id}
-                    """, h.steal())
-
-                varname: str = metautils.varname(f"{obj.community.default_selected_list_id=}", False)
-                object.__setattr__(obj.community, varname, obj)
 
             return obj
             

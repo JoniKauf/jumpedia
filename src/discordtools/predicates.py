@@ -7,12 +7,13 @@ from discordtools import feedbackerrors as fbe
 from structures.context import Context
 from structures.ranks import GuildRank, UserRank
 
-type PredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
+type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
+type PredicateT = Callable[[dc.Interaction], Literal[True]]
 
 def in_guild(guild: dc.Guild | int | None) -> PredicateT:
     guild = guild if isinstance(guild, int) or guild is None else guild.id
 
-    async def predicate_func(ia: dc.Interaction) -> Literal[True]:
+    def predicate_func(ia: dc.Interaction) -> Literal[True]:
         if guild is None:
             if ia.guild_id is not None:
                 return True
@@ -24,9 +25,9 @@ def in_guild(guild: dc.Guild | int | None) -> PredicateT:
     return predicate_func
 
 
-def permission_user_rank(
+def user_rank(
     min_required: UserRank = UserRank.HIGHEST
-) -> PredicateT:
+) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
         try:
             user_rank = Context(ia).user.user_rank
@@ -36,18 +37,20 @@ def permission_user_rank(
         if user_rank.permitted(min_required):
             return True
         
-        raise fbe.TemporaryFeedbackError("Not high enough user rank") 
+        raise fbe.TemporaryFeedbackError(f"Your user rank is {user_rank} but you must at least be {min_required}") 
 
     return predicate_func
 
 
-def permission_server_rank(
+def guild_rank(
     min_required: GuildRank = GuildRank.HIGHEST
-) -> PredicateT:
+) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
-        if Context(ia).guild_rank.permitted(min_required):
+        ctx = Context(ia)
+
+        if (guild_rank := ctx.guild_rank).permitted(ctx.user.user_rank, min_required):
             return True
         
-        raise fbe.TemporaryFeedbackError("Not high enough server rank")
+        raise fbe.TemporaryFeedbackError(f"Your server rank is {guild_rank} but you must at least be {min_required}")
 
     return predicate_func
