@@ -5,7 +5,10 @@ import logging
 
 import mariadb
 from discordtools import feedbackerrors as fbe
+from structures.attribute import TaskAttribute, UserAttribute
+from structures.list import List
 from structures.ranks import UserRank
+from structures.task import Task
 from structures.user import User
 from utils import metautils, text
 from database import queries
@@ -26,17 +29,20 @@ class CommunityResultT(TypedDict):
     id: int
     name: str
     default_selected_list_id: int | None
-    guild_ids: str | None
 
 class MetaUserResultT(TypedDict):
     id: int
     power: int
 
+class GuildResultT(TypedDict):
+    id: int
+    community_id: int
+
 
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(metaclass=metautils.Singleton):
     id: int = field(init=False, default=1)
-    database_name: str = field(init=False, default='meta')
+    database_name: str = field(init=False, default='jumpedia')
     edit_lock: RLock = field(init=False, default_factory=RLock)
     
     @property
@@ -50,7 +56,7 @@ class Jumpedia(metaclass=metautils.Singleton):
         return isinstance(value, Jumpedia) and self.id == value.id
     
     def _init(self) -> None:
-        with queries.connected(None) as (conn, cursor):
+        with queries.connected(no_db=True) as (conn, cursor):
             cursor.execute(f"""
                 SELECT SCHEMA_NAME
                 FROM INFORMATION_SCHEMA.SCHEMATA
@@ -73,7 +79,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     COLLATE = utf8mb4_unicode_ci
                 """)
                 
-        with queries.connected(self) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             try:
                 cursor.execute(f"""
                     CREATE TABLE community (
@@ -100,13 +106,164 @@ class Jumpedia(metaclass=metautils.Singleton):
                         power INT NOT NULL
                     )
                 """)
-            except Exception:
+
+                cursor.execute(f"""
+                    CREATE TABLE list (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        community_id INT NOT NULL,
+                        name VARCHAR({List.MAX_NAME_LENGTH}),
+
+                        FOREIGN KEY (community_id)
+                            REFERENCES community(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE user (
+                        id BIGINT UNSIGNED PRIMARY KEY,
+                        community_id INT NOT NULL,
+                        power INT NOT NULL,
+                        selected_list_id INT,
+                        
+                        FOREIGN KEY (community_id)
+                            REFERENCES community(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (selected_list_id) 
+                            REFERENCES list(id) 
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_attribute (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        list_id INT NOT NULL,
+                        name VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        value_type INT NOT NULL,
+                        `index` INT NOT NULL UNIQUE,
+                        collection BLOB NOT NULL,
+                        min_slots INT NOT NULL,
+                        max_slots INT NOT NULL,
+                        unique_slots BOOL NOT NULL,
+                        unique_value_per_list BOOL NOT NULL,
+
+                        FOREIGN KEY (list_id)
+                            REFERENCES list(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_attribute_alias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        task_attribute_id INT NOT NULL,
+                        alias VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+
+                        FOREIGN KEY (task_attribute_id)
+                            REFERENCES task_attribute(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+                
+                cursor.execute(f"""
+                    CREATE TABLE user_attribute (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        list_id INT NOT NULL,
+                        name VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        `index` INT NOT NULL UNIQUE,
+                        value_type INT NOT NULL,
+                        collection BLOB NOT NULL,
+                        min_slots INT NOT NULL,
+                        max_slots INT NOT NULL,
+                        unique_slots BOOL NOT NULL,
+
+                        FOREIGN KEY (list_id)
+                            REFERENCES list(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE user_attribute_alias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_attribute_id INT NOT NULL,
+                        alias VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+
+                        FOREIGN KEY (user_attribute_id)
+                            REFERENCES user_attribute(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        list_id INT NOT NULL,
+                        name VARCHAR({Task.MAX_SYN_LEN}),
+                            
+                        FOREIGN KEY (list_id)
+                            REFERENCES list(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_alias (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        task_id INT NOT NULL,
+                        alias VARCHAR({Task.MAX_SYN_LEN}),
+
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_attribute_value (
+                        task_id INT NOT NULL,
+                        task_attribute_id INT NOT NULL,
+                        value BLOB NOT NULL,
+
+                        PRIMARY KEY (task_id, task_attribute_id),
+
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (task_attribute_id)
+                            REFERENCES task_attribute(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE task_user_attribute_value (
+                        task_id INT NOT NULL,
+                        user_id BIGINT UNSIGNED NOT NULL,
+                        user_attribute_id INT NOT NULL,
+                        value BLOB NOT NULL,
+
+                        PRIMARY KEY (task_id, user_id, user_attribute_id),
+
+                        FOREIGN KEY (task_id)
+                            REFERENCES task(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (user_attribute_id)
+                            REFERENCES user_attribute(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (user_id)
+                            REFERENCES user(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+            except Exception as e:
                 try:
                     cursor.execute(f"""
                         DROP DATABASE `{self.database_name}`
                     """)
                 finally:
-                    exit()
+                    raise e
             
         LOGGER.info("Meta database successfully created!")
     
@@ -116,7 +273,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[CommunityResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT
                     c.*,
@@ -131,41 +288,26 @@ class Jumpedia(metaclass=metautils.Singleton):
 
         return result
     
-    def _fetch_from_guild_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[CommunityResultT]:
+    def _fetch_from_guild_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[GuildResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT 
-                    c.*,
-                    GROUP_CONCAT(g.id) AS guild_ids
-                FROM community c
-                JOIN guild g ON g.community_id = c.id
-                WHERE c.id = (
-                    SELECT community_id
-                    FROM guild
-                    {f"WHERE {where(h)}" if where is not None else ""}
-                    LIMIT 1
-                )
-                GROUP BY c.id
+                SELECT *
+                FROM guild
+                {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[CommunityResultT] = cursor.fetchall()
+            result: list[GuildResultT] = cursor.fetchall()
             
         return result
     
     def _community_data_to_obj(self, data: CommunityResultT) -> 'Community':
-        guild_ids = data['guild_ids']
-
-        if guild_ids is not None:
-            guild_ids = frozenset(int(id) for id in guild_ids.split(','))
-
         return Community(
             jumpedia=self,
             id=data['id'],
             name=data['name'],
-            default_selected_list_id=data['default_selected_list_id'],
-            guild_ids=guild_ids or frozenset()
+            default_selected_list_id=data['default_selected_list_id']
         )
     
     def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list['Community']:
@@ -185,7 +327,13 @@ class Jumpedia(metaclass=metautils.Singleton):
     
     def get_community_by_guild_id(self, guild_id: int) -> 'Community | None':
         data = self._fetch_from_guild_table(lambda h: f"id = {h|guild_id}")
-        return self._community_data_to_obj(data[0]) if data else None
+
+        if data is None:
+            return None
+        
+        community_data = self._fetch_from_community_table(lambda h: f"id = {h|data[0]['community_id']}")
+
+        return self._community_data_to_obj(community_data[0]) if community_data else None
     
 
     # --- Meta Users ---
@@ -193,7 +341,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     def _fetch_from_meta_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[MetaUserResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
                 FROM meta_user

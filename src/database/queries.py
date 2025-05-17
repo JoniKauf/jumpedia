@@ -30,26 +30,27 @@ def __get_connection_data() -> dict[str, Any]:
 
 
 @contextmanager
-def connected(db: 'Community | Jumpedia | None', auto_commit: bool = True) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(auto_commit: bool = True, *, no_db: bool = False, cursor: mariadb.Cursor | None = None) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from structures.jumpedia import Jumpedia
     from structures.community import Community
 
-    if db is None:
+    if no_db:
         database = {}
-    elif isinstance(db, (Community, Jumpedia)):
-        database = {'db': db.database_name}
     else:
-        raise TypeError
+        database = {'db': Jumpedia().database_name}
 
     conn: mariadb.Connection | None = None
     
     try:
-        conn = mariadb.connect(
-            **(__get_connection_data() | database)
-        )
-        cursor = conn.cursor(dictionary=True)
+        if cursor is not None:
+            yield cursor.connection, cursor
+        else:
+            conn = mariadb.connect(
+                **(__get_connection_data() | database)
+            )
+            cursor = conn.cursor(dictionary=True)
 
-        yield conn, cursor
+            yield conn, cursor
 
     except Exception as e:
         if conn:
