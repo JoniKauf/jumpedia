@@ -274,7 +274,6 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     list: 'List'
     id: int 
     name: str
-    aliases: frozenset[str]
     value_type: AttributeValueType
     index: int
     collection: CollectionT
@@ -287,6 +286,10 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
     
+    @property
+    def aliases(self) -> frozenset[str]:
+        return frozenset()
+            
     @property
     def syns(self) -> set[str]:
         return {self.name} | self.aliases
@@ -552,11 +555,32 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 @dataclass(frozen=True, kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     get_value: Callable[['Task'], list[T]]
+            
 
+class TaskAttributeAliasReultT(TypedDict):
+    alias: str
 
 @dataclass(frozen=True, kw_only=True)
 class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     unique_value_per_list: bool
+
+    @property
+    def aliases(self) -> frozenset[str]:
+        h = queries.ArgHelper()
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT alias
+                FROM task_attribute_alias
+                WHERE 
+                    list_id = {h|self.list.id} AND
+                    task_attribute_id = {h|self.id}
+            """)
+
+            result: list[TaskAttributeAliasReultT] = cursor.fetchall()
+
+        return frozenset(row['alias'] for row in result)
+
 
     @classmethod
     def create(
@@ -584,7 +608,7 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
             h = queries.ArgHelper()
 
-            with queries.connected(list.community) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO task_attribute (
                         list_id,
@@ -614,10 +638,10 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
                 cursor.execute(f"""
                     INSERT INTO task_attribute_alias (
-                        task_attribute_id, alias
+                        task_attribute_id, list_id, alias
                     )
                     VALUES 
-                        {','.join(f"({h|id}, {h|alias})" for alias in aliases)}
+                        {','.join(f"({h|id}, {h|list.id}, {h|alias})" for alias in aliases)}
                 """)
 
                 return cls(
@@ -625,7 +649,6 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                     id=id,
                     name=name,
                     index=index,
-                    aliases=aliases,
                     value_type=value_type,
                     collection=collection,
                     min_slots=min_slots,
@@ -635,8 +658,29 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                 ) 
 
 
+class UserAttributeAliasReultT(TypedDict):
+    alias: str
+
 @dataclass(frozen=True, kw_only=True)
 class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+
+    @property
+    def aliases(self) -> frozenset[str]:
+        h = queries.ArgHelper()
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT alias
+                FROM user_attribute_alias
+                WHERE 
+                    list_id = {h|self.list.id}
+                    AND user_attribute_id = {h|self.id}
+            """)
+
+            result: list[UserAttributeAliasReultT] = cursor.fetchall()
+
+        return frozenset(row['alias'] for row in result)
+    
     @classmethod
     def create(
         cls,
@@ -662,7 +706,7 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
             h = queries.ArgHelper()
 
-            with queries.connected(list.community) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO user_attribute (
                         list_id,
@@ -690,10 +734,10 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
                 cursor.execute(f"""
                     INSERT INTO user_attribute_alias (
-                        user_attribute_id, alias
+                        user_attribute_id, list_id, alias
                     )
                     VALUES 
-                        {','.join(f"({h|id}, {h|alias})" for alias in aliases)}
+                        {','.join(f"({h|id}, {h|list.id}, {h|alias})" for alias in aliases)}
                 """)
 
                 obj = cls(
@@ -701,7 +745,6 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                     id=id,
                     name=name,
                     index=index,
-                    aliases=aliases,
                     value_type=value_type,
                     collection=collection,
                     min_slots=min_slots,

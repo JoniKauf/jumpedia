@@ -7,7 +7,7 @@ import mariadb
 from discordtools import feedbackerrors as fbe
 from structures.attribute import TaskAttribute, UserAttribute
 from structures.list import List
-from structures.ranks import UserRank
+from structures.ranks import MetaRank, UserRank
 from structures.task import Task
 from structures.user import User
 from utils import metautils, text
@@ -30,12 +30,11 @@ class CommunityResultT(TypedDict):
     name: str
     default_selected_list_id: int | None
 
-class MetaUserResultT(TypedDict):
-    id: int
+class MetaRankResultT(TypedDict):
+    user_id: int
     power: int
 
 class GuildResultT(TypedDict):
-    id: int
     community_id: int
 
 
@@ -84,7 +83,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                 cursor.execute(f"""
                     CREATE TABLE community (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE,
+                        name VARCHAR({Community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
                         default_selected_list_id INT DEFAULT NULL
                     )
                 """)
@@ -100,9 +99,18 @@ class Jumpedia(metaclass=metautils.Singleton):
                     )
                 """)
 
+                # Add foreign key to community, otherwise we would have circular dependency
                 cursor.execute(f"""
-                    CREATE TABLE meta_user (
-                        id BIGINT UNSIGNED PRIMARY KEY,
+                    ALTER TABLE community
+                    ADD CONSTRAINT fk_community_default_list
+                    FOREIGN KEY (default_selected_list_id)
+                    REFERENCES list(id)
+                    ON DELETE SET NULL;
+                """)
+
+                cursor.execute(f"""
+                    CREATE TABLE meta_rank (
+                        user_id BIGINT UNSIGNED PRIMARY KEY,
                         power INT NOT NULL
                     )
                 """)
@@ -111,11 +119,13 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE list (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         community_id INT NOT NULL,
-                        name VARCHAR({List.MAX_NAME_LENGTH}),
+                        name VARCHAR({List.MAX_NAME_LENGTH}) NOT NULL,
 
                         FOREIGN KEY (community_id)
                             REFERENCES community(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (community_id, name)
                     )
                 """)
 
@@ -139,9 +149,9 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE task_attribute (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         list_id INT NOT NULL,
-                        name VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        name VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
                         value_type INT NOT NULL,
-                        `index` INT NOT NULL UNIQUE,
+                        `index` INT NOT NULL,
                         collection BLOB NOT NULL,
                         min_slots INT NOT NULL,
                         max_slots INT NOT NULL,
@@ -150,7 +160,10 @@ class Jumpedia(metaclass=metautils.Singleton):
 
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, name),
+                        UNIQUE (list_id, `index`)
                     )
                 """)
 
@@ -158,11 +171,17 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE task_attribute_alias (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         task_attribute_id INT NOT NULL,
-                        alias VARCHAR({TaskAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        list_id INT NOT NULL,
+                        alias VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY (task_attribute_id)
-                            REFERENCES task_attribute(id)
-                            ON DELETE CASCADE
+                        FOREIGN KEY (task_attribute_id) 
+                            REFERENCES task_attribute(id) 
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (list_id) 
+                            REFERENCES list(id) 
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, alias)
                     )
                 """)
                 
@@ -170,8 +189,8 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE user_attribute (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         list_id INT NOT NULL,
-                        name VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
-                        `index` INT NOT NULL UNIQUE,
+                        name VARCHAR({UserAttribute.MAX_SYN_LEN}) NOT NULL,
+                        `index` INT NOT NULL,
                         value_type INT NOT NULL,
                         collection BLOB NOT NULL,
                         min_slots INT NOT NULL,
@@ -180,7 +199,10 @@ class Jumpedia(metaclass=metautils.Singleton):
 
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, name),
+                        UNIQUE (list_id, `index`)
                     )
                 """)
 
@@ -188,11 +210,17 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE user_attribute_alias (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         user_attribute_id INT NOT NULL,
-                        alias VARCHAR({UserAttribute.MAX_SYN_LEN}) UNIQUE NOT NULL,
+                        list_id INT NOT NULL,
+                        alias VARCHAR({UserAttribute.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY (user_attribute_id)
                             REFERENCES user_attribute(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (list_id) 
+                            REFERENCES list(id) 
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, alias)
                     )
                 """)
 
@@ -200,11 +228,13 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE task (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         list_id INT NOT NULL,
-                        name VARCHAR({Task.MAX_SYN_LEN}),
+                        name VARCHAR({Task.MAX_SYN_LEN}) NOT NULL,
                             
                         FOREIGN KEY (list_id)
                             REFERENCES list(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, name)
                     )
                 """)
 
@@ -212,11 +242,18 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE task_alias (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         task_id INT NOT NULL,
-                        alias VARCHAR({Task.MAX_SYN_LEN}),
+                        list_id INT NOT NULL,
+                        alias VARCHAR({Task.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY (task_id)
                             REFERENCES task(id)
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        FOREIGN KEY (list_id) 
+                            REFERENCES list(id) 
+                            ON DELETE CASCADE,
+
+                        UNIQUE (list_id, alias)
                     )
                 """)
 
@@ -288,20 +325,6 @@ class Jumpedia(metaclass=metautils.Singleton):
 
         return result
     
-    def _fetch_from_guild_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[GuildResultT]:
-        h = queries.ArgHelper()
-        
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM guild
-                {f"WHERE {where(h)}" if where is not None else ""}
-            """, h.steal())
-
-            result: list[GuildResultT] = cursor.fetchall()
-            
-        return result
-    
     def _community_data_to_obj(self, data: CommunityResultT) -> 'Community':
         return Community(
             jumpedia=self,
@@ -326,53 +349,53 @@ class Jumpedia(metaclass=metautils.Singleton):
         return self._community_data_to_obj(data[0]) if data else None
     
     def get_community_by_guild_id(self, guild_id: int) -> 'Community | None':
-        data = self._fetch_from_guild_table(lambda h: f"id = {h|guild_id}")
+        h = queries.ArgHelper()
 
-        if data is None:
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT community_id
+                FROM guild
+                WHERE id = {h|guild_id}
+            """, h.steal())
+
+            result: GuildResultT | None = cursor.fetchone()
+
+        if result is None:
             return None
-        
-        community_data = self._fetch_from_community_table(lambda h: f"id = {h|data[0]['community_id']}")
 
-        return self._community_data_to_obj(community_data[0]) if community_data else None
+        return self.get_community_by_id(result['community_id'])
     
 
     # --- Meta Users ---
 
-    def _fetch_from_meta_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[MetaUserResultT]:
+    def _fetch_from_meta_rank_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[MetaRankResultT]:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM meta_user
+                FROM meta_rank
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list['MetaUserResultT'] = cursor.fetchall()
+            result: list['MetaRankResultT'] = cursor.fetchall()
 
         return result
     
-    def _meta_user_data_to_obj(self, community: Community, data: MetaUserResultT) -> 'User':
-        return User(
-            community=community,
-            id=data['id'],
-            user_rank=UserRank.get(data['power']),
-            selected_list=community.get_default_selected_list()
-        )
+    def _meta_rank_data_to_obj(self, data: MetaRankResultT) -> tuple[int, MetaRank]:
+        return (data['user_id'], MetaRank.get(data['power']))
     
-    def get_meta_users(self, community: Community, where: Callable[[queries.ArgHelper], str] | None = None) -> list['User']:
-        return [
-            self._meta_user_data_to_obj(community, data) 
-            for data in self._fetch_from_meta_user_table(where)
-        ]
+    def get_meta_ranks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> dict[int, 'MetaRank']:
+        result: dict[int, 'MetaRank'] = {}
 
-    def get_meta_user_by_id(self, community: Community, id: int) -> 'User | None':
-        data = self._fetch_from_meta_user_table(lambda h: f"id = {h|id}")
-        return self._meta_user_data_to_obj(community, data[0]) if data else None
-    
-    def get_meta_user_by_name(self, community: Community, name: str) -> 'User | None':
-        name = text.norm(name)
-        data = self._fetch_from_meta_user_table(lambda h: f"name = {h|name}")
-        return self._meta_user_data_to_obj(community, data[0]) if data else None
+        for data in self._fetch_from_meta_rank_table(where):
+            tup = self._meta_rank_data_to_obj(data)
+            result[tup[0]] = tup[1]
+        
+        return result
+
+    def get_meta_rank_by_user_id(self, user_id: int) -> MetaRank:
+        data = self._fetch_from_meta_rank_table(lambda h: f"user_id = {h|user_id}")
+        return self._meta_rank_data_to_obj(data[0])[1] if data else MetaRank.DEFAULT
 
 Jumpedia()._init()
