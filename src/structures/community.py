@@ -13,12 +13,14 @@ from typing import Optional as Opt
 
 from structures.list import List
 from structures.user import User
-from structures.ranks import UserRank
+from structures.ranks import GuildRank, UserRank
 from structures.task import Task
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
 
+class GuildResultT(TypedDict):
+    id: int
 
 class UserResultT(TypedDict):
     id: int
@@ -46,9 +48,19 @@ class Community:
 
     @property
     def guild_ids(self) -> frozenset[int]:
-        return frozenset(row['id'] for row in self.jumpedia._fetch_from_guild_table(None))
-        
+        h = queries.ArgHelper()
 
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELLECT id
+                FROM guild
+                WHERE community_id = {h|self.id}
+            """)
+
+            result: list[GuildResultT] = cursor.fetchall()
+
+        return frozenset(row['id'] for row in result)
+        
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.jumpedia.identity
@@ -137,14 +149,19 @@ class Community:
                     WHERE id = {h|obj.id}
                 """, h.steal())
 
-                varname: str = metautils.varname(f"{obj.default_selected_list_id=}", False)
-                object.__setattr__(obj, varname, obj)
+                obj = cls(
+                    jumpedia=jumpedia,
+                    id=id,
+                    default_selected_list_id=list.id,
+                    name=name
+                )
 
                 # Rollback if anything goes wrong up to this point
                 return obj
             
     def delete(self) -> None:
         with self.edit_lock, self.jumpedia.edit_lock:
+            # Already deleted
             if self.jumpedia.get_community_by_id(self.id) is None:
                 return
             
@@ -218,14 +235,17 @@ class Community:
         return result
     
     def _user_data_to_obj(self, data: UserResultT) -> 'User':  
+        id = data['id']
+
         return User(
             community=self,
-            id=data['id'],
+            id=id,
             user_rank=UserRank.get(data['power']),
+            meta_rank=self.jumpedia.get_meta_rank_by_user_id(id),
             selected_list=self.get_default_selected_list()
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list['User']:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[User]:
         return [
             self._user_data_to_obj(data) 
             for data in self._fetch_from_user_table(where)
@@ -233,11 +253,6 @@ class Community:
 
     def get_user_by_id(self, id: int) -> 'User | None':
         data = self._fetch_from_user_table(lambda h: f"id = {h|id}")
-        return self._user_data_to_obj(data[0]) if data else None
-    
-    def get_user_by_name(self, name: str) -> 'User | None':
-        name = text.norm(name)
-        data = self._fetch_from_user_table(lambda h: f"name = {h|name}")
         return self._user_data_to_obj(data[0]) if data else None
     
     def add_to_guild(self, guild_id: int) -> None:
@@ -281,7 +296,7 @@ class Community:
 
             h = queries.ArgHelper()
 
-            with queries.connected(self.jumpedia) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM guild
                     WHERE id = {h|guild_id}

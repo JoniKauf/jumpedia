@@ -30,7 +30,7 @@ def user_rank(
 ) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
         try:
-            user_rank = Context(ia).user.user_rank
+            user_rank = Context(ia).actor.user_rank
         except fbe.TemporaryFeedbackError:
             user_rank = UserRank.DEFAULT
 
@@ -48,7 +48,7 @@ def guild_rank(
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
         ctx = Context(ia)
 
-        if (guild_rank := ctx.guild_rank).permitted(ctx.user.user_rank, min_required):
+        if (guild_rank := ctx.guild_rank).permitted(ctx.actor.user_rank, min_required):
             return True
         
         raise fbe.TemporaryFeedbackError(f"Your server rank is {guild_rank} but you must at least be {min_required}")

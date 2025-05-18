@@ -6,7 +6,7 @@ from discordtools import feedbackerrors as fbe
 from functools import cached_property
 
 if TYPE_CHECKING:
-    from structures.user import User
+    from structures.user import User, Actor
     from structures.community import Community
     from structures.jumpedia import Jumpedia
     from structures.list import List
@@ -21,9 +21,9 @@ class Context:
     ia: dc.Interaction
     
     @cached_property
-    def user(self) -> 'User':
-        from structures.user import User
-        return User.get_actor(self)
+    def actor(self) -> 'Actor':
+        from structures.user import Actor
+        return Actor.create_or_get(self.ia.user)
     
     @cached_property
     def guild_rank(self) -> 'GuildRank':
@@ -37,7 +37,7 @@ class Context:
     
     @cached_property
     def list(self) -> 'List':
-        if (list := self.user.selected_list) is not None:
+        if (list := self.actor.selected_list) is not None:
             return list
         
         if self.community is not None:

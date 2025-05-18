@@ -4,11 +4,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, S
 from database import queries
 from utils import text
 
+from structures import user as user_
+
 from structures.tavc import Tavc, Tuavc
 
 if TYPE_CHECKING:
     from structures.list import List
     from structures.user import UserIdentifierT
+
+class TaskAliasResultT(TypedDict):
+    alias: str
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
@@ -17,7 +22,23 @@ class Task:
     list: 'List'
     id: int
     name: str
-    aliases: frozenset[str]
+
+    @property
+    def aliases(self) -> frozenset[str]:
+        h = queries.ArgHelper()
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT alias
+                FROM task_alias
+                WHERE 
+                    list_id = {h|self.list.id}
+                    AND task_attribute_id = {h|self.id}
+            """)
+
+            result: list[TaskAliasResultT] = cursor.fetchall()
+
+        return frozenset(row['alias'] for row in result)
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -46,7 +67,7 @@ class Task:
 
             h = queries.ArgHelper()
 
-            with queries.connected(list.community) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO task (
                         list_id,
@@ -63,19 +84,19 @@ class Task:
                 cursor.execute(f"""
                     INSERT INTO task_alias (
                         task_id,
+                        list_id,
                         alias
                     ) 
                     VALUES (
                         {h|id},
-                        {','.join(f"({h|id}, {h|alias})" for alias in aliases)}        
+                        {','.join(f"({h|id}, {h|list.id}, {h|alias})" for alias in aliases)}        
                     )
                 """, h.steal())
 
             return cls(
                 list=list,
                 id=id,
-                name=name,
-                aliases=aliases
+                name=name
             )
     
     def get_tavc(self) -> Tavc:
@@ -83,7 +104,7 @@ class Task:
     
     def get_tuavc(self, user: 'UserIdentifierT') -> Tuavc:
         from structures.user import User
-        return Tuavc(task=self, user_id=User.find_id(user))
+        return Tuavc(task=self, user_id=user_.extract_id(user))
         
     
 

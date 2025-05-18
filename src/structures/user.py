@@ -1,13 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 
 from database import queries
-from typing import TYPE_CHECKING, Callable, ClassVar, Final, TypedDict
+from typing import TYPE_CHECKING, Callable, ClassVar, Final, Self, TypedDict
 
 from discordtools import feedbackerrors as fbe
 import discord as dc
 
-from structures.ranks import UserRank
+from structures.ranks import _RankBase, AnyRank, GuildRank, MetaRank, UserRank
 from structures.context import Context
 
 if TYPE_CHECKING:
@@ -18,139 +18,139 @@ if TYPE_CHECKING:
 
 _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
-type UserIdentifierT = int | str | 'User' | dc.User | dc.Member
+type UserIdentifierT = int | str | User | dc.User | dc.Member
+
+
+def extract_id(user: UserIdentifierT) -> int:
+    if isinstance(user, (str, int)):
+        return _user_id_to_int(user)
+    elif isinstance(user, (User, dc.User, dc.Member)):
+        return user.id
+    
+    raise TypeError()
+
+@staticmethod
+def _user_id_to_int(user_id: str | int) -> int:
+    if isinstance(user_id, int):
+        if user_id < 0:
+            raise fbe.InvalidUserFormat(user_id)
+        
+        return user_id
+    
+    if user_id.isdigit():
+        id = int(user_id)
+    elif match := re.match(_USER_MENTION_PATTERN, user_id.strip()):
+        id = int(match.group(1) or match.group(2))
+    else:
+        raise fbe.InvalidUserFormat(user_id)
+    
+    return id
+
 
 @dataclass(frozen=True, kw_only=True)
 class User:
     MAX_NAME_LENGTH: ClassVar[int] = 32
 
-    community: 'Community | None'
+    community: 'Community'
     id: int
-    user_rank: 'UserRank'
+    user_rank: UserRank
+    meta_rank: MetaRank
     selected_list: 'List | None'
-
+    
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,) + (0,)
+        return (self.id,) + self.community.identity
     
     def __hash__(self) -> int:
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-
+    
+    
+    
+@dataclass(frozen=True, kw_only=True)
+class Actor:
+    community: 'Community | None'
+    id: int
+    interaction: dc.Interaction
+    meta_rank: MetaRank
+    user_rank: UserRank
+    guild_rank: GuildRank
+    selected_list: 'List | None'
+    
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + (
+            self.community.identity 
+            if self.community is not None 
+            else (-1,)
+        )
+    
     @classmethod
-    def _get(cls, community: 'Community | None', id: int) -> 'User':
-        meta_user_rank = UserRank.get_meta_from_user_id(id)
+    def create_or_get(cls, interaction: dc.Interaction) -> 'Actor':
+        from structures.jumpedia import Jumpedia
+        
+        actor = interaction.user
 
-        if community is None:
+        jumpedia = Jumpedia()
+        meta_rank = jumpedia.get_meta_rank_by_user_id(actor.id) or MetaRank.DEFAULT
+
+        if isinstance(actor, dc.User) or (community := jumpedia.get_community_by_guild_id(actor.guild.id)) is None:
             return cls(
                 community=None,
-                id=id,
-                user_rank=meta_user_rank or UserRank.DEFAULT,
-                selected_list=None
-            )
-        
-        user = community.get_user_by_id(id)
-        
-        if meta_user_rank is None:
-            return user or cls(
-                community=community,
-                id=id,
+                id=actor.id,
+                interaction=interaction,
+                meta_rank=meta_rank,
                 user_rank=UserRank.DEFAULT,
+                guild_rank=GuildRank.DEFAULT,
                 selected_list=None
             )
-        
+
+        user_rank = UserRank.DEFAULT
+
+        with community.edit_lock:
+            user = community.get_user_by_id(actor.id)
+
+            if user is not None:
+                user_rank = user.user_rank
+            else:
+                h = queries.ArgHelper()
+
+                with queries.connected() as (conn, cursor):
+                    cursor.execute(f"""
+                        INSERT INTO user (
+                            id,
+                            community_id,
+                            power
+                        )
+                        VALUES (
+                            {h|actor.id},
+                            {h|community.id},
+                            {h|user_rank.power}
+                        )
+                    """, h.steal())
+
         return cls(
             community=community,
-            id=id,
-            user_rank=meta_user_rank,
+            id=actor.id,
+            interaction=interaction,
+            meta_rank=meta_rank,
+            user_rank=user_rank,
+            guild_rank=GuildRank.get_from_discord_user(actor),
             selected_list=user.selected_list if user is not None else None
         )
 
-    @classmethod 
-    def _get_or_create(cls, community: 'Community | None', id: int) -> 'User':
-        # TODO lock here for id, not critical but avoids exceptions        
-        meta_user_rank = UserRank.get_meta_from_user_id(id)
-
-        if community is None:
-            return cls(
-                community=None,
-                id=id,
-                user_rank=meta_user_rank or UserRank.DEFAULT,
-                selected_list=None
-            )
-
-        user = community.get_user_by_id(id)
+    def permitted(self, required_rank: AnyRank) -> bool:
+        if isinstance(required_rank, MetaRank):
+            return self.meta_rank >= required_rank
         
-        if user is not None:
-            return cls(
-                community=community,
-                id=id,
-                user_rank=meta_user_rank or user.user_rank,
-                selected_list=user.selected_list
-            )
-
-        h = queries.ArgHelper()
-
-        with queries.connected(community) as (conn, cursor):
-            cursor.execute(f"""
-                INSERT INTO user
-                (id, power, selected_list_id)
-                VALUES
-                ({h|id}, {h|UserRank.DEFAULT.power}, {h|None})
-            """, h.steal())
-
-            return cls(
-                community=community,
-                id=id,
-                user_rank=meta_user_rank or UserRank.DEFAULT,
-                selected_list=None
-            )
-    
-    # Because we have a context, we can be sure the actor exists and therefore
-    # we always save them. The other person might not exist due to us only
-    # having their id, therefore we only try to get them.
-    @classmethod
-    def get_actor(cls, ctx: Context) -> 'User':
-        return cls._get_or_create(ctx.community, ctx.ia.user.id)
-    
-    @classmethod
-    def get_other(cls, ctx: 'Context | Community', other_user: UserIdentifierT) -> 'User':
-        other_id = cls.find_id(other_user)
-
-        if isinstance(ctx, Context):
-            cls.get_actor(ctx)
-            return cls._get(ctx.community, other_id)
-        
-        return cls._get(ctx, other_id)
-    
-    @classmethod
-    def get_both(cls, ctx: Context, other_user: UserIdentifierT) -> tuple['User', 'User']:
-        return (cls.get_actor(ctx), cls.get_other(ctx, other_user))
-
-    @classmethod
-    def find_id(cls, user: UserIdentifierT) -> int:
-        if isinstance(user, (str, int)):
-            return cls._user_id_to_int(user)
-        elif isinstance(user, (cls, dc.User, dc.Member)):
-            return user.id
-        
-        raise TypeError()
-    
-    @staticmethod
-    def _user_id_to_int(user_id: str | int) -> int:
-        if isinstance(user_id, int):
-            if user_id < 0:
-                raise fbe.InvalidUserFormat(user_id)
-            
-            return user_id
-        
-        if user_id.isdigit():
-            id = int(user_id)
-        elif match := re.match(_USER_MENTION_PATTERN, user_id.strip()):
-            id = int(match.group(1) or match.group(2))
+        if isinstance(required_rank, UserRank):
+            if self.user_rank >= required_rank:
+                return True
         else:
-            raise fbe.InvalidUserFormat(user_id)
+            if self.guild_rank >= required_rank:
+                return True
         
-        return id
+        # Any Meta Rank is more powerful than the others besides NONE
+        return self.meta_rank is not MetaRank.NONE

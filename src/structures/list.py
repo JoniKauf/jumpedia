@@ -27,7 +27,6 @@ class TaskAttributeResultT(TypedDict):
     id: int
     list_id: int
     name: str
-    aliases: str
     index: int
     value_type: int
     collection: bytes
@@ -44,7 +43,6 @@ class UserAttributeResultT(TypedDict):
     id: int
     list_id: int
     name: str
-    aliases: str
     index: int
     value_type: int
     collection: bytes
@@ -59,9 +57,8 @@ class UserAttributeAliasResultT(TypedDict):
 class TaskResultT(TypedDict):
     id: int
     name: str
-    aliases: str
 
-class TaslAliasResultT(TypedDict):
+class TaskAliasResultT(TypedDict):
     task_id: int
 
 
@@ -85,7 +82,6 @@ class List:
             list=self,
             id=0,
             name='name',
-            aliases=frozenset(),
             value_type=AttributeValueType.get_by_type(str),
             index=1,
             collection=[],
@@ -101,7 +97,6 @@ class List:
             list=self,
             id=0,
             name='alias',
-            aliases=frozenset(),
             value_type=AttributeValueType.get_by_type(str),
             index=2,
             collection=[],
@@ -171,20 +166,11 @@ class List:
                 
             h = queries.ArgHelper()
 
-            with queries.connected(self.community) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM list
                     WHERE id = {h|self.id}
                 """, h.steal())
-
-                with queries.connected(self.community.jumpedia) as (meta_conn, meta_cursor):
-                    meta_cursor.execute(f"""
-                        UPDATE community
-                        SET default_selected_list_id = NULL
-                        WHERE 
-                            id = {h|self.community.id}
-                            AND default_selected_list_id = {h|self.id}
-                    """, h.steal())
 
         
 
@@ -245,17 +231,13 @@ class List:
     def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[TaskAttributeResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT
-                    ta.*,
-                    COALESCE(JSON_ARRAYAGG(taa.alias), JSON_ARRAY()) AS aliases
-                FROM task_attribute ta
-                LEFT JOIN task_attribute_alias taa ON taa.attribute_id = ta.id
+                SELECT *
+                FROM task_attribute
                 WHERE 
                     list_id = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
-                GROUP BY ta.id
             """, h.steal())
 
             result: list[TaskAttributeResultT] = cursor.fetchall()
@@ -267,7 +249,6 @@ class List:
             list=self,
             id=data['id'],
             name=data['name'],
-            aliases=frozenset(json.loads(data['aliases'])),
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
@@ -288,22 +269,19 @@ class List:
         return self._task_attribute_data_to_obj(data[0]) if data else None
     
     def get_task_attribute_by_name(self, name: str) -> TaskAttribute | None:
-        name = text.sanitize(name)
         data = self._fetch_task_attributes_from_table(lambda h: f"name = {h|name}")
         return self._task_attribute_data_to_obj(data[0]) if data else None
     
     def get_task_attribute_by_alias(self, alias: str) -> TaskAttribute | None:
-        alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT 
-                    task_attribute_id
-                FROM 
-                    task_attribute_alias
-                WHERE 
-                    alias = {h|alias}
+                SELECT task_attribute_id
+                FROM task_attribute_alias
+                WHERE
+                    list_id = {h|self.id}
+                    AND alias = {h|alias}
             """, h.steal())
 
             result: TaskAttributeAliasResultT | None = cursor.fetchone()
@@ -325,17 +303,13 @@ class List:
     def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[UserAttributeResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT
-                    ua.*,
-                    COALESCE(JSON_ARRAYAGG(uaa.alias), JSON_ARRAY()) AS aliases
-                FROM user_attribute ua
-                LEFT JOIN user_attribute_alias uaa ON uaa.user_attribute_id = ua.id
+                SELECT *
+                FROM user_attribute
                 WHERE 
                     list_id = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
-                GROUP BY ua.id
             """, h.steal())
 
             result: list[UserAttributeResultT] = cursor.fetchall()
@@ -347,7 +321,6 @@ class List:
             list=self,
             id=data['id'],
             name=data['name'],
-            aliases=frozenset(json.loads(data['aliases'])),
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
             collection=pickle.loads(data['collection']),
@@ -367,26 +340,23 @@ class List:
         return self._user_attribute_data_to_obj(data[0]) if data else None
     
     def get_user_attribute_by_name(self, name: str) -> UserAttribute | None:
-        name = text.sanitize(name)
         data = self._fetch_user_attributes_from_table(lambda h: f"name = {h|name}")
         return self._user_attribute_data_to_obj(data[0]) if data else None
     
     def get_user_attribute_by_alias(self, alias: str) -> UserAttribute | None:
-        alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT 
-                    user_attribute_id
-                FROM 
-                    user_attribute_alias
-                WHERE 
-                    alias = {h|alias}
+                SELECT user_attribute_id
+                FROM user_attribute_alias
+                WHERE
+                    list_id = {h|self.id}
+                    AND alias = {h|alias}
             """, h.steal())
 
             result: UserAttributeAliasResultT | None = cursor.fetchone()
-
+        
         if result is None:
             return None
         
@@ -404,20 +374,13 @@ class List:
     def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[TaskResultT]:
         h = queries.ArgHelper()
         
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT 
-                    t.*,
-                    COALESCE(JSON_ARRAYAGG(ta.alias), JSON_ARRAY()) AS aliases
-                FROM 
-                    task t
-                LEFT JOIN 
-                    task_alias ta ON ta.task_id = t.id
+                SELECT *
+                FROM task
                 WHERE 
-                    t.list_id = {h|self.id}
+                    list_id = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
-                GROUP BY 
-                    t.id
             """, h.steal())
 
             result: list[TaskResultT] = cursor.fetchall()
@@ -428,8 +391,7 @@ class List:
         return Task(
             list=self,
             id=data['id'],
-            name=data['name'],
-            aliases=frozenset(json.loads(data['aliases']))
+            name=data['name']
         )
     
     def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Task]:
@@ -450,19 +412,18 @@ class List:
         alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
-        with queries.connected(self.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT 
-                    task_id
-                FROM 
-                    task_alias
+                SELECT task_id
+                FROM task_alias
                 WHERE 
-                    alias = {h|alias}
+                    list_id = {h|self.id}
+                    AND alias = {h|alias}
             """, h.steal())
 
-            result: UserAttributeAliasResultT | None = cursor.fetchone()
+            result: TaskAliasResultT | None = cursor.fetchone()
 
         if result is None:
             return None
         
-        return self.get_task_by_id(result['user_attribute_id'])
+        return self.get_task_by_id(result['task_id'])

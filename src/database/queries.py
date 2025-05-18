@@ -30,7 +30,7 @@ def __get_connection_data() -> dict[str, Any]:
 
 
 @contextmanager
-def connected(auto_commit: bool = True, *, no_db: bool = False, cursor: mariadb.Cursor | None = None) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from structures.jumpedia import Jumpedia
     from structures.community import Community
 
@@ -42,15 +42,12 @@ def connected(auto_commit: bool = True, *, no_db: bool = False, cursor: mariadb.
     conn: mariadb.Connection | None = None
     
     try:
-        if cursor is not None:
-            yield cursor.connection, cursor
-        else:
-            conn = mariadb.connect(
-                **(__get_connection_data() | database)
-            )
-            cursor = conn.cursor(dictionary=True)
+        conn = mariadb.connect(
+            **(__get_connection_data() | database)
+        )
+        existing_cursor = conn.cursor(dictionary=True)
 
-            yield conn, cursor
+        yield conn, existing_cursor
 
     except Exception as e:
         if conn:
@@ -62,30 +59,8 @@ def connected(auto_commit: bool = True, *, no_db: bool = False, cursor: mariadb.
         if conn:
             if auto_commit:
                 conn.commit()
-            cursor.close()
+            existing_cursor.close()
             conn.close()
-
-
-SYSTEM_DATABASES = {'mysql', 'information_schema', 'performance_schema', 'sys'}
-
-def get_database_names(meta: bool = False, system: bool = False) -> list[str]:
-    with connected(None) as (conn, cursor):
-        cursor.execute("SHOW DATABASES")
-        tmp_result: list[dict[str, str]] = cursor.fetchall()
-
-    result: list[str] = [db['Database'] for db in tmp_result]
-    final: list[str] = []
-
-    for db in result:
-        if not system and db in SYSTEM_DATABASES:
-            continue
-
-        if not meta and db == META_DATABASE_NAME:
-            continue
-
-        final.append(db)
-
-    return final
 
 
 class ArgHelper:
