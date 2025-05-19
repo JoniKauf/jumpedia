@@ -3,63 +3,135 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from functools import cached_property
 import json
-from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, NotRequired, Self, TypedDict
 
 import mariadb
 
 from database import queries
 from discordtools import feedbackerrors as fbe
-from utils import metautils, text
+from utils import metautils, parsetools, text
+
+from database import strong as S
+from database.strong import Tables as T
 
 import pickle
 
 from structures.user import User
 
-from structures.attribute import AnyAttributeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
+from structures.attribute import AbstractAttribute, AnyAttributeT, AttributeValueTypeT, CollectionTreeItem, CollectionTreeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
 from structures.task import Task
+from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.community import Community
 
 
-class TaskAttributeResultT(TypedDict):
-    id: int
-    list_id: int
-    name: str
-    index: int
-    value_type: int
-    collection: bytes
-    min_slots: int
-    max_slots: int
-    unique_slots: bool
-    unique_value_per_list: bool
+# --- Collection Types --- #
 
-class TaskAttributeAliasResultT(TypedDict):
-    task_attribute_id: int
+class UserCollectionTreeItemT(TypedDict, total=True):
+    value: str
+    alias: list[str]
+    sort_value: int
+    children: NotRequired[list['UserCollectionTreeItemT']]
+type UserCollectionTreeT = list[UserCollectionTreeItemT]
+
+type UserCollectionT = None | UserCollectionTreeT
 
 
-class UserAttributeResultT(TypedDict):
-    id: int
-    list_id: int
-    name: str
-    index: int
-    value_type: int
-    collection: bytes
-    min_slots: int
-    max_slots: int
-    unique_slots: bool
+def _parse_user_collection[T: AttributeValueTypeT](
+    str_user_collection: str, 
+    value_type: AttributeValueType[T],
+) -> CollectionT[T]:
+    user_value_collection: UserCollectionT = parsetools.json_loads_safe(
+        str_user_collection, 
+        AbstractAttribute.COLLECTION_MAX_DEPTH
+    )
 
-class UserAttributeAliasResultT(TypedDict):
-    user_attribute_id: int
+    if user_value_collection is None:
+        return []
+    
+    if not isinstance(user_value_collection, list):
+        raise fbe.TemporaryFeedbackError("Not a tree")
+    
+    tree = _parse_user_collection_tree(user_value_collection, value_type)
 
+    _add_roots(tree, None)
 
-class TaskResultT(TypedDict):
-    id: int
-    name: str
+    return tree
 
-class TaskAliasResultT(TypedDict):
-    task_id: int
+def _add_roots[T: AttributeValueTypeT](
+    tree: CollectionTreeT[T],
+    root: CollectionTreeItem[T] | None
+) -> None:
+    for item in tree:
+        object.__setattr__(item, 'root', root)  # CHANGE IF VARNAME CHANGES
+
+        _add_roots(item.nodes, item)
+
+def _parse_user_collection_tree[T: AttributeValueTypeT](
+    user_collection_tree: UserCollectionTreeT, 
+    value_type: AttributeValueType[T]
+) -> CollectionTreeT[T]:
+    result: CollectionTreeT = []
+
+    for item in user_collection_tree:
+        value, alias, sort_value = _extract_data_from_collection_item(item, value_type)
+
+        sub_trees = item.get('children', [])
+
+        if not isinstance(sub_trees, list):
+            raise fbe.TemporaryFeedbackError("Not a sub tree")
+        
+        item = CollectionTreeItem(
+            value,
+            alias,
+            sort_value,
+            _parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type)
+        )
+
+        result.append(item)
+
+    return result
+
+def _extract_data_from_collection_item[T: AttributeValueTypeT](
+    item: UserCollectionTreeItemT,
+    value_type: AttributeValueType[T]
+) -> tuple[T, frozenset[T], int]:
+    try:
+        sort_value: int = int(item['sort_value'])
+    except KeyError as e:
+        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+    except ValueError as e:
+        raise fbe.TemporaryFeedbackError("Not an int")
+        
+    AbstractAttribute.generic_number_valid(sort_value)
+
+    try:
+        bad_value = item['value']
+    except KeyError as e:
+        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+    
+    try:
+        bad_alias = item.get('alias', [])
+
+        if not isinstance(bad_alias, list):
+            raise TypeError()
+    except TypeError:
+        raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
+    
+    value: T = AbstractAttribute._from_str_singular(bad_value, value_type)
+
+    alias = set(
+        norm_for_collection(AbstractAttribute._from_str_singular(a, value_type)) 
+        for a in frozenset(bad_alias)
+    )
+    
+    normed_value: T = norm_for_collection(value)
+    
+    if normed_value in alias:
+        alias.remove(normed_value)
+
+    return (value, frozenset(alias), sort_value)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -73,8 +145,6 @@ class List:
     community: 'Community'
     id: int
     name: str
-
-    edit_lock: RLock = field(init=False, default_factory=RLock)
 
     @property
     def name_attribute(self) -> StaticAttribute[str]:
@@ -115,63 +185,6 @@ class List:
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-    
-    @classmethod
-    def create(cls, community: 'Community', bad_name: str, *, cursor: mariadb.Cursor | None = None) -> 'List':
-        from structures.community import Community
-
-        with community.edit_lock:
-            lists = community.get_lists()
-
-            name = text.validate_and_sanitize_name(
-                bad_name, 
-                cls.MAX_NAME_LENGTH, 
-                (list.name for list in lists)
-            )
-
-            if name.endswith(cls.INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out `{cls.INVALID_ENDING}` from the name, as it is redundant!")
-            
-            if len(lists) >= Community.MAX_LISTS:
-                raise fbe.TemporaryFeedbackError("Limit reached")
-            
-            h = queries.ArgHelper()
-
-            with queries.connected(cursor) as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO list (
-                        name
-                    ) 
-                    VALUES (
-                        {h|name}
-                    )
-                """, h.steal())
-                
-                id: int = cursor.lastrowid  # type: ignore
-
-                obj = cls(
-                    community=community,
-                    id=id,
-                    name=name
-                )
-
-            return obj
-            
-            
-    def delete(self) -> None:
-        with self.edit_lock, self.community.edit_lock:
-            # Check if list already deleted, but object used
-            if self.community.get_list_by_id(self.id) is None:
-                return
-                
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    DELETE FROM list
-                    WHERE id = {h|self.id}
-                """, h.steal())
-
         
 
 
@@ -200,15 +213,74 @@ class List:
             or self.get_task_attribute_by_syn(syn)
             or self.get_user_attribute_by_syn(syn)
         )
+    
+    def _attribute_creation_generic[T: AttributeValueTypeT](
+        self,
+        bad_name: str,
+        bad_aliases: Iterable[str],
+        min_slots: int,
+        max_slots: int,
+    ) -> tuple[str, frozenset[str], int]:
+        with equality_locked(self):
+            attributes = self.get_attributes()
+            
+            if len(attributes) >= self.__class__.MAX_ATTRIBUTES:
+                raise fbe.TemporaryFeedbackError("Max attributes reached")
+        
+            
+            if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
+                raise fbe.TemporaryFeedbackError()
+
+            if not (0 <= min_slots <= max_slots):
+                raise fbe.TemporaryFeedbackError()
+            
+            index = max(attr.index for attr in attributes) + 1
+
+            return (name, frozenset(aliases), index)
         
 
     # --- Static Attribute ---
 
-    def _fetch_static_attribute(self, where: Callable[[StaticAttribute], bool]) -> StaticAttribute | None:
-        for attr in self.get_static_attributes():
-            if where(attr):
-                return attr
-        return None
+    def create[T: AttributeValueTypeT](
+        self,
+        name: str,
+        value_type: AttributeValueType[T],
+        user_collection: CollectionTreeT,
+        min_slots: int,
+        max_slots: int,
+        unique_slots: bool,
+        unique_value_per_list: bool
+    ):
+        """This method should not public to the user!"""
+        
+        
+
+    def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[S.TableResultT]:
+        h = queries.ArgHelper()
+        
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT *
+                FROM {T.StaticAttribute}
+                WHERE 
+                    {T.StaticAttribute.list_id} = {h|self.id}
+                    {f"AND {where(h)}" if where is not None else ""}
+            """, h.steal())
+
+            result: list[S.TableResultT] = cursor.fetchall()
+
+        return result
+    
+    def _static_attribute_data_to_obj(self, data: S.TableResultT) -> StaticAttribute:
+        SAT = T.StaticAttribute
+
+        return StaticAttribute(
+            list=self,
+            id=data[SAT.id],
+            name=data[SAT.name],
+            index=data[SAT.index],
+            collection
+        )
     
     def get_static_attributes(self) -> list[StaticAttribute]:
         return [self.name_attribute, self.alias_attribute]

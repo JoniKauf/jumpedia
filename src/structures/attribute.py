@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import enum
 import datetime as dt
 import functools
+import json
 import pickle
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
@@ -12,6 +13,8 @@ import re
 from decimal import Decimal
 import decimal
 from utils import parsetools, text, timetools
+from database import strong as S
+from database.strong import Tables as T_
 
 if TYPE_CHECKING:
     from structures.list import List
@@ -96,126 +99,16 @@ if AttributeValueTypeT.__value__.__args__ != tuple(vt.value for vt in AttributeV
     raise RuntimeError("Enum does not equal type!!")
 
 
-
-# --- Collection Types --- #
-
-class UserCollectionTreeItemT(TypedDict, total=True):
-    value: str
-    alias: list[str]
-    sort_value: int
-    children: NotRequired[list['UserCollectionTreeItemT']]
-type UserCollectionTreeT = list[UserCollectionTreeItemT]
-
-@dataclass(frozen=True)
+@dataclass
 class CollectionTreeItem[T]:
     value: T
-    alias: frozenset[T]
+    aliases: frozenset[T]
     sort_value: int
     nodes: 'CollectionTreeT[T]'
-    root: Optional['CollectionTreeItem[T]'] = None
+    root: 'CollectionTreeItem[T] | None' = None
 type CollectionTreeT[T] = list[CollectionTreeItem[T]]
 
-type UserCollectionT = None | UserCollectionTreeT
-type CollectionT[T] = CollectionTreeT[T]
 
-
-
-# --- Helper Functions --- #
-
-def _parse_user_collection[T: AttributeValueTypeT](
-    str_user_collection: str, 
-    value_type: AttributeValueType[T],
-) -> CollectionT[T]:
-    user_value_collection: UserCollectionT = parsetools.json_loads_safe(
-        str_user_collection, 
-        AbstractAttribute.COLLECTION_MAX_DEPTH
-    )
-
-    if user_value_collection is None:
-        return []
-    
-    if not isinstance(user_value_collection, list):
-        raise fbe.TemporaryFeedbackError("Not a tree")
-    
-    tree = _parse_user_collection_tree(user_value_collection, value_type)
-
-    _add_roots(tree, None)
-
-    return tree
-
-def _add_roots[T: AttributeValueTypeT](
-    tree: CollectionTreeT[T],
-    root: CollectionTreeItem[T] | None
-) -> None:
-    for item in tree:
-        object.__setattr__(item, 'root', root)  # CHANGE IF VARNAME CHANGES
-
-        _add_roots(item.nodes, item)
-
-def _parse_user_collection_tree[T: AttributeValueTypeT](
-    user_collection_tree: UserCollectionTreeT, 
-    value_type: AttributeValueType[T]
-) -> CollectionTreeT[T]:
-    result: CollectionTreeT = []
-
-    for item in user_collection_tree:
-        value, alias, sort_value = _extract_data_from_collection_item(item, value_type)
-
-        sub_trees = item.get('children', [])
-
-        if not isinstance(sub_trees, list):
-            raise fbe.TemporaryFeedbackError("Not a sub tree")
-        
-        item = CollectionTreeItem(
-            value,
-            alias,
-            sort_value,
-            _parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type)
-        )
-
-        result.append(item)
-
-    return result
-
-def _extract_data_from_collection_item[T: AttributeValueTypeT](
-    item: UserCollectionTreeItemT,
-    value_type: AttributeValueType[T]
-) -> tuple[T, frozenset[T], int]:
-    try:
-        sort_value: int = int(item['sort_value'])
-    except KeyError as e:
-        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-    except ValueError as e:
-        raise fbe.TemporaryFeedbackError("Not an int")
-        
-    AbstractAttribute.generic_number_valid(sort_value)
-
-    try:
-        bad_value = item['value']
-    except KeyError as e:
-        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-    
-    try:
-        bad_alias = item.get('alias', [])
-
-        if not isinstance(bad_alias, list):
-            raise TypeError()
-    except TypeError:
-        raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
-    
-    value: T = AbstractAttribute._from_str_singular(bad_value, value_type)
-
-    alias = set(
-        norm_for_collection(AbstractAttribute._from_str_singular(a, value_type)) 
-        for a in frozenset(bad_alias)
-    )
-    
-    normed_value: T = norm_for_collection(value)
-    
-    if normed_value in alias:
-        alias.remove(normed_value)
-
-    return (value, frozenset(alias), sort_value)
 
 def _create_collection_lookup[T: AttributeValueTypeT](
     collection_tree: CollectionTreeT[T],
@@ -223,7 +116,7 @@ def _create_collection_lookup[T: AttributeValueTypeT](
 ) -> None:
     def recursive(tree: CollectionTreeT[T]) -> None:
         for item in tree:
-            for syn in (norm_for_collection(item.value), *item.alias):
+            for syn in (norm_for_collection(item.value), *item.aliases):
                 if syn in lookup_ref:
                     raise fbe.TemporaryFeedbackError("Same syn twice", syn)
             
@@ -232,14 +125,6 @@ def _create_collection_lookup[T: AttributeValueTypeT](
             recursive(item.nodes)
     
     recursive(collection_tree)
-
-def norm_for_collection[T: AttributeValueTypeT](unnormalized: T) -> T:
-    if isinstance(unnormalized, str):
-        normalized = text.norm_syn(unnormalized)
-    else:
-        normalized = unnormalized
-    
-    return normalized
 
 
 #------#   Attribute   #------#	
@@ -276,15 +161,13 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     name: str
     value_type: AttributeValueType
     index: int
-    collection: CollectionT
-    collection_lookup: dict[T, CollectionTreeItem] = field(init=False, default_factory=dict)  # Generated, not in DB
     min_slots: int
     max_slots: int
     unique_slots: bool
 
     @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.list.identity
+    def collection(self) -> CollectionTreeT[T]:
+        raise NotImplementedError()
     
     @property
     def aliases(self) -> frozenset[str]:
@@ -301,6 +184,10 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     @property
     def has_collection(self) -> bool:
         return bool(self.collection)
+    
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.list.identity
 
     # --- Methods ---
 
@@ -316,52 +203,6 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-    
-    @classmethod
-    def create(cls, *args: Any, **kwargs: Any) -> Never:
-        raise NotImplementedError()
-    
-    @classmethod
-    def _base_create(
-        cls,
-        list: 'List',
-        bad_name: str,
-        bad_aliases: Iterable[str],
-        value_type: AttributeValueType[T],
-        str_user_collection: str | None,
-        min_slots: int,
-        max_slots: int,
-    ) -> tuple[str, frozenset[str], tuple[CollectionT, bytes], int]:
-        with list.edit_lock:
-            attributes = list.get_attributes()
-            
-            if len(attributes) >= list.MAX_ATTRIBUTES:
-                raise fbe.TemporaryFeedbackError("Max attributes reached")
-            
-            name, aliases = text.validate_and_sanitize_or_norm_syns(
-                bad_name, 
-                bad_aliases, 
-                cls.MAX_SYN_LEN,
-                cls.MAX_ALIAS_COUNT,
-                (syn for attr in attributes for syn in (attr.name, *attr.aliases))
-            )
-            
-            if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
-                raise fbe.TemporaryFeedbackError()
-
-            if not (0 <= min_slots <= max_slots):
-                raise fbe.TemporaryFeedbackError()
-            
-            if str_user_collection is None or not str_user_collection.strip():
-                collection: CollectionT[T] = []
-            else:
-                collection = _parse_user_collection(str_user_collection, value_type)
-
-            pickled_value_collection: bytes = pickle.dumps(collection)
-
-            index = max(attr.index for attr in attributes) + 1
-
-            return (name, frozenset(aliases), (collection, pickled_value_collection), index)
 
     @classmethod
     def generic_number_valid(cls, number: int | float | Decimal) -> None:
@@ -554,15 +395,62 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
 @dataclass(frozen=True, kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    get_value: Callable[['Task'], list[T]]
-            
-
-class TaskAttributeAliasReultT(TypedDict):
-    alias: str
+    unique_value_per_list: bool
+    
+    @property
+    def collection(self) -> CollectionTreeT[T]:
+        return ()
 
 @dataclass(frozen=True, kw_only=True)
 class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     unique_value_per_list: bool
+
+    _collection: CollectionTreeT | None = field(init=False, default=None)
+
+    @property
+    def collection(self) -> CollectionTreeT[T]:
+        if self._collection is None:
+            h = queries.ArgHelper()
+            TACNT = T_.TaskAttributeCollectionNode
+            TACNTA = T_.TaskAttributeCollectionNodeAlias
+
+            with queries.connected() as (conn, cursor):
+                
+                cursor.execute(f"""
+                    SELECT 
+                        n.*,
+                        COALESCE(
+                            JSON_ARRAYAGG(a.{TACNTA.alias}),
+                            JSON_ARRAY()
+                        ) AS {TACNT._aliases}
+                    FROM {TACNT} n
+                    LEFT JOIN {TACNTA} a
+                        ON a.{TACNTA.task_attribute_collection_node_id} = n.{TACNT.id}
+                    GROUP BY n.{TACNT.id}
+                """)
+
+                rows: list[S.TableResultT] = cursor.fetchall()
+
+            lookup: dict[int, CollectionTreeItem] = {}
+            root_of_nodes: dict[int, list[int]] = {}
+
+            for row in rows:
+                id = row[TACNT.id]
+                root_id = row[TACNT.root_id]
+
+                root_of_nodes.setdefault(root_id, []).append(id)
+                lookup[id] = CollectionTreeItem(
+                    value=row[TACNT.value],
+                    aliases=frozenset(json.loads(row[TACNT._aliases])),
+                    nodes=
+                )
+                
+
+            result: CollectionTreeT = []
+
+            for 
+
+        return self._collection
 
     @property
     def aliases(self) -> frozenset[str]:
@@ -573,8 +461,8 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                 SELECT alias
                 FROM task_attribute_alias
                 WHERE 
-                    list_id = {h|self.list.id} AND
-                    task_attribute_id = {h|self.id}
+                    list_id = {h|self.list.id}
+                    AND task_attribute_id = {h|self.id}
             """)
 
             result: list[TaskAttributeAliasReultT] = cursor.fetchall()
@@ -596,7 +484,7 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
         unique_value_per_list: bool,
     ) -> 'TaskAttribute':
         with list.edit_lock:
-            name, aliases, (collection, pickled_collection), index = cls._base_create(
+            name, aliases, (collection, pickled_collection), index = cls._create_attribute_basics(
                 list=list,
                 bad_name=bad_name,
                 bad_aliases=bad_aliases,
@@ -694,7 +582,7 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
         unique_slots: bool
     ) -> 'UserAttribute':
         with list.edit_lock:
-            name, aliases, (collection, pickled_collection), index = cls._base_create(
+            name, aliases, (collection, pickled_collection), index = cls._create_attribute_basics(
                 list=list,
                 bad_name=bad_name,
                 bad_aliases=bad_aliases,

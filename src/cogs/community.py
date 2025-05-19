@@ -30,7 +30,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def create(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild is not None
 
-        community = Community.create(Jumpedia(), ia.guild.id, name)
+        community = Community.create_list(Jumpedia(), ia.guild.id, name)
 
         await messagetools.success(
             ia,

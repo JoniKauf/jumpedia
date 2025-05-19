@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
-from threading import RLock
 import discord as dc
 
 import mariadb
@@ -14,7 +13,7 @@ from typing import Optional as Opt
 from structures.list import List
 from structures.user import User
 from structures.ranks import GuildRank, UserRank
-from structures.task import Task
+from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
@@ -43,8 +42,6 @@ class Community:
     id: int
     name: str
     default_selected_list_id: int | None
-
-    edit_lock: RLock = field(init=False, default_factory=RLock)
 
     @property
     def guild_ids(self) -> frozenset[int]:
@@ -75,103 +72,63 @@ class Community:
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
 
-    @classmethod
-    def create(cls, jumpedia: 'Jumpedia', user_id: int, guild_id: int, bad_name: str) -> 'Community':
-        with jumpedia.edit_lock:
-            community = jumpedia.get_community_by_guild_id(guild_id)
+    def create_list(self, bad_name: str) -> 'List':
+        from structures.community import Community
 
-            if community is not None:
-                raise fbe.TemporaryFeedbackError(
-                    f"This server is already hosting the community `{community.name}`."
-                )
-            
-            communities = jumpedia.get_communities()
+        with equality_locked(self):
+            lists = self.get_lists()
 
             name = text.validate_and_sanitize_name(
-                bad_name,
-                cls.MAX_NAME_LENGTH,
-                (c.name for c in communities)
+                bad_name, 
+                List.MAX_NAME_LENGTH, 
+                (list.name for list in lists)
             )
-            
-            if text.norm_syn(name).endswith(cls.INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out '{cls.INVALID_ENDING}' from the name as it is redundant!")
 
+            if name.endswith(List.INVALID_ENDING):
+                raise fbe.TemporaryFeedbackError(f"Please leave out `{List.INVALID_ENDING}` from the name, as it is redundant!")
+            
+            if len(lists) >= Community.MAX_LISTS:
+                raise fbe.TemporaryFeedbackError("Limit reached")
+            
             h = queries.ArgHelper()
 
-            with queries.connected() as (conn, cursor):
+            with queries.connected(cursor) as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO community (
+                    INSERT INTO list (
                         name
-                    )
+                    ) 
                     VALUES (
                         {h|name}
                     )
                 """, h.steal())
-
+                
                 id: int = cursor.lastrowid  # type: ignore
 
-                cursor.execute(f"""
-                    INSERT INTO guild (
-                        id, 
-                        community_id
-                    )
-                    VALUES (
-                        {h|guild_id},
-                        {h|id}
-                    )
-                """, h.steal())
-
-                cursor.execute(f"""
-                    INSERT INTO user (
-                        id,
-                        community_id,
-                        power
-                    )
-                    VALUES (
-                        {h|user_id},
-                        {h|id},
-                        {h|UserRank.OWNER.power}     
-                    )
-                """, h.steal())
-
-                obj = cls(
-                    jumpedia=jumpedia,
+                obj = List(
+                    community=self,
                     id=id,
-                    default_selected_list_id=None,
-                    name=name
-                )  
-
-                list = List.create(obj, 'Main', cursor=cursor)
-
-                cursor.execute(f"""
-                    UPDATE community
-                    SET default_selected_list_id = {h|list.id}
-                    WHERE id = {h|obj.id}
-                """, h.steal())
-
-                obj = cls(
-                    jumpedia=jumpedia,
-                    id=id,
-                    default_selected_list_id=list.id,
                     name=name
                 )
 
-                # Rollback if anything goes wrong up to this point
-                return obj
+            return obj
             
-    def delete(self) -> None:
-        with self.edit_lock, self.jumpedia.edit_lock:
-            # Already deleted
-            if self.jumpedia.get_community_by_id(self.id) is None:
+            
+    def delete_list(self, bad_name: str) -> None:
+        with equality_locked(self):
+            list = self.get_list_by_name(bad_name)
+
+            # Check if list already deleted, but object used
+            if list is None:
                 return
-            
+                
             h = queries.ArgHelper()
 
-            with queries.connected() as (conn, cursor):
+            with equality_locked(list), queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    DELETE FROM community
+                    DELETE FROM list
                     WHERE id = {h|self.id}
                 """, h.steal())
+
 
     def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[ListResultT]:
         h = queries.ArgHelper()
@@ -256,7 +213,7 @@ class Community:
         return self._user_data_to_obj(data[0]) if data else None
     
     def add_to_guild(self, guild_id: int) -> None:
-        with self.jumpedia.edit_lock:
+        with equality_locked(self.jumpedia):
             existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
 
             if existing_community is not None:
@@ -288,7 +245,7 @@ class Community:
 
     
     def remove_from_guild(self, guild_id: int) -> None:
-        with self.jumpedia.edit_lock:
+        with equality_locked(self.jumpedia):
             existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
 
             if existing_community is None:

@@ -1,0 +1,29 @@
+
+
+from threading import RLock
+from typing import Hashable
+import contextlib
+
+_active_locks: dict[Hashable, RLock] = {}
+_ref_count: dict[Hashable, int] = {}
+_lock = RLock()
+
+@contextlib.contextmanager
+def equality_locked(obj: Hashable):
+    with _lock:
+        lock = _active_locks.setdefault(obj, RLock())
+        _ref_count[obj] = _ref_count.get(obj, 0) + 1
+        lock.acquire()
+
+    try:
+        yield lock
+    finally:
+        with _lock:
+            lock.release()
+            
+            _ref_count[obj] -= 1
+
+            if _ref_count[obj] == 0:
+                _ref_count.pop(obj)
+                _active_locks.pop(obj)
+

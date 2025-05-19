@@ -1,10 +1,6 @@
-import decimal
-import json
 import re
 import string
 from typing import Any, Callable, Container, Final, Iterable, Sequence
-from discordtools import feedbackerrors as fbe
-import datetime as dt
 from collections.abc import Set
 
 PASCAL_REPLACE_PATTERN = re.compile(r'(?!^)([A-Z]+)')
@@ -22,6 +18,8 @@ def invalid_identifier_chars(s: str) -> set[str]:
     return set(char for char in s if char not in IDENTIFIER_CHARS)
 
 def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> set[str]:
+    from discordtools import feedbackerrors as fbe
+
     result: set[str] = set()
 
     for alias in frozenset(aliases):
@@ -46,6 +44,8 @@ def norm_syn(s: str) -> str:
     return norm(s, ' ')
 
 def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str]) -> str:
+    from discordtools import feedbackerrors as fbe
+
     name = sanitize(bad_name)
     
     if not name:
@@ -60,6 +60,8 @@ def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterab
     return name
 
 def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
+    from discordtools import feedbackerrors as fbe
+
     result: set[str] = set()
 
     forbidden = frozenset(NORMALIZE_FUNC(f) for f in forbidden)
@@ -84,6 +86,8 @@ def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_c
     return result
 
 def validate_and_sanitize_or_norm_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
+    from discordtools import feedbackerrors as fbe
+    
     forbidden = tuple(forbidden)
 
     name = validate_and_sanitize_name(bad_name, max_length, forbidden)
