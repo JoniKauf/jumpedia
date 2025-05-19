@@ -72,7 +72,7 @@ class AbstractTavc[T: AnyAttributeT]:
         with queries.connected(self.task.list.community) as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM task_attribute_value
+                FROM task_attribute_task_value
                 WHERE task_id = {h|self.task.id}
             """, h.steal())
 
@@ -133,7 +133,7 @@ class Tuavc(AbstractTavc[TauvcAttributeT]):
         with queries.connected(self.task.list.community) as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM task_user_attribute_value
+                FROM user_attribute_task_value
                 WHERE 
                     task_id = {h|self.task.id}
                     AND user_id = {h|self.user_id}
