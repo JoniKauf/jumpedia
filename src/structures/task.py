@@ -55,7 +55,7 @@ class Task:
         with list.edit_lock:
             tasks = list.get_tasks()
 
-            name, aliases = text.validate_and_sanitize_or_norm_syns(
+            name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 bad_aliases, 
                 cls.MAX_SYN_LEN, 

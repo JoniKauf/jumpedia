@@ -9,7 +9,7 @@ import discord as dc
 
 from structures.context import Context
 
-type AnyRank = MetaRank | UserRank | GuildRank
+type AnyRank = MetaRank | CommunityRank | GuildRank
 
 @functools.total_ordering
 @dataclass(frozen=True)
@@ -74,20 +74,20 @@ class MetaRank(_RankBase):
     
 
 @dataclass(frozen=True)
-class UserRank(_RankBase):
+class CommunityRank(_RankBase):
     _init_done: bool = False
 
-    DEFAULT: ClassVar['UserRank']
-    LOWEST: ClassVar['UserRank']
-    HIGHEST: ClassVar['UserRank']
+    DEFAULT: ClassVar['CommunityRank']
+    LOWEST: ClassVar['CommunityRank']
+    HIGHEST: ClassVar['CommunityRank']
 
     @classmethod
     def _init(cls):
-        cls.USER = UserRank(0, "User")
-        cls.HELPER = UserRank(10, "Helper")
-        cls.MODERATOR = UserRank(20, "Moderator")
-        cls.ADMINISTRATOR = UserRank(30, "Administrator")
-        cls.OWNER = UserRank(40, "Owner")
+        cls.USER = CommunityRank(0, "User")
+        cls.HELPER = CommunityRank(10, "Helper")
+        cls.MODERATOR = CommunityRank(20, "Moderator")
+        cls.ADMINISTRATOR = CommunityRank(30, "Administrator")
+        cls.OWNER = CommunityRank(40, "Owner")
 
         cls.LOWEST = cls.LOWEST
         cls.HIGHEST = cls.OWNER

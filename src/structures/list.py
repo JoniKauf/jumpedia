@@ -12,7 +12,7 @@ from discordtools import feedbackerrors as fbe
 from utils import metautils, parsetools, text
 
 from database import strong as S
-from database.strong import Tables as T
+from database.strong import Tables as TBL
 
 import pickle
 
@@ -30,108 +30,13 @@ if TYPE_CHECKING:
 
 class UserCollectionTreeItemT(TypedDict, total=True):
     value: str
-    alias: list[str]
+    aliases: list[str]
     sort_value: int
-    children: NotRequired[list['UserCollectionTreeItemT']]
+    nodes: NotRequired[list['UserCollectionTreeItemT']]
 type UserCollectionTreeT = list[UserCollectionTreeItemT]
 
 type UserCollectionT = None | UserCollectionTreeT
 
-
-def _parse_user_collection[T: AttributeValueTypeT](
-    str_user_collection: str, 
-    value_type: AttributeValueType[T],
-) -> CollectionT[T]:
-    user_value_collection: UserCollectionT = parsetools.json_loads_safe(
-        str_user_collection, 
-        AbstractAttribute.COLLECTION_MAX_DEPTH
-    )
-
-    if user_value_collection is None:
-        return []
-    
-    if not isinstance(user_value_collection, list):
-        raise fbe.TemporaryFeedbackError("Not a tree")
-    
-    tree = _parse_user_collection_tree(user_value_collection, value_type)
-
-    _add_roots(tree, None)
-
-    return tree
-
-def _add_roots[T: AttributeValueTypeT](
-    tree: CollectionTreeT[T],
-    root: CollectionTreeItem[T] | None
-) -> None:
-    for item in tree:
-        object.__setattr__(item, 'root', root)  # CHANGE IF VARNAME CHANGES
-
-        _add_roots(item.nodes, item)
-
-def _parse_user_collection_tree[T: AttributeValueTypeT](
-    user_collection_tree: UserCollectionTreeT, 
-    value_type: AttributeValueType[T]
-) -> CollectionTreeT[T]:
-    result: CollectionTreeT = []
-
-    for item in user_collection_tree:
-        value, alias, sort_value = _extract_data_from_collection_item(item, value_type)
-
-        sub_trees = item.get('children', [])
-
-        if not isinstance(sub_trees, list):
-            raise fbe.TemporaryFeedbackError("Not a sub tree")
-        
-        item = CollectionTreeItem(
-            value,
-            alias,
-            sort_value,
-            _parse_user_collection_tree([sub_tree for sub_tree in sub_trees], value_type)
-        )
-
-        result.append(item)
-
-    return result
-
-def _extract_data_from_collection_item[T: AttributeValueTypeT](
-    item: UserCollectionTreeItemT,
-    value_type: AttributeValueType[T]
-) -> tuple[T, frozenset[T], int]:
-    try:
-        sort_value: int = int(item['sort_value'])
-    except KeyError as e:
-        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-    except ValueError as e:
-        raise fbe.TemporaryFeedbackError("Not an int")
-        
-    AbstractAttribute.generic_number_valid(sort_value)
-
-    try:
-        bad_value = item['value']
-    except KeyError as e:
-        raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
-    
-    try:
-        bad_alias = item.get('alias', [])
-
-        if not isinstance(bad_alias, list):
-            raise TypeError()
-    except TypeError:
-        raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
-    
-    value: T = AbstractAttribute._from_str_singular(bad_value, value_type)
-
-    alias = set(
-        norm_for_collection(AbstractAttribute._from_str_singular(a, value_type)) 
-        for a in frozenset(bad_alias)
-    )
-    
-    normed_value: T = norm_for_collection(value)
-    
-    if normed_value in alias:
-        alias.remove(normed_value)
-
-    return (value, frozenset(alias), sort_value)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -154,7 +59,7 @@ class List:
             name='name',
             value_type=AttributeValueType.get_by_type(str),
             index=1,
-            collection=[],
+            get_collection=[],
             min_slots=1,
             max_slots=1,
             unique_slots=False,
@@ -169,7 +74,7 @@ class List:
             name='alias',
             value_type=AttributeValueType.get_by_type(str),
             index=2,
-            collection=[],
+            get_collection=[],
             min_slots=0,
             max_slots=StaticAttribute.MAX_SLOTS,
             unique_slots=True,
@@ -189,13 +94,17 @@ class List:
 
 
     # --- All Attributes ---
+
+    def on_attribute_created(self, attribute: AnyAttributeT, default_value: str | None) -> None:
+        ...
+
     
-    def get_attributes(self) -> list[AnyAttributeT]:
-        return self.get_static_attributes() + self.get_task_attributes() + self.get_user_attributes()
+    def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
+        return self.get_static_attributes(where) + self.get_task_attributes(where) + self.get_user_attributes(where)
 
     def get_attribute_by_name(self, name: str) -> AnyAttributeT | None:
         return (
-            self.get_static_task_attribute_by_name(name)
+            self.get_static_attribute_by_name(name)
             or self.get_task_attribute_by_name(name)
             or self.get_user_attribute_by_name(name)
         )
@@ -209,50 +118,253 @@ class List:
 
     def get_attribute_by_syn(self, syn: str) -> AnyAttributeT | None:
         return (
-            self.get_static_attribute_by_alias(syn)
+            self.get_static_attribute_by_syn(syn)
             or self.get_task_attribute_by_syn(syn)
             or self.get_user_attribute_by_syn(syn)
         )
-    
-    def _attribute_creation_generic[T: AttributeValueTypeT](
+
+    def _generic_create_attribute(
         self,
         bad_name: str,
         bad_aliases: Iterable[str],
         min_slots: int,
         max_slots: int,
-    ) -> tuple[str, frozenset[str], int]:
+    ) -> tuple[str, set[str], int]:
         with equality_locked(self):
+            name, aliases = text.validate_and_sanitize_syns(
+                bad_name, 
+                bad_aliases, 
+                StaticAttribute.MAX_SYN_LEN, 
+                StaticAttribute.MAX_ALIAS_COUNT + 1, 
+                ()
+            )
+
             attributes = self.get_attributes()
-            
+
             if len(attributes) >= self.__class__.MAX_ATTRIBUTES:
                 raise fbe.TemporaryFeedbackError("Max attributes reached")
-        
+
+            if self.get_attribute_by_name(name) is not None:
+                raise fbe.TemporaryFeedbackError(f"Attribute name `{name}` already used as name or alias of different attribute")
             
+            for alias in aliases:
+                if self.get_attribute_by_alias(alias) is not None:
+                    raise fbe.TemporaryFeedbackError(f"Attribute alias `{alias}` already used as name or alias of different attribute")
+
             if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
                 raise fbe.TemporaryFeedbackError()
 
             if not (0 <= min_slots <= max_slots):
                 raise fbe.TemporaryFeedbackError()
-            
-            index = max(attr.index for attr in attributes) + 1
 
-            return (name, frozenset(aliases), index)
-        
+            index = max(attr.index for attr in attributes) + 1 if attributes else 1
 
-    # --- Static Attribute ---
-
-    def create[T: AttributeValueTypeT](
+            return (name, aliases, index)
+    
+    def _handle_user_collection(
         self,
-        name: str,
-        value_type: AttributeValueType[T],
-        user_collection: CollectionTreeT,
-        min_slots: int,
-        max_slots: int,
-        unique_slots: bool,
-        unique_value_per_list: bool
-    ):
-        """This method should not public to the user!"""
+        bad_collection: str, 
+        attribute: TaskAttribute | UserAttribute,
+    ) -> None:
+        user_value_collection: UserCollectionT = parsetools.json_loads_safe(
+            bad_collection, 
+            AbstractAttribute.COLLECTION_MAX_DEPTH
+        )
+
+        if not user_value_collection:
+            return
         
+        if not isinstance(user_value_collection, list):
+            raise fbe.TemporaryFeedbackError("Not a tree")
+        
+        flattened = self._parse_and_get_flattened_user_collection_tree(user_value_collection, attribute.value_type)
+
+        self._insert_flattened_collection_data_into_db(flattened, attribute)
+
+    def _parse_and_get_flattened_user_collection_tree[T: AttributeValueTypeT](
+        self,
+        user_collection_tree: UserCollectionTreeT, 
+        value_type: AttributeValueType[T]
+    ) -> CollectionTreeT[T]:
+        lookup: dict[T, CollectionTreeItem[T]] = {}
+
+        def recursive(tree: UserCollectionTreeT) -> CollectionTreeT[T]:
+            result: CollectionTreeT[T] = []
+
+            for item in tree:
+                value, aliases, sort_value = self._extract_data_from_collection_item(item, value_type)
+
+                for syn in (value, *aliases):
+                    if norm  
+                        # TODO then raise error 
+
+
+                nodes = item.get('nodes', [])
+
+                if not isinstance(nodes, list):
+                    raise fbe.TemporaryFeedbackError("Not a sub tree")
+                
+                item = CollectionTreeItem(
+                    value,
+                    aliases,
+                    sort_value,
+                    recursive(nodes)
+                )
+
+                for node in item.nodes:
+                    node.root = item
+
+                result.append(item)
+
+            return result
+            
+        recursive(user_collection_tree)
+
+        return list(lookup.values())
+
+    def _extract_data_from_collection_item[T: AttributeValueTypeT](
+        self,
+        item: UserCollectionTreeItemT,
+        value_type: AttributeValueType[T]
+    ) -> tuple[T, set[T], int]:
+        try:
+            sort_value: int = int(item['sort_value'])
+        except KeyError as e:
+            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+        except ValueError as e:
+            raise fbe.TemporaryFeedbackError("Not an int", item['sort_value'])
+            
+        AbstractAttribute.any_number_valid(sort_value)
+
+        try:
+            bad_value = item['value']
+        except KeyError as e:
+            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+        
+        try:
+            bad_aliases = item.get('aliases', [])
+
+            if not isinstance(bad_aliases, list):
+                raise TypeError()
+        except TypeError:
+            raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
+        
+        value: T = AbstractAttribute.from_str_singular(bad_value, value_type)
+
+        bad_aliases = set(bad_aliases)
+        aliases: set[T] = {AbstractAttribute.from_str_singular(alias, value_type) for alias in bad_aliases}
+
+        return (value, aliases, sort_value)
+
+    def _insert_flattened_collection_data_into_db[T: AttributeValueTypeT](
+        self, 
+        flat: CollectionTreeT[T], 
+        attribute: TaskAttribute | UserAttribute
+    ) -> None:
+        if isinstance(attribute, TaskAttribute):
+            ACNT = TBL.TaskAttributeCollectionNode
+            ACNAT = TBL.TaskAttributeCollectionNodeAlias
+            ACNTAttributeId = ACNT.task_attribute_id
+            ACNATNodeId = ACNAT.task_attribute_collection_node_id
+        elif isinstance(attribute, UserAttribute):
+            ACNT = TBL.UserAttributeCollectionNode
+            ACNAT = TBL.UserAttributeCollectionNodeAlias
+            ACNTAttributeId = ACNT.user_attribute_id
+            ACNATNodeId = ACNAT.user_attribute_collection_node_id
+        else:
+            raise RuntimeError()
+        
+        h = queries.ArgHelper()
+        
+        with equality_locked(self), queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                INSERT INTO {ACNT} (
+                    {ACNT.root_id},
+                    {ACNTAttributeId},
+                    {ACNT.value},
+                    {ACNT.sort_value}
+                )
+                VALUES (
+                    
+                )
+            """)
+
+    
+
+        # --- Static Attribute ---
+
+        def create_static_attribute[T: AttributeValueTypeT](
+            self,
+            bad_name: str,
+            bad_aliases: Iterable[str],
+            value_type: AttributeValueType[T],
+            min_slots: int,
+            max_slots: int,
+            unique_slots: bool,
+            unique_value_per_list: bool,
+            default_value: str | None
+        ) -> StaticAttribute:
+            """This method should not public to the user!"""
+            with equality_locked(self):
+                name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots, max_slots)
+
+                h = queries.ArgHelper()
+                SAT = TBL.StaticAttribute
+
+                with queries.connected() as (conn, cursor):
+                    cursor.execute(f"""
+                        INSERT INTO {SAT} (
+                            {SAT.list_id},
+                            {SAT.name},
+                            {SAT.value_type},
+                            {SAT.index},
+                            {SAT.min_slots},
+                            {SAT.max_slots},
+                            {SAT.unique_slots},
+                            {SAT.unique_value_per_list}
+                        )
+                        VALUES (
+                            {h|self.id},
+                            {h|name},
+                            {h|value_type.id},
+                            {h|index},
+                            {h|min_slots},
+                            {h|max_slots},
+                            {h|unique_slots},
+                            {h|unique_value_per_list}
+                        )
+                    """, h.steal())
+
+                    attribute_id: int = cursor.lastrowid  # type: ignore
+
+                    SAAT = TBL.StaticAttributeAlias
+
+                    cursor.execute(f"""
+                        INSERT INTO {SAAT} (
+                            {SAAT.static_attribute_id},
+                            {SAAT.list_id},
+                            {SAAT.alias}
+                        ) 
+                        VALUES 
+                            {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
+                        )
+                    """, h.steal())
+
+                    obj = StaticAttribute(
+                        list=self,
+                        id=attribute_id,
+                        name=name,
+                        value_type=value_type,
+                        index=index,
+                        min_slots=min_slots,
+                        max_slots=max_slots,
+                        unique_slots=unique_slots,
+                        unique_value_per_list=unique_value_per_list
+                    )
+
+                    self.on_attribute_created(obj, default_value)
+
+                    return obj
         
 
     def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[S.TableResultT]:
@@ -261,45 +373,147 @@ class List:
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {T.StaticAttribute}
+                FROM {TBL.StaticAttribute}
                 WHERE 
-                    {T.StaticAttribute.list_id} = {h|self.id}
+                    {TBL.StaticAttribute.list_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[S.TableResultT] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _static_attribute_data_to_obj(self, data: S.TableResultT) -> StaticAttribute:
-        SAT = T.StaticAttribute
+    def _static_attribute_data_to_obj(self, data: S.SingleTableRowT) -> StaticAttribute:
+        SAT = TBL.StaticAttribute
 
         return StaticAttribute(
             list=self,
             id=data[SAT.id],
             name=data[SAT.name],
+            value_type=AttributeValueType.get_by_id(data[SAT.value_type]),
             index=data[SAT.index],
-            collection
+            min_slots=data[SAT.min_slots],
+            max_slots=data[SAT.max_slots],
+            unique_slots=data[SAT.unique_slots],
+            unique_value_per_list=data[SAT.unique_value_per_list]
         )
     
-    def get_static_attributes(self) -> list[StaticAttribute]:
-        return [self.name_attribute, self.alias_attribute]
+    def get_static_attributes(self, where: Callable[[queries.ArgHelper], str] | None) -> list[StaticAttribute]:
+        return [
+            self._static_attribute_data_to_obj(data) 
+            for data in self._fetch_static_attributes_from_table(where)
+        ]
+
+    def get_static_attribute_by_id(self, id: int) -> StaticAttribute | None:
+        data = self._fetch_static_attributes_from_table(lambda h: f"{TBL.StaticAttribute.id} = {h|id}")
+        return self._static_attribute_data_to_obj(data[0]) if data else None
     
-    def get_static_task_attribute_by_name(self, name: str) -> StaticAttribute | None:
-        name = text.norm_syn(name)
-        return self._fetch_static_attribute(lambda attr: name == text.norm_syn(attr.name))
+    def get_static_attribute_by_name(self, name: str) -> StaticAttribute | None:
+        data = self._fetch_static_attributes_from_table(lambda h: f"{TBL.StaticAttribute.name} = {h|name}")
+        return self._static_attribute_data_to_obj(data[0]) if data else None
 
     def get_static_attribute_by_alias(self, alias: str) -> StaticAttribute | None:
-        alias = text.norm_syn(alias)
-        return self._fetch_static_attribute(lambda attr: alias in attr.aliases)
+        h = queries.ArgHelper()
+        SAAT = TBL.StaticAttributeAlias
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT {SAAT.static_attribute_id}
+                FROM {SAAT}
+                WHERE
+                    {SAAT.list_id} = {h|self.id}
+                    AND {SAAT.alias} = {h|alias}
+            """, h.steal())
+
+            result: S.SingleTableRowT | None = cursor.fetchone()
+
+        if result is None:
+            return None
+        
+        return self.get_static_attribute_by_id(result[SAAT.static_attribute_id])
     
     def get_static_attribute_by_syn(self, syn: str) -> StaticAttribute | None:
-        syn = text.norm_syn(syn)
-        return self._fetch_static_attribute(lambda attr: syn == text.norm_syn(attr.name) or syn in attr.aliases)
-        
+        return (
+            self.get_static_attribute_by_name(syn)
+            or self.get_static_attribute_by_alias(syn)
+        )
 
     # --- Task Attributes ---
-        
+    
+    def create_task_attribute[T: AttributeValueTypeT](
+        self,
+        bad_name: str,
+        bad_aliases: Iterable[str],
+        value_type: AttributeValueType[T],
+        bad_collection: str,
+        min_slots: int,
+        max_slots: int,
+        unique_slots: bool,
+        unique_value_per_list: bool,
+        default_value: str | None
+    ) -> TaskAttribute:
+        """This method should not public to the user!"""
+        with equality_locked(self):
+            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots, max_slots)
+
+            h = queries.ArgHelper()
+            TAT = TBL.TaskAttribute
+
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    INSERT INTO {TAT} (
+                        {TAT.list_id},
+                        {TAT.name},
+                        {TAT.value_type},
+                        {TAT.index},
+                        {TAT.min_slots},
+                        {TAT.max_slots},
+                        {TAT.unique_slots},
+                        {TAT.unique_value_per_list}
+                    )
+                    VALUES (
+                        {h|self.id},
+                        {h|name},
+                        {h|value_type.id},
+                        {h|index},
+                        {h|min_slots},
+                        {h|max_slots},
+                        {h|unique_slots},
+                        {h|unique_value_per_list}
+                    )
+                """, h.steal())
+
+                attribute_id: int = cursor.lastrowid  # type: ignore
+
+                TAAT = TBL.TaskAttributeAlias
+
+                cursor.execute(f"""
+                    INSERT INTO {TAAT} (
+                        {TAAT.task_attribute_id},
+                        {TAAT.list_id},
+                        {TAAT.alias}
+                    ) 
+                    VALUES 
+                        {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
+                    )
+                """, h.steal())
+
+                obj = TaskAttribute(
+                    list=self,
+                    id=attribute_id,
+                    name=name,
+                    value_type=value_type,
+                    index=index,
+                    min_slots=min_slots,
+                    max_slots=max_slots,
+                    unique_slots=unique_slots,
+                    unique_value_per_list=unique_value_per_list
+                )
+
+                self.on_attribute_created(obj, default_value)
+
+                return obj
+            
     def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[TaskAttributeResultT]:
         h = queries.ArgHelper()
         
@@ -323,7 +537,7 @@ class List:
             name=data['name'],
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
-            collection=pickle.loads(data['collection']),
+            get_collection=pickle.loads(data['collection']),
             min_slots=data['min_slots'],
             max_slots=data['max_slots'],
             unique_slots=data['unique_slots'],
@@ -356,7 +570,7 @@ class List:
                     AND alias = {h|alias}
             """, h.steal())
 
-            result: TaskAttributeAliasResultT | None = cursor.fetchone()
+            result: S.SingleTableRowT = cursor.fetchone()
 
         if result is None:
             return None
@@ -395,7 +609,7 @@ class List:
             name=data['name'],
             index=data['index'],
             value_type=AttributeValueType.get_by_id(data['value_type']),
-            collection=pickle.loads(data['collection']),
+            get_collection=pickle.loads(data['collection']),
             min_slots=data['min_slots'],
             max_slots=data['max_slots'],
             unique_slots=data['unique_slots']

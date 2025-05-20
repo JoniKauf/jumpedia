@@ -14,7 +14,8 @@ from decimal import Decimal
 import decimal
 from utils import parsetools, text, timetools
 from database import strong as S
-from database.strong import Tables as T_
+from database.strong import Tables as TBL
+from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.list import List
@@ -37,7 +38,7 @@ type AttributeValueTypeT = (
 
 type_ = type
 
-@dataclass(frozen=True)
+@dataclass
 class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
@@ -102,34 +103,78 @@ if AttributeValueTypeT.__value__.__args__ != tuple(vt.value for vt in AttributeV
 @dataclass
 class CollectionTreeItem[T]:
     value: T
-    aliases: frozenset[T]
+    aliases: set[T]
     sort_value: int
     nodes: 'CollectionTreeT[T]'
     root: 'CollectionTreeItem[T] | None' = None
 type CollectionTreeT[T] = list[CollectionTreeItem[T]]
 
 
-
-def _create_collection_lookup[T: AttributeValueTypeT](
-    collection_tree: CollectionTreeT[T],
-    lookup_ref: dict[T, CollectionTreeItem[T]]
-) -> None:
-    def recursive(tree: CollectionTreeT[T]) -> None:
-        for item in tree:
-            for syn in (norm_for_collection(item.value), *item.aliases):
-                if syn in lookup_ref:
-                    raise fbe.TemporaryFeedbackError("Same syn twice", syn)
-            
-            lookup_ref[item.value] = item
-
-            recursive(item.nodes)
+def _generate_collection[T: AttributeValueTypeT](
+    rows: S.ManyTableRowT, 
+    table: type[TBL.TaskAttributeCollectionNode | TBL.UserAttributeCollectionNode]
+) -> tuple[CollectionTreeT[T], dict[T, CollectionTreeItem[T]]]:
+    if not rows:
+        return [], {}
     
-    recursive(collection_tree)
+    lookup_by_id: dict[int, CollectionTreeItem[T]] = {}
+    lookup_by_syn: dict[T, CollectionTreeItem[T]] = {}
 
+    result: CollectionTreeT[T] = []
+
+    # Create objects without nodes / root references
+    for row in rows:
+        id = row[table.id]
+        
+        item = CollectionTreeItem(
+            value=pickle.loads(row[table.value]),
+            aliases=set(json.loads(row[table._aliases])),
+            sort_value=row[table.sort_value],
+            nodes=[],
+            root=None
+        )
+
+        lookup_by_id[id] = item
+        
+        # Create lookup via syn
+        for syn in (item.value, *item.aliases):
+            syn = _collection_value_collate(syn)
+
+            if syn in lookup_by_syn:
+                raise errors.ProgrammingError(
+                    "Syns from collection, retrieved from database, result in collision?\n" +
+                    f"For table {table}, rows {rows}"
+                )
+            
+            lookup_by_syn[syn] = item
+
+    # Create references of nodes / root
+    for row in rows:
+        id = row[table.id]
+        root_id = row[table.root_id]
+
+        if root_id is None:
+            result.append(lookup_by_id[id])
+            continue
+
+        node = lookup_by_id[id]
+        root = lookup_by_id[root_id]
+
+        root.nodes.append(node)
+        node.root = root
+
+    return result, lookup_by_syn
+
+
+def _collection_value_collate[T: AttributeValueTypeT](value: T) -> T:
+    if isinstance(value, str):
+        return text.norm(value)
+    
+    return value
 
 #------#   Attribute   #------#	
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class AbstractAttribute[T: AttributeValueTypeT]:
     # --- CONSTANTS ---
 
@@ -154,7 +199,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     MAX_ALIAS_COUNT: ClassVar[int] = 32
     MAX_COLLECTION_ALIASES: ClassVar[int] = 7
     MAX_SLOTS: ClassVar[int] = 32
-    SORT_KEY_LAST_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+    SORT_KEY_NONE_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
     list: 'List'
     id: int 
@@ -166,28 +211,12 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     unique_slots: bool
 
     @property
-    def collection(self) -> CollectionTreeT[T]:
-        raise NotImplementedError()
-    
-    @property
-    def aliases(self) -> frozenset[str]:
-        return frozenset()
-            
-    @property
-    def syns(self) -> set[str]:
-        return {self.name} | self.aliases
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.list.identity
     
     @property
     def required(self) -> bool:
         return self.min_slots > 0
-    
-    @property
-    def has_collection(self) -> bool:
-        return bool(self.collection)
-    
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.list.identity
 
     # --- Methods ---
 
@@ -195,23 +224,38 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         if self.__class__ == AbstractAttribute:
             raise NotImplementedError()
 
-        if self.has_collection:
-            _create_collection_lookup(self.collection, self.collection_lookup)
-
     def __hash__(self) -> int:
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
 
+    def get_syns(self) -> set[str]:
+        return {self.name} | self.get_aliases()
+    
+    def get_aliases(self) -> set[str]:
+        raise NotImplementedError()
+
+    def has_collection(self) -> bool:
+        return bool(self.get_collection())
+    
+    def get_collection(self) -> CollectionTreeT[T]:
+        raise NotImplementedError()
+    
+    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+        raise NotImplementedError()
+    
+    
+    
     @classmethod
-    def generic_number_valid(cls, number: int | float | Decimal) -> None:
+    def any_number_valid(cls, number: int | float | Decimal) -> None:
         if not (AbstractAttribute.NUMBER_MIN < number < AbstractAttribute.NUMBER_MAX):
             raise fbe.OutsideOfValidRange(number, AbstractAttribute.NUMBER_MIN, AbstractAttribute.NUMBER_MAX)
     
     @classmethod
-    def _from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
+    def from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
         vt = value_type.type
+        s = text.sanitize(s)
 
         if issubclass(vt, bool):
             s = s.lower()
@@ -229,7 +273,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
             except Exception:
                 raise fbe.NotAProperValue("integer", s)
             
-            cls.generic_number_valid(result)
+            cls.any_number_valid(result)
     
         elif issubclass(vt, Decimal):
             try:
@@ -238,7 +282,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
             except Exception:
                 raise fbe.NotAProperValue("decimal", s)
             
-            cls.generic_number_valid(result)
+            cls.any_number_valid(result)
             
         elif issubclass(vt, (dt.time, dt.date, dt.datetime)):
             # If a date is in the type
@@ -267,7 +311,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
             if len(s) > AbstractAttribute.STR_MAX_LEN:
                 raise fbe.TooLongValue("string", s, AbstractAttribute.STR_MAX_LEN)
             
-            result = text.fix_whitespace(s, " ", True)
+            result = s
         
         else:
             raise TypeError()
@@ -297,7 +341,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         
         for elem in values:
             if isinstance(elem, str):
-                converted.append(self._from_str_singular(elem, value_type))
+                converted.append(self.from_str_singular(elem, value_type))
                 continue
 
             if isinstance(elem, self.value_type.type) and issubclass(self.value_type.type, (bool, int)):
@@ -373,12 +417,12 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         values = self.from_str(s)
         
         if not values:
-            return (AbstractAttribute.SORT_KEY_LAST_NUMBER + 1) * sign
+            return (AbstractAttribute.SORT_KEY_NONE_NUMBER + 1) * sign
         
-        if self.has_collection:
+        if self.has_collection():
             try:
                 return tuple(
-                    self.collection_lookup[norm_for_collection(elem)].sort_value * sign for elem in values
+                    self
                 )
             except KeyError as e:
                 raise RuntimeError(
@@ -393,26 +437,69 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
 
 
-@dataclass(frozen=True, kw_only=True)
+
+@dataclass(kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     unique_value_per_list: bool
     
-    @property
-    def collection(self) -> CollectionTreeT[T]:
-        return ()
+    _aliases: set[str] | None = field(init=False, default=None)
+    
+    def get_aliases(self) -> set[str]:
+        if self._aliases is None:
+            h = queries.ArgHelper()
+            SAAT = TBL.StaticAttributeAlias
 
-@dataclass(frozen=True, kw_only=True)
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT {SAAT.alias}
+                    FROM {SAAT}
+                    WHERE {SAAT.static_attribute_id} = {h|self.id}
+                """)
+
+                rows: S.ManyTableRowT = cursor.fetchall()
+
+            self._aliases = {row[SAAT.alias] for row in rows}
+        
+        return self._aliases
+    
+    def get_collection(self) -> CollectionTreeT[T]:
+        return []
+    
+    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+        return None
+        
+
+@dataclass(kw_only=True)
 class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     unique_value_per_list: bool
 
-    _collection: CollectionTreeT | None = field(init=False, default=None)
+    _aliases: set[str] | None = field(init=False, default=None)
+    _collection: CollectionTreeT[T] | None = field(init=False, default=None)
+    _collection_item_lookup: dict[T, CollectionTreeItem[T]] = field(init=False, default=dict)  # type: ignore
 
-    @property
-    def collection(self) -> CollectionTreeT[T]:
+    def get_aliases(self) -> set[str]:
+        if self._aliases is None:
+            h = queries.ArgHelper()
+            SAAT = TBL.TaskAttributeAlias
+
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT {SAAT.alias}
+                    FROM {SAAT}
+                    WHERE {SAAT.task_attribute_id} = {h|self.id}
+                """)
+
+                rows: S.ManyTableRowT = cursor.fetchall()
+
+            self._aliases = {row[SAAT.alias] for row in rows}
+        
+        return self._aliases
+    
+    def get_collection(self) -> CollectionTreeT[T]:
         if self._collection is None:
             h = queries.ArgHelper()
-            TACNT = T_.TaskAttributeCollectionNode
-            TACNTA = T_.TaskAttributeCollectionNodeAlias
+            TACNT = TBL.TaskAttributeCollectionNode
+            TACNAT = TBL.TaskAttributeCollectionNodeAlias
 
             with queries.connected() as (conn, cursor):
                 
@@ -420,154 +507,83 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
                     SELECT 
                         n.*,
                         COALESCE(
-                            JSON_ARRAYAGG(a.{TACNTA.alias}),
+                            JSON_ARRAYAGG(a.{TACNAT.alias}),
                             JSON_ARRAY()
                         ) AS {TACNT._aliases}
                     FROM {TACNT} n
-                    LEFT JOIN {TACNTA} a
-                        ON a.{TACNTA.task_attribute_collection_node_id} = n.{TACNT.id}
+                    LEFT JOIN {TACNAT} a
+                        ON a.{TACNAT.task_attribute_collection_node_id} = n.{TACNT.id}
+                    WHERE {TACNT.task_attribute_id} = {h|self.id}
                     GROUP BY n.{TACNT.id}
-                """)
+                """, h.steal())
 
-                rows: list[S.TableResultT] = cursor.fetchall()
-
-            lookup: dict[int, CollectionTreeItem] = {}
-            root_of_nodes: dict[int, list[int]] = {}
-
-            for row in rows:
-                id = row[TACNT.id]
-                root_id = row[TACNT.root_id]
-
-                root_of_nodes.setdefault(root_id, []).append(id)
-                lookup[id] = CollectionTreeItem(
-                    value=row[TACNT.value],
-                    aliases=frozenset(json.loads(row[TACNT._aliases])),
-                    nodes=
-                )
-                
-
-            result: CollectionTreeT = []
-
-            for 
+            self._collection, self._collection_item_lookup = _generate_collection(cursor.fetchall(), TACNT)
 
         return self._collection
-
-    @property
-    def aliases(self) -> frozenset[str]:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT alias
-                FROM task_attribute_alias
-                WHERE 
-                    list_id = {h|self.list.id}
-                    AND task_attribute_id = {h|self.id}
-            """)
-
-            result: list[TaskAttributeAliasReultT] = cursor.fetchall()
-
-        return frozenset(row['alias'] for row in result)
-
-
-    @classmethod
-    def create(
-        cls,
-        list: 'List',
-        bad_name: str,
-        bad_aliases: Iterable[str],
-        value_type: AttributeValueType[T],
-        str_user_collection: str | None,
-        min_slots: int,
-        max_slots: int,
-        unique_slots: bool,
-        unique_value_per_list: bool,
-    ) -> 'TaskAttribute':
-        with list.edit_lock:
-            name, aliases, (collection, pickled_collection), index = cls._create_attribute_basics(
-                list=list,
-                bad_name=bad_name,
-                bad_aliases=bad_aliases,
-                value_type=value_type,
-                str_user_collection=str_user_collection,
-                min_slots=min_slots,
-                max_slots=max_slots,
-            )
-
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO task_attribute (
-                        list_id,
-                        name,
-                        value_type,
-                        index,
-                        collection,
-                        min_slots,
-                        max_slots,
-                        unique_slots,
-                        unique_value_per_list,
-                    )
-                    VALUES (
-                        {h|list.id},
-                        {h|name},
-                        {h|value_type.id},
-                        {h|index},
-                        {h|pickled_collection},
-                        {h|min_slots},
-                        {h|max_slots},
-                        {h|unique_slots},
-                        {h|unique_value_per_list},
-                    )
-                """, h.steal())
-                
-                id: int = cursor.lastrowid,  # type: ignore
-
-                cursor.execute(f"""
-                    INSERT INTO task_attribute_alias (
-                        task_attribute_id, list_id, alias
-                    )
-                    VALUES 
-                        {','.join(f"({h|id}, {h|list.id}, {h|alias})" for alias in aliases)}
-                """)
-
-                return cls(
-                    list=list,
-                    id=id,
-                    name=name,
-                    index=index,
-                    value_type=value_type,
-                    collection=collection,
-                    min_slots=min_slots,
-                    max_slots=max_slots,
-                    unique_slots=unique_slots,
-                    unique_value_per_list=unique_value_per_list,
-                ) 
+    
+    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+        v = self.from_str_singular(bad_value, self.value_type)
+        return self._collection_item_lookup.get(v, None)
+        
 
 
 class UserAttributeAliasReultT(TypedDict):
     alias: str
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
-    @property
-    def aliases(self) -> frozenset[str]:
-        h = queries.ArgHelper()
+    _aliases: set[str] | None = field(init=False, default=None)
+    _collection: CollectionTreeT[T] | None = field(init=False, default=None)
+    _collection_item_lookup: dict[T, CollectionTreeItem[T]] = field(init=False, default=dict)  # type: ignore
+    
+    def get_aliases(self) -> set[str]:
+        if self._aliases is None:
+            h = queries.ArgHelper()
+            SAAT = TBL.UserAttributeAlias
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT alias
-                FROM user_attribute_alias
-                WHERE 
-                    list_id = {h|self.list.id}
-                    AND user_attribute_id = {h|self.id}
-            """)
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT {SAAT.alias}
+                    FROM {SAAT}
+                    WHERE {SAAT.user_attribute_id} = {h|self.id}
+                """)
 
-            result: list[UserAttributeAliasReultT] = cursor.fetchall()
+                rows: S.ManyTableRowT = cursor.fetchall()
 
-        return frozenset(row['alias'] for row in result)
+            self._aliases = {row[SAAT.alias] for row in rows}
+        
+        return self._aliases
+    
+    def get_collection(self) -> CollectionTreeT[T]:
+        if self._collection is None:
+            h = queries.ArgHelper()
+            UACNT = TBL.UserAttributeCollectionNode
+            UACNAT = TBL.UserAttributeCollectionNodeAlias
+
+            with queries.connected() as (conn, cursor):
+                
+                cursor.execute(f"""
+                    SELECT 
+                        n.*,
+                        COALESCE(
+                            JSON_ARRAYAGG(a.{UACNAT.alias}),
+                            JSON_ARRAY()
+                        ) AS {UACNT._aliases}
+                    FROM {UACNT} n
+                    LEFT JOIN {UACNAT} a
+                        ON a.{UACNAT.user_attribute_collection_node_id} = n.{UACNT.id}
+                    WHERE {UACNT.user_attribute_id} = {h|self.id}
+                    GROUP BY n.{UACNT.id}
+                """, h.steal())
+
+            self._collection, self._collection_item_lookup = _generate_collection(cursor.fetchall(), UACNT)
+
+        return self._collection
+
+    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+        v = self.from_str_singular(bad_value, self.value_type)
+        return self._collection_item_lookup.get(v, None)
     
     @classmethod
     def create(
@@ -581,7 +597,7 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
         max_slots: int,
         unique_slots: bool
     ) -> 'UserAttribute':
-        with list.edit_lock:
+        with equality_locked(list):
             name, aliases, (collection, pickled_collection), index = cls._create_attribute_basics(
                 list=list,
                 bad_name=bad_name,

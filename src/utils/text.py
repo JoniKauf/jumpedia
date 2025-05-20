@@ -59,7 +59,7 @@ def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterab
     
     return name
 
-def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
+def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
     from discordtools import feedbackerrors as fbe
 
     result: set[str] = set()
@@ -67,7 +67,7 @@ def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_c
     forbidden = frozenset(NORMALIZE_FUNC(f) for f in forbidden)
 
     for alias in bad_aliases:
-        alias = norm_syn(alias)
+        alias = sanitize(alias)
 
         if not alias:
             continue
@@ -85,13 +85,13 @@ def validate_and_norm_aliases(bad_aliases: Iterable[str], max_length: int, max_c
     
     return result
 
-def validate_and_sanitize_or_norm_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
+def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
     from discordtools import feedbackerrors as fbe
     
     forbidden = tuple(forbidden)
 
     name = validate_and_sanitize_name(bad_name, max_length, forbidden)
-    aliases = validate_and_norm_aliases(bad_aliases, max_length, max_count, forbidden)
+    aliases = validate_and_sanitize_aliases(bad_aliases, max_length, max_count, forbidden)
 
     if name in aliases:
         aliases.remove(name)

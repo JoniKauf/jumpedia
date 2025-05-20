@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Final, Self, TypedDict
 from discordtools import feedbackerrors as fbe
 import discord as dc
 
-from structures.ranks import _RankBase, AnyRank, GuildRank, MetaRank, UserRank
+from structures.ranks import _RankBase, AnyRank, GuildRank, MetaRank, CommunityRank
 from structures.context import Context
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class User:
 
     community: 'Community'
     id: int
-    user_rank: UserRank
+    user_rank: CommunityRank
     meta_rank: MetaRank
     selected_list: 'List | None'
     
@@ -75,7 +75,7 @@ class Actor:
     id: int
     interaction: dc.Interaction
     meta_rank: MetaRank
-    user_rank: UserRank
+    user_rank: CommunityRank
     guild_rank: GuildRank
     selected_list: 'List | None'
     
@@ -94,7 +94,7 @@ class Actor:
         actor = interaction.user
 
         jumpedia = Jumpedia()
-        meta_rank = jumpedia.get_meta_rank_by_user_id(actor.id) or MetaRank.DEFAULT
+        meta_rank = jumpedia.get_meta_rank_by_user_id(actor.id)
 
         if isinstance(actor, dc.User) or (community := jumpedia.get_community_by_guild_id(actor.guild.id)) is None:
             return cls(
@@ -102,12 +102,12 @@ class Actor:
                 id=actor.id,
                 interaction=interaction,
                 meta_rank=meta_rank,
-                user_rank=UserRank.DEFAULT,
+                user_rank=CommunityRank.DEFAULT,
                 guild_rank=GuildRank.DEFAULT,
                 selected_list=None
             )
 
-        user_rank = UserRank.DEFAULT
+        user_rank = CommunityRank.DEFAULT
 
         with community.edit_lock:
             user = community.get_user_by_id(actor.id)
@@ -145,7 +145,7 @@ class Actor:
         if isinstance(required_rank, MetaRank):
             return self.meta_rank >= required_rank
         
-        if isinstance(required_rank, UserRank):
+        if isinstance(required_rank, CommunityRank):
             if self.user_rank >= required_rank:
                 return True
         else:
