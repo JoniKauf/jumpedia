@@ -18,25 +18,25 @@ class Context:
     context regarding the user and other things.
     """
 
-    ia: dc.Interaction
+    interaction: dc.Interaction
     
     @cached_property
     def actor(self) -> 'Actor':
         from structures.user import Actor
-        return Actor.create_or_get(self.ia.user)
+        return Actor.create_or_get(self.interaction)
     
     @cached_property
     def guild_rank(self) -> 'GuildRank':
         from structures.ranks import GuildRank
-        return GuildRank.get_from_discord_user(self.ia.user)
+        return GuildRank.get_from_discord_user(self.interaction.user)
 
     @cached_property
     def community(self) -> 'Community | None':
         from structures.jumpedia import Jumpedia
-        return Jumpedia().get_community_by_guild_id(self.ia.guild_id or -1)
+        return Jumpedia().get_community_by_guild_id(self.interaction.guild_id or -1)
     
     @cached_property
-    def list(self) -> 'List':
+    def selected_list(self) -> 'List':
         if (list := self.actor.selected_list) is not None:
             return list
         

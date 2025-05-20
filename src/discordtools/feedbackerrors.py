@@ -144,7 +144,7 @@ class TooLongLink(errors.FeedbackError):
 class NoPermissionForOtherUsers(errors.FeedbackError):
     def __init__(
         self, 
-        user_rank_and_min: Opt[tuple[ranks.UserRank, ranks.UserRank]] = None, 
+        user_rank_and_min: Opt[tuple[ranks.CommunityRank, ranks.CommunityRank]] = None, 
         server_rank_and_min: Opt[tuple[ranks.GuildRank, ranks.GuildRank]] = None,
     ):
         self.user_rank_and_min = user_rank_and_min

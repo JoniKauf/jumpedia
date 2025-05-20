@@ -5,7 +5,7 @@ import discord.ext.commands as cmds
 from discordtools import feedbackerrors as fbe
 
 from structures.context import Context
-from structures.ranks import GuildRank, UserRank
+from structures.ranks import GuildRank, CommunityRank
 
 type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
 type PredicateT = Callable[[dc.Interaction], Literal[True]]
@@ -26,13 +26,13 @@ def in_guild(guild: dc.Guild | int | None) -> PredicateT:
 
 
 def user_rank(
-    min_required: UserRank = UserRank.HIGHEST
+    min_required: CommunityRank = CommunityRank.HIGHEST
 ) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
         try:
             user_rank = Context(ia).actor.user_rank
         except fbe.TemporaryFeedbackError:
-            user_rank = UserRank.DEFAULT
+            user_rank = CommunityRank.DEFAULT
 
         if user_rank.permitted(min_required):
             return True

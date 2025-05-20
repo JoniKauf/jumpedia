@@ -5,7 +5,7 @@ class _ColumnName(str):
     def __str__(self) -> str:
         return f"`{super().__str__()}`"
 
-class _StringFieldNamesMeta(type):
+class TableMeta(type):
     def __new__(cls, name: str, bases: tuple[type, ...], dct: dict[str, _Any]):
         ANNOTATIONS = '__annotations__'
 
@@ -26,35 +26,34 @@ class _StringFieldNamesMeta(type):
 
 DATABASE_NAME: str = 'jumpedia'
 
-type TableResultT = dict[str, _Any]
-
+type SingleTableRowT = dict[str, _Any]
+type ManyTableRowT = list[SingleTableRowT]
 
 class Tables:
-
     # --- Meta ---
 
-    class Community(metaclass=_StringFieldNamesMeta):
+    class Community(metaclass=TableMeta):
         id: _ColumnName
         name: _ColumnName
         default_selected_list_id: _ColumnName
 
-    class Guild(metaclass=_StringFieldNamesMeta):
+    class Guild(metaclass=TableMeta):
         id: _ColumnName
         community_id: _ColumnName
 
-    class MetaRank(metaclass=_StringFieldNamesMeta):
+    class MetaRank(metaclass=TableMeta):
         user_id: _ColumnName
         power: _ColumnName
 
 
     # --- Per Community ---
 
-    class List(metaclass=_StringFieldNamesMeta):
+    class List(metaclass=TableMeta):
         id: _ColumnName
         community_id: _ColumnName
         name: _ColumnName
 
-    class User(metaclass=_StringFieldNamesMeta):
+    class User(metaclass=TableMeta):
         id: _ColumnName
         community_id: _ColumnName
         # TODO: add name
@@ -64,7 +63,7 @@ class Tables:
 
     # --- Static Attribute ---
 
-    class StaticAttribute(metaclass=_StringFieldNamesMeta):
+    class StaticAttribute(metaclass=TableMeta):
         id: _ColumnName
         list_id: _ColumnName
         name: _ColumnName
@@ -75,7 +74,7 @@ class Tables:
         unique_slots: _ColumnName
         unique_value_per_list: _ColumnName
 
-    class StaticAttributeAlias(metaclass=_StringFieldNamesMeta):
+    class StaticAttributeAlias(metaclass=TableMeta):
         id: _ColumnName
         static_attribute_id: _ColumnName
         list_id: _ColumnName
@@ -84,7 +83,7 @@ class Tables:
 
     # --- Task Attribute ---
 
-    class TaskAttribute(metaclass=_StringFieldNamesMeta):
+    class TaskAttribute(metaclass=TableMeta):
         id: _ColumnName
         list_id: _ColumnName
         name: _ColumnName
@@ -95,21 +94,21 @@ class Tables:
         unique_slots: _ColumnName
         unique_value_per_list: _ColumnName
 
-    class TaskAttributeAlias(metaclass=_StringFieldNamesMeta):
+    class TaskAttributeAlias(metaclass=TableMeta):
         id: _ColumnName
         task_attribute_id: _ColumnName
         list_id: _ColumnName
         alias: _ColumnName
 
-    class TaskAttributeCollectionNode(metaclass=_StringFieldNamesMeta):
+    class TaskAttributeCollectionNode(metaclass=TableMeta):
         id: _ColumnName
         root_id: _ColumnName
-        task_id: _ColumnName
+        task_attribute_id: _ColumnName
         value: _ColumnName
         sort_value: _ColumnName
         _aliases: _ColumnName
 
-    class TaskAttributeCollectionNodeAlias(metaclass=_StringFieldNamesMeta):
+    class TaskAttributeCollectionNodeAlias(metaclass=TableMeta):
         id: _ColumnName
         task_attribute_collection_node_id: _ColumnName
         alias: _ColumnName
@@ -117,7 +116,7 @@ class Tables:
 
     # --- User Attribute ---
 
-    class UserAttribute(metaclass=_StringFieldNamesMeta):
+    class UserAttribute(metaclass=TableMeta):
         id: _ColumnName
         list_id: _ColumnName
         name: _ColumnName
@@ -127,20 +126,21 @@ class Tables:
         max_slots: _ColumnName
         unique_slots: _ColumnName
 
-    class UserAttributeAlias(metaclass=_StringFieldNamesMeta):
+    class UserAttributeAlias(metaclass=TableMeta):
         id: _ColumnName
         user_attribute_id: _ColumnName
         list_id: _ColumnName
         alias: _ColumnName
 
-    class UserAttributeCollectionNode(metaclass=_StringFieldNamesMeta):
+    class UserAttributeCollectionNode(metaclass=TableMeta):
         id: _ColumnName
         root_id: _ColumnName
-        task_id: _ColumnName
+        user_attribute_id: _ColumnName
         value: _ColumnName
         sort_value: _ColumnName
+        _aliases: _ColumnName
 
-    class UserAttributeCollectionNodeAlias(metaclass=_StringFieldNamesMeta):
+    class UserAttributeCollectionNodeAlias(metaclass=TableMeta):
         id: _ColumnName
         user_attribute_collection_node_id: _ColumnName
         alias: _ColumnName
@@ -148,28 +148,28 @@ class Tables:
 
     # --- Task ---
 
-    class Task(metaclass=_StringFieldNamesMeta):
+    class Task(metaclass=TableMeta):
         id: _ColumnName
         list_id: _ColumnName
         name: _ColumnName
 
-    class TaskAlias(metaclass=_StringFieldNamesMeta):
+    class TaskAlias(metaclass=TableMeta):
         id: _ColumnName
         task_id: _ColumnName
         list_id: _ColumnName
         alias: _ColumnName
 
-    class StaticAttributeTaskValue(metaclass=_StringFieldNamesMeta):
+    class StaticAttributeTaskValue(metaclass=TableMeta):
         task_id: _ColumnName
         static_attribute_id: _ColumnName
         value: _ColumnName
 
-    class TaskAttributeTaskValue(metaclass=_StringFieldNamesMeta):
+    class TaskAttributeTaskValue(metaclass=TableMeta):
         task_id: _ColumnName
         task_attribute_id: _ColumnName
         value: _ColumnName
 
-    class UserAttributeTaskValue(metaclass=_StringFieldNamesMeta):
+    class UserAttributeTaskValue(metaclass=TableMeta):
         task_id: _ColumnName
         user_id: _ColumnName
         user_attribute_id: _ColumnName

@@ -6,7 +6,7 @@ from discordtools import messagetools, predicates
 from structures.community import Community
 from structures.context import Context
 from structures.jumpedia import Jumpedia
-from structures.ranks import GuildRank, UserRank
+from structures.ranks import GuildRank, CommunityRank
 from discordtools import feedbackerrors as fbe
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -26,7 +26,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         )
 
     @acmds.command(description="Create a new community.")
-    @acmds.check(predicates.user_rank(UserRank.JONIKAUF))
+    @acmds.check(predicates.user_rank(CommunityRank.JONIKAUF))
     async def create(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild is not None
 

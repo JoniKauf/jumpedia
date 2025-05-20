@@ -12,7 +12,7 @@ from typing import Optional as Opt
 
 from structures.list import List
 from structures.user import User
-from structures.ranks import GuildRank, UserRank
+from structures.ranks import GuildRank, CommunityRank
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
@@ -197,7 +197,7 @@ class Community:
         return User(
             community=self,
             id=id,
-            user_rank=UserRank.get(data['power']),
+            user_rank=CommunityRank.get(data['power']),
             meta_rank=self.jumpedia.get_meta_rank_by_user_id(id),
             selected_list=self.get_default_selected_list()
         )
