@@ -1,7 +1,10 @@
-from typing import Any as _Any
+from typing import Any as _Any, TYPE_CHECKING as _TC
 
-class _ColumnName(str):
-    # To be used in f-strings, aka queries
+if _TC:
+    from structures.attribute import AnyAttributeT
+
+class ColumnName(str):
+    # When used in f-strings, so mostly queries
     def __str__(self) -> str:
         return f"`{super().__str__()}`"
 
@@ -10,12 +13,13 @@ class TableMeta(type):
         ANNOTATIONS = '__annotations__'
 
         annotations: dict[str, _Any] = dct.get(ANNOTATIONS, {})
-    
+        
         for k, typ in annotations.items():
-            if typ is not _ColumnName:
+            if typ is not ColumnName:
                 raise RuntimeError(f"Not good type in strong module for class '{name}', attribute '{k}'")
             
-            dct[k] = _ColumnName(k.lstrip("_"))
+            if k not in dct:
+                dct[k] = ColumnName(k.lstrip("_"))
 
         return super().__new__(cls, name, bases, dct)
     
@@ -33,144 +37,201 @@ class Tables:
     # --- Meta ---
 
     class Community(metaclass=TableMeta):
-        id: _ColumnName
-        name: _ColumnName
-        default_selected_list_id: _ColumnName
+        id: ColumnName
+        name: ColumnName
+        default_selected_list_id: ColumnName
 
     class Guild(metaclass=TableMeta):
-        id: _ColumnName
-        community_id: _ColumnName
+        id: ColumnName
+        community_id: ColumnName
 
     class MetaRank(metaclass=TableMeta):
-        user_id: _ColumnName
-        power: _ColumnName
+        user_id: ColumnName
+        power: ColumnName
 
 
     # --- Per Community ---
 
     class List(metaclass=TableMeta):
-        id: _ColumnName
-        community_id: _ColumnName
-        name: _ColumnName
+        id: ColumnName
+        community_id: ColumnName
+        name: ColumnName
 
     class User(metaclass=TableMeta):
-        id: _ColumnName
-        community_id: _ColumnName
+        id: ColumnName
+        community_id: ColumnName
         # TODO: add name
-        power: _ColumnName
-        selected_list_id: _ColumnName
+        power: ColumnName
+        selected_list_id: ColumnName
 
 
     # --- Static Attribute ---
 
     class StaticAttribute(metaclass=TableMeta):
-        id: _ColumnName
-        list_id: _ColumnName
-        name: _ColumnName
-        value_type: _ColumnName
-        index: _ColumnName
-        min_slots: _ColumnName
-        max_slots: _ColumnName
-        unique_slots: _ColumnName
-        unique_value_per_list: _ColumnName
+        id: ColumnName
+        list_id: ColumnName
+        name: ColumnName
+        value_type: ColumnName
+        index: ColumnName
+        min_slots: ColumnName
+        max_slots: ColumnName
+        unique_slots: ColumnName
+        unique_value_per_list: ColumnName
 
     class StaticAttributeAlias(metaclass=TableMeta):
-        id: _ColumnName
-        static_attribute_id: _ColumnName
-        list_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        static_attribute_id: ColumnName
+        list_id: ColumnName
+        alias: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('static_attribute_id')
 
 
     # --- Task Attribute ---
 
     class TaskAttribute(metaclass=TableMeta):
-        id: _ColumnName
-        list_id: _ColumnName
-        name: _ColumnName
-        value_type: _ColumnName
-        index: _ColumnName
-        min_slots: _ColumnName
-        max_slots: _ColumnName
-        unique_slots: _ColumnName
-        unique_value_per_list: _ColumnName
+        id: ColumnName
+        list_id: ColumnName
+        name: ColumnName
+        value_type: ColumnName
+        index: ColumnName
+        min_slots: ColumnName
+        max_slots: ColumnName
+        unique_slots: ColumnName
+        unique_value_per_list: ColumnName
 
     class TaskAttributeAlias(metaclass=TableMeta):
-        id: _ColumnName
-        task_attribute_id: _ColumnName
-        list_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        task_attribute_id: ColumnName
+        list_id: ColumnName
+        alias: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('task_attribute_id')
 
     class TaskAttributeCollectionNode(metaclass=TableMeta):
-        id: _ColumnName
-        root_id: _ColumnName
-        task_attribute_id: _ColumnName
-        value: _ColumnName
-        sort_value: _ColumnName
-        _aliases: _ColumnName
+        id: ColumnName
+        root_id: ColumnName
+        task_attribute_id: ColumnName
+        value: ColumnName
+        sort_value: ColumnName
+
+        _aliases: ColumnName
+        _attribute_id: ColumnName = ColumnName('task_attribute_id')
 
     class TaskAttributeCollectionNodeAlias(metaclass=TableMeta):
-        id: _ColumnName
-        task_attribute_collection_node_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        task_attribute_collection_node_id: ColumnName
+        alias: ColumnName
+
+        _attribute_collection_node_id: ColumnName = ColumnName('task_attribute_collection_node_id')
 
 
     # --- User Attribute ---
 
     class UserAttribute(metaclass=TableMeta):
-        id: _ColumnName
-        list_id: _ColumnName
-        name: _ColumnName
-        index: _ColumnName
-        value_type: _ColumnName
-        min_slots: _ColumnName
-        max_slots: _ColumnName
-        unique_slots: _ColumnName
+        id: ColumnName
+        list_id: ColumnName
+        name: ColumnName
+        index: ColumnName
+        value_type: ColumnName
+        min_slots: ColumnName
+        max_slots: ColumnName
+        unique_slots: ColumnName
 
     class UserAttributeAlias(metaclass=TableMeta):
-        id: _ColumnName
-        user_attribute_id: _ColumnName
-        list_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        user_attribute_id: ColumnName
+        list_id: ColumnName
+        alias: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('user_attribute_id')
 
     class UserAttributeCollectionNode(metaclass=TableMeta):
-        id: _ColumnName
-        root_id: _ColumnName
-        user_attribute_id: _ColumnName
-        value: _ColumnName
-        sort_value: _ColumnName
-        _aliases: _ColumnName
+        id: ColumnName
+        root_id: ColumnName
+        user_attribute_id: ColumnName
+        value: ColumnName
+        sort_value: ColumnName
+
+        _aliases: ColumnName
+        _attribute_id: ColumnName = ColumnName('user_attribute_id')
 
     class UserAttributeCollectionNodeAlias(metaclass=TableMeta):
-        id: _ColumnName
-        user_attribute_collection_node_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        user_attribute_collection_node_id: ColumnName
+        alias: ColumnName
+
+        _attribute_collection_node_id: ColumnName = ColumnName('user_attribute_collection_node_id')
 
 
     # --- Task ---
 
     class Task(metaclass=TableMeta):
-        id: _ColumnName
-        list_id: _ColumnName
-        name: _ColumnName
+        id: ColumnName
+        list_id: ColumnName
+        name: ColumnName
 
     class TaskAlias(metaclass=TableMeta):
-        id: _ColumnName
-        task_id: _ColumnName
-        list_id: _ColumnName
-        alias: _ColumnName
+        id: ColumnName
+        task_id: ColumnName
+        list_id: ColumnName
+        alias: ColumnName
 
     class StaticAttributeTaskValue(metaclass=TableMeta):
-        task_id: _ColumnName
-        static_attribute_id: _ColumnName
-        value: _ColumnName
+        task_id: ColumnName
+        static_attribute_id: ColumnName
+        value: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('static_attribute_id')
 
     class TaskAttributeTaskValue(metaclass=TableMeta):
-        task_id: _ColumnName
-        task_attribute_id: _ColumnName
-        value: _ColumnName
+        task_id: ColumnName
+        task_attribute_id: ColumnName
+        value: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('task_attribute_id')
 
     class UserAttributeTaskValue(metaclass=TableMeta):
-        task_id: _ColumnName
-        user_id: _ColumnName
-        user_attribute_id: _ColumnName
-        value: _ColumnName
+        task_id: ColumnName
+        user_id: ColumnName
+        user_attribute_id: ColumnName
+        value: ColumnName
+
+        _attribute_id: ColumnName = ColumnName('user_attribute_id')
+    
+    @classmethod
+    def get_tables_for_attribute(cls, attribute: AnyAttributeT) -> (
+        tuple[
+            type[StaticAttribute], 
+            type[StaticAttributeAlias], 
+            None, 
+            None, 
+            type[StaticAttributeTaskValue]
+        ] |
+        tuple[
+            type[TaskAttribute], 
+            type[TaskAttributeAlias], 
+            type[TaskAttributeCollectionNode], 
+            type[TaskAttributeCollectionNodeAlias], 
+            type[TaskAttributeTaskValue]
+        ] |
+        tuple[
+            type[UserAttribute], 
+            type[UserAttributeAlias], 
+            type[UserAttributeCollectionNode], 
+            type[UserAttributeCollectionNodeAlias], 
+            type[UserAttributeTaskValue]
+        ]
+    ):
+        from structures.attribute import StaticAttribute as SA, TaskAttribute as TA, UserAttribute as UA
+
+        if isinstance(attribute, SA):
+            return cls.StaticAttribute, cls.StaticAttributeAlias, None, None, cls.StaticAttributeTaskValue
+        
+        if isinstance(attribute, TA):
+            return cls.TaskAttribute, cls.TaskAttributeAlias, cls.TaskAttributeCollectionNode, cls.TaskAttributeCollectionNodeAlias, cls.TaskAttributeTaskValue
+        
+        if isinstance(attribute, UA):
+            return cls.UserAttribute, cls.UserAttributeAlias, cls.UserAttributeCollectionNode, cls.UserAttributeCollectionNodeAlias, cls.UserAttributeTaskValue
+        
+        raise TypeError()
