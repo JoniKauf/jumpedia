@@ -6,7 +6,8 @@ import discord as dc
 
 import mariadb
 from utils import metautils, text
-from database import queries
+from database import queries, strong as S
+from database.strong import Tables as TBL
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
@@ -17,21 +18,8 @@ from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
-
-class GuildResultT(TypedDict):
-    id: int
-
-class UserResultT(TypedDict):
-    id: int
-    power: int
-    selected_list_id: int | None
-
-class ListResultT(TypedDict):
-    id: int
-    name: str
-    community_id: int
  
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class Community:
     MAX_NAME_LENGTH: ClassVar[int] = 64
     MAX_LISTS: ClassVar[int] = 1
@@ -43,29 +31,29 @@ class Community:
     name: str
     default_selected_list_id: int | None
 
-    @property
-    def guild_ids(self) -> frozenset[int]:
-        h = queries.ArgHelper()
+    _guild_ids: set[int] | None = field(init=False, default=None)
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELLECT id
-                FROM guild
-                WHERE community_id = {h|self.id}
-            """)
+    def get_guild_ids(self) -> set[int]:
+        if self._guild_ids is None:
+            h = queries.ArgHelper()
 
-            result: list[GuildResultT] = cursor.fetchall()
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    SELECT {TBL.Guild.id}
+                    FROM {TBL.Guild}
+                    WHERE {TBL.Guild.community_id} = {h|self.id}
+                """)
 
-        return frozenset(row['id'] for row in result)
+                result: S.ManyTableRowT = cursor.fetchall()
+
+            self._guild_ids = {row[TBL.Guild.id] for row in result}
+
+        return self._guild_ids
         
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.jumpedia.identity
     
-    @property
-    def database_name(self) -> str:
-        return f"{Community.DATABASE_PREFIX}{self.id}"
-
     def __hash__(self) -> int:
         return hash(self.identity)
     
@@ -73,16 +61,8 @@ class Community:
         return isinstance(value, self.__class__) and self.identity == value.identity
 
     def create_list(self, bad_name: str) -> 'List':
-        from structures.community import Community
-
         with equality_locked(self):
             lists = self.get_lists()
-
-            name = text.validate_and_sanitize_name(
-                bad_name, 
-                List.MAX_NAME_LENGTH, 
-                (list.name for list in lists)
-            )
 
             if name.endswith(List.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out `{List.INVALID_ENDING}` from the name, as it is redundant!")
