@@ -2,8 +2,10 @@ from contextlib import contextmanager
 import functools
 import json
 import pickle
-from typing import TYPE_CHECKING, Any, Callable, Final, Iterator
+from threading import RLock
+from typing import TYPE_CHECKING, Any, Callable, Final, Hashable, Iterator
 
+import mariadb.connections
 import mariadb.cursors
 
 from discordtools import feedbackerrors as fbe
@@ -20,7 +22,7 @@ CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
 }
 __connection_data: dict[str, Any] | None = None
 
-def __get_connection_data() -> dict[str, Any]:
+def __get_connection_data() -> dict[str, Hashable]:
     global __connection_data
 
     if __connection_data is None:
@@ -28,6 +30,12 @@ def __get_connection_data() -> dict[str, Any]:
     
     return __connection_data
 
+_active_connections: dict[frozenset[tuple[str, Hashable]], mariadb.Connection] = {}
+_ref_count: dict[frozenset[tuple[str, Hashable]], int] = {}
+_lock = RLock()
+
+def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozenset[tuple[str, Hashable]]:
+    return frozenset(connection_data.items())
 
 @contextmanager
 def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
@@ -39,15 +47,25 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
     else:
         database = {'db': Jumpedia().database_name}
 
-    conn: mariadb.Connection | None = None
-    
-    try:
-        conn = mariadb.connect(
-            **(__get_connection_data() | database)
-        )
-        existing_cursor = conn.cursor(dictionary=True)
+    connection_data = __get_connection_data() | database
 
-        yield conn, existing_cursor
+    try:
+        with _lock:
+            hashable = _connection_data_to_hashable(connection_data)
+            conn = _active_connections.setdefault(hashable, mariadb.connect(**connection_data))
+            conn.auto_reconnect = True
+            _ref_count[hashable] = _ref_count.get(hashable, 0) + 1
+
+        cursor = conn.cursor(dictionary=True)
+
+        yield conn, cursor
+
+        with _lock:
+            _ref_count[hashable] -= 1
+
+            if _ref_count[hashable] == 0:
+                _ref_count.pop(hashable)
+                _active_connections.pop(hashable)
 
     except Exception as e:
         if conn:
@@ -59,7 +77,7 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
         if conn:
             if auto_commit:
                 conn.commit()
-            existing_cursor.close()
+            cursor.close()
             conn.close()
 
 

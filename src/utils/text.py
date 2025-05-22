@@ -43,7 +43,7 @@ def norm(s: str, whitespace_repl: str = '_') -> str:
 def norm_syn(s: str) -> str:
     return norm(s, ' ')
 
-def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str]) -> str:
+def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str] = ()) -> str:
     from discordtools import feedbackerrors as fbe
 
     name = sanitize(bad_name)
@@ -59,7 +59,7 @@ def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterab
     
     return name
 
-def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> set[str]:
+def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> set[str]:
     from discordtools import feedbackerrors as fbe
 
     result: set[str] = set()
@@ -85,7 +85,7 @@ def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, m
     
     return result
 
-def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str]) -> tuple[str, set[str]]:
+def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> tuple[str, set[str]]:
     from discordtools import feedbackerrors as fbe
     
     forbidden = tuple(forbidden)

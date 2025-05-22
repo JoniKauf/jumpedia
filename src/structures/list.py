@@ -3,7 +3,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from functools import cached_property
 import json
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, NotRequired, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
 
 import mariadb
 
@@ -50,36 +50,6 @@ class List:
     community: 'Community'
     id: int
     name: str
-
-    @property
-    def name_attribute(self) -> StaticAttribute[str]:
-        return StaticAttribute(
-            list=self,
-            id=0,
-            name='name',
-            value_type=AttributeValueType.get_by_type(str),
-            index=1,
-            get_collection=[],
-            min_slots=1,
-            max_slots=1,
-            unique_slots=False,
-            get_value=lambda task: [task.name]
-        )
-    
-    @property
-    def alias_attribute(self) -> StaticAttribute[str]:
-        return StaticAttribute(
-            list=self,
-            id=0,
-            name='alias',
-            value_type=AttributeValueType.get_by_type(str),
-            index=2,
-            get_collection=[],
-            min_slots=0,
-            max_slots=StaticAttribute.MAX_SLOTS,
-            unique_slots=True,
-            get_value=lambda task: sorted(task.aliases)
-        )
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -257,22 +227,15 @@ class List:
     
 
     # --- All Attributes ---
-
-    def on_attribute_created(self, attribute: AnyAttributeT, bad_default_value: str | None) -> None:
-        with equality_locked(self):
-            if not self.get_tasks():
-                return
-            
-            default_value = attribute.from_str(bad_default_value or '[]')
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO {TBL}
-                """)
-
-            # TODO
-
     
+    def delete_attribute(self, bad_name: str) -> None:
+        static_attribute = self.get_static_attribute_by_name(text.sanitize(bad_name))
+
+        if static_attribute is not None:
+            return self.delete_static_attribute()
+
+        self._generic_delete_attribute(None, bad_name)
+        
     def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
         return self.get_static_attributes(where) + self.get_task_attributes(where) + self.get_user_attributes(where)
 
@@ -301,8 +264,8 @@ class List:
         self,
         bad_name: str,
         bad_aliases: Iterable[str],
-        min_slots: int,
         max_slots: int,
+        min_slots: int = 0
     ) -> tuple[str, set[str], int]:
         with equality_locked(self):
             name, aliases = text.validate_and_sanitize_syns(
@@ -330,11 +293,42 @@ class List:
 
             if not (0 <= min_slots <= max_slots):
                 raise fbe.TemporaryFeedbackError()
-
+            
             index = max(attr.index for attr in attributes) + 1 if attributes else 1
 
             return (name, aliases, index)
         
+    def _generic_delete_attribute(self, attribute_type: type[AnyAttributeT] | None, bad_name: str) -> None:
+        from database import dbutils
+
+        name = text.sanitize(bad_name)
+
+        h = queries.ArgHelper()
+
+        with equality_locked(self), queries.connected() as (conn, cursor):
+            if attribute_type is None:
+                attribute = self.get_attribute_by_name(name)
+
+                if attribute is None:
+                    raise fbe.TemporaryFeedbackError("No attribute with that name found")
+                
+                attribute_type = type(attribute)
+                
+            Tbl = dbutils.get_attribute_table(attribute_type)
+
+            cursor.execute(f"""
+                DELETE FROM {Tbl}
+                WHERE 
+                    {Tbl.list_id} = {h|self.id}
+                    AND {Tbl.name} = {h|name}
+            """, h.steal())
+
+            # For when attribute_type is given, otherwise this should always be != 0
+            affected: int = cursor.rowcount
+
+            if affected == 0:
+                raise fbe.TemporaryFeedbackError("No attribute with that name found")
+
 
     # --- Static Attribute ---
 
@@ -346,12 +340,13 @@ class List:
         min_slots: int,
         max_slots: int,
         unique_slots: bool,
-        unique_value_per_list: bool,
-        default_value: str | None
+        unique_value_per_list: bool
     ) -> StaticAttribute[T]:
         """This method should not public to the user!"""
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots, max_slots)
+            assert self.get_tasks() == []
+            
+            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots, min_slots)
 
             h = queries.ArgHelper()
             SAT = TBL.StaticAttribute
@@ -401,15 +396,16 @@ class List:
                     name=name,
                     value_type=value_type,
                     index=index,
-                    min_slots=min_slots,
+                    min_slots=0,
                     max_slots=max_slots,
                     unique_slots=unique_slots,
                     unique_value_per_list=unique_value_per_list
                 )
 
-                self.on_attribute_created(obj, default_value)
-
                 return obj
+            
+    def delete_static_attribute(self) -> Never:
+        raise fbe.TemporaryFeedbackError("Static attribute cannot be deleted!")
 
     def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
@@ -442,7 +438,7 @@ class List:
             unique_value_per_list=data[SAT.unique_value_per_list]
         )
     
-    def get_static_attributes(self, where: Callable[[queries.ArgHelper], str] | None) -> list[StaticAttribute]:
+    def get_static_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[StaticAttribute]:
         return [
             self._static_attribute_data_to_obj(data) 
             for data in self._fetch_static_attributes_from_table(where)
@@ -481,6 +477,16 @@ class List:
             self.get_static_attribute_by_name(syn)
             or self.get_static_attribute_by_alias(syn)
         )
+    
+    def get_static_name_attribute(self) -> StaticAttribute[str]:
+        name_attribute = self.get_static_attribute_by_name(Task.STATIC_NAME_ATTRIBUTE_NAME)
+        assert name_attribute is not None
+        return name_attribute
+    
+    def get_static_alias_attribute(self) -> StaticAttribute[str]:
+        alias_attribute = self.get_static_attribute_by_name(Task.STATIC_ALIAS_ATTRIBUTE_NAME)
+        assert alias_attribute is not None
+        return alias_attribute
 
     # --- Task Attributes ---
     
@@ -493,11 +499,10 @@ class List:
         min_slots: int,
         max_slots: int,
         unique_slots: bool,
-        unique_value_per_list: bool,
-        default_value: str | None
+        unique_value_per_list: bool
     ) -> TaskAttribute[T]:
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots, max_slots)
+            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots)
 
             h = queries.ArgHelper()
             SAT = TBL.TaskAttribute
@@ -555,9 +560,10 @@ class List:
 
                 self.handle_user_collection(bad_collection, obj)
 
-                self.on_attribute_created(obj, default_value)
-
                 return obj
+    
+    def delete_task_attribute(self, bad_name: str) -> None:
+        self._generic_delete_attribute(TaskAttribute, bad_name)
             
     def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
@@ -640,11 +646,10 @@ class List:
         bad_collection: str,
         min_slots: int,
         max_slots: int,
-        unique_slots: bool,
-        default_value: str | None
+        unique_slots: bool
     ) -> UserAttribute[T]:
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots, max_slots)
+            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots)
 
             h = queries.ArgHelper()
             UAT = TBL.UserAttribute
@@ -699,10 +704,10 @@ class List:
 
                 self.handle_user_collection(bad_collection, obj)
 
-                self.on_attribute_created(obj, default_value)
-
                 return obj
-            
+    
+    def delete_user_attribute(self, bad_name: str) -> None:
+        self._generic_delete_attribute(UserAttribute, bad_name)
 
     def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
@@ -776,6 +781,48 @@ class List:
 
     # --- Tasks ---
 
+    def create_task(self, bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
+        with equality_locked(self):
+            name, aliases = text.validate_and_sanitize_syns(
+                bad_name, 
+                bad_aliases, 
+                Task.MAX_SYN_LEN,
+                self.get_static_alias_attribute().max_slots
+            )
+
+            h = queries.ArgHelper()
+
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    INSERT INTO {TBL.Task} (
+                        {TBL.Task.list_id},
+                        {TBL.Task.name}
+                    )
+                    VALUES (
+                        {h|self.id},
+                        {h|name}
+                    )
+                """, h.steal())
+
+                task_id: int = cursor.lastrowid  # type: ignore
+
+                cursor.execute(f"""
+                    INSERT INTO {TBL.TaskAlias} (
+                        {TBL.TaskAlias.task_id},
+                        {TBL.TaskAlias.list_id},
+                        {TBL.TaskAlias.alias}
+                    ) 
+                    VALUES 
+                        {','.join(f"({h|task_id}, {h|self.id}, {h|alias})" for alias in aliases)}        
+                    
+                """, h.steal())
+
+            return Task(
+                list=self,
+                id=task_id,
+                name=name
+            )
+        
     def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         

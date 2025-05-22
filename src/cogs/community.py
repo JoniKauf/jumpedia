@@ -6,7 +6,7 @@ from discordtools import messagetools, predicates
 from structures.community import Community
 from structures.context import Context
 from structures.jumpedia import Jumpedia
-from structures.ranks import GuildRank, CommunityRank
+from structures.ranks import MetaRank, ServerRank, CommunityRank
 from discordtools import feedbackerrors as fbe
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -26,11 +26,11 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         )
 
     @acmds.command(description="Create a new community.")
-    @acmds.check(predicates.user_rank(CommunityRank.JONIKAUF))
+    @acmds.check(predicates.rank_required(MetaRank.JONIKAUF))
     async def create(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild is not None
 
-        community = Community.create_list(Jumpedia(), ia.guild.id, name)
+        community = Jumpedia().create_community(ia.user.id, ia.user.global_name or ia.user.name, ia.id, name)
 
         await messagetools.success(
             ia,
@@ -38,9 +38,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             f"The community with the name `{community.name}` was successfully created and is now bound to this server!"
         )
 
-    @acmds.command(description="Host a community in this server.")
-    @acmds.check(predicates.guild_rank(GuildRank.GUILD_OWNER))
-    async def host(self, ia: dc.Interaction, name: str) -> None:
+    @acmds.command(description="Connect a community to this server.")
+    @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
+    async def connect(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild_id is not None
 
         community = Jumpedia().get_community_by_name(name)
@@ -48,7 +48,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         if community is None:
             raise fbe.TemporaryFeedbackError("No community with that name found!")
         
-        community.add_to_guild(ia.guild_id)
+        community.add_to_server(ia.guild_id)
 
         await messagetools.success(
             ia,
@@ -56,17 +56,17 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             f"This server now successfully hosts the community `{community.name}`!"
         )
         
-    @acmds.command(description="Remove a community from this server.")
-    @acmds.check(predicates.guild_rank(GuildRank.GUILD_OWNER))
-    async def evict(self, ia: dc.Interaction) -> None:
+    @acmds.command(description="Disconnect a community from this server.")
+    @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
+    async def disconnect(self, ia: dc.Interaction) -> None:
         assert ia.guild_id is not None
 
-        community = Jumpedia().get_community_by_guild_id(ia.guild_id)
+        community = Jumpedia().get_community_by_server_id(ia.guild_id)
 
         if community is None:
             raise fbe.TemporaryFeedbackError("This community doesn't host a community.")
 
-        community.remove_from_guild(ia.guild_id)
+        community.remove_from_server(ia.guild_id)
 
         await messagetools.success(
             ia,

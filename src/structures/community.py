@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, Typed
 import discord as dc
 
 import mariadb
+from structures.attribute import AttributeValueType, StaticAttribute
+from structures.task import Task
 from utils import metautils, text
 from database import queries, strong as S
 from database.strong import Tables as TBL
@@ -13,7 +15,7 @@ from typing import Optional as Opt
 
 from structures.list import List
 from structures.user import User
-from structures.ranks import GuildRank, CommunityRank
+from structures.ranks import ServerRank, CommunityRank
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
@@ -31,24 +33,24 @@ class Community:
     name: str
     default_selected_list_id: int | None
 
-    _guild_ids: set[int] | None = field(init=False, default=None)
+    _server_ids: set[int] | None = field(init=False, default=None)
 
-    def get_guild_ids(self) -> set[int]:
-        if self._guild_ids is None:
+    def get_server_ids(self) -> set[int]:
+        if self._server_ids is None:
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    SELECT {TBL.Guild.id}
-                    FROM {TBL.Guild}
-                    WHERE {TBL.Guild.community_id} = {h|self.id}
-                """)
+                    SELECT {TBL.Server.id}
+                    FROM {TBL.Server}
+                    WHERE {TBL.Server.community_id} = {h|self.id}
+                """, h.steal())
 
                 result: S.ManyTableRowT = cursor.fetchall()
 
-            self._guild_ids = {row[TBL.Guild.id] for row in result}
+            self._server_ids = {row[TBL.Server.id] for row in result}
 
-        return self._guild_ids
+        return self._server_ids
         
     @property
     def identity(self) -> tuple[int, ...]:
@@ -62,35 +64,63 @@ class Community:
 
     def create_list(self, bad_name: str) -> 'List':
         with equality_locked(self):
-            lists = self.get_lists()
+            name = text.validate_and_sanitize_name(
+                bad_name,
+                List.MAX_NAME_LENGTH
+            )
 
             if name.endswith(List.INVALID_ENDING):
                 raise fbe.TemporaryFeedbackError(f"Please leave out `{List.INVALID_ENDING}` from the name, as it is redundant!")
             
-            if len(lists) >= Community.MAX_LISTS:
-                raise fbe.TemporaryFeedbackError("Limit reached")
+            if self.get_list_by_name(name) is not None:
+                raise fbe.TemporaryFeedbackError("A list with that name already exists")
+            
+            if (count := len(self.get_lists())) >= Community.MAX_LISTS:
+                raise fbe.TemporaryFeedbackError("Limit of lists reached", count)
             
             h = queries.ArgHelper()
 
-            with queries.connected(cursor) as (conn, cursor):
+            with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO list (
-                        name
+                    INSERT INTO {TBL.List} (
+                        {TBL.List.community_id},
+                        {TBL.List.name}
                     ) 
                     VALUES (
+                        {h|self.id},
                         {h|name}
                     )
                 """, h.steal())
                 
                 id: int = cursor.lastrowid  # type: ignore
 
-                obj = List(
+                list = List(
                     community=self,
                     id=id,
                     name=name
                 )
 
-            return obj
+                list.create_static_attribute(
+                    Task.STATIC_NAME_ATTRIBUTE_NAME,
+                    (),
+                    AttributeValueType.get_by_type(str),
+                    1,
+                    1,
+                    True,
+                    True
+                )
+
+                list.create_static_attribute(
+                    Task.STATIC_ALIAS_ATTRIBUTE_NAME,
+                    (),
+                    AttributeValueType.get_by_type(str),
+                    1,
+                    StaticAttribute.MAX_SLOTS,
+                    True,
+                    True
+                )
+
+            return list
             
             
     def delete_list(self, bad_name: str) -> None:
@@ -105,34 +135,31 @@ class Community:
 
             with equality_locked(list), queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    DELETE FROM list
-                    WHERE id = {h|self.id}
+                    DELETE FROM {TBL.List}
+                    WHERE {TBL.List.id} = {h|self.id}
                 """, h.steal())
 
 
-    def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[ListResultT]:
+    def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM list
-                WHERE community_id = {h|self.id}
+                FROM {TBL.List}
+                WHERE {TBL.List.community_id} = {h|self.id}
                 {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[ListResultT] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _list_data_to_obj(self, data: ListResultT) -> List:
-        if data is None:
-            return None
-        
+    def _list_data_to_obj(self, data: S.SingleTableRowT) -> List:
         return List(
             community=self,
-            id=data['id'],
-            name=data['name']
+            id=data[TBL.List.id],
+            name=data[TBL.List.name]
         )
     
     def get_lists(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[List]:
@@ -142,12 +169,12 @@ class Community:
         ]
 
     def get_list_by_id(self, id: int) -> List | None:
-        data = self._fetch_from_list_table(lambda h: f"id = {h|id}")
+        data = self._fetch_from_list_table(lambda h: f"{TBL.List.id} = {h|id}")
         return self._list_data_to_obj(data[0]) if data else None
     
     def get_list_by_name(self, name: str) -> List | None:
         name = text.norm(name)
-        data = self._fetch_from_list_table(lambda h: f"id = {h|name}")
+        data = self._fetch_from_list_table(lambda h: f"{TBL.List.name} = {h|name}")
         return self._list_data_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
@@ -156,28 +183,28 @@ class Community:
         
         return self.get_list_by_id(self.default_selected_list_id)
             
-    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[UserResultT]:
+    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM user
-                WHERE community_id = {h|self.id}
+                FROM {TBL.User}
+                WHERE {TBL.User.community_id} = {h|self.id}
                 {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list['UserResultT'] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _user_data_to_obj(self, data: UserResultT) -> 'User':  
-        id = data['id']
+    def _user_data_to_obj(self, data: S.SingleTableRowT) -> 'User':  
+        id = data[TBL.User.id]
 
         return User(
             community=self,
             id=id,
-            user_rank=CommunityRank.get(data['power']),
+            community_rank=CommunityRank.get(data[TBL.User.power]),
             meta_rank=self.jumpedia.get_meta_rank_by_user_id(id),
             selected_list=self.get_default_selected_list()
         )
@@ -189,12 +216,12 @@ class Community:
         ]
 
     def get_user_by_id(self, id: int) -> 'User | None':
-        data = self._fetch_from_user_table(lambda h: f"id = {h|id}")
+        data = self._fetch_from_user_table(lambda h: f"{TBL.User.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
     
-    def add_to_guild(self, guild_id: int) -> None:
+    def add_to_server(self, server_id: int) -> None:
         with equality_locked(self.jumpedia):
-            existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
+            existing_community = self.jumpedia.get_community_by_server_id(server_id)
 
             if existing_community is not None:
                 if self == existing_community:
@@ -210,23 +237,21 @@ class Community:
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO guild (
-                        id,
-                        community_id
+                    INSERT INTO {TBL.Server} (
+                        {TBL.Server.id},
+                        {TBL.Server.community_id}
                     )
                     VALUES (
-                        {h|guild_id},
+                        {h|server_id},
                         {h|self.id}
                     )
                 """, h.steal())
 
-            varname = metautils.varname(f"{self.guild_ids=}", False)
-            object.__setattr__(self, varname, self.guild_ids.union([guild_id]))
+            self.get_server_ids().add(server_id)
 
-    
-    def remove_from_guild(self, guild_id: int) -> None:
+    def remove_from_server(self, server_id: int) -> None:
         with equality_locked(self.jumpedia):
-            existing_community = self.jumpedia.get_community_by_guild_id(guild_id)
+            existing_community = self.jumpedia.get_community_by_server_id(server_id)
 
             if existing_community is None:
                 fbe.TemporaryFeedbackError("This server doesn't host a community.")
@@ -235,7 +260,7 @@ class Community:
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    DELETE FROM guild
-                    WHERE id = {h|guild_id}
+                    DELETE FROM {TBL.Server}
+                    WHERE {TBL.Server.id} = {h|server_id}
                 """, h.steal())
             

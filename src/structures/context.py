@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from structures.community import Community
     from structures.jumpedia import Jumpedia
     from structures.list import List
-    from structures.ranks import GuildRank
+    from structures.ranks import ServerRank
 
 @dataclass(frozen=True)
 class Context:
@@ -26,14 +26,14 @@ class Context:
         return Actor.create_or_get(self.interaction)
     
     @cached_property
-    def guild_rank(self) -> 'GuildRank':
-        from structures.ranks import GuildRank
-        return GuildRank.get_from_discord_user(self.interaction.user)
+    def guild_rank(self) -> 'ServerRank':
+        from structures.ranks import ServerRank
+        return ServerRank.get_from_discord_user(self.interaction.user)
 
     @cached_property
     def community(self) -> 'Community | None':
         from structures.jumpedia import Jumpedia
-        return Jumpedia().get_community_by_guild_id(self.interaction.guild_id or -1)
+        return Jumpedia().get_community_by_server_id(self.interaction.guild_id or -1)
     
     @cached_property
     def selected_list(self) -> 'List':

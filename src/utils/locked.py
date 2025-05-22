@@ -10,6 +10,8 @@ _lock = RLock()
 
 @contextlib.contextmanager
 def equality_locked(obj: Hashable):
+    """Lock objects that are equal with the same lock."""
+    
     with _lock:
         lock = _active_locks.setdefault(obj, RLock())
         _ref_count[obj] = _ref_count.get(obj, 0) + 1
