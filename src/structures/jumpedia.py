@@ -77,23 +77,14 @@ class Jumpedia(metaclass=metautils.Singleton):
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.Guild} (
-                        {TBL.Guild.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {TBL.Guild.community_id} INT NOT NULL,
+                    CREATE TABLE {TBL.Server} (
+                        {TBL.Server.id} BIGINT UNSIGNED PRIMARY KEY,
+                        {TBL.Server.community_id} INT NOT NULL,
 
-                        FOREIGN KEY ({TBL.Guild.community_id}) 
+                        FOREIGN KEY ({TBL.Server.community_id}) 
                             REFERENCES {TBL.Community}({TBL.Community.id}) 
                             ON DELETE CASCADE
                     )
-                """)
-
-                # Add foreign key to community, otherwise we would have circular dependency
-                cursor.execute(f"""
-                    ALTER TABLE {TBL.Community}
-                    ADD CONSTRAINT fk_community_default_list
-                    FOREIGN KEY ({TBL.Community.default_selected_list_id})
-                    REFERENCES {TBL.List}({TBL.List.id})
-                    ON DELETE SET NULL;
                 """)
 
                 cursor.execute(f"""
@@ -117,10 +108,20 @@ class Jumpedia(metaclass=metautils.Singleton):
                     )
                 """)
 
+                # Add foreign key to community, otherwise we would have circular dependency
+                cursor.execute(f"""
+                    ALTER TABLE {TBL.Community}
+                    ADD CONSTRAINT fk_community_default_list
+                    FOREIGN KEY ({TBL.Community.default_selected_list_id})
+                        REFERENCES {TBL.List}({TBL.List.id})
+                        ON DELETE SET NULL
+                """)
+
                 cursor.execute(f"""
                     CREATE TABLE {TBL.User} (
                         {TBL.User.id} BIGINT UNSIGNED PRIMARY KEY,
                         {TBL.User.community_id} INT NOT NULL,
+                        {TBL.User.name} VARCHAR({User.MAX_NAME_LENGTH}) NOT NULL,
                         {TBL.User.power} INT NOT NULL,
                         {TBL.User.selected_list_id} INT,
 
@@ -223,7 +224,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                             REFERENCES {TBL.TaskAttributeCollectionNode}({TBL.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.TaskAttributeCollectionNode.task_attribute_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                            REFERENCES {TBL.TaskAttribute}({TBL.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
@@ -291,7 +292,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                             REFERENCES {TBL.UserAttributeCollectionNode}({TBL.UserAttributeCollectionNode.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.UserAttributeCollectionNode.user_attribute_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                            REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
@@ -417,9 +418,9 @@ class Jumpedia(metaclass=metautils.Singleton):
 
     # --- Communities ---
 
-    def create_community(self, user_id: int, guild_id: int, bad_name: str) -> 'Community':
+    def create_community(self, user_id: int, user_name: str, server_id: int, bad_name: str) -> 'Community':
         with equality_locked(self):
-            community = self.get_community_by_guild_id(guild_id)
+            community = self.get_community_by_server_id(server_id)
 
             if community is not None:
                 raise fbe.TemporaryFeedbackError(
@@ -452,12 +453,12 @@ class Jumpedia(metaclass=metautils.Singleton):
                 community_id: int = cursor.lastrowid  # type: ignore
 
                 cursor.execute(f"""
-                    INSERT INTO {TBL.Guild} (
-                        {TBL.Guild.id}, 
-                        {TBL.Guild.community_id}
+                    INSERT INTO {TBL.Server} (
+                        {TBL.Server.id}, 
+                        {TBL.Server.community_id}
                     )
                     VALUES (
-                        {h|guild_id},
+                        {h|server_id},
                         {h|community_id}
                     )
                 """, h.steal())
@@ -466,11 +467,13 @@ class Jumpedia(metaclass=metautils.Singleton):
                     INSERT INTO {TBL.User} (
                         {TBL.User.id},
                         {TBL.User.community_id},
+                        {TBL.User.name},
                         {TBL.User.power}
                     )
                     VALUES (
                         {h|user_id},
                         {h|community_id},
+                        {h|user_name},
                         {h|CommunityRank.OWNER.power}     
                     )
                 """, h.steal())
@@ -500,9 +503,9 @@ class Jumpedia(metaclass=metautils.Singleton):
                 # Rollback if anything goes wrong up to this point
                 return obj
     
-    def delete_community(self, bad_name: str) -> None:
+    def delete_community(self, community_id: int) -> None:
         with equality_locked(self):
-            community = self.get_community_by_name(bad_name)
+            community = self.get_community_by_id(community_id)
 
             # Already deleted
             if community is None:
@@ -513,10 +516,10 @@ class Jumpedia(metaclass=metautils.Singleton):
             with equality_locked(community), queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM {TBL.Community}
-                    WHERE {TBL.Community.id} = {h|self.id}
+                    WHERE {TBL.Community.id} = {h|community_id}
                 """, h.steal())
     
-    def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[S.TableResultT]:
+    def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -526,11 +529,11 @@ class Jumpedia(metaclass=metautils.Singleton):
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[S.TableResultT] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _community_data_to_obj(self, data: S.TableResultT) -> 'Community':
+    def _community_data_to_obj(self, data: S.SingleTableRowT) -> 'Community':
         return Community(
             jumpedia=self,
             id=data[TBL.Community.id],
@@ -538,7 +541,7 @@ class Jumpedia(metaclass=metautils.Singleton):
             default_selected_list_id=data[TBL.Community.default_selected_list_id]
         )
     
-    def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list['Community']:
+    def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Community]:
         return [
             self._community_data_to_obj(data) 
             for data in self._fetch_from_community_table(where)
@@ -553,27 +556,27 @@ class Jumpedia(metaclass=metautils.Singleton):
         data = self._fetch_from_community_table(lambda h: f"{TBL.Community.name} = {h|name}")
         return self._community_data_to_obj(data[0]) if data else None
     
-    def get_community_by_guild_id(self, guild_id: int) -> 'Community | None':
+    def get_community_by_server_id(self, server_id: int) -> 'Community | None':
         h = queries.ArgHelper()
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.Guild.community_id}
-                FROM {TBL.Guild}
-                WHERE {TBL.Guild.id} = {h|guild_id}
+                SELECT {TBL.Server.community_id}
+                FROM {TBL.Server}
+                WHERE {TBL.Server.id} = {h|server_id}
             """, h.steal())
 
-            result: S.TableResultT | None = cursor.fetchone()
+            result: S.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None
 
-        return self.get_community_by_id(result[TBL.Guild.community_id])
+        return self.get_community_by_id(result[TBL.Server.community_id])
     
 
     # --- Meta Users ---
 
-    def _fetch_from_meta_rank_table(self, where: Callable[[queries.ArgHelper], str] | None) -> list[S.TableResultT]:
+    def _fetch_from_meta_rank_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -583,15 +586,15 @@ class Jumpedia(metaclass=metautils.Singleton):
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: list[S.TableResultT] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _meta_rank_data_to_obj(self, data: S.TableResultT) -> tuple[int, MetaRank]:
+    def _meta_rank_data_to_obj(self, data: S.SingleTableRowT) -> tuple[int, MetaRank]:
         return (data[TBL.MetaRank.user_id], MetaRank.get(data[TBL.MetaRank.power]))
     
-    def get_meta_ranks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> dict[int, 'MetaRank']:
-        result: dict[int, 'MetaRank'] = {}
+    def get_meta_ranks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> dict[int, MetaRank]:
+        result: dict[int, MetaRank] = {}
 
         for data in self._fetch_from_meta_rank_table(where):
             tup = self._meta_rank_data_to_obj(data)

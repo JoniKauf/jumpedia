@@ -5,7 +5,7 @@ import discord.ext.commands as cmds
 from discordtools import feedbackerrors as fbe
 
 from structures.context import Context
-from structures.ranks import GuildRank, CommunityRank
+from structures.ranks import AnyRank, MetaRank, ServerRank, CommunityRank
 
 type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
 type PredicateT = Callable[[dc.Interaction], Literal[True]]
@@ -25,32 +25,20 @@ def in_guild(guild: dc.Guild | int | None) -> PredicateT:
     return predicate_func
 
 
-def user_rank(
-    min_required: CommunityRank = CommunityRank.HIGHEST
-) -> AsyncPredicateT:
+def rank_required(rank_required: AnyRank) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
-        try:
-            user_rank = Context(ia).actor.user_rank
-        except fbe.TemporaryFeedbackError:
-            user_rank = CommunityRank.DEFAULT
+        actor = Context(ia).actor
 
-        if user_rank.permitted(min_required):
+        if actor.permitted(rank_required):
             return True
         
-        raise fbe.TemporaryFeedbackError(f"Your user rank is {user_rank} but you must at least be {min_required}") 
+        if isinstance(rank_required, MetaRank):
+            rank = actor.meta_rank
+        elif isinstance(rank_required, CommunityRank):
+            rank = actor.community_rank
+        else:
+            rank = actor.server_rank
 
-    return predicate_func
-
-
-def guild_rank(
-    min_required: GuildRank = GuildRank.HIGHEST
-) -> AsyncPredicateT:
-    async def predicate_func(ia: dc.Interaction) -> Literal[True]:
-        ctx = Context(ia)
-
-        if (guild_rank := ctx.guild_rank).permitted(ctx.actor.user_rank, min_required):
-            return True
-        
-        raise fbe.TemporaryFeedbackError(f"Your server rank is {guild_rank} but you must at least be {min_required}")
+        raise fbe.TemporaryFeedbackError(f"Your rank is '{rank}' but you must at least be {rank_required}") 
 
     return predicate_func

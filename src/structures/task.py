@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
 from utils import text
+from database import strong as S
+from database.strong import Tables as TBL
 
 from structures import user as user_
 
@@ -12,13 +14,12 @@ if TYPE_CHECKING:
     from structures.list import List
     from structures.user import UserIdentifierT
 
-class TaskAliasResultT(TypedDict):
-    alias: str
-
 @dataclass(frozen=True, kw_only=True)
 class Task:
     MAX_SYN_LEN: ClassVar[int] = 80
-    
+    STATIC_NAME_ATTRIBUTE_NAME: ClassVar[str] = 'Name'
+    STATIC_ALIAS_ATTRIBUTE_NAME: ClassVar[str] = 'Alias'
+
     list: 'List'
     id: int
     name: str
@@ -29,16 +30,16 @@ class Task:
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT alias
-                FROM task_alias
+                SELECT {TBL.TaskAlias.alias}
+                FROM {TBL.TaskAlias}
                 WHERE 
-                    list_id = {h|self.list.id}
-                    AND task_attribute_id = {h|self.id}
+                    {TBL.TaskAlias.list_id} = {h|self.list.id}
+                    AND {TBL.TaskAlias.task_id} = {h|self.id}
             """)
 
-            result: list[TaskAliasResultT] = cursor.fetchall()
+            result: S.ManyTableRowT = cursor.fetchall()
 
-        return frozenset(row['alias'] for row in result)
+        return frozenset(row[TBL.TaskAlias.alias] for row in result)
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -49,55 +50,6 @@ class Task:
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-    
-    @classmethod
-    def create(cls, list: 'List', bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
-        with list.edit_lock:
-            tasks = list.get_tasks()
-
-            name, aliases = text.validate_and_sanitize_syns(
-                bad_name, 
-                bad_aliases, 
-                cls.MAX_SYN_LEN, 
-                list.alias_attribute.max_slots,
-                (syn for task in tasks for syn in (task.name, *task.aliases))
-            )
-
-            aliases = frozenset(aliases)
-
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO task (
-                        list_id,
-                        name
-                    )
-                    VALUES (
-                        {h|list.id},
-                        {h|name}
-                    )
-                """, h.steal())
-
-                id: int = cursor.lastrowid  # type: ignore
-
-                cursor.execute(f"""
-                    INSERT INTO task_alias (
-                        task_id,
-                        list_id,
-                        alias
-                    ) 
-                    VALUES (
-                        {h|id},
-                        {','.join(f"({h|id}, {h|list.id}, {h|alias})" for alias in aliases)}        
-                    )
-                """, h.steal())
-
-            return cls(
-                list=list,
-                id=id,
-                name=name
-            )
     
     def get_tavc(self) -> Tavc:
         return Tavc(task=self)

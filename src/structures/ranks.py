@@ -9,7 +9,7 @@ import discord as dc
 
 from structures.context import Context
 
-type AnyRank = MetaRank | CommunityRank | GuildRank
+type AnyRank = MetaRank | CommunityRank | ServerRank
 
 @functools.total_ordering
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class _RankBase:
 
 @dataclass(frozen=True)
 class MetaRank(_RankBase):
-    _init_done: bool = False
+    _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['MetaRank']
     LOWEST: ClassVar['MetaRank']
@@ -75,7 +75,7 @@ class MetaRank(_RankBase):
 
 @dataclass(frozen=True)
 class CommunityRank(_RankBase):
-    _init_done: bool = False
+    _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['CommunityRank']
     LOWEST: ClassVar['CommunityRank']
@@ -89,41 +89,41 @@ class CommunityRank(_RankBase):
         cls.ADMINISTRATOR = CommunityRank(30, "Administrator")
         cls.OWNER = CommunityRank(40, "Owner")
 
-        cls.LOWEST = cls.LOWEST
+        cls.LOWEST = cls.USER
         cls.HIGHEST = cls.OWNER
-        cls.DEFAULT = cls.USER
+        cls.DEFAULT = cls.LOWEST
     
 
 @dataclass(frozen=True)
-class GuildRank(_RankBase):
-    _init_done: bool = False
+class ServerRank(_RankBase):
+    _init_done: ClassVar[bool] = False
 
-    DEFAULT: ClassVar['GuildRank']
-    LOWEST: ClassVar['GuildRank']
-    HIGHEST: ClassVar['GuildRank']
+    DEFAULT: ClassVar['ServerRank']
+    LOWEST: ClassVar['ServerRank']
+    HIGHEST: ClassVar['ServerRank']
 
     @classmethod
     def _init(cls):
-        cls.MEMBER = GuildRank(0, "Member")
-        cls.SERVER_ADMINISTRATOR = GuildRank(1, "Server Administrator")
-        cls.GUILD_OWNER = GuildRank(2, "Server Owner")
+        cls.MEMBER = ServerRank(0, "Member")
+        cls.SERVER_ADMINISTRATOR = ServerRank(1, "Server Administrator")
+        cls.SERVER_OWNER = ServerRank(2, "Server Owner")
 
         cls.LOWEST = cls.MEMBER
-        cls.HIGHEST = cls.GUILD_OWNER
+        cls.HIGHEST = cls.SERVER_OWNER
         cls.DEFAULT = cls.LOWEST
 
     @classmethod
-    def get_from_discord_user(cls, dc_user: dc.User | dc.Member) -> 'GuildRank':
+    def get_from_discord_user(cls, dc_user: dc.User | dc.Member) -> 'ServerRank':
         if not isinstance(dc_user, dc.Member):
-            return GuildRank.MEMBER
+            return ServerRank.MEMBER
         
         if dc_user.id == dc_user.guild.owner_id:
-            return GuildRank.GUILD_OWNER
+            return ServerRank.SERVER_OWNER
         
         if dc_user.guild_permissions.administrator:
-            return GuildRank.SERVER_ADMINISTRATOR
+            return ServerRank.SERVER_ADMINISTRATOR
         
-        return GuildRank.MEMBER
+        return ServerRank.MEMBER
 
 
 def _init():

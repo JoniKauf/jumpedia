@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Final, Self, TypedDict
 from discordtools import feedbackerrors as fbe
 import discord as dc
 
-from structures.ranks import _RankBase, AnyRank, GuildRank, MetaRank, CommunityRank
+from structures.ranks import _RankBase, AnyRank, ServerRank, MetaRank, CommunityRank
 from structures.context import Context
+from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.list import List
@@ -53,7 +54,7 @@ class User:
 
     community: 'Community'
     id: int
-    user_rank: CommunityRank
+    community_rank: CommunityRank
     meta_rank: MetaRank
     selected_list: 'List | None'
     
@@ -75,8 +76,8 @@ class Actor:
     id: int
     interaction: dc.Interaction
     meta_rank: MetaRank
-    user_rank: CommunityRank
-    guild_rank: GuildRank
+    community_rank: CommunityRank
+    server_rank: ServerRank
     selected_list: 'List | None'
     
     @property
@@ -96,24 +97,24 @@ class Actor:
         jumpedia = Jumpedia()
         meta_rank = jumpedia.get_meta_rank_by_user_id(actor.id)
 
-        if isinstance(actor, dc.User) or (community := jumpedia.get_community_by_guild_id(actor.guild.id)) is None:
+        if not isinstance(actor, dc.Member) or (community := jumpedia.get_community_by_server_id(actor.guild.id)) is None:
             return cls(
                 community=None,
                 id=actor.id,
                 interaction=interaction,
                 meta_rank=meta_rank,
-                user_rank=CommunityRank.DEFAULT,
-                guild_rank=GuildRank.DEFAULT,
+                community_rank=CommunityRank.DEFAULT,
+                server_rank=ServerRank.DEFAULT,
                 selected_list=None
             )
 
-        user_rank = CommunityRank.DEFAULT
+        server_rank = CommunityRank.DEFAULT
 
-        with community.edit_lock:
+        with equality_locked(community):
             user = community.get_user_by_id(actor.id)
 
             if user is not None:
-                user_rank = user.user_rank
+                server_rank = user.community_rank
             else:
                 h = queries.ArgHelper()
 
@@ -127,7 +128,7 @@ class Actor:
                         VALUES (
                             {h|actor.id},
                             {h|community.id},
-                            {h|user_rank.power}
+                            {h|server_rank.power}
                         )
                     """, h.steal())
 
@@ -136,8 +137,8 @@ class Actor:
             id=actor.id,
             interaction=interaction,
             meta_rank=meta_rank,
-            user_rank=user_rank,
-            guild_rank=GuildRank.get_from_discord_user(actor),
+            community_rank=server_rank,
+            server_rank=ServerRank.get_from_discord_user(actor),
             selected_list=user.selected_list if user is not None else None
         )
 
@@ -146,10 +147,10 @@ class Actor:
             return self.meta_rank >= required_rank
         
         if isinstance(required_rank, CommunityRank):
-            if self.user_rank >= required_rank:
+            if self.community_rank >= required_rank:
                 return True
         else:
-            if self.guild_rank >= required_rank:
+            if self.server_rank >= required_rank:
                 return True
         
         # Any Meta Rank is more powerful than the others besides NONE

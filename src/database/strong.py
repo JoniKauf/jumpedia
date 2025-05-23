@@ -41,7 +41,7 @@ class Tables:
         name: ColumnName
         default_selected_list_id: ColumnName
 
-    class Guild(metaclass=TableMeta):
+    class Server(metaclass=TableMeta):
         id: ColumnName
         community_id: ColumnName
 
@@ -60,7 +60,7 @@ class Tables:
     class User(metaclass=TableMeta):
         id: ColumnName
         community_id: ColumnName
-        # TODO: add name
+        name: ColumnName
         power: ColumnName
         selected_list_id: ColumnName
 
@@ -198,40 +198,3 @@ class Tables:
         value: ColumnName
 
         _attribute_id: ColumnName = ColumnName('user_attribute_id')
-    
-    @classmethod
-    def get_tables_for_attribute(cls, attribute: AnyAttributeT) -> (
-        tuple[
-            type[StaticAttribute], 
-            type[StaticAttributeAlias], 
-            None, 
-            None, 
-            type[StaticAttributeTaskValue]
-        ] |
-        tuple[
-            type[TaskAttribute], 
-            type[TaskAttributeAlias], 
-            type[TaskAttributeCollectionNode], 
-            type[TaskAttributeCollectionNodeAlias], 
-            type[TaskAttributeTaskValue]
-        ] |
-        tuple[
-            type[UserAttribute], 
-            type[UserAttributeAlias], 
-            type[UserAttributeCollectionNode], 
-            type[UserAttributeCollectionNodeAlias], 
-            type[UserAttributeTaskValue]
-        ]
-    ):
-        from structures.attribute import StaticAttribute as SA, TaskAttribute as TA, UserAttribute as UA
-
-        if isinstance(attribute, SA):
-            return cls.StaticAttribute, cls.StaticAttributeAlias, None, None, cls.StaticAttributeTaskValue
-        
-        if isinstance(attribute, TA):
-            return cls.TaskAttribute, cls.TaskAttributeAlias, cls.TaskAttributeCollectionNode, cls.TaskAttributeCollectionNodeAlias, cls.TaskAttributeTaskValue
-        
-        if isinstance(attribute, UA):
-            return cls.UserAttribute, cls.UserAttributeAlias, cls.UserAttributeCollectionNode, cls.UserAttributeCollectionNodeAlias, cls.UserAttributeTaskValue
-        
-        raise TypeError()

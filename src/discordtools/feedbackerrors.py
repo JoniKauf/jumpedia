@@ -145,7 +145,7 @@ class NoPermissionForOtherUsers(errors.FeedbackError):
     def __init__(
         self, 
         user_rank_and_min: Opt[tuple[ranks.CommunityRank, ranks.CommunityRank]] = None, 
-        server_rank_and_min: Opt[tuple[ranks.GuildRank, ranks.GuildRank]] = None,
+        server_rank_and_min: Opt[tuple[ranks.ServerRank, ranks.ServerRank]] = None,
     ):
         self.user_rank_and_min = user_rank_and_min
         self.server_rank_and_min = server_rank_and_min

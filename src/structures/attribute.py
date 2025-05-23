@@ -233,16 +233,16 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     def get_syns(self) -> set[str]:
         return {self.name} | self.get_aliases()
     
-    def get_aliases(self) -> set[str]:
-        raise NotImplementedError()
-
     def has_collection(self) -> bool:
         return bool(self.get_collection())
     
+    def get_aliases(self) -> set[str]:
+        raise NotImplementedError()
+
     def get_collection(self) -> CollectionTreeT[T]:
         raise NotImplementedError()
     
-    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+    def get_collection_item_by_value(self, value: T) -> CollectionTreeItem[T] | None:
         raise NotImplementedError()
     
     @classmethod
@@ -374,17 +374,18 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         result: list[T] = []
 
         for elem in elems:
-            try:
-                tree_item = self.get_collection_item_by_value(norm_for_collection(elem)]
-            except KeyError:
+            tree_item = self.get_collection_item_by_value(elem)
+            
+            if tree_item is None:
                 raise fbe.TemporaryFeedbackError("Not part of collection", elem)
 
             result.append(tree_item.value)
 
         return result
-    
-    def _sort_key_singular(self, value: T, sign: Literal[+1, -1]) -> int:
-        vt: type[T] = self.value_type.type
+
+    @classmethod
+    def _sort_key_singular(cls, value: T, sign: Literal[+1, -1], value_type: AttributeValueType[T]) -> int:
+        vt: type[T] = value_type.type
 
         if issubclass(vt, bool):
             return int(value + 1) * sign  # type: ignore
@@ -420,7 +421,12 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         if self.has_collection():
             try:
                 return tuple(
-                    self
+                    (
+                        coll_item.sort_value
+                        if (coll_item := self.get_collection_item_by_value(v)) is not None
+                        else self.__class__.SORT_KEY_NONE_NUMBER
+                    ) * sign
+                    for v in values
                 )
             except KeyError as e:
                 raise RuntimeError(
@@ -428,7 +434,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
                     f"should not happen."
                 )
         
-        return tuple(self._sort_key_singular(value, sign) for value in values)
+        return tuple(self._sort_key_singular(value, sign, self.value_type) for value in values)
     
     def is_empty(self, value: str) -> bool:
         return bool(self.from_str(value, None)) 
@@ -463,7 +469,7 @@ class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     def get_collection(self) -> CollectionTreeT[T]:
         return []
     
-    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
+    def get_collection_item_by_value(self, value: T) -> CollectionTreeItem[T] | None:
         return None
         
 
@@ -519,8 +525,8 @@ class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
         return self._collection
     
-    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
-        v = self.from_str_singular(bad_value, self.value_type)
+    def get_collection_item_by_value(self, value: T) -> CollectionTreeItem[T] | None:
+        v = _normalize_collection_value(value)
         return self._collection_item_lookup.get(v, None)
         
 
@@ -579,7 +585,6 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
         return self._collection
 
-    def get_collection_item_by_value(self, bad_value: str) -> CollectionTreeItem[T] | None:
-        v = self.from_str_singular(bad_value, self.value_type)
-        v = _normalize_collection_value(v)
+    def get_collection_item_by_value(self, value: T) -> CollectionTreeItem[T] | None:
+        v = _normalize_collection_value(value)
         return self._collection_item_lookup.get(v, None)
