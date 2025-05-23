@@ -1,13 +1,14 @@
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-
-from discordtools import messagetools, predicates
+from discord import ui
+from discordtools import messagetools, predicates, views
 from structures.community import Community
 from structures.context import Context
 from structures.jumpedia import Jumpedia
 from structures.ranks import MetaRank, ServerRank, CommunityRank
 from discordtools import feedbackerrors as fbe
+
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -30,12 +31,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def create(self, ia: dc.Interaction, name: str) -> None:
         assert ia.guild is not None
 
-        community = Jumpedia().create_community(ia.user.id, ia.user.global_name or ia.user.name, ia.id, name)
+        community = Jumpedia().create_community(ia.user.id, ia.user.global_name or ia.user.name, ia.guild.id, name)
 
         await messagetools.success(
             ia,
             "Community Created",
-            f"The community with the name `{community.name}` was successfully created and is now bound to this server!"
+            f"The community with the name `{community.name}` was successfully created and is now connected to this server!"
         )
 
     @acmds.command(description="Connect a community to this server.")
@@ -52,8 +53,8 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
         await messagetools.success(
             ia,
-            "New Community Host",
-            f"This server now successfully hosts the community `{community.name}`!"
+            "Community Connected",
+            f"This server has successfully been connected with the community `{community.name}`!"
         )
         
     @acmds.command(description="Disconnect a community from this server.")
@@ -64,15 +65,45 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         community = Jumpedia().get_community_by_server_id(ia.guild_id)
 
         if community is None:
-            raise fbe.TemporaryFeedbackError("This community doesn't host a community.")
+            raise fbe.TemporaryFeedbackError("This server isn't connected to a community.")
 
         community.remove_from_server(ia.guild_id)
 
         await messagetools.success(
             ia,
-            "Community Evicted",
-            f"The community `{community.name}` has successfully been evicted from this server!"
+            "Community Disconnected",
+            f"The community `{community.name}` has successfully been disconnected from this server!"
         )
+
+    @acmds.command()
+    @acmds.check(predicates.rank_required(CommunityRank.OWNER))
+    async def delete(self, ia: dc.Interaction) -> None:
+        assert ia.guild_id is not None
+
+        community = Jumpedia().get_community_by_server_id(ia.guild_id)
+
+        if community is None:
+            raise fbe.TemporaryFeedbackError("This server isn't connected to a community.")
+        
+        async def on_yes(inner_ia: dc.Interaction) -> bool:
+            if inner_ia.user.id != ia.user.id:
+                return False
+            
+            Jumpedia().delete_community(community.id)
+
+            await messagetools.success(
+                inner_ia,
+                "Community Deleted",
+                f"The community `{community.name}` has successfully been deleted!"
+            )
+
+            return True
+        
+        await ia.response.send_message(
+            f"Are you sure you want to delete the community `{community.name}`!",
+            view=views.DangerousConfirm(on_yes)
+        )
+        
 
 
 async def setup(bot: cmds.Bot):

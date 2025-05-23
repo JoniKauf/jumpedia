@@ -31,7 +31,6 @@ def __get_connection_data() -> dict[str, Hashable]:
     return __connection_data
 
 _active_connections: dict[frozenset[tuple[str, Hashable]], mariadb.Connection] = {}
-_ref_count: dict[frozenset[tuple[str, Hashable]], int] = {}
 _lock = RLock()
 
 def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozenset[tuple[str, Hashable]]:
@@ -48,23 +47,24 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
         database = {'db': Jumpedia().database_name}
 
     connection_data = __get_connection_data() | database
+    hashable = _connection_data_to_hashable(connection_data)
 
     try:
         with _lock:
-            hashable = _connection_data_to_hashable(connection_data)
-            conn = _active_connections.setdefault(hashable, mariadb.connect(**connection_data))
-            conn.auto_reconnect = True
-            _ref_count[hashable] = _ref_count.get(hashable, 0) + 1
+            conn = _active_connections.get(hashable, None)
+            
+            if conn is None:
+                _active_connections[hashable] = conn = mariadb.connect(**connection_data)
+                i_created_conn = True
+            else:
+                i_created_conn = False
 
         cursor = conn.cursor(dictionary=True)
 
         yield conn, cursor
 
         with _lock:
-            _ref_count[hashable] -= 1
-
-            if _ref_count[hashable] == 0:
-                _ref_count.pop(hashable)
+            if i_created_conn:
                 _active_connections.pop(hashable)
 
     except Exception as e:
@@ -78,7 +78,9 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
             if auto_commit:
                 conn.commit()
             cursor.close()
-            conn.close()
+
+            if i_created_conn:
+                conn.close()
 
 
 class ArgHelper:

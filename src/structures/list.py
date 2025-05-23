@@ -387,7 +387,6 @@ class List:
                     ) 
                     VALUES 
                         {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
-                    )
                 """, h.steal())
 
                 obj = StaticAttribute(
