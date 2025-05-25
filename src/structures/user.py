@@ -19,13 +19,13 @@ if TYPE_CHECKING:
 
 _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
-type UserIdentifierT = int | str | User | dc.User | dc.Member
+type UserIdentifierT = int | str | CommunityUser | dc.User | dc.Member
 
 
 def extract_id(user: UserIdentifierT) -> int:
     if isinstance(user, (str, int)):
         return _user_id_to_int(user)
-    elif isinstance(user, (User, dc.User, dc.Member)):
+    elif isinstance(user, (CommunityUser, dc.User, dc.Member)):
         return user.id
     
     raise TypeError()
@@ -47,20 +47,35 @@ def _user_id_to_int(user_id: str | int) -> int:
     
     return id
 
-
 @dataclass(frozen=True, kw_only=True)
 class User:
     MAX_NAME_LENGTH: ClassVar[int] = 32
 
-    community: 'Community'
     id: int
-    community_rank: CommunityRank
     meta_rank: MetaRank
+    name: str
+
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,)
+
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__) and self.identity == value.identity
+
+
+@dataclass(frozen=True, kw_only=True)
+class CommunityUser:
+    user: User
+    community: 'Community'
+    community_rank: CommunityRank
     selected_list: 'List | None'
     
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.community.identity
+        return (*self.user.identity, self.community.id)
     
     def __hash__(self) -> int:
         return hash(self.identity)
@@ -71,36 +86,42 @@ class User:
     
     
 @dataclass(frozen=True, kw_only=True)
-class Actor:
-    community: 'Community | None'
-    id: int
+class Interactor:
     interaction: dc.Interaction
-    meta_rank: MetaRank
-    community_rank: CommunityRank
+    any_user: User | CommunityUser
     server_rank: ServerRank
-    selected_list: 'List | None'
+
+    @property
+    def user(self) -> User:
+        return self.any_user if isinstance(self.any_user, User) else self.any_user.user
+    
+    @property
+    def community_user(self) -> CommunityUser | None:
+        return self.any_user if isinstance(self.any_user, CommunityUser) else None
     
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,) + (
-            self.community.identity 
-            if self.community is not None 
-            else (-1,)
-        )
+        return self.user.identity
+    
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__) and self.identity == value.identity
     
     @classmethod
-    def create_or_get(cls, interaction: dc.Interaction) -> 'Actor':
+    def create_or_get(cls, interaction: dc.Interaction) -> 'Interactor':
         from structures.jumpedia import Jumpedia
         
-        actor = interaction.user
+        dc_user = interaction.user
 
         jumpedia = Jumpedia()
-        meta_rank = jumpedia.get_meta_rank_by_user_id(actor.id)
+        meta_rank = jumpedia.get_user_by_id(dc_user.id)
 
-        if not isinstance(actor, dc.Member) or (community := jumpedia.get_community_by_server_id(actor.guild.id)) is None:
+        if not isinstance(dc_user, dc.Member) or (community := jumpedia.get_community_by_server_id(dc_user.guild.id)) is None:
             return cls(
                 community=None,
-                id=actor.id,
+                id=dc_user.id,
                 interaction=interaction,
                 meta_rank=meta_rank,
                 community_rank=CommunityRank.DEFAULT,
@@ -108,13 +129,13 @@ class Actor:
                 selected_list=None
             )
 
-        server_rank = CommunityRank.DEFAULT
+        community_rank = CommunityRank.DEFAULT
 
         with equality_locked(community):
-            user = community.get_user_by_id(actor.id)
+            user = community.get_user_by_id(dc_user.id)
 
             if user is not None:
-                server_rank = user.community_rank
+                community_rank = user.community_rank
             else:
                 h = queries.ArgHelper()
 
@@ -123,22 +144,24 @@ class Actor:
                         INSERT INTO user (
                             id,
                             community_id,
+                            name,
                             power
                         )
                         VALUES (
-                            {h|actor.id},
+                            {h|dc_user.id},
                             {h|community.id},
-                            {h|server_rank.power}
+                            {h|dc_user.display_name or dc_user.name},
+                            {h|community_rank.power}
                         )
                     """, h.steal())
 
         return cls(
             community=community,
-            id=actor.id,
+            id=dc_user.id,
             interaction=interaction,
             meta_rank=meta_rank,
-            community_rank=server_rank,
-            server_rank=ServerRank.get_from_discord_user(actor),
+            community_rank=community_rank,
+            server_rank=ServerRank.get_from_discord_user(dc_user),
             selected_list=user.selected_list if user is not None else None
         )
 
