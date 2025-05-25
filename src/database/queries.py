@@ -30,14 +30,14 @@ def __get_connection_data() -> dict[str, Hashable]:
     
     return __connection_data
 
-_active_connections: dict[frozenset[tuple[str, Hashable]], mariadb.Connection] = {}
+_connections: dict[frozenset[tuple[str, Hashable]], mariadb.Connection] = {}
 _lock = RLock()
 
 def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozenset[tuple[str, Hashable]]:
     return frozenset(connection_data.items())
 
 @contextmanager
-def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
+def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
     from structures.jumpedia import Jumpedia
     from structures.community import Community
 
@@ -51,21 +51,17 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
 
     try:
         with _lock:
-            conn = _active_connections.get(hashable, None)
+            conn = _connections.get(hashable, None)
             
             if conn is None:
-                _active_connections[hashable] = conn = mariadb.connect(**connection_data)
-                i_created_conn = True
+                close_conn = True
+                _connections[hashable] = conn = mariadb.connect(**connection_data)
             else:
-                i_created_conn = False
+                close_conn = False
 
         cursor = conn.cursor(dictionary=True)
 
         yield conn, cursor
-
-        with _lock:
-            if i_created_conn:
-                _active_connections.pop(hashable)
 
     except Exception as e:
         if conn:
@@ -75,12 +71,17 @@ def connected(auto_commit: bool = True, *, no_db: bool = False) -> Iterator[tupl
     
     finally:
         if conn:
-            if auto_commit:
+            if commit_on_exit:
                 conn.commit()
+            
             cursor.close()
+            
+            with _lock:
+                if close_conn:
+                    _connections.pop(hashable)
+                    conn.close()
 
-            if i_created_conn:
-                conn.close()
+            
 
 
 class ArgHelper:

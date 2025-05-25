@@ -42,7 +42,7 @@ type UserCollectionT = None | UserCollectionTreeT
 @dataclass(frozen=True, kw_only=True)
 class List:
     MAX_NAME_LENGTH: ClassVar[int] = 64
-    MAX_ATTRIBUTES: ClassVar[int] = 1
+    MAX_ATTRIBUTES: ClassVar[int] = 2
     MAX_TASKS: ClassVar[int] = 1
 
     INVALID_ENDING: ClassVar[str] = __name__.lower()
@@ -379,15 +379,16 @@ class List:
 
                 SAAT = TBL.StaticAttributeAlias
 
-                cursor.execute(f"""
-                    INSERT INTO {SAAT} (
-                        {SAAT.static_attribute_id},
-                        {SAAT.list_id},
-                        {SAAT.alias}
-                    ) 
-                    VALUES 
-                        {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
-                """, h.steal())
+                if aliases:
+                    cursor.execute(f"""
+                        INSERT INTO {SAAT} (
+                            {SAAT.static_attribute_id},
+                            {SAAT.list_id},
+                            {SAAT.alias}
+                        ) 
+                        VALUES 
+                            {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
+                    """, h.steal())
 
                 obj = StaticAttribute(
                     list=self,
