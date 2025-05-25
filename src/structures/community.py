@@ -14,7 +14,7 @@ import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
 from structures.list import List
-from structures.user import User
+from structures.user import CommunityUser
 from structures.ranks import ServerRank, CommunityRank
 from utils.locked import equality_locked
 
@@ -183,14 +183,14 @@ class Community:
         
         return self.get_list_by_id(self.default_selected_list_id)
             
-    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.User}
-                WHERE {TBL.User.community_id} = {h|self.id}
+                FROM {TBL.CommunityUser}
+                WHERE {TBL.CommunityUser.user_id} = {h|self.id}
                 {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
@@ -198,25 +198,26 @@ class Community:
 
         return result
     
-    def _user_data_to_obj(self, data: S.SingleTableRowT) -> 'User':  
+    def _user_data_to_obj(self, data: S.SingleTableRowT) -> 'CommunityUser':  
         id = data[TBL.User.id]
 
-        return User(
+        self.jumpedia.save_user()
+        return CommunityUser(
             community=self,
             id=id,
             community_rank=CommunityRank.get(data[TBL.User.power]),
-            meta_rank=self.jumpedia.get_meta_rank_by_user_id(id),
+            meta_rank=self.jumpedia.get_user_by_id(id),
             selected_list=self.get_default_selected_list()
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[User]:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[CommunityUser]:
         return [
             self._user_data_to_obj(data) 
-            for data in self._fetch_from_user_table(where)
+            for data in self._fetch_from_community_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> 'User | None':
-        data = self._fetch_from_user_table(lambda h: f"{TBL.User.id} = {h|id}")
+    def get_user_by_id(self, id: int) -> 'CommunityUser | None':
+        data = self._fetch_from_community_user_table(lambda h: f"{TBL.User.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
     
     def add_to_server(self, server_id: int) -> None:

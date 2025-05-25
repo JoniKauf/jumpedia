@@ -1,4 +1,4 @@
-from typing import (Any, Awaitable, Callable, Coroutine, Iterable, Literal, Optional, Sequence,
+from typing import (Any, Awaitable, Callable, Coroutine, Iterable, Literal, Sequence,
                     TypedDict)
 
 from discord import Interaction
@@ -52,9 +52,9 @@ def _is_followup_func(func: InteractionFuncT, interaction: Interaction):
 
 async def _handle_interaction_func(
     interaction: Interaction,
-    msg_kwargs: Optional[dict[str, Any]] = None,
+    msg_kwargs: dict[str, Any] | None = None,
     *,
-    success_func: Optional[InteractionFuncT] = None
+    success_func: InteractionFuncT | None = None
 ):
     if success_func is None:
         if interaction.response.is_done():
@@ -72,7 +72,7 @@ async def _handle_interaction_func(
     msg_kwargs = _get_relevant_kwargs(msg_kwargs, success_func) if msg_kwargs else {}
 
     await success_func(**msg_kwargs)
-
+    
 
 async def success(
     interaction: Interaction,
@@ -80,7 +80,7 @@ async def success(
     description: str,
     show_success: bool = True,
     *,
-    success_func: Optional[InteractionFuncT] = None,
+    success_func: InteractionFuncT | None = None,
     **msg_kwargs: Any
 ) -> None:
     msg = (

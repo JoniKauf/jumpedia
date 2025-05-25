@@ -70,16 +70,18 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[t
         raise e
     
     finally:
-        if conn:
-            if commit_on_exit:
-                conn.commit()
-            
-            cursor.close()
-            
-            with _lock:
-                if close_conn:
-                    _connections.pop(hashable)
-                    conn.close()
+        if conn is None:
+            return
+        
+        if commit_on_exit:
+            conn.commit()
+        
+        cursor.close()
+        
+        with _lock:
+            if close_conn:
+                _connections.pop(hashable)
+                conn.close()
 
             
 

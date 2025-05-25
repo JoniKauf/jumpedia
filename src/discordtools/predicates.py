@@ -27,7 +27,7 @@ def in_guild(guild: dc.Guild | int | None) -> PredicateT:
 
 def rank_required(rank_required: AnyRank) -> AsyncPredicateT:
     async def predicate_func(ia: dc.Interaction) -> Literal[True]:
-        actor = Context(ia).actor
+        actor = Context(ia).interactor
 
         if actor.permitted(rank_required):
             return True

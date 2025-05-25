@@ -105,8 +105,8 @@ class ServerRank(_RankBase):
     @classmethod
     def _init(cls):
         cls.MEMBER = ServerRank(0, "Member")
-        cls.SERVER_ADMINISTRATOR = ServerRank(1, "Server Administrator")
-        cls.SERVER_OWNER = ServerRank(2, "Server Owner")
+        cls.SERVER_ADMINISTRATOR = ServerRank(10, "Server Administrator")
+        cls.SERVER_OWNER = ServerRank(20, "Server Owner")
 
         cls.LOWEST = cls.MEMBER
         cls.HIGHEST = cls.SERVER_OWNER

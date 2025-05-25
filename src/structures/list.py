@@ -17,7 +17,7 @@ from database.strong import Tables as TBL
 
 import pickle
 
-from structures.user import User
+from structures.user import CommunityUser
 
 from structures.attribute import AbstractAttribute, AnyAttributeT, AttributeValueTypeT, CollectionTreeItem, CollectionTreeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
 from structures.task import Task

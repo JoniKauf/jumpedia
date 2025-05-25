@@ -45,10 +45,6 @@ class Tables:
         id: ColumnName
         community_id: ColumnName
 
-    class MetaRank(metaclass=TableMeta):
-        user_id: ColumnName
-        power: ColumnName
-
 
     # --- Per Community ---
 
@@ -59,8 +55,12 @@ class Tables:
 
     class User(metaclass=TableMeta):
         id: ColumnName
-        community_id: ColumnName
         name: ColumnName
+        meta_power: ColumnName
+
+    class CommunityUser(metaclass=TableMeta):
+        community_id: ColumnName
+        user_id: ColumnName
         power: ColumnName
         selected_list_id: ColumnName
 
