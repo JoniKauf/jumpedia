@@ -91,17 +91,19 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             
             Jumpedia().delete_community(community.id)
 
-            await messagetools.success(
-                inner_ia,
-                "Community Deleted",
-                f"The community `{community.name}` has successfully been deleted!"
-            )
+            return True
+        
+        async def on_no(inner_ia: dc.Interaction) -> bool:
+            if inner_ia.user.id != ia.user.id:
+                return False
 
             return True
         
+        view = views.DangerousConfirm(ia, on_yes, on_no)
+
         await ia.response.send_message(
             f"Are you sure you want to delete the community `{community.name}`!",
-            view=views.DangerousConfirm(on_yes)
+            view=view
         )
         
 

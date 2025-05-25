@@ -3,29 +3,61 @@ from typing import Callable, Coroutine
 import discord as dc
 from discord import app_commands as acmds
 
-class DangerousConfirm(dc.ui.View):
-    def __init__(self, on_yes: Callable[[dc.Interaction], Coroutine[None, None, bool]]):
-        self.on_yes = on_yes
-        super().__init__(timeout=30)
-    
-    def on_timeout(self) -> None:
-        self.disable_all_buttons()
+from discordtools import messagetools
 
-    def disable_all_buttons(self) -> None:
+YES_BUTTON_LABEL = "Yes"
+
+class DangerousConfirm(dc.ui.View):
+    def __init__(
+        self, 
+        interaction: dc.Interaction,
+        on_yes: Callable[[dc.Interaction], Coroutine[None, None, bool]], 
+        on_no: Callable[[dc.Interaction], Coroutine[None, None, bool]]
+    ):
+        self.interaction = interaction
+        self.on_yes = on_yes
+        self.on_no = on_no
+        super().__init__(timeout=30)
+
+        asyncio.create_task(self.enable_yes_button())
+
+    async def enable_yes_button(self) -> None:
+        await asyncio.sleep(5)
+
+        for child in self.children:
+            if isinstance(child, dc.ui.Button) and child.label == YES_BUTTON_LABEL:
+                child.disabled = False
+                break
+
+        await self.interaction.edit_original_response(view=self)
+
+    async def on_timeout(self) -> None:
+        await self.interaction.delete_original_response()
+
+    def disable_buttons(self) -> None:
         for child in self.children:
             if isinstance(child, dc.ui.Button):
                 child.disabled = True
                 
-    @dc.ui.button(style=dc.ButtonStyle.danger, label="Yes", emoji='⚠️')
+    @dc.ui.button(style=dc.ButtonStyle.danger, label=YES_BUTTON_LABEL, emoji='⚠️', disabled=True)
     async def yes(self, ia: dc.Interaction, button: dc.ui.Button):
         success = await self.on_yes(ia)
 
-        if success:
-            self.disable_all_buttons()
-            self.timeout = 3
+        if not success:
+            return
+
+        self.disable_buttons()
+        await ia.response.edit_message(content="Test Yes", view=self)
+        self.stop()
         
         
-    @dc.ui.button(style=dc.ButtonStyle.green, label="No")
-    async def cancel(self, ia: dc.Interaction, button: dc.ui.Button):
-        self.disable_all_buttons()
-        self.timeout = 3
+    @dc.ui.button(style=dc.ButtonStyle.green, label="No", emoji='❗')
+    async def no(self, ia: dc.Interaction, button: dc.ui.Button):
+        success = await self.on_no(ia)
+
+        if not success:
+            return
+        
+        self.disable_buttons()
+        await ia.response.edit_message(content="Test No", view=self)
+        self.stop()
