@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Final, Self, TypedDict
 from discordtools import feedbackerrors as fbe
 import discord as dc
 
-from structures.ranks import _RankBase, AnyRank, ServerRank, MetaRank, CommunityRank
+from structures.ranks import AbstractRank, AnyRank, ServerRank, MetaRank, CommunityRank
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
