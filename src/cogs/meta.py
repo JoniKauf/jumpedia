@@ -10,7 +10,6 @@ from structures.ranks import MetaRank
 class MetaCog(cmds.GroupCog, group_name="meta"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
-        self.interaction_check = predicates.in_guild(None)
 
     @acmds.command()
     async def i_am_joni(self, ia: dc.Interaction) -> None:
@@ -23,13 +22,15 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                INSERT INTO {TBL.MetaRank} (
-                    {TBL.MetaRank.user_id},
-                    {TBL.MetaRank.power}
+                INSERT INTO {TBL.User} (
+                    {TBL.User.id},
+                    {TBL.User.meta_power},
+                    {TBL.User.name}
                 )
                 VALUES (
                     {h|JONI_ID},
-                    {h|MetaRank.JONIKAUF.power}
+                    {h|MetaRank.JONIKAUF.power},
+                    {h|"JoniKauf"}
                 )
             """, h.steal())
 

@@ -14,7 +14,7 @@ import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
 from structures.list import List
-from structures.user import CommunityUser
+from structures.users import CommunityUser, MetaUser
 from structures.ranks import ServerRank, CommunityRank
 from utils.locked import equality_locked
 
@@ -129,7 +129,7 @@ class Community:
 
             # Check if list already deleted, but object used
             if list is None:
-                return
+                raise fbe.TemporaryFeedbackError("List not found")
                 
             h = queries.ArgHelper()
 
@@ -182,7 +182,57 @@ class Community:
             return None
         
         return self.get_list_by_id(self.default_selected_list_id)
-            
+    
+    
+    def create_or_get_community_user(self, dc_user: dc.User | dc.Member, repl_community_rank: CommunityRank | None = None) -> CommunityUser:
+        with equality_locked(self):
+            community_user = self.get_community_user_by_id(dc_user.id)
+            user = self.jumpedia.create_or_get_user(dc_user.id, dc_user.global_name or dc_user.name)
+
+            h = queries.ArgHelper()
+
+            with queries.connected() as (conn, cursor):
+                if community_user is None:
+                    community_rank = repl_community_rank or CommunityRank.DEFAULT
+                    selected_list = None
+
+                    cursor.execute(f"""
+                        INSERT INTO {TBL.CommunityUser} (
+                            {TBL.CommunityUser.community_id},
+                            {TBL.CommunityUser.user_id},
+                            {TBL.CommunityUser.power},
+                            {TBL.CommunityUser.selected_list_id}
+                        )
+                        VALUES (
+                            {h|self.id},
+                            {h|dc_user.id},
+                            {h|community_rank.power},
+                            {h|selected_list}
+                        )
+                    """, h.steal())
+
+                else:
+                    community_rank = repl_community_rank or community_user.community_rank
+                    selected_list = community_user.selected_list
+
+                    if community_rank != community_user.community_rank:
+                        cursor.execute(f"""
+                            UPDATE {TBL.CommunityUser}
+                            SET {TBL.CommunityUser.power} = {h|community_rank.power}
+                            WHERE 
+                                {TBL.CommunityUser.community_id} = {h|self.id}
+                                AND {TBL.CommunityUser.user_id} = {h|community_user.user.id}
+                        """, h.steal())
+                    else:
+                        community_rank = community_user.community_rank 
+
+                return CommunityUser(
+                    user=user,
+                    community=self,
+                    community_rank=community_rank,
+                    selected_list=selected_list
+                )
+
     def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
@@ -190,35 +240,32 @@ class Community:
             cursor.execute(f"""
                 SELECT *
                 FROM {TBL.CommunityUser}
-                WHERE {TBL.CommunityUser.user_id} = {h|self.id}
-                {f"AND {where(h)}" if where is not None else ""}
+                WHERE 
+                    {TBL.CommunityUser.community_id} = {h|self.id}
+                    {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
             result: S.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _user_data_to_obj(self, data: S.SingleTableRowT) -> 'CommunityUser':  
-        id = data[TBL.User.id]
-
-        self.jumpedia.save_user()
+    def _community_user_data_to_obj(self, data: S.SingleTableRowT) -> 'CommunityUser':  
         return CommunityUser(
             community=self,
-            id=id,
-            community_rank=CommunityRank.get(data[TBL.User.power]),
-            meta_rank=self.jumpedia.get_user_by_id(id),
-            selected_list=self.get_default_selected_list()
+            user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
+            community_rank=CommunityRank.get_index(data[TBL.CommunityUser.power]),
+            selected_list=self.get_list_by_id(data[TBL.CommunityUser.selected_list_id])
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[CommunityUser]:
+    def get_community_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[CommunityUser]:
         return [
-            self._user_data_to_obj(data) 
+            self._community_user_data_to_obj(data) 
             for data in self._fetch_from_community_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> 'CommunityUser | None':
-        data = self._fetch_from_community_user_table(lambda h: f"{TBL.User.id} = {h|id}")
-        return self._user_data_to_obj(data[0]) if data else None
+    def get_community_user_by_id(self, id: int) -> 'CommunityUser | None':
+        data = self._fetch_from_community_user_table(lambda h: f"{TBL.CommunityUser.user_id} = {h|id}")
+        return self._community_user_data_to_obj(data[0]) if data else None
     
     def add_to_server(self, server_id: int) -> None:
         with equality_locked(self.jumpedia):
