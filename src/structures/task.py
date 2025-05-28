@@ -6,13 +6,13 @@ from utils import text
 from database import strong as S
 from database.strong import Tables as TBL
 
-from structures import user as user_
+from structures import users as user_
 
 from structures.tavc import Tavc, Tuavc
 
 if TYPE_CHECKING:
     from structures.list import List
-    from structures.user import UserIdentifierT
+    from structures.users import UserIdentifierT
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
@@ -55,7 +55,7 @@ class Task:
         return Tavc(task=self)
     
     def get_tuavc(self, user: 'UserIdentifierT') -> Tuavc:
-        from structures.user import User
+        from structures.users import MetaUser
         return Tuavc(task=self, user_id=user_.extract_id(user))
         
     

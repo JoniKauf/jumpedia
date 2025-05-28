@@ -7,8 +7,6 @@ from database import queries
 from discordtools import errors
 import discord as dc
 
-from structures.context import Context
-
 type AnyRank = MetaRank | CommunityRank | ServerRank
 
 @functools.total_ordering
@@ -38,7 +36,7 @@ class _RankBase:
     @classmethod
     def get(cls, power: int) -> Self:
         return cls._lookup[power]
-
+    
     def __lt__(self, value: '_RankBase') -> bool:
         if type(self) != type(value):
             raise errors.ProgrammingError("cannot compare different rank types")
@@ -65,7 +63,7 @@ class MetaRank(_RankBase):
     @classmethod
     def _init(cls) -> None:
         cls.NONE = MetaRank(0, "None")
-        cls.META_ADMIN = MetaRank(10, "Meta Admin")
+        cls.META_ADMIN = MetaRank(100, "Meta Admin")
         cls.JONIKAUF = MetaRank(10 ** 6, "JoniKauf")
 
         cls.LOWEST = cls.NONE

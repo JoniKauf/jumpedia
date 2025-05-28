@@ -16,10 +16,10 @@ if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
     from structures.community import Community
 
-CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
-    mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
-    mariadb.FIELD_TYPE.BLOB: lambda blob: pickle.loads(blob)
-}
+# CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
+#     # mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
+#     # mariadb.FIELD_TYPE.BLOB: lambda blob: pickle.loads(blob)
+# }
 __connection_data: dict[str, Any] | None = None
 
 def __get_connection_data() -> dict[str, Hashable]:
@@ -29,6 +29,7 @@ def __get_connection_data() -> dict[str, Hashable]:
         __connection_data = secret.listen()['DB_CONNECTION_INFO']
     
     return __connection_data
+
 
 _connections: dict[frozenset[tuple[str, Hashable]], mariadb.Connection] = {}
 _lock = RLock()

@@ -47,7 +47,7 @@ class DangerousConfirm(dc.ui.View):
             return
 
         self.disable_buttons()
-        await ia.response.edit_message(view=self)
+        await ia.edit_original_response(view=self)
         self.stop()
         
         
@@ -59,5 +59,5 @@ class DangerousConfirm(dc.ui.View):
             return
         
         self.disable_buttons()
-        await ia.response.edit_message(view=self)
+        await ia.edit_original_response(view=self)
         self.stop()

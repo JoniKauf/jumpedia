@@ -8,7 +8,7 @@ from structures.attribute import TaskAttribute, UserAttribute
 from structures.list import List
 from structures.ranks import MetaRank, CommunityRank
 from structures.task import Task
-from structures.user import CommunityUser, User
+from structures.users import MetaUser
 from utils import metautils, text
 from database import queries, strong as S
 from database.strong import Tables as TBL
@@ -114,8 +114,8 @@ class Jumpedia(metaclass=metautils.Singleton):
                 cursor.execute(f"""
                     CREATE TABLE {TBL.User} (
                         {TBL.User.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {TBL.User.name} VARCHAR({User.MAX_NAME_LENGTH}) NOT NULL,
-                        {TBL.User.meta_power} INT NOT NULL,
+                        {TBL.User.name} VARCHAR({MetaUser.MAX_NAME_LENGTH}) NOT NULL,
+                        {TBL.User.meta_power} INT NOT NULL
                     )
                 """)
 
@@ -124,7 +124,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                         {TBL.CommunityUser.community_id} INT NOT NULL,
                         {TBL.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
                         {TBL.CommunityUser.power} INT NOT NULL,
-                        {TBL.CommunityUser.selected_list_id} INT NOT NULL,
+                        {TBL.CommunityUser.selected_list_id} INT,
 
                         PRIMARY KEY ({TBL.CommunityUser.community_id}, {TBL.CommunityUser.user_id}),
 
@@ -422,7 +422,7 @@ class Jumpedia(metaclass=metautils.Singleton):
 
     # --- Communities ---
 
-    def create_community(self, user_id: int, user_name: str, server_id: int, bad_name: str) -> 'Community':
+    def create_community(self, dc_user: dc.User | dc.Member, server_id: int, bad_name: str) -> 'Community':
         with equality_locked(self):
             community = self.get_community_by_server_id(server_id)
 
@@ -467,38 +467,24 @@ class Jumpedia(metaclass=metautils.Singleton):
                     )
                 """, h.steal())
                 
-                obj = Community(
+                community = Community(
                     jumpedia=self,
                     id=community_id,
                     default_selected_list_id=None,
                     name=name
                 )  
 
-                cursor.execute(f"""
-                    INSERT INTO {TBL.CommunityUser} (
-                        {TBL.CommunityUser.community_id},
-                        {TBL.CommunityUser.user_id},
-                        {TBL.CommunityUser.power}
-                    )
-                    VALUES (
-                        {h|community_id},
-                        {h|user_id},
-                        {h|user_name},
-                        {h|CommunityRank.OWNER.power}     
-                    )
-                """, h.steal())
+                community.create_or_get_community_user(dc_user, CommunityRank.OWNER)
 
-                
-
-                list = obj.create_list('Main')
+                list = community.create_list('Main')
 
                 cursor.execute(f"""
                     UPDATE {TBL.Community}
                     SET {TBL.Community.default_selected_list_id} = {h|list.id}
-                    WHERE {TBL.Community.id} = {h|obj.id}
+                    WHERE {TBL.Community.id} = {h|community.id}
                 """, h.steal())
 
-                obj = Community(
+                community = Community(
                     jumpedia=self,
                     id=community_id,
                     default_selected_list_id=list.id,
@@ -506,7 +492,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                 )
 
                 # Rollback if anything goes wrong up to this point
-                return obj
+                return community
     
     def delete_community(self, community_id: int) -> None:
         with equality_locked(self):
@@ -514,7 +500,7 @@ class Jumpedia(metaclass=metautils.Singleton):
 
             # Already deleted
             if community is None:
-                return
+                raise fbe.TemporaryFeedbackError("Community not found")
             
             h = queries.ArgHelper()
 
@@ -581,18 +567,19 @@ class Jumpedia(metaclass=metautils.Singleton):
 
     # --- Meta Users ---
 
-    def save_user(self, dc_user: dc.User | dc.Member) -> User:
+    def create_or_get_user(self, user_id: int, user_name: str | None) -> MetaUser:
         with equality_locked(self):
-            user = self.get_user_by_id(dc_user.id)
-
+            user = self.get_user_by_id(user_id)
+            
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
-                id = dc_user.id
-                name = dc_user.global_name or dc_user.name
-                meta_rank = MetaRank.DEFAULT
-
                 if user is None:
+                    if user_name is None:
+                        raise fbe.TemporaryFeedbackError("A user must have used Jumpedia at least once before to be registered.")
+
+                    meta_rank = MetaRank.DEFAULT
+
                     cursor.execute(f"""
                         INSERT INTO {TBL.User} (
                             {TBL.User.id},
@@ -600,26 +587,29 @@ class Jumpedia(metaclass=metautils.Singleton):
                             {TBL.User.name}
                         )
                         VALUES (
-                            {h|id},
-                            {h|meta_rank},
-                            {h|name}
+                            {h|user_id},
+                            {h|meta_rank.power},
+                            {h|user_name}
                         )
                     """, h.steal())
 
                 else:
                     meta_rank = user.meta_rank
+                    
+                    if user_name is None:
+                        user_name = user.name
 
-                    if user.name != name:
+                    elif user.name != user_name:
                         cursor.execute(f"""
                             UPDATE {TBL.User} 
-                            SET {TBL.User.name} = {h|name}
+                            SET {TBL.User.name} = {h|user_name}
                             WHERE {TBL.User.id} = {h|user.id}
                         """, h.steal())
-
-                return User(
-                    id=id,
+                        
+                return MetaUser(
+                    id=user_id,
                     meta_rank=meta_rank,
-                    name=name
+                    name=user_name
                 )
 
     def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
@@ -636,20 +626,20 @@ class Jumpedia(metaclass=metautils.Singleton):
 
         return result
     
-    def _user_data_to_obj(self, data: S.SingleTableRowT) -> User:
-        return User(
+    def _user_data_to_obj(self, data: S.SingleTableRowT) -> MetaUser:
+        return MetaUser(
             id=data[TBL.User.id],
-            meta_rank=MetaRank.get(data[TBL.User.meta_power]),
+            meta_rank=MetaRank.get_index(data[TBL.User.meta_power]),
             name=data[TBL.User.name]
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[User]:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[MetaUser]:
         return [
             self._user_data_to_obj(data) 
             for data in self._fetch_from_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> User | None:
+    def get_user_by_id(self, id: int) -> MetaUser | None:
         data = self._fetch_from_user_table(lambda h: f"{TBL.User.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 

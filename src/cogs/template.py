@@ -7,7 +7,6 @@ from discordtools import messagetools, predicates, feedbackerrors as fbe
 class Template(cmds.GroupCog, group_name="template"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
-        self.interaction_check = predicates.in_guild(None)
 
 
 async def setup(bot: cmds.Bot):

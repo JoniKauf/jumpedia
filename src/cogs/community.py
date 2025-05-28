@@ -4,7 +4,7 @@ import discord.ext.commands as cmds
 from discord import ui
 from discordtools import messagetools, predicates, views
 from structures.community import Community
-from structures.context import Context
+from discordtools.context import Context
 from structures.jumpedia import Jumpedia
 from structures.ranks import MetaRank, ServerRank, CommunityRank
 from discordtools import feedbackerrors as fbe
@@ -13,8 +13,7 @@ from discordtools import feedbackerrors as fbe
 class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
-        self.interaction_check = predicates.in_guild(None)
-
+        
     @acmds.command(description="List all communities.")
     async def catalog(self, ia: dc.Interaction) -> None:
         communities = Jumpedia().get_communities()

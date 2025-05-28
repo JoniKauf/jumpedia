@@ -69,7 +69,7 @@ class AbstractTavc[T: AnyAttributeT]:
     def _add_task_attributes(self) -> None:
         h = queries.ArgHelper()
 
-        with queries.connected(self.task.list.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
                 FROM task_attribute_task_value
@@ -130,7 +130,7 @@ class Tuavc(AbstractTavc[TauvcAttributeT]):
     def _add_user_attributes(self) -> None:
         h = queries.ArgHelper()
 
-        with queries.connected(self.task.list.community) as (conn, cursor):
+        with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
                 FROM user_attribute_task_value

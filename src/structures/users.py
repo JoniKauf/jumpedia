@@ -8,7 +8,6 @@ from discordtools import feedbackerrors as fbe
 import discord as dc
 
 from structures.ranks import _RankBase, AnyRank, ServerRank, MetaRank, CommunityRank
-from structures.context import Context
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
@@ -19,14 +18,18 @@ if TYPE_CHECKING:
 
 _USER_MENTION_PATTERN: re.Pattern = re.compile(r'^<@!?(\d+)>$|^<@&(\d+)>$')
 
-type UserIdentifierT = int | str | CommunityUser | dc.User | dc.Member
+type UserIdentifierT = int | str | MetaUser | CommunityUser | ServerUser | dc.User | dc.Member
 
 
-def extract_id(user: UserIdentifierT) -> int:
-    if isinstance(user, (str, int)):
-        return _user_id_to_int(user)
-    elif isinstance(user, (CommunityUser, dc.User, dc.Member)):
-        return user.id
+def extract_id(identifier: UserIdentifierT) -> int:
+    if isinstance(identifier, str | int):
+        return _user_id_to_int(identifier)
+    
+    if isinstance(identifier, CommunityUser | ServerUser):
+        return identifier.user.id
+
+    if isinstance(identifier, MetaUser | dc.User | dc.Member):
+        return identifier.id
     
     raise TypeError()
 
@@ -48,7 +51,7 @@ def _user_id_to_int(user_id: str | int) -> int:
     return id
 
 @dataclass(frozen=True, kw_only=True)
-class User:
+class MetaUser:
     MAX_NAME_LENGTH: ClassVar[int] = 32
 
     id: int
@@ -68,10 +71,14 @@ class User:
 
 @dataclass(frozen=True, kw_only=True)
 class CommunityUser:
-    user: User
+    user: MetaUser
     community: 'Community'
     community_rank: CommunityRank
     selected_list: 'List | None'
+    
+    @property
+    def meta_rank(self) -> MetaRank:
+        return self.user.meta_rank
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -86,18 +93,21 @@ class CommunityUser:
     
     
 @dataclass(frozen=True, kw_only=True)
-class Interactor:
-    interaction: dc.Interaction
-    any_user: User | CommunityUser
+class ServerUser:
+    community_user: CommunityUser
     server_rank: ServerRank
 
     @property
-    def user(self) -> User:
-        return self.any_user if isinstance(self.any_user, User) else self.any_user.user
+    def user(self) -> MetaUser:
+        return self.community_user.user
     
     @property
-    def community_user(self) -> CommunityUser | None:
-        return self.any_user if isinstance(self.any_user, CommunityUser) else None
+    def meta_rank(self) -> MetaRank:
+        return self.community_user.meta_rank
+    
+    @property
+    def community_rank(self) -> CommunityRank:
+        return self.community_user.community_rank
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -109,62 +119,6 @@ class Interactor:
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
-    @classmethod
-    def create_or_get(cls, interaction: dc.Interaction) -> 'Interactor':
-        from structures.jumpedia import Jumpedia
-        
-        dc_user = interaction.user
-
-        jumpedia = Jumpedia()
-        meta_rank = jumpedia.get_user_by_id(dc_user.id)
-
-        if not isinstance(dc_user, dc.Member) or (community := jumpedia.get_community_by_server_id(dc_user.guild.id)) is None:
-            return cls(
-                community=None,
-                id=dc_user.id,
-                interaction=interaction,
-                meta_rank=meta_rank,
-                community_rank=CommunityRank.DEFAULT,
-                server_rank=ServerRank.DEFAULT,
-                selected_list=None
-            )
-
-        community_rank = CommunityRank.DEFAULT
-
-        with equality_locked(community):
-            user = community.get_user_by_id(dc_user.id)
-
-            if user is not None:
-                community_rank = user.community_rank
-            else:
-                h = queries.ArgHelper()
-
-                with queries.connected() as (conn, cursor):
-                    cursor.execute(f"""
-                        INSERT INTO user (
-                            id,
-                            community_id,
-                            name,
-                            power
-                        )
-                        VALUES (
-                            {h|dc_user.id},
-                            {h|community.id},
-                            {h|dc_user.display_name or dc_user.name},
-                            {h|community_rank.power}
-                        )
-                    """, h.steal())
-
-        return cls(
-            community=community,
-            id=dc_user.id,
-            interaction=interaction,
-            meta_rank=meta_rank,
-            community_rank=community_rank,
-            server_rank=ServerRank.get_from_discord_user(dc_user),
-            selected_list=user.selected_list if user is not None else None
-        )
-
     def permitted(self, required_rank: AnyRank) -> bool:
         if isinstance(required_rank, MetaRank):
             return self.meta_rank >= required_rank
@@ -177,4 +131,4 @@ class Interactor:
                 return True
         
         # Any Meta Rank is more powerful than the others besides NONE
-        return self.meta_rank is not MetaRank.NONE
+        return self.meta_rank > MetaRank.NONE

@@ -19,7 +19,6 @@ from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.list import List
-    from structures.task import Task
 
 # --- Constants --- #
 
