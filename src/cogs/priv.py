@@ -1,3 +1,4 @@
+from enum import Enum
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
@@ -99,10 +100,15 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
     
     user_group = acmds.Group(name="user", description="Edit things about users.")
 
-    @acmds.command()
+    PromoteRanks = Enum('PromoteRanks', [(rank.name, rank) for rank in CommunityRank.iter()])
+
+    @user_group.command()
+    @acmds.choices(rank=PROMOTE_RANKS)
     # @acmds.check(predicates.rank_required(CommunityRank.MODERATOR))
-    async def promote(self, ia: dc.Interaction, user: dc.User) -> None:
-        pass
+    async def promote(self, ia: dc.Interaction, user: dc.User, rank: acmds.Choice[int] | None = None) -> None:
+        ctx = Context(ia)
+
+        
 
 async def setup(bot: cmds.Bot):
     await bot.add_cog(PrivCog(bot))

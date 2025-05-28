@@ -629,7 +629,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     def _user_data_to_obj(self, data: S.SingleTableRowT) -> MetaUser:
         return MetaUser(
             id=data[TBL.User.id],
-            meta_rank=MetaRank.get_index(data[TBL.User.meta_power]),
+            meta_rank=MetaRank.get(data[TBL.User.meta_power]),
             name=data[TBL.User.name]
         )
     

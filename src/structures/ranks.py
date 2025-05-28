@@ -2,16 +2,19 @@
 
 from dataclasses import dataclass
 import functools
-from typing import ClassVar, Self
+from typing import Any, Callable, ClassVar, Iterator, Self
 from database import queries
 from discordtools import errors
 import discord as dc
 
 type AnyRank = MetaRank | CommunityRank | ServerRank
 
+def rank_cls_iter(cls: type['AbstractRank']) -> Iterator['AbstractRank']:
+    return iter(cls._lookup.values())
+
 @functools.total_ordering
 @dataclass(frozen=True)
-class _RankBase:
+class AbstractRank():
     _init_done: ClassVar[bool] = False
     
     power: int
@@ -37,7 +40,11 @@ class _RankBase:
     def get(cls, power: int) -> Self:
         return cls._lookup[power]
     
-    def __lt__(self, value: '_RankBase') -> bool:
+    @classmethod
+    def iter(cls) -> Iterator[Self]:
+        return iter(cls._lookup.values())
+    
+    def __lt__(self, value: 'AbstractRank') -> bool:
         if type(self) != type(value):
             raise errors.ProgrammingError("cannot compare different rank types")
         return self.power < value.power
@@ -53,7 +60,7 @@ class _RankBase:
 
 
 @dataclass(frozen=True)
-class MetaRank(_RankBase):
+class MetaRank(AbstractRank):
     _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['MetaRank']
@@ -72,7 +79,7 @@ class MetaRank(_RankBase):
     
 
 @dataclass(frozen=True)
-class CommunityRank(_RankBase):
+class CommunityRank(AbstractRank):
     _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['CommunityRank']
@@ -93,7 +100,7 @@ class CommunityRank(_RankBase):
     
 
 @dataclass(frozen=True)
-class ServerRank(_RankBase):
+class ServerRank(AbstractRank):
     _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['ServerRank']
@@ -125,7 +132,7 @@ class ServerRank(_RankBase):
 
 
 def _init():
-    for cls in _RankBase.__subclasses__():
+    for cls in AbstractRank.__subclasses__():
         cls._init()
         cls._init_done = True
         
