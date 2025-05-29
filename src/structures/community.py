@@ -184,10 +184,10 @@ class Community:
         return self.get_list_by_id(self.default_selected_list_id)
     
     
-    def create_or_get_community_user(self, dc_user: dc.User | dc.Member, repl_community_rank: CommunityRank | None = None) -> CommunityUser:
+    def create_or_get_community_user(self, user_id: int, user_name: str, repl_community_rank: CommunityRank | None = None) -> CommunityUser:
         with equality_locked(self):
-            community_user = self.get_community_user_by_id(dc_user.id)
-            user = self.jumpedia.create_or_get_user(dc_user.id, dc_user.global_name or dc_user.name)
+            community_user = self.get_community_user_by_id(user_id)
+            user = self.jumpedia.create_or_get_user(user_id, user_name)
 
             h = queries.ArgHelper()
 
@@ -205,7 +205,7 @@ class Community:
                         )
                         VALUES (
                             {h|self.id},
-                            {h|dc_user.id},
+                            {h|user_id},
                             {h|community_rank.power},
                             {h|selected_list}
                         )
@@ -233,6 +233,19 @@ class Community:
                     selected_list=selected_list
                 )
 
+    def change_community_user_community_rank(self, user_id: int, user_name: str, community_rank: CommunityRank) -> None:
+        with equality_locked(self):
+            self.create_or_get_community_user(user_id, user_name)
+
+            h = queries.ArgHelper()
+
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    UPDATE {TBL.CommunityUser}
+                    SET {TBL.CommunityUser.power} = {h|community_rank.power}
+                    WHERE {TBL.CommunityUser.user_id} = {h|user_id}
+                """, h.steal())
+
     def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()
         
@@ -253,7 +266,7 @@ class Community:
         return CommunityUser(
             community=self,
             user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
-            community_rank=CommunityRank.get_index(data[TBL.CommunityUser.power]),
+            community_rank=CommunityRank.get(data[TBL.CommunityUser.power]),
             selected_list=self.get_list_by_id(data[TBL.CommunityUser.selected_list_id])
         )
     

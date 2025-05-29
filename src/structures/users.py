@@ -84,11 +84,16 @@ class CommunityUser:
     def identity(self) -> tuple[int, ...]:
         return (*self.user.identity, self.community.id)
     
+    @property
+    def highest_rank(self) -> CommunityRank | MetaRank:
+        return self.meta_rank or self.community_rank
+    
     def __hash__(self) -> int:
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
+
     
     
     

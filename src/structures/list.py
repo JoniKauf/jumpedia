@@ -229,7 +229,7 @@ class List:
     # --- All Attributes ---
     
     def delete_attribute(self, bad_name: str) -> None:
-        static_attribute = self.get_static_attribute_by_name(text.sanitize(bad_name))
+        static_attribute = self.get_attribute_by_name(text.sanitize(bad_name))
 
         if static_attribute is not None:
             return self.delete_static_attribute()

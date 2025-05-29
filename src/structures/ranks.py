@@ -16,7 +16,8 @@ def rank_cls_iter(cls: type['AbstractRank']) -> Iterator['AbstractRank']:
 @dataclass(frozen=True)
 class AbstractRank():
     _init_done: ClassVar[bool] = False
-    
+    SORTED: ClassVar[tuple[Self, ...]]
+
     power: int
     name: str
     
@@ -33,6 +34,12 @@ class AbstractRank():
         cls._lookup: dict[int, Self] = {}
 
     @classmethod
+    def _create_sorted(cls) -> None:
+        cls.SORTED = tuple(
+            sorted(cls._lookup.values(), key=lambda rank: rank.power)
+        )
+
+    @classmethod
     def _init(cls) -> None:
         raise NotImplementedError()
 
@@ -42,7 +49,7 @@ class AbstractRank():
     
     @classmethod
     def iter(cls) -> Iterator[Self]:
-        return iter(cls._lookup.values())
+        return iter(cls.SORTED)
     
     def __lt__(self, value: 'AbstractRank') -> bool:
         if type(self) != type(value):
@@ -57,6 +64,11 @@ class AbstractRank():
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.power}, {self.name})"
+    
+    def __bool__(self) -> bool:
+        return self.power != 0
+
+
 
 
 @dataclass(frozen=True)
@@ -70,12 +82,14 @@ class MetaRank(AbstractRank):
     @classmethod
     def _init(cls) -> None:
         cls.NONE = MetaRank(0, "None")
-        cls.META_ADMIN = MetaRank(100, "Meta Admin")
+        cls.META_ADMIN = MetaRank(100, "Meta Administrator")
         cls.JONIKAUF = MetaRank(10 ** 6, "JoniKauf")
 
         cls.LOWEST = cls.NONE
         cls.HIGHEST = cls.JONIKAUF
         cls.DEFAULT = cls.LOWEST
+
+        cls._create_sorted()
     
 
 @dataclass(frozen=True)
@@ -97,6 +111,8 @@ class CommunityRank(AbstractRank):
         cls.LOWEST = cls.USER
         cls.HIGHEST = cls.OWNER
         cls.DEFAULT = cls.LOWEST
+
+        cls._create_sorted()
     
 
 @dataclass(frozen=True)
@@ -117,6 +133,8 @@ class ServerRank(AbstractRank):
         cls.HIGHEST = cls.SERVER_OWNER
         cls.DEFAULT = cls.LOWEST
 
+        cls._create_sorted()
+
     @classmethod
     def get_from_discord_user(cls, dc_user: dc.User | dc.Member) -> 'ServerRank':
         if not isinstance(dc_user, dc.Member):
@@ -130,6 +148,34 @@ class ServerRank(AbstractRank):
         
         return ServerRank.MEMBER
 
+
+def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
+    """
+    This hierarchy is kind of confusing:
+
+    Any meta rank (not NONE) is higher than any other rank.
+    Meta ranks therefore basically extend the scale of community ranks
+    and server ranks at the top.
+
+    If we need to go lower from meta ranks, we use community ranks.
+    Server ranks are something that only goes one way.
+    """
+    
+    if isinstance(base_rank, (MetaRank, CommunityRank)):
+        scale = CommunityRank.SORTED + MetaRank.SORTED[1:]
+    else:
+        scale = ServerRank.SORTED + MetaRank.SORTED[1:]
+    
+    idx = scale.index(base_rank) + offset
+
+    if idx < 0:
+        return scale[0]
+    
+    if idx > len(scale) - 1:
+        return scale[-1]
+    
+    return scale[idx]
+    
 
 def _init():
     for cls in AbstractRank.__subclasses__():
