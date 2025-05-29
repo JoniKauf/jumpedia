@@ -3,8 +3,9 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import messagetools, predicates, feedbackerrors as fbe, views, required
+from discordtools import helpers, messagetools, predicates, feedbackerrors as fbe, views, required
 from discordtools.context import Context
+from structures import ranks
 from structures.ranks import CommunityRank, MetaRank, ServerRank
 
 class PrivCog(cmds.GroupCog, group_name="priv"):
@@ -100,13 +101,63 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
     
     user_group = acmds.Group(name="user", description="Edit things about users.")
 
-    PromoteRanks = Enum('PromoteRanks', [(rank.name, rank) for rank in CommunityRank.iter()])
+    PromoteRanks = Enum('PromoteRanks', [
+        (rank.name, rank) for rank in CommunityRank.iter()
+        if rank not in (CommunityRank.LOWEST, CommunityRank.HIGHEST)
+    ] + [
+        (rank.name, rank) for rank in MetaRank.iter()
+        if rank not in (MetaRank.LOWEST, MetaRank.HIGHEST)
+    ])
 
+    DemoteRanks = Enum('DemoteRanks', [
+        (rank.name, rank) for rank in CommunityRank.iter()
+        if rank is not CommunityRank.HIGHEST
+    ] + [
+        (rank.name, rank) for rank in MetaRank.iter()
+        if rank is not MetaRank.HIGHEST
+    ])
+    
     @user_group.command()
-    @acmds.choices(rank=PROMOTE_RANKS)
+    @acmds.rename(other_user="user", rank_enum="rank")
     # @acmds.check(predicates.rank_required(CommunityRank.MODERATOR))
-    async def promote(self, ia: dc.Interaction, user: dc.User, rank: acmds.Choice[int] | None = None) -> None:
+    async def promote(self, ia: dc.Interaction, other_user: dc.User, rank_enum: PromoteRanks) -> None:
         ctx = Context(ia)
+
+        other_user_id_name = (other_user.id, helpers.get_user_name(other_user))
+
+        other_community_user = ctx.community.create_or_get_community_user(
+            other_user.id, other_user_id_name[1]
+        )
+
+        new_rank: CommunityRank | MetaRank = rank_enum.value
+        
+        if other_community_user.highest_rank.power >= new_rank.power:
+            raise fbe.TemporaryFeedbackError("The new rank for the user is lower or equal to the one they already have.")
+        
+        community_user = ctx.community_user
+
+        rank_below = ranks.get_offset_rank(
+            community_user.meta_rank or community_user.community_rank, 
+            -1
+        )
+        
+        if new_rank.power > rank_below.power:
+            raise fbe.TemporaryFeedbackError("The rank you want to give to that user is too high. You must be higher than the rank you want to give.")
+
+        if isinstance(new_rank, MetaRank):
+            ctx.jumpedia.change_user_meta_rank(
+                *other_user_id_name, new_rank
+            )
+        else:
+            ctx.community.change_community_user_community_rank(
+                *other_user_id_name, new_rank
+            )
+
+        await messagetools.success(
+            ia,
+            "User Promoted",
+            f"The user `{other_user_id_name[1]}` has successfully been promoted to `{new_rank}`!"
+        )
 
         
 

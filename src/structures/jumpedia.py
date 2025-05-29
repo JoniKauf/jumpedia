@@ -3,7 +3,7 @@ import time
 from typing import TYPE_CHECKING, Any, Callable, Final, TypedDict
 import logging
 
-from discordtools import feedbackerrors as fbe
+from discordtools import feedbackerrors as fbe, helpers
 from structures.attribute import TaskAttribute, UserAttribute
 from structures.list import List
 from structures.ranks import MetaRank, CommunityRank
@@ -474,7 +474,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     name=name
                 )  
 
-                community.create_or_get_community_user(dc_user, CommunityRank.OWNER)
+                community.create_or_get_community_user(dc_user.id, helpers.get_user_name(dc_user), CommunityRank.OWNER)
 
                 list = community.create_list('Main')
 
@@ -611,6 +611,19 @@ class Jumpedia(metaclass=metautils.Singleton):
                     meta_rank=meta_rank,
                     name=user_name
                 )
+            
+    def change_user_meta_rank(self, user_id: int, user_name: str, meta_rank: MetaRank) -> None:
+        with equality_locked(self):
+            self.create_or_get_user(user_id, user_name)
+
+            h = queries.ArgHelper()
+
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    UPDATE {TBL.User} 
+                    SET {TBL.User.meta_power} = {h|meta_rank.power}
+                    WHERE {TBL.User.id} = {h|user_id}
+                """, h.steal())
 
     def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 import discord as dc
-from discordtools import feedbackerrors as fbe, required
+from discordtools import feedbackerrors as fbe, helpers, required
 
 from functools import cached_property
 
@@ -23,7 +23,6 @@ class Context:
     def server(self) -> dc.Guild:
         return required.server(self.interaction.guild)
     
-
     @cached_property
     def jumpedia(self) -> Jumpedia:
         from structures.jumpedia import Jumpedia
@@ -42,7 +41,7 @@ class Context:
     
     @cached_property
     def community_user(self) -> CommunityUser:
-        return self.community.create_or_get_community_user(self.interaction.user)
+        return self.community.create_or_get_community_user(self.interaction.user.id, self.user_name)
 
     @cached_property
     def server_user(self) -> ServerUser:
@@ -68,8 +67,7 @@ class Context:
 
     @cached_property
     def user_name(self) -> str:
-        dc_user = self.interaction.user
-        return dc_user.global_name or dc_user.name
+        return helpers.get_user_name(self.interaction.user)
     
     def permitted(self, required: AnyRank) -> None:
         if isinstance(required, MetaRank):
