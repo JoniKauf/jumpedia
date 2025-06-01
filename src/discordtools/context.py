@@ -31,9 +31,13 @@ class Context:
     @cached_property
     def community(self) -> Community:
         return required.community(
-            self.jumpedia.get_community_by_server_id(self.server.id)
+            self.community_opt
         )
     
+    @cached_property
+    def community_opt(self) -> Community | None:
+        return self.jumpedia.get_community_by_server_id(self.server.id)
+        
     @cached_property
     def meta_user(self) -> MetaUser:
         user = self.interaction.user
@@ -42,6 +46,15 @@ class Context:
     @cached_property
     def community_user(self) -> CommunityUser:
         return self.community.create_or_get_community_user(self.interaction.user.id, self.user_name)
+    
+    @cached_property
+    def community_user_opt(self) -> CommunityUser | None:
+        community = self.community_opt
+
+        if community is None:
+            return None
+        
+        return self.community_user
 
     @cached_property
     def server_user(self) -> ServerUser:

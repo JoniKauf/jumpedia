@@ -3,7 +3,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import helpers, messagetools, predicates, feedbackerrors as fbe, views, required
+from discordtools import helpers, messagetools, modals, predicates, feedbackerrors as fbe, views, required
 from discordtools.context import Context
 from structures import ranks
 from structures.ranks import CommunityRank, MetaRank, ServerRank
@@ -14,9 +14,9 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
 
     community_group = acmds.Group(name="community", description="Edit things about communities")
 
-    @community_group.command(description="Create a new community.")
+    @community_group.command(name="create", description="Create a new community.")
     @acmds.check(predicates.rank_required(MetaRank.META_ADMIN))
-    async def create(self, ia: dc.Interaction, name: str) -> None:
+    async def create_community(self, ia: dc.Interaction, name: str) -> None:
         ctx = Context(ia)
 
         community = ctx.jumpedia.create_community(ia.user, ctx.server.id, name)
@@ -26,6 +26,36 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
             "Community Created",
             f"The community with the name `{community.name}` was successfully created and is now connected to this server!"
         )
+
+    @community_group.command(name="delete", description="Delete a community.")
+    @acmds.check(predicates.rank_required(CommunityRank.OWNER))
+    async def delete_community(self, ia: dc.Interaction) -> None:
+        ctx = Context(ia)
+        community = ctx.community
+
+        async def after_submit(ia: dc.Interaction, correct: bool) -> None:
+            if correct:
+                ctx.jumpedia.delete_community(ctx.community.id)
+
+                return await messagetools.success(
+                    ia,
+                    "Community Deleted",
+                    f"The community `{community.name}` has successfully been deleted!"
+                )
+            
+            await messagetools.success(
+                ia,
+                "Community Deletion Aborted",
+                f"The community `{community.name}` has **not** been deleted because the name entered is not correct!"
+            )
+
+        await ia.response.send_modal(modals.ConfirmByEnteringModal(
+            "Enter the community's name to confirm",
+            community.name,
+            after_submit,
+            10
+        ))
+
 
     @community_group.command(description="Connect a community to this server.")
     @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
@@ -58,108 +88,115 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
             f"The community `{community.name}` has successfully been disconnected from this server!"
         )
 
-    @community_group.command()
-    @acmds.check(predicates.rank_required(CommunityRank.OWNER))
-    async def delete(self, ia: dc.Interaction) -> None:
-        ctx = Context(ia)
-        community = ctx.community
-
-        async def on_yes(inner_ia: dc.Interaction) -> bool:
-            if inner_ia.user.id != ia.user.id:
-                return False
-            
-            ctx.jumpedia.delete_community(community.id)
-        
-            await messagetools.success(
-                inner_ia,
-                "Community Deleted",
-                f"You have successfully deleted the community `{community.name}`!\n\n__Rest In Peace__"
-            )
-
-            return True
-        
-        async def on_no(inner_ia: dc.Interaction) -> bool:
-            if inner_ia.user.id != ia.user.id:
-                return False
-
-            await messagetools.success(
-                inner_ia,
-                "Community Spared",
-                f"You successfully aborted deleting the community `{community.name}`!",
-                success_func=inner_ia.response.edit_message
-            )
-
-            return True
-        
-        view = views.DangerousConfirm(ia, on_yes, on_no)
-
-        await ia.response.send_message(
-            f"Are you sure you want to delete the community `{community.name}`!\n### This action cannot be undone!",
-            view=view
-        )
-
     
-    user_group = acmds.Group(name="user", description="Edit things about users.")
+    list_group = acmds.Group(name="user", description="Edit things about users.")
 
     PromoteRanks = Enum('PromoteRanks', [
         (rank.name, rank) for rank in CommunityRank.iter()
         if rank not in (CommunityRank.LOWEST, CommunityRank.HIGHEST)
-    ] + [
-        (rank.name, rank) for rank in MetaRank.iter()
-        if rank not in (MetaRank.LOWEST, MetaRank.HIGHEST)
-    ])
-
-    DemoteRanks = Enum('DemoteRanks', [
-        (rank.name, rank) for rank in CommunityRank.iter()
-        if rank is not CommunityRank.HIGHEST
-    ] + [
-        (rank.name, rank) for rank in MetaRank.iter()
-        if rank is not MetaRank.HIGHEST
-    ])
+    ] + [])  # For some reason adding a second list removes type errors
     
-    @user_group.command()
+    @list_group.command()
     @acmds.rename(other_user="user", rank_enum="rank")
-    # @acmds.check(predicates.rank_required(CommunityRank.MODERATOR))
+    @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
     async def promote(self, ia: dc.Interaction, other_user: dc.User, rank_enum: PromoteRanks) -> None:
         ctx = Context(ia)
 
-        other_user_id_name = (other_user.id, helpers.get_user_name(other_user))
+        other_user_id, other_user_name = helpers.get_user_id_and_name(other_user)
 
         other_community_user = ctx.community.create_or_get_community_user(
-            other_user.id, other_user_id_name[1]
+            other_user.id, other_user_name
         )
 
-        new_rank: CommunityRank | MetaRank = rank_enum.value
+        new_rank: CommunityRank = rank_enum.value
         
-        if other_community_user.highest_rank.power >= new_rank.power:
+        if new_rank.power <= other_community_user.community_rank.power:
             raise fbe.TemporaryFeedbackError("The new rank for the user is lower or equal to the one they already have.")
         
         community_user = ctx.community_user
 
-        rank_below = ranks.get_offset_rank(
-            community_user.meta_rank or community_user.community_rank, 
-            -1
-        )
+        rank_below_mine = ranks.get_offset_rank(community_user.highest_rank, -1)
         
-        if new_rank.power > rank_below.power:
+        if new_rank.power > rank_below_mine.power:
             raise fbe.TemporaryFeedbackError("The rank you want to give to that user is too high. You must be higher than the rank you want to give.")
 
-        if isinstance(new_rank, MetaRank):
-            ctx.jumpedia.change_user_meta_rank(
-                *other_user_id_name, new_rank
-            )
-        else:
-            ctx.community.change_community_user_community_rank(
-                *other_user_id_name, new_rank
-            )
+        ctx.community.change_community_user_community_rank(
+            other_user_id, other_user_name, new_rank
+        )
 
         await messagetools.success(
             ia,
             "User Promoted",
-            f"The user `{other_user_id_name[1]}` has successfully been promoted to `{new_rank}`!"
+            f"The user `{other_user_name}` has successfully been promoted to `{new_rank}`!"
         )
 
+
+    DemoteRanks = Enum('DemoteRanks', [
+        (rank.name, rank) for rank in CommunityRank.iter()
+        if rank is not CommunityRank.HIGHEST
+    ] + [])
+
+    @list_group.command()
+    @acmds.rename(other_user="user", rank_enum="rank")
+    @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
+    async def demote(self, ia: dc.Interaction, other_user: dc.User, rank_enum: DemoteRanks) -> None:
+        ctx = Context(ia)
+
+        other_user_id, other_user_name = helpers.get_user_id_and_name(other_user)
+
+        other_community_user = ctx.community.create_or_get_community_user(
+            other_user.id, other_user_name
+        )
+
+        new_rank: CommunityRank = rank_enum.value
         
+        if new_rank.power >= other_community_user.community_rank.power:
+            raise fbe.TemporaryFeedbackError("The new rank for the user is higher or equal to the one they already have.")
+        
+        community_user = ctx.community_user
+
+        rank_below_mine = ranks.get_offset_rank(community_user.highest_rank, -1)
+        
+        if new_rank.power > rank_below_mine.power:
+            raise fbe.TemporaryFeedbackError("The rank you want to give to that user is too high. You must be higher than the rank you want to give.")
+
+        ctx.community.change_community_user_community_rank(
+            other_user_id, other_user_name, new_rank
+        )
+
+        await messagetools.success(
+            ia,
+            "User Promoted",
+            f"The user `{other_user_name}` has successfully been promoted to `{new_rank}`!"
+        )
+
+
+    list_group = acmds.Group(name="list", description="Edit things about lists.")
+
+    @list_group.command(name="create", description="Create a new list.")
+    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    async def create_list(self, ia: dc.Interaction, name: str) -> None:
+        ctx = Context(ia)
+
+        new_list = ctx.community.create_list(name)
+
+        await messagetools.success(
+            ia,
+            "List Created",
+            f"The list `{new_list.name}` has been created successfully!"
+        )
+
+    @list_group.command(name="delete", description="Delete a list.")
+    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    async def delete_list(self, ia: dc.Interaction, name: str) -> None:
+        ctx = Context(ia)
+
+        async def on_yes(inner_ia: dc.Interaction) -> bool:
+            ctx.community.delete_list(name)
+
+            return True
+        
+
 
 async def setup(bot: cmds.Bot):
     await bot.add_cog(PrivCog(bot))

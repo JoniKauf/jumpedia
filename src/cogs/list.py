@@ -6,6 +6,7 @@ from typing import Optional as Opt
 from discordtools import messagetools, predicates
 from discordtools.context import Context
 from discordtools import feedbackerrors as fbe
+from structures.ranks import CommunityRank
 
 class ListCog(cmds.GroupCog, group_name="list"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -21,7 +22,6 @@ class ListCog(cmds.GroupCog, group_name="list"):
             "All Lists",
             ','.join(f"- {list.name}" for list in community.get_lists())
         )
-        
     
         
 

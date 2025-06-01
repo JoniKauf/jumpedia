@@ -84,8 +84,8 @@ async def success(
     **msg_kwargs: Any
 ) -> None:
     msg = (
-        f"### {header}\n{description.strip()}\n\n" +
-        ("-# :white_check_mark:  Success" if show_success else "")
+        f"### {header}\n{description.strip()}" +
+        ("\n\n-# :white_check_mark:  Success" if show_success else "")
     )
 
     msg_kwargs['content'] = msg

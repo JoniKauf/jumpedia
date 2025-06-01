@@ -19,7 +19,7 @@ class DangerousConfirm(dc.ui.View):
         self.on_no = on_no
         super().__init__(timeout=30)
 
-        asyncio.create_task(self.enable_yes_button())
+        self.enable_yes_task = asyncio.create_task(self.enable_yes_button())
 
     async def enable_yes_button(self) -> None:
         await asyncio.sleep(5)
@@ -41,6 +41,9 @@ class DangerousConfirm(dc.ui.View):
                 
     @dc.ui.button(style=dc.ButtonStyle.danger, label=YES_BUTTON_LABEL, emoji='⚠️', disabled=True)
     async def yes(self, ia: dc.Interaction, button: dc.ui.Button):
+        if ia.user.id != self.interaction.user.id:
+            return
+        
         success = await self.on_yes(ia)
 
         if not success:
@@ -49,10 +52,14 @@ class DangerousConfirm(dc.ui.View):
         self.disable_buttons()
         await ia.edit_original_response(view=self)
         self.stop()
+        self.enable_yes_task.cancel()
         
         
     @dc.ui.button(style=dc.ButtonStyle.green, label="No", emoji='❗')
     async def no(self, ia: dc.Interaction, button: dc.ui.Button):
+        if ia.user.id != self.interaction.user.id:
+            return
+        
         success = await self.on_no(ia)
 
         if not success:
@@ -61,3 +68,4 @@ class DangerousConfirm(dc.ui.View):
         self.disable_buttons()
         await ia.edit_original_response(view=self)
         self.stop()
+        self.enable_yes_task.cancel()
