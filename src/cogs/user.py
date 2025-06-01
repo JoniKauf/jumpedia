@@ -23,7 +23,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
                 ("Meta Rank", server_user.meta_rank)
             ]
 
-            return await messagetools.success(
+            return await messagetools.message(
                 ia,
                 "Rank Information Retrieved",
                 "You have the following ranks:\n" +
@@ -41,7 +41,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
             ("Meta Rank", community_user.meta_rank)
         ]
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "Rank Information Retrieved",
             f"The user `{user_name}` has the following ranks:\n" +

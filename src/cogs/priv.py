@@ -21,7 +21,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
 
         community = ctx.jumpedia.create_community(ia.user, ctx.server.id, name)
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "Community Created",
             f"The community with the name `{community.name}` was successfully created and is now connected to this server!"
@@ -37,13 +37,13 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
             if correct:
                 ctx.jumpedia.delete_community(ctx.community.id)
 
-                return await messagetools.success(
+                return await messagetools.message(
                     ia,
                     "Community Deleted",
                     f"The community `{community.name}` has successfully been deleted!"
                 )
             
-            await messagetools.success(
+            await messagetools.message(
                 ia,
                 "Community Deletion Aborted",
                 f"The community `{community.name}` has **not** been deleted because the name entered is not correct!"
@@ -52,8 +52,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
         await ia.response.send_modal(modals.ConfirmByEnteringModal(
             "Enter the community's name to confirm",
             community.name,
-            after_submit,
-            10
+            after_submit
         ))
 
 
@@ -67,7 +66,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
     
         community.add_to_server(server.id)
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "Community Connected",
             f"This server has successfully been connected with the community `{community.name}`!"
@@ -82,21 +81,21 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
 
         community.remove_from_server(ctx.server.id)
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "Community Disconnected",
             f"The community `{community.name}` has successfully been disconnected from this server!"
         )
 
     
-    list_group = acmds.Group(name="user", description="Edit things about users.")
+    user_group = acmds.Group(name="user", description="Edit things about users.")
 
     PromoteRanks = Enum('PromoteRanks', [
         (rank.name, rank) for rank in CommunityRank.iter()
-        if rank not in (CommunityRank.LOWEST, CommunityRank.HIGHEST)
+        if rank is not CommunityRank.LOWEST
     ] + [])  # For some reason adding a second list removes type errors
     
-    @list_group.command()
+    @user_group.command()
     @acmds.rename(other_user="user", rank_enum="rank")
     @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
     async def promote(self, ia: dc.Interaction, other_user: dc.User, rank_enum: PromoteRanks) -> None:
@@ -124,7 +123,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
             other_user_id, other_user_name, new_rank
         )
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "User Promoted",
             f"The user `{other_user_name}` has successfully been promoted to `{new_rank}`!"
@@ -136,7 +135,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
         if rank is not CommunityRank.HIGHEST
     ] + [])
 
-    @list_group.command()
+    @user_group.command()
     @acmds.rename(other_user="user", rank_enum="rank")
     @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
     async def demote(self, ia: dc.Interaction, other_user: dc.User, rank_enum: DemoteRanks) -> None:
@@ -164,7 +163,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
             other_user_id, other_user_name, new_rank
         )
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "User Promoted",
             f"The user `{other_user_name}` has successfully been promoted to `{new_rank}`!"
@@ -180,7 +179,7 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
 
         new_list = ctx.community.create_list(name)
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "List Created",
             f"The list `{new_list.name}` has been created successfully!"
@@ -191,10 +190,11 @@ class PrivCog(cmds.GroupCog, group_name="priv"):
     async def delete_list(self, ia: dc.Interaction, name: str) -> None:
         ctx = Context(ia)
 
-        async def on_yes(inner_ia: dc.Interaction) -> bool:
-            ctx.community.delete_list(name)
+        async def on_submit(ia: dc.Interaction, success: bool) -> None:
+            if success:
+                ctx.community.delete_list(name)
 
-            return True
+                return await messagetools.message
         
 
 

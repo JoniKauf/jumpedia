@@ -17,7 +17,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         ctx = Context(ia)
         community = ctx.community
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "All Lists",
             ','.join(f"- {list.name}" for list in community.get_lists())

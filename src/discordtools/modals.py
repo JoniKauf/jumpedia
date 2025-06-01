@@ -1,6 +1,6 @@
 import asyncio
 from types import CoroutineType
-from typing import Any, Callable
+from typing import Any, Callable, Coroutine
 import discord as dc
 from discord import ui
 
@@ -13,8 +13,8 @@ class ConfirmByEnteringModal(ui.Modal):
         self, 
         label: str,
         confirm_text: str,
-        after_submit: Callable[[dc.Interaction, bool], CoroutineType[Any, Any, None]],
-        timeout: float
+        after_submit: Callable[[dc.Interaction, bool], Coroutine[Any, Any, None]],
+        timeout: float = 180
     ) -> None:
         super().__init__(title="Confirm", timeout=timeout)
 
@@ -22,8 +22,8 @@ class ConfirmByEnteringModal(ui.Modal):
         self.after_submit = after_submit
 
         self.text_input = ui.TextInput(label=label, style=dc.TextStyle.short)
+        self.text_input.placeholder = "This action is irreversable and cannot be undone!"
         self.add_item(self.text_input)
-        self.text_input.placeholder = f"This modal will timeout after {timeout} seconds!"
 
         self.virtual_timeout = timeout
         asyncio.create_task(self.dispose())

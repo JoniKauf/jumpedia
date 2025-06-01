@@ -18,7 +18,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def catalog(self, ia: dc.Interaction) -> None:
         communities = Jumpedia().get_communities()
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "All Communities",
             '\n'.join(f"- {community.name}" for community in communities),

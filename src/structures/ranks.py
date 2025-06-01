@@ -153,11 +153,11 @@ def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
     """
     This hierarchy is kind of confusing:
 
-    Any meta rank (not NONE) is higher than any other rank.
+    Any meta rank (besides NONE) is higher than any other rank.
     Meta ranks therefore basically extend the scale of community ranks
     and server ranks at the top.
 
-    If we need to go lower from meta ranks, we use community ranks.
+    If we need to go down from meta ranks, we use community ranks.
     Server ranks are something that only goes one way.
     """
     

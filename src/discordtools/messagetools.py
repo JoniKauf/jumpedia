@@ -1,4 +1,5 @@
-from typing import (Any, Awaitable, Callable, Coroutine, Iterable, Literal, Sequence,
+from enum import Enum
+from typing import (Any, Awaitable, Callable, Coroutine, Iterable, Literal, NamedTuple, Sequence,
                     TypedDict)
 
 from discord import Interaction
@@ -74,7 +75,16 @@ async def _handle_interaction_func(
     await success_func(**msg_kwargs)
     
 
-async def success(
+
+class MessageType(NamedTuple):
+    emoji: str
+    name
+
+class MessageType(Enum):
+    NONE = ("", "")
+    INFO = ("information_source", "Info")
+
+async def message(
     interaction: Interaction,
     header: str,
     description: str,

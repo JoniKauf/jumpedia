@@ -25,7 +25,7 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
         ctx.jumpedia.create_or_get_user(ia.user.id, JONI_NAME)
         ctx.jumpedia.change_user_meta_rank(ia.user.id, JONI_NAME, MetaRank.JONIKAUF)
 
-        await messagetools.success(
+        await messagetools.message(
             ia,
             "Yes, you are Joni.",
             "Everything setup properly."
