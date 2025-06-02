@@ -129,14 +129,14 @@ class Community:
 
             # Check if list already deleted, but object used
             if list is None:
-                raise fbe.TemporaryFeedbackError("List not found")
+                return
                 
             h = queries.ArgHelper()
 
             with equality_locked(list), queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM {TBL.List}
-                    WHERE {TBL.List.id} = {h|self.id}
+                    WHERE {TBL.List.id} = {h|list.id}
                 """, h.steal())
 
 
@@ -183,6 +183,23 @@ class Community:
         
         return self.get_list_by_id(self.default_selected_list_id)
     
+    def set_default_selected_list(self, list_name: str | None) -> None:
+        from discordtools import required
+        
+        h = queries.ArgHelper()
+
+        with equality_locked(self):
+            if list_name is None:
+                list_id = None
+            else:
+                list_id = required.list(self.get_list_by_name(list_name)).id
+            
+            with queries.connected() as (conn, cursor):
+                cursor.execute(f"""
+                    UPDATE {TBL.Community} 
+                    SET {TBL.Community.default_selected_list_id} = {h|list_id}
+                    WHERE {TBL.Community.id} = {h|self.id}
+                """, h.steal())
     
     def create_or_get_community_user(self, user_id: int, user_name: str, repl_community_rank: CommunityRank | None = None) -> CommunityUser:
         with equality_locked(self):

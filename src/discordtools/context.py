@@ -30,7 +30,7 @@ class Context:
     
     @cached_property
     def community(self) -> Community:
-        return required.community(
+        return required.community_this_server(
             self.community_opt
         )
     

@@ -1,10 +1,14 @@
+from dataclasses import dataclass
 from enum import Enum
-from typing import (Any, Awaitable, Callable, Coroutine, Iterable, Literal, NamedTuple, Sequence,
+import textwrap
+from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Iterable, Literal, NamedTuple, Sequence,
                     TypedDict)
 
-from discord import Interaction
+import discord as dc
 from discord.ui import Button, View
 import inspect
+
+from discordtools import errors
 
 InteractionFuncT = Callable[..., Coroutine]
 
@@ -42,7 +46,7 @@ def _get_relevant_kwargs(kwargs: dict[str, Any], func: Callable) -> dict[str, An
     return {k: v for k, v in kwargs.items() if k in sig.parameters}
 
 
-def _is_followup_func(func: InteractionFuncT, interaction: Interaction):
+def _is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
     return func not in (
         interaction.response.send_message,
         interaction.response.edit_message,
@@ -52,7 +56,7 @@ def _is_followup_func(func: InteractionFuncT, interaction: Interaction):
 
 
 async def _handle_interaction_func(
-    interaction: Interaction,
+    interaction: dc.Interaction,
     msg_kwargs: dict[str, Any] | None = None,
     *,
     success_func: InteractionFuncT | None = None
@@ -73,31 +77,40 @@ async def _handle_interaction_func(
     msg_kwargs = _get_relevant_kwargs(msg_kwargs, success_func) if msg_kwargs else {}
 
     await success_func(**msg_kwargs)
+
     
 
+@dataclass(frozen=True, slots=True)
+class MsgFeedback:
+    _init_done: ClassVar[bool] = False
 
-class MessageType(NamedTuple):
     emoji: str
-    name
+    name: str
 
-class MessageType(Enum):
-    NONE = ("", "")
-    INFO = ("information_source", "Info")
+    def __post_init__(self) -> None:
+        if self.__class__._init_done:
+            raise errors.ProgrammingError()
+        
+    @classmethod
+    def _init(cls) -> None:
+        cls.NONE = cls("", "")
+        cls.INFO = cls("information_source", "Info")
+        cls.SUCCESS = cls("white_check_mark", "Success")
+        cls.WARNING = cls("warning", "Warning")
+        cls.FAILED = cls("x", "Failed")
 
-async def message(
-    interaction: Interaction,
-    header: str,
-    description: str,
-    show_success: bool = True,
-    *,
-    success_func: InteractionFuncT | None = None,
-    **msg_kwargs: Any
-) -> None:
-    msg = (
-        f"### {header}\n{description.strip()}" +
-        ("\n\n-# :white_check_mark:  Success" if show_success else "")
-    )
+        cls._init_done = True
 
-    msg_kwargs['content'] = msg
+MsgFeedback._init()
 
-    await _handle_interaction_func(interaction, msg_kwargs, success_func=success_func)
+
+def layout(header: str, description: str, message_type: MsgFeedback) -> str:
+    result: list[str] = []
+
+    result.append(f"## {header.strip()}")
+    result.append(description.strip())
+    
+    if message_type is not MsgFeedback.NONE:
+        result.append(f"\n-# :{message_type.emoji}:  {message_type.name}")
+
+    return '\n'.join(result)

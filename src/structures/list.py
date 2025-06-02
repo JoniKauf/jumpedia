@@ -235,10 +235,13 @@ class List:
             return self.delete_static_attribute()
 
         self._generic_delete_attribute(None, bad_name)
-        
+    
     def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
-        return self.get_static_attributes(where) + self.get_task_attributes(where) + self.get_user_attributes(where)
+        return [attr for attr_coll in self.get_attributes_split(where) for attr in attr_coll]
 
+    def get_attributes_split(self, where: Callable[[queries.ArgHelper], str] | None = None) -> tuple[tuple[type[StaticAttribute], list[StaticAttribute]], tuple[type[TaskAttribute], list[TaskAttribute]], tuple[UserAttribute, list[UserAttribute]]]:
+        return (self.get_static_attributes(where), self.get_task_attributes(where), self.get_user_attributes(where))
+    
     def get_attribute_by_name(self, name: str) -> AnyAttributeT | None:
         return (
             self.get_static_attribute_by_name(name)

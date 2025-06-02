@@ -8,7 +8,7 @@ from discord.ext import commands
 from discord.ext.commands import CommandError, Context
 
 import discord
-from discordtools import errors, messagetools
+from discordtools import errors, msg
 from database import secret
 
 if __name__ == '__main__':
@@ -48,16 +48,13 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
     else:
         e = error
     
-    is_deferred = interaction.response.is_done()
+    if not interaction.response.is_done():
+        await interaction.response.defer()
 
     if isinstance(e, errors.UserReturnableError):
         e.msg_kwargs['content'] = str(e)
-        await messagetools._handle_interaction_func(interaction, e.msg_kwargs)
-        return
+        return await interaction.followup.send(**e.msg_kwargs)
 
-    if not is_deferred:
-        await interaction.response.defer()
-    
     await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
     raise e
 

@@ -494,20 +494,20 @@ class Jumpedia(metaclass=metautils.Singleton):
                 # Rollback if anything goes wrong up to this point
                 return community
     
-    def delete_community(self, community_id: int) -> None:
+    def delete_community(self, bad_name: str) -> None:
         with equality_locked(self):
-            community = self.get_community_by_id(community_id)
+            community = self.get_community_by_name(bad_name)
 
             # Already deleted
             if community is None:
-                raise fbe.TemporaryFeedbackError("Community not found")
+                return
             
             h = queries.ArgHelper()
 
             with equality_locked(community), queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM {TBL.Community}
-                    WHERE {TBL.Community.id} = {h|community_id}
+                    WHERE {TBL.Community.id} = {h|community.id}
                 """, h.steal())
     
     def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:

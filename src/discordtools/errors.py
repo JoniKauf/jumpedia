@@ -1,6 +1,6 @@
 import textwrap
 from typing import Any, Sequence
-import discordtools.messagetools as msgt
+import discordtools.msg as msgt
 from numbers import Real
 from discord.app_commands.errors import CheckFailure
 
@@ -25,12 +25,12 @@ class UserReturnableError(RuntimeError, CheckFailure):
 class FeedbackError(UserReturnableError):
     """Its string representation shows a customizable, user-friendly error message."""
 
-    def __init__(self, *, error: str, details: str, docs: Sequence[str] | None = None, **msg_kwargs: Any):
+    def __init__(self, *, header: str, description: str, docs: Sequence[str] | None = None, **msg_kwargs: Any):
         if self.__class__ == FeedbackError:
             raise ProgrammingError()
 
-        self.error = error
-        self.details = details
+        self.error = header
+        self.details = description
         self.docs = docs
 
         super().__init__(**msg_kwargs)

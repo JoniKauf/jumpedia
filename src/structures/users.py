@@ -1,14 +1,12 @@
 from dataclasses import dataclass, field
 import re
 
-from database import queries
 from typing import TYPE_CHECKING, Callable, ClassVar, Final, Self, TypedDict
 
 from discordtools import feedbackerrors as fbe
 import discord as dc
 
-from structures.ranks import AbstractRank, AnyRank, ServerRank, MetaRank, CommunityRank
-from utils.locked import equality_locked
+from structures.ranks import AnyRank, ServerRank, MetaRank, CommunityRank
 
 if TYPE_CHECKING:
     from structures.list import List
@@ -123,17 +121,3 @@ class ServerUser:
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-    
-    def permitted(self, required_rank: AnyRank) -> bool:
-        if isinstance(required_rank, MetaRank):
-            return self.meta_rank >= required_rank
-        
-        if isinstance(required_rank, CommunityRank):
-            if self.community_rank >= required_rank:
-                return True
-        else:
-            if self.server_rank >= required_rank:
-                return True
-        
-        # Any Meta Rank is more powerful than the others besides NONE
-        return self.meta_rank > MetaRank.NONE

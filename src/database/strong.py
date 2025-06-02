@@ -1,7 +1,4 @@
-from typing import Any as _Any, TYPE_CHECKING as _TC
-
-if _TC:
-    from structures.attribute import AnyAttributeT
+from typing import Any as _Any
 
 class ColumnName(str):
     # When used in f-strings, so mostly queries

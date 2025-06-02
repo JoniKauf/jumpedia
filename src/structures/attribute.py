@@ -6,7 +6,7 @@ import datetime as dt
 import functools
 import json
 import pickle
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
 from discordtools import errors, feedbackerrors as fbe
 import re
@@ -199,6 +199,8 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     MAX_COLLECTION_ALIASES: ClassVar[int] = 7
     MAX_SLOTS: ClassVar[int] = 32
     SORT_KEY_NONE_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+
+    ATTRIBUTE_TYPE_NAME: ClassVar[str]
 
     list: 'List'
     id: int 
@@ -443,6 +445,8 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
 @dataclass(kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "Static Attribute"
+
     unique_value_per_list: bool
     
     _aliases: set[str] | None = field(init=False, default=None)
@@ -474,6 +478,8 @@ class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
 @dataclass(kw_only=True)
 class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "Task Attribute"
+
     unique_value_per_list: bool
 
     _aliases: set[str] | None = field(init=False, default=None)
@@ -535,6 +541,7 @@ class UserAttributeAliasReultT(TypedDict):
 
 @dataclass(kw_only=True)
 class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "User Attribute"
 
     _aliases: set[str] | None = field(init=False, default=None)
     _collection: CollectionTreeT[T] | None = field(init=False, default=None)
@@ -587,3 +594,6 @@ class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
     def get_collection_item_by_value(self, value: T) -> CollectionTreeItem[T] | None:
         v = _normalize_collection_value(value)
         return self._collection_item_lookup.get(v, None)
+    
+
+ATTRIBUTE_TYPES: Final[tuple[type[AbstractAttribute], ...]] = tuple(AbstractAttribute.__subclasses__())

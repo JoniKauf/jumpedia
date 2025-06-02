@@ -1,6 +1,6 @@
 from discordtools import errors
 from typing import Any, Optional as Opt, Sequence
-from discordtools import messagetools as msgt
+from discordtools import msg as msgt
 from numbers import Real
 
 from structures import ranks
@@ -13,8 +13,8 @@ class InvalidPermission(errors.FeedbackError):
         self.ephemeral = ephemeral
 
         super().__init__(
-            error="Invalid Permission",
-            details="You don't have valid permissions to use this command!",
+            header="Invalid Permission",
+            description="You don't have valid permissions to use this command!",
             ephemeral=ephemeral
         )
 
@@ -22,8 +22,8 @@ class InvalidPermission(errors.FeedbackError):
 class BadChannel(errors.FeedbackError):
     def __init__(self) -> None:
         super().__init__(
-            error="Bad Channel",
-            details="Command must be used in a channel where commands are allowed to be used!",
+            header="Bad Channel",
+            description="Command must be used in a channel where commands are allowed to be used!",
             ephemeral=True
         )
 
@@ -32,8 +32,8 @@ class InvalidAttribute(errors.FeedbackError):
         self.attr = attr
         
         super().__init__(
-            error="Invalid Attribute Error",
-            details=(
+            header="Invalid Attribute Error",
+            description=(
                 f"The attribute `{sh(attr)}` is not valid!"
                 if expression is None else
                 f"The attribute `{sh(attr)}` from the expression `{sh(expression) or msgt.default_empty()}` is not valid in the given context!"
@@ -47,8 +47,8 @@ class InvalidSubAttribute(errors.FeedbackError):
         self.expression = expression
 
         super().__init__(
-            error="Invalid Sub Attribute",
-            details=(
+            header="Invalid Sub Attribute",
+            description=(
                 f"The attribute `{sh(attr)}` has no sub attribute `{sh(sub_attr)}`"
                 + (
                     f" in the expression `{sh(expression) or msgt.default_empty()}`!"
@@ -62,8 +62,8 @@ class SameAttribute(errors.FeedbackError):
         self.attr = attr
 
         super().__init__(
-            error="Same Attribute Error",
-            details=f"The same attribute `{attr}` or synonyms of it were specified multiple times!"
+            header="Same Attribute Error",
+            description=f"The same attribute `{attr}` or synonyms of it were specified multiple times!"
         )
 
 class RequiredAttributesMissing(errors.FeedbackError):
@@ -71,8 +71,8 @@ class RequiredAttributesMissing(errors.FeedbackError):
         self.attrs = attrs
 
         super().__init__(
-            error="Attribute Missing Error",
-            details=f"The required attributes {msgt.shorten_and_embed_seq(attrs)} are missing!"
+            header="Attribute Missing Error",
+            description=f"The required attributes {msgt.shorten_and_embed_seq(attrs)} are missing!"
         )
 
 class NotAJump(errors.FeedbackError):
@@ -80,8 +80,8 @@ class NotAJump(errors.FeedbackError):
         self.jump_name = jump_name
         
         super().__init__(
-            error="Not A Jump",
-            details=f"The jump `{sh(jump_name)}` doesn't exist in Jumpedia!"
+            header="Not A Jump",
+            description=f"The jump `{sh(jump_name)}` doesn't exist in Jumpedia!"
         )
 
 class JumpAlreadyGotten(errors.FeedbackError):
@@ -89,8 +89,8 @@ class JumpAlreadyGotten(errors.FeedbackError):
         self.user_name = user_name
 
         super().__init__(
-            error="Jump Already Gotten",
-            details=(
+            header="Jump Already Gotten",
+            description=(
                 f"The user `{user_name}` has already gotten that jump!"
                 if user_name is not None else 
                 f"You have already gotten that jump!"
@@ -102,8 +102,8 @@ class JumpNotYetGotten(errors.FeedbackError):
         self.user_name = user_name
 
         super().__init__(
-            error="Jump Not Yet Gotten",
-            details=(
+            header="Jump Not Yet Gotten",
+            description=(
                 f"The user `{user_name}` has not gotten that jump yet!"
                 if user_name is not None else
                 "You have not gotten that jump yet!"
@@ -114,8 +114,8 @@ class JumpNotYetGotten(errors.FeedbackError):
 class NoProofYetSet(errors.FeedbackError):
     def __init__(self, user_name: Opt[str]):
         super().__init__(
-            error="No Proof Yet Set",
-            details=(
+            header="No Proof Yet Set",
+            description=(
                 f"The user `{user_name}` has not set a proof for that jump yet!"
                 if user_name is not None else
                 "You have not set a proof for the jump that jump yet!"
@@ -127,8 +127,8 @@ class NotAValidLink(errors.FeedbackError):
         self.link = link
 
         super().__init__(
-            error="Not A Valid Link",
-            details=f"The link `{sh(link)}` is not a valid URL!"
+            header="Not A Valid Link",
+            description=f"The link `{sh(link)}` is not a valid URL!"
         )
 
 class TooLongLink(errors.FeedbackError):
@@ -137,8 +137,8 @@ class TooLongLink(errors.FeedbackError):
         self.limit = limit
 
         super().__init__(
-            error="Too Long Link",
-            details=f"The link `{sh(link)}` exceeds the maximum limit of `{limit}` characters!"
+            header="Too Long Link",
+            description=f"The link `{sh(link)}` exceeds the maximum limit of `{limit}` characters!"
         )
 
 class NoPermissionForOtherUsers(errors.FeedbackError):
@@ -174,8 +174,8 @@ class NoPermissionForOtherUsers(errors.FeedbackError):
             )
         
         super().__init__(
-            error="No Permission For Other Users",
-            details=spaced(
+            header="No Permission For Other Users",
+            description=spaced(
                 "You do not have the required rank to use this",
                 "functionality for other users in this context!",
                 ("\n" + "\n".join(rank_addons)) if rank_addons else ""
@@ -185,22 +185,22 @@ class NoPermissionForOtherUsers(errors.FeedbackError):
 class UserNotFound(errors.FeedbackError):
     def __init__(self):
         super().__init__(
-            error="User Not Found",
-            details="The user specified could not be found!"
+            header="User Not Found",
+            description="The user specified could not be found!"
         )
 
 class AllJumpsAndUserSpecified(errors.FeedbackError):
     def __init__(self):
         super().__init__(
-            error="All Jumps And User Specified",
-            details="When selecting 'all' as the selection, you cannot specify a user!"
+            header="All Jumps And User Specified",
+            description="When selecting 'all' as the selection, you cannot specify a user!"
         )
 
 class NoJumpFulfillingCriteria(errors.FeedbackError):
     def __init__(self):
         super().__init__(
-            error="No Jump Fulfilling Criteria",
-            details="There is no jump that fulfills both the criteria of the target and of the filter!"
+            header="No Jump Fulfilling Criteria",
+            description="There is no jump that fulfills both the criteria of the target and of the filter!"
         )
 
 class OnCooldown(errors.FeedbackError):
@@ -209,8 +209,8 @@ class OnCooldown(errors.FeedbackError):
         self.action = action
 
         super().__init__(
-            error="On Cooldown",
-            details=f"You have to wait another `{remaining:.1f}` seconds {action}!"
+            header="On Cooldown",
+            description=f"You have to wait another `{remaining:.1f}` seconds {action}!"
         )
 
 class TooLongName(errors.FeedbackError):
@@ -219,8 +219,8 @@ class TooLongName(errors.FeedbackError):
         self.max = max
 
         super().__init__(
-            error="Too Long Name",
-            details=f"The entered name `{sh(name)}` exceeds the limit of `{max}` characters!"
+            header="Too Long Name",
+            description=f"The entered name `{sh(name)}` exceeds the limit of `{max}` characters!"
         )
 
 class TooLongValue(errors.FeedbackError):
@@ -230,30 +230,30 @@ class TooLongValue(errors.FeedbackError):
         self.max = max
 
         super().__init__(
-            error=f"Too Long {type.title()}",
-            details=f"The entered {type.lower()} `{sh(value)}` (length: {len(value)}) exceeds the limit of `{max}` characters!"
+            header=f"Too Long {type.title()}",
+            description=f"The entered {type.lower()} `{sh(value)}` (length: {len(value)}) exceeds the limit of `{max}` characters!"
         )
 
 class PersonDoesNotExist(errors.FeedbackError):
     def __init__(self, person: str | int, say_user_instead: bool = False):
         convention: str = "user" if say_user_instead else "person"
         super().__init__(
-            error=f"{convention.title()} Does Not Exist",
-            details=f"The {convention} with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist or could not be found!\nA person must have interacted with Jumpedia at least once before to become a user!"
+            header=f"{convention.title()} Does Not Exist",
+            description=f"The {convention} with the {"name" if isinstance(person, str) else "id"} `{person}` does not exist or could not be found!\nA person must have interacted with Jumpedia at least once before to become a user!"
         )
 
 class InvalidSringFormat(errors.FeedbackError):
     def __init__(self, attr: str, wrong: str, right: str):
         super().__init__(
-            error="Invalid String Format",
-            details=f"For the attribute `{attr}` the value contained `{sh(wrong)}` which should be replaced by `{sh(right)}`!"
+            header="Invalid String Format",
+            description=f"For the attribute `{attr}` the value contained `{sh(wrong)}` which should be replaced by `{sh(right)}`!"
         )
 
 class InvalidUserFormat(errors.FeedbackError):
     def __init__(self, id_format: int | str):
         super().__init__(
-            error="Invalid User Format",
-            details=f"The format `{sh(str(id_format))}` is not valid! Either mention the user with @username or enter their discord ID."
+            header="Invalid User Format",
+            description=f"The format `{sh(str(id_format))}` is not valid! Either mention the user with @username or enter their discord ID."
         )
 
 class InternalDatabaseError(errors.FeedbackError):
@@ -261,8 +261,8 @@ class InternalDatabaseError(errors.FeedbackError):
         self.inner = inner
         
         super().__init__(
-            error="Internal Database Error",
-            details=f"An internal database error occurred. This can happen, for example, when the data you tried to interact with got changed in that exact same moment.\nPlease try again and if the issue persists, try again later!"
+            header="Internal Database Error",
+            description=f"An internal database error occurred. This can happen, for example, when the data you tried to interact with got changed in that exact same moment.\nPlease try again and if the issue persists, try again later!"
         )
 
 class NotAProperValue(errors.FeedbackError):
@@ -271,8 +271,8 @@ class NotAProperValue(errors.FeedbackError):
         self.value = value
 
         return super().__init__(
-            error=f"Not A Proper {type.title()}",
-            details=f"The specified string `{sh(value)}` is not a {type.lower()}!"
+            header=f"Not A Proper {type.title()}",
+            description=f"The specified string `{sh(value)}` is not a {type.lower()}!"
         )
     
 class OutsideOfValidRange(errors.FeedbackError):
@@ -281,8 +281,8 @@ class OutsideOfValidRange(errors.FeedbackError):
         self.ub = ub
 
         return super().__init__(
-            error="Outside Of Valid Range",
-            details=f"The value `{sh(str(value))}` is outside of the valid range reaching from `{lb}` to `{ub}`!"
+            header="Outside Of Valid Range",
+            description=f"The value `{sh(str(value))}` is outside of the valid range reaching from `{lb}` to `{ub}`!"
         )
 
 
@@ -291,8 +291,8 @@ class NotAValidNumber(errors.FeedbackError):
         self.n = n
 
         super().__init__(
-            error="Not A Number",
-            details=f"The specified number `{sh(str(n))}` is not valid in this context!"
+            header="Not A Number",
+            description=f"The specified number `{sh(str(n))}` is not valid in this context!"
         )
 
 class NotPartOfTheCollection(errors.FeedbackError):
@@ -301,8 +301,8 @@ class NotPartOfTheCollection(errors.FeedbackError):
         self.value = value
 
         super().__init__(
-            error="Not Part Of The Collection",
-            details=f"The value `{sh(value)}` is not a part of the attribute `{attr.lower()}` collection of valid values!"
+            header="Not Part Of The Collection",
+            description=f"The value `{sh(value)}` is not a part of the attribute `{attr.lower()}` collection of valid values!"
         )
 
 
@@ -312,8 +312,8 @@ class CollectionElementCollision(errors.FeedbackError):
         self.value = value
 
         super().__init__(
-            error="Collection Element Collision",
-            details=f"The collection of the attribute `{attr.lower()}` received the value `{sh(value)}` more than once (casing and extra whitespace is ignored)!"
+            header="Collection Element Collision",
+            description=f"The collection of the attribute `{attr.lower()}` received the value `{sh(value)}` more than once (casing and extra whitespace is ignored)!"
         )
 
 class TooManyCollectionElements(errors.FeedbackError):
@@ -322,8 +322,8 @@ class TooManyCollectionElements(errors.FeedbackError):
         self.limit = limit
 
         super().__init__(
-            error="Too Many Collection Elements",
-            details=f"The collection of the attribute `{attr.lower()}` has a maximum limit of {limit} elements it can hold!"
+            header="Too Many Collection Elements",
+            description=f"The collection of the attribute `{attr.lower()}` has a maximum limit of {limit} elements it can hold!"
         )
 
 class InvalidValuesForDefiningAttribute(errors.FeedbackError):
@@ -332,8 +332,8 @@ class InvalidValuesForDefiningAttribute(errors.FeedbackError):
         self.values_name_typename = values_name_typename
 
         super().__init__(
-            error="Invalid Values For Defining Attribute",
-            details=(
+            header="Invalid Values For Defining Attribute",
+            description=(
                 f"For defining the attribute `{attr}` the following values and corresponding types are required:" +
                 "".join(f"\n- **{name}**: *{typename}*" for name, typename in values_name_typename)
             )
@@ -343,8 +343,8 @@ class InvalidValuesForDefiningAttribute(errors.FeedbackError):
 class TemporaryFeedbackError(errors.FeedbackError):
     def __init__(self, *args: Any):
         super().__init__(
-            error="Temporary Feedback Error",
-            details=(
+            header="Temporary Feedback Error",
+            description=(
                 "This error is used as a placeholder and shouldn't occur outside of development. " +
                 "If you see this, we are either still in development or Joni missed a spot.\n\n"
                 "Debug info placeholder text that might be given:\n```" +
