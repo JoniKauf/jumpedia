@@ -1,8 +1,9 @@
+import builtins
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from typing import Optional as Opt
+from typing import Any, Optional as Opt
 from discordtools import msg, predicates, required
 from discordtools.context import Context
 from discordtools import feedbackerrors as fbe
@@ -33,19 +34,21 @@ class ListCog(cmds.GroupCog, group_name="list"):
         else:
             list = required.list(ctx.community.get_list_by_name(list_str))
         
-        attributes = list.get_attributes_split()
+        info: builtins.list[tuple[str, Any]] = [("Name", list.name)]
 
-        info = [
-            ("Name", list.name),
-            ("Static Attribute Count", len(attributes[0])),
-            ("Task Count", len(list.get_lists())),
-            ("Default Selected List", default_selected_list_name)
-        ]
+        attributes = list.get_attributes_categorized()
+
+        info.append(("Total Attribute Count", sum(len(attrs) for _, attrs in attributes)))
+
+        for attr_type, attrs in attributes:
+            info.append((f"{attr_type.ATTRIBUTE_TYPE_NAME} Count", len(attrs)))
+        
+        info.append(("Task Count", len(list.get_tasks())))
 
         await ia.response.send_message(msg.layout(
-            "Community Info",
+            "List Info",
             '\n'.join(
-                f"**{k}:** {v}" for k, v in 
+                f"**{k}:** {v}" for k, v in info
             ),
             msg.MsgFeedback.INFO
         ))

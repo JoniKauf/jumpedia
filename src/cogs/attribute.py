@@ -12,16 +12,12 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
         self.bot = bot
 
     @acmds.command()
-    async def catalog(self, ia: dc.Interaction) -> None:
+    async def list_attributes(self, ia: dc.Interaction) -> None:
         list = Context(ia).selected_list
         
         result: builtins.list[str] = []
 
-        for attr_type, attr_coll in zip(
-            ATTRIBUTE_TYPES, 
-            list.get_attributes_split(), 
-            strict=True
-        ):
+        for attr_type, attr_coll in list.get_attributes_categorized():
             result.append(
                 f"__**{attr_type.ATTRIBUTE_TYPE_NAME}**__\n" +
                 ('\n'.join(f"- {attr.name}" for attr in attr_coll) or "None")

@@ -1,29 +1,19 @@
+from enum import Enum
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-from discord import ui
-from discordtools import msg, predicates, required, views
-from structures.community import Community
-from discordtools.context import Context
-from discordtools import feedbackerrors as fbe
 
+from discordtools import helpers, modals, msg, predicates, feedbackerrors as fbe, views, required
+from discordtools.context import Context
+from structures import ranks
+from structures.ranks import CommunityRank, MetaRank, ServerRank
+from utils import text
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
-        
-    @acmds.command(description="List all communities.")
-    async def catalog(self, ia: dc.Interaction) -> None:
-        communities = Context(ia).jumpedia.get_communities()
-
-        await ia.response.send_message(msg.layout(
-            "All Communities",
-            '\n'.join(f"- {community.name}" for community in communities) or "None",
-            msg.MsgFeedback.INFO
-        ))
-
     
-    @acmds.command(description="Show information about a community.")
+    @acmds.command(description="List information about the community.")
     @acmds.rename(community_str="community")
     async def info(self, ia: dc.Interaction, community_str: str | None = None) -> None:
         ctx = Context(ia)
@@ -48,7 +38,122 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             ),
             msg.MsgFeedback.INFO
         ))
+
+
+    set_group = acmds.Group(name="set", description="Set values for objects of the community.")
+
+    @set_group.command(name="default_selected_list", description="Set the default selected list of the community.")
+    @acmds.check(predicates.rank_required(ServerRank.SERVER_ADMINISTRATOR))
+    async def set_default_selected_list(self, ia: dc.Interaction, list_name: str | None = None) -> None:
+        ctx = Context(ia)
+
+        community = ctx.community
+
+        if list_name is not None:
+            list_name = required.list(community.get_list_by_name(list_name)).name
+
+        community.set_default_selected_list(list_name)
+
+        await ia.response.send_message(msg.layout(
+            "Default Selected List Set",
+            f"The default selected list has successfully been changed to `{list_name}`!"
+            if list_name is not None else
+            "The default selected list has successfully been changed to be unset, meaning that users are forced to select one.",
+            msg.MsgFeedback.SUCCESS
+        ))
+
+
+    SetRanks = Enum('PromoteRanks', [
+        (rank.name, rank) for rank in CommunityRank.iter()
+    ] + [])  # For some reason adding a second list removes type errors
+    
+    @set_group.command(name="user_rank", description="Set a user's community rank.")
+    @acmds.rename(other_user="user", rank_enum="rank")
+    @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
+    async def user_rank(self, ia: dc.Interaction, other_user: dc.User, rank_enum: SetRanks) -> None:
+        ctx = Context(ia)
+
+        other_user_id, other_user_name = helpers.get_user_id_and_name(other_user)
+
+        other_community_user = ctx.community.create_or_get_community_user(
+            other_user.id, other_user_name
+        )
+
+        new_rank: CommunityRank = rank_enum.value
         
+        if new_rank.power == other_community_user.community_rank.power:
+            raise fbe.TemporaryFeedbackError("The new rank for the user is equal to the one they already have.")
+        
+        community_user = ctx.community_user
+
+        rank_below_mine = ranks.get_offset_rank(community_user.highest_rank, -1)
+        
+        if new_rank.power > rank_below_mine.power:
+            raise fbe.TemporaryFeedbackError("The rank you want to give to that user is too high. You must be higher than the rank you want to give.")
+
+        ctx.community.change_community_user_community_rank(
+            other_user_id, other_user_name, new_rank
+        )
+
+        what_moted = "promoted" if new_rank.power > other_community_user.community_rank.power else "demoted"
+
+        await ia.response.send_message(msg.layout(
+            f"User {what_moted.title()}",
+            f"The user `{other_user_name}` has successfully been {what_moted} to `{new_rank}`!",
+            msg.MsgFeedback.SUCCESS
+        ))
+
+
+    create_group = acmds.Group(name="create", description="Create new objects for a community.")
+
+    @create_group.command(name="list", description="Create a new list.")
+    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    async def create_list(self, ia: dc.Interaction, list_name: str) -> None:
+        ctx = Context(ia)
+
+        new_list = ctx.community.create_list(list_name)
+
+        await ia.response.send_message(msg.layout(
+            "List Created",
+            f"The list `{new_list.name}` has been created successfully!",
+            msg.MsgFeedback.SUCCESS
+        ))
+    
+
+    delete_group = acmds.Group(name="delete", description="Delete objects from a community.")
+
+    @delete_group.command(name="list", description="Delete a list from the community.")
+    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    async def delete_list(self, ia: dc.Interaction, list_name: str) -> None:
+        ctx = Context(ia)
+
+        list = required.list(ctx.community.get_list_by_name(list_name))
+
+        async def after_submit(ia: dc.Interaction, success: bool) -> None:
+            if success:
+                ctx.community.delete_list(list_name)
+
+                return await ia.response.send_message(msg.layout(
+                    "List Deleted",
+                    f"The list `{list.name}` has successfully been deleted!",
+                    msg.MsgFeedback.SUCCESS
+                ))
+
+            await ia.response.send_message(msg.layout(
+                "List Deletion Aborted",
+                f"The list `{list.name}` has **not** been deleted because the name entered is not correct!",
+                msg.MsgFeedback.WARNING
+            ))
+
+        await ia.response.send_modal(modals.ConfirmByEnteringModal(
+            ia,
+            "Confirm List Deletion",
+            "Re-Enter the list's name to confirm",
+            lambda s: s == list.name,
+            after_submit
+        ))
+  
+
 
 
 async def setup(bot: cmds.Bot):
