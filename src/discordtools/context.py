@@ -82,6 +82,12 @@ class Context:
     def user_name(self) -> str:
         return helpers.get_user_name(self.interaction.user)
     
+    def get_requested_list(self, list: str | None) -> List:
+        if list is None:
+            return self.selected_list
+        
+        return required.list(self.community.get_list_by_name(list))
+        
     def permitted(self, required: AnyRank) -> None:
         if isinstance(required, MetaRank):
             if self.meta_user.meta_rank >= required:

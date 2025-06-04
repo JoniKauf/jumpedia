@@ -13,15 +13,11 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
     
-    @acmds.command(description="List information about the community.")
-    @acmds.rename(community_str="community")
-    async def info(self, ia: dc.Interaction, community_str: str | None = None) -> None:
+    @acmds.command(description="Show information about the community.")
+    async def info(self, ia: dc.Interaction) -> None:
         ctx = Context(ia)
 
-        if community_str is None:
-            community = ctx.community
-        else:
-            community = required.community_general(ctx.jumpedia.get_community_by_name(community_str))
+        community = ctx.community
         
         default_selected_list = community.get_default_selected_list()
         default_selected_list_name = default_selected_list.name if default_selected_list is not None else "None"
@@ -36,6 +32,20 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                     ("Default Selected List", default_selected_list_name)
                 ]
             ),
+            msg.MsgFeedback.INFO
+        ))
+
+
+    list_group = acmds.Group(name="list", description="List objects of the community.")
+
+    @list_group.command(name="lists", description="List all lists.")
+    async def list_lists(self, ia: dc.Interaction) -> None:
+        ctx = Context(ia)
+        community = ctx.community
+
+        await ia.response.send_message(msg.layout(
+            "All Lists",
+            ','.join(f"- {list.name}" for list in community.get_lists()) or "None",
             msg.MsgFeedback.INFO
         ))
 
@@ -67,10 +77,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         (rank.name, rank) for rank in CommunityRank.iter()
     ] + [])  # For some reason adding a second list removes type errors
     
-    @set_group.command(name="user_rank", description="Set a user's community rank.")
+    @set_group.command(name="user_community_rank", description="Set a user's community rank.")
     @acmds.rename(other_user="user", rank_enum="rank")
     @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
-    async def user_rank(self, ia: dc.Interaction, other_user: dc.User, rank_enum: SetRanks) -> None:
+    async def user_community_rank(self, ia: dc.Interaction, other_user: dc.User, rank_enum: SetRanks) -> None:
         ctx = Context(ia)
 
         other_user_id, other_user_name = helpers.get_user_id_and_name(other_user)
@@ -104,7 +114,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ))
 
 
-    create_group = acmds.Group(name="create", description="Create new objects for a community.")
+    create_group = acmds.Group(name="create", description="Create new objects for the community.")
 
     @create_group.command(name="list", description="Create a new list.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
@@ -120,7 +130,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ))
     
 
-    delete_group = acmds.Group(name="delete", description="Delete objects from a community.")
+    delete_group = acmds.Group(name="delete", description="Delete objects from the community.")
 
     @delete_group.command(name="list", description="Delete a list from the community.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))

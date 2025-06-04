@@ -92,10 +92,10 @@ AttributeValueType(7, 'timespan', dt.timedelta)
 AttributeValueType(8, 'text', str)
 
 AttributeValueTypeEnum = enum.Enum(
-    'AttributeValueTypeEnum', {avt.name: avt.type for avt in AttributeValueType._attribute_value_types}
+    'AttributeValueTypeEnum', [(avt.name, avt) for avt in AttributeValueType._attribute_value_types] + []
 )
 
-if AttributeValueTypeT.__value__.__args__ != tuple(vt.value for vt in AttributeValueTypeEnum):  # type: ignore
+if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in AttributeValueTypeEnum):  # type: ignore
     raise RuntimeError("Enum does not equal type!!")
 
 

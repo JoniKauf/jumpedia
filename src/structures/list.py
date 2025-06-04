@@ -1,6 +1,7 @@
 from collections import defaultdict
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from functools import cached_property
 import json
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
@@ -42,7 +43,7 @@ type UserCollectionT = None | UserCollectionTreeT
 @dataclass(frozen=True, kw_only=True)
 class List:
     MAX_NAME_LENGTH: ClassVar[int] = 64
-    MAX_ATTRIBUTES: ClassVar[int] = 2
+    MAX_ATTRIBUTES: ClassVar[int] = 3
     MAX_TASKS: ClassVar[int] = 1
 
     INVALID_ENDING: ClassVar[str] = __name__.lower()
@@ -73,12 +74,12 @@ class List:
             bad_collection, 
             AbstractAttribute.COLLECTION_MAX_DEPTH
         )
-
-        if not user_collection:
-            return
         
         if not isinstance(user_collection, list):
             raise fbe.TemporaryFeedbackError("Not a tree")
+        
+        if not user_collection:
+            return
         
         unique_flattened = self._recursively_parse_validate_flatten_user_collection(user_collection, attribute.value_type)
 
@@ -228,13 +229,13 @@ class List:
 
     # --- All Attributes ---
     
-    def delete_attribute(self, bad_name: str) -> None:
-        static_attribute = self.get_attribute_by_name(text.sanitize(bad_name))
+    # def delete_attribute(self, bad_name: str) -> None:
+    #     static_attribute = self.get_attribute_by_name(text.sanitize(bad_name))
 
-        if static_attribute is not None:
-            return self.delete_static_attribute()
+    #     if static_attribute is not None:
+    #         return self.delete_static_attribute()
 
-        self._generic_delete_attribute(None, bad_name)
+    #     self._generic_delete_attribute(None, bad_name)
     
     def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
         return [attr for _, attr_coll in self.get_attributes_categorized(where) for attr in attr_coll]
@@ -254,6 +255,7 @@ class List:
         )
 
     def get_attribute_by_name(self, name: str) -> AnyAttributeT | None:
+        
         return (
             self.get_static_attribute_by_name(name)
             or self.get_task_attribute_by_name(name)
@@ -286,8 +288,7 @@ class List:
                 bad_name, 
                 bad_aliases, 
                 StaticAttribute.MAX_SYN_LEN, 
-                StaticAttribute.MAX_ALIAS_COUNT + 1, 
-                ()
+                StaticAttribute.MAX_ALIAS_COUNT + 1
             )
 
             attributes = self.get_attributes()
@@ -303,33 +304,32 @@ class List:
                     raise fbe.TemporaryFeedbackError(f"Attribute alias `{alias}` already used as name or alias of different attribute")
 
             if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
-                raise fbe.TemporaryFeedbackError()
+                raise fbe.TemporaryFeedbackError("Max slots must be between 1 and 32 inclusive")
 
             if not (0 <= min_slots <= max_slots):
-                raise fbe.TemporaryFeedbackError()
+                raise fbe.TemporaryFeedbackError("Min slots must be between 0 and max slots inclusive")
             
             index = max(attr.index for attr in attributes) + 1 if attributes else 1
 
             return (name, aliases, index)
         
-    def _generic_delete_attribute(self, attribute_type: type[AnyAttributeT] | None, bad_name: str) -> None:
+    def _generic_delete_attribute(self, attribute_type: type[TaskAttribute | UserAttribute], bad_name: str) -> None:
         from database import dbutils
 
         name = text.sanitize(bad_name)
 
         h = queries.ArgHelper()
+        Tbl = dbutils.get_attribute_table(attribute_type)
 
         with equality_locked(self), queries.connected() as (conn, cursor):
-            if attribute_type is None:
-                attribute = self.get_attribute_by_name(name)
+            if issubclass(attribute_type, TaskAttribute):
+                attr = self.get_task_attribute_by_name(name)
+            else:
+                attr = self.get_user_attribute_by_name(name)
 
-                if attribute is None:
-                    raise fbe.TemporaryFeedbackError("No attribute with that name found")
-                
-                attribute_type = type(attribute)
-                
-            Tbl = dbutils.get_attribute_table(attribute_type)
-
+            if attr is None:
+                raise fbe.TemporaryFeedbackError("Attribute not found!")
+            
             cursor.execute(f"""
                 DELETE FROM {Tbl}
                 WHERE 
@@ -510,14 +510,14 @@ class List:
         bad_aliases: Iterable[str],
         value_type: AttributeValueType[T],
         bad_collection: str,
-        min_slots: int,
         max_slots: int,
         unique_slots: bool,
         unique_value_per_list: bool
     ) -> TaskAttribute[T]:
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, min_slots)
-
+            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots)
+            MIN_SLOTS = 0
+            
             h = queries.ArgHelper()
             SAT = TBL.TaskAttribute
 
@@ -538,7 +538,7 @@ class List:
                         {h|name},
                         {h|value_type.id},
                         {h|index},
-                        {h|min_slots},
+                        {h|MIN_SLOTS},
                         {h|max_slots},
                         {h|unique_slots},
                         {h|unique_value_per_list}
@@ -549,16 +549,16 @@ class List:
 
                 TAAT = TBL.TaskAttributeAlias
 
-                cursor.execute(f"""
-                    INSERT INTO {TAAT} (
-                        {TAAT.task_attribute_id},
-                        {TAAT.list_id},
-                        {TAAT.alias}
-                    ) 
-                    VALUES 
-                        {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
-                    )
-                """, h.steal())
+                if aliases:
+                    cursor.execute(f"""
+                        INSERT INTO {TAAT} (
+                            {TAAT.task_attribute_id},
+                            {TAAT.list_id},
+                            {TAAT.alias}
+                        ) 
+                        VALUES 
+                            {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
+                    """, h.steal())
 
                 obj = TaskAttribute(
                     list=self,
@@ -566,7 +566,7 @@ class List:
                     name=name,
                     value_type=value_type,
                     index=index,
-                    min_slots=min_slots,
+                    min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     unique_slots=unique_slots,
                     unique_value_per_list=unique_value_per_list
@@ -658,12 +658,12 @@ class List:
         bad_aliases: Iterable[str],
         value_type: AttributeValueType[T],
         bad_collection: str,
-        min_slots: int,
         max_slots: int,
         unique_slots: bool
     ) -> UserAttribute[T]:
         with equality_locked(self):
             name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots)
+            MIN_SLOTS = 0
 
             h = queries.ArgHelper()
             UAT = TBL.UserAttribute
@@ -684,7 +684,7 @@ class List:
                         {h|name},
                         {h|value_type.id},
                         {h|index},
-                        {h|min_slots},
+                        {h|MIN_SLOTS},
                         {h|max_slots},
                         {h|unique_slots}
                     )
@@ -694,16 +694,17 @@ class List:
 
                 UAAT = TBL.UserAttributeAlias
 
-                cursor.execute(f"""
-                    INSERT INTO {UAAT} (
-                        {UAAT.user_attribute_id},
-                        {UAAT.list_id},
-                        {UAAT.alias}
-                    ) 
-                    VALUES 
-                        {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
-                    )
-                """, h.steal())
+                if aliases:
+                    cursor.execute(f"""
+                        INSERT INTO {UAAT} (
+                            {UAAT.user_attribute_id},
+                            {UAAT.list_id},
+                            {UAAT.alias}
+                        ) 
+                        VALUES 
+                            {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
+                        )
+                    """, h.steal())
 
                 obj = UserAttribute(
                     list=self,
@@ -711,7 +712,7 @@ class List:
                     name=name,
                     value_type=value_type,
                     index=index,
-                    min_slots=min_slots,
+                    min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     unique_slots=unique_slots
                 )
@@ -791,6 +792,58 @@ class List:
             self.get_user_attribute_by_name(syn)
             or self.get_user_attribute_by_alias(syn)
         )
+    
+
+    class AttributeActionCategory(Enum):
+        CREATE = auto()
+        DELETE = auto()
+        GET_ALL = auto()
+        GET_BY_ID = auto()
+        GET_BY_NAME = auto()
+        GET_BY_ALIAS = auto()
+        GET_BY_SYN = auto()
+
+    _ATTRIBUTE_METHODS: ClassVar[dict[AttributeActionCategory, dict[type[AnyAttributeT], Callable[..., Any]]]] = {
+        AttributeActionCategory.CREATE: {
+            StaticAttribute: create_static_attribute,
+            TaskAttribute: create_task_attribute,
+            UserAttribute: create_user_attribute
+        },
+        AttributeActionCategory.DELETE: {
+            StaticAttribute: delete_static_attribute,
+            TaskAttribute: delete_task_attribute,
+            UserAttribute: delete_user_attribute
+        },
+        AttributeActionCategory.GET_ALL: {
+            StaticAttribute: get_static_attributes,
+            TaskAttribute: get_task_attributes,
+            UserAttribute: get_user_attributes
+        },
+        AttributeActionCategory.GET_BY_ID: {
+            StaticAttribute: get_static_attribute_by_id,
+            TaskAttribute: get_task_attribute_by_id,
+            UserAttribute: get_user_attribute_by_id
+        },
+        AttributeActionCategory.GET_BY_NAME: {
+            StaticAttribute: get_static_attribute_by_name,
+            TaskAttribute: get_task_attribute_by_name,
+            UserAttribute: get_user_attribute_by_name
+        },
+        AttributeActionCategory.GET_BY_ALIAS: {
+            StaticAttribute: get_static_attribute_by_alias,
+            TaskAttribute: get_task_attribute_by_alias,
+            UserAttribute: get_user_attribute_by_alias
+        },
+        AttributeActionCategory.GET_BY_SYN: {
+            StaticAttribute: get_static_attribute_by_syn,
+            TaskAttribute: get_task_attribute_by_syn,
+            UserAttribute: get_user_attribute_by_syn
+        }
+    }
+
+    def get_attribute_method(self, attribute_action_category: AttributeActionCategory, attribute_type: type[AnyAttributeT]) -> Callable[..., Any]:
+        return self.__class__._ATTRIBUTE_METHODS[attribute_action_category][attribute_type]
+
 
 
     # --- Tasks ---

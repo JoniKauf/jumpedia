@@ -22,11 +22,11 @@ def json_loads_safe(s: str, max_depth: int = -1, max_length: int = DEFAULT_MAX_L
     try:
         result: Any = json.loads(s, **kwargs)
     except (json.JSONDecodeError, TypeError) as e:
-        raise fbe.TemporaryFeedbackError()
+        raise fbe.TemporaryFeedbackError("Not a json string")
     except RecursionError:
-        raise fbe.TemporaryFeedbackError()
-    except Exception:
-        raise fbe.TemporaryFeedbackError()
+        raise fbe.TemporaryFeedbackError("To deep json depth")
+    except Exception as e:
+        raise fbe.TemporaryFeedbackError("Unknown json load exception", e)
     
     if max_depth >= 0 and (depth := json_depth(result)) > max_depth:
         raise fbe.TemporaryFeedbackError(depth)
