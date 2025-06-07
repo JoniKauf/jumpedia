@@ -42,11 +42,13 @@ type UserCollectionT = None | UserCollectionTreeT
 
 @dataclass(frozen=True, kw_only=True)
 class List:
+    STRUCTURE_NAME: ClassVar[str] = "list"
+
     MAX_NAME_LENGTH: ClassVar[int] = 64
     MAX_ATTRIBUTES: ClassVar[int] = 3
     MAX_TASKS: ClassVar[int] = 1
 
-    INVALID_ENDING: ClassVar[str] = __name__.lower()
+    INVALID_ENDING: ClassVar[str] = "list"
 
     community: 'Community'
     id: int
@@ -258,7 +260,7 @@ class List:
         
         return (
             self.get_static_attribute_by_name(name)
-            or self.get_task_attribute_by_name(name)
+            or self.get_user_attribute_by_name(name)
             or self.get_user_attribute_by_name(name)
         )
         
@@ -323,7 +325,7 @@ class List:
 
         with equality_locked(self), queries.connected() as (conn, cursor):
             if issubclass(attribute_type, TaskAttribute):
-                attr = self.get_task_attribute_by_name(name)
+                attr = self.get_user_attribute_by_name(name)
             else:
                 attr = self.get_user_attribute_by_name(name)
 
@@ -826,7 +828,7 @@ class List:
         },
         AttributeActionCategory.GET_BY_NAME: {
             StaticAttribute: get_static_attribute_by_name,
-            TaskAttribute: get_task_attribute_by_name,
+            TaskAttribute: get_user_attribute_by_name,
             UserAttribute: get_user_attribute_by_name
         },
         AttributeActionCategory.GET_BY_ALIAS: {
@@ -854,9 +856,11 @@ class List:
                 bad_name, 
                 bad_aliases, 
                 Task.MAX_SYN_LEN,
-                self.get_static_alias_attribute().max_slots
+                AbstractAttribute.MAX_ALIAS_COUNT + 1
             )
 
+            if len(self.get_tasks()) >= self.__class__.MAX_TASKS
+            if self.get_task_by_name(name)
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):

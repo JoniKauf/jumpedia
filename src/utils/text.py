@@ -1,6 +1,7 @@
+from enum import Enum
 import re
 import string
-from typing import Any, Callable, Container, Final, Iterable, Sequence
+from typing import Any, Callable, Container, Final, Iterable, Literal, Sequence
 from collections.abc import Set
 
 PASCAL_REPLACE_PATTERN = re.compile(r'(?!^)([A-Z]+)')
@@ -101,3 +102,17 @@ def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_le
         raise fbe.TemporaryFeedbackError("Too many aliases", aliases, count, max_count)
 
     return (name, aliases)
+
+
+class FinalDelimiter(Enum):
+    AND = 'and'
+    OR = 'or'
+    SLASH = '/'
+    SPACED_SLASH = ' / '
+
+
+def human_join(sequence: Sequence[Any], final_delimiter: FinalDelimiter) -> str:
+    if len(sequence) <= 1:
+        return ', '.join(sequence)
+    
+    return f"{', '.join(sequence[:-1])} {final_delimiter.value} {sequence[-1]}"

@@ -21,7 +21,7 @@ class Context:
     
     @cached_property
     def server(self) -> dc.Guild:
-        return required.server(self.interaction.guild)
+        return required.server_generic(self.interaction.guild)
     
     @cached_property
     def jumpedia(self) -> Jumpedia:
@@ -30,7 +30,7 @@ class Context:
     
     @cached_property
     def community(self) -> Community:
-        return required.community_this_server(
+        return required.server_with_community(
             self.community_opt
         )
     
@@ -86,7 +86,7 @@ class Context:
         if list is None:
             return self.selected_list
         
-        return required.list(self.community.get_list_by_name(list))
+        return required.list_generic(self.community.get_list_by_name(list))
         
     def permitted(self, required: AnyRank) -> None:
         if isinstance(required, MetaRank):

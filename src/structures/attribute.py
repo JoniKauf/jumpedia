@@ -201,7 +201,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
     SORT_KEY_NONE_NUMBER: ClassVar[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
 
     ATTRIBUTE_TYPE_NAME: ClassVar[str]
-    ATTRIBUTE_TYPE_IDX: ClassVar[int]
+    TYPE_ID: ClassVar[int]
 
     list: 'List'
     id: int 
@@ -214,7 +214,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.list.identity
+        return (self.__class__.TYPE_ID, self.id) + self.list.identity
     
     @property
     def required(self) -> bool:
@@ -317,7 +317,7 @@ class AbstractAttribute[T: AttributeValueTypeT]:
             raise TypeError()
         
         return result  # type: ignore
-
+    
     def from_str(self, s: str, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
         if not (s := s.strip()):
             return []
@@ -446,8 +446,10 @@ class AbstractAttribute[T: AttributeValueTypeT]:
 
 @dataclass(kw_only=True)
 class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "Static Attribute"
-    ATTRIBUTE_TYPE_IDX: ClassVar[int] = 0
+    STRUCTURE_NAME: ClassVar[str] = "static attribute"
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "static"
+    TYPE_ID: ClassVar[int] = 0
+    
 
     unique_value_per_list: bool
     
@@ -480,8 +482,9 @@ class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
 
 @dataclass(kw_only=True)
 class TaskAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "Task Attribute"
-    ATTRIBUTE_TYPE_IDX: ClassVar[int] = 1
+    STRUCTURE_NAME: ClassVar[str] = "task attribute"
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "task"
+    TYPE_ID: ClassVar[int] = 1
 
     unique_value_per_list: bool
 
@@ -544,8 +547,9 @@ class UserAttributeAliasReultT(TypedDict):
 
 @dataclass(kw_only=True)
 class UserAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "User Attribute"
-    ATTRIBUTE_TYPE_IDX: ClassVar[int] = 2
+    STRUCTURE_NAME: ClassVar[str] = "user attribute"
+    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "user"
+    TYPE_ID: ClassVar[int] = 2
 
     _aliases: set[str] | None = field(init=False, default=None)
     _collection: CollectionTreeT[T] | None = field(init=False, default=None)

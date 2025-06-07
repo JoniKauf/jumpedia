@@ -33,9 +33,9 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
         ))
 
 
-    list_group = acmds.Group(name="list", description="List objects that belong to the metaverse.")
+    get_group = acmds.Group(name="list", description="Get objects that belong to the metaverse.")
     
-    @list_group.command(name="communities", description="List all communities.")
+    @get_group.command(name="communities", description="Get all communities.")
     async def show_communities(self, ia: dc.Interaction) -> None:
         communities = Context(ia).jumpedia.get_communities()
 
@@ -102,7 +102,7 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
         ctx = Context(ia)
         server = ctx.server
 
-        community = required.community_this_server(ctx.jumpedia.get_community_by_name(community_name))
+        community = required.server_with_community(ctx.jumpedia.get_community_by_name(community_name))
     
         community.add_to_server(server.id)
 

@@ -23,9 +23,10 @@ if TYPE_CHECKING:
  
 @dataclass(kw_only=True)
 class Community:
+    STRUCTURE_NAME: ClassVar[str] = "community"
+
     MAX_NAME_LENGTH: ClassVar[int] = 64
     MAX_LISTS: ClassVar[int] = 1
-    DATABASE_PREFIX: ClassVar[str] = "community_".lower()
     INVALID_ENDING: ClassVar[str] = "community".lower()
 
     jumpedia: 'Jumpedia'
@@ -192,7 +193,7 @@ class Community:
             if list_name is None:
                 list_id = None
             else:
-                list_id = required.list(self.get_list_by_name(list_name)).id
+                list_id = required.obj_generic(self.get_list_by_name(list_name), List).id
             
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""

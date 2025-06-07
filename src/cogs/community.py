@@ -6,6 +6,7 @@ import discord.ext.commands as cmds
 from discordtools import helpers, modals, msg, predicates, feedbackerrors as fbe, views, required
 from discordtools.context import Context
 from structures import ranks
+from structures.list import List
 from structures.ranks import CommunityRank, MetaRank, ServerRank
 from utils import text
 
@@ -36,9 +37,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ))
 
 
-    list_group = acmds.Group(name="list", description="List objects of the community.")
+    get_group = acmds.Group(name="get", description="Get objects of the community.")
 
-    @list_group.command(name="lists", description="List all lists.")
+    @get_group.command(name="lists", description="Get all lists of the community.")
     async def list_lists(self, ia: dc.Interaction) -> None:
         ctx = Context(ia)
         community = ctx.community
@@ -60,7 +61,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         community = ctx.community
 
         if list_name is not None:
-            list_name = required.list(community.get_list_by_name(list_name)).name
+            list_name = required.obj_generic(community.get_list_by_name(list_name), List).name
 
         community.set_default_selected_list(list_name)
 
@@ -137,7 +138,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def delete_list(self, ia: dc.Interaction, list_name: str) -> None:
         ctx = Context(ia)
 
-        list = required.list(ctx.community.get_list_by_name(list_name))
+        list = required.obj_generic(ctx.community.get_list_by_name(list_name), List)
 
         async def after_submit(ia: dc.Interaction, success: bool) -> None:
             if success:

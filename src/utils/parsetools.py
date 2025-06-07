@@ -5,6 +5,10 @@ from discordtools import feedbackerrors as fbe
 DEFAULT_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'
 
+EMPTY_JSON_STR: Final[str] = '""'
+EMPTY_JSON_LIST: Final[str] = '[]'
+EMPTY_JSON_OBJ: Final[str] = '{}'
+
 # From https://stackoverflow.com/a/30928645/20895654
 def json_depth(o: Any) -> int:
     if isinstance(o, dict) and o:
@@ -32,3 +36,5 @@ def json_loads_safe(s: str, max_depth: int = -1, max_length: int = DEFAULT_MAX_L
         raise fbe.TemporaryFeedbackError(depth)
 
     return result
+
+

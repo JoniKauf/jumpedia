@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, kw_only=True)
 class Task:
+    STRUCTURE_NAME: ClassVar[str] = "task"
+
     MAX_SYN_LEN: ClassVar[int] = 80
     STATIC_NAME_ATTRIBUTE_NAME: ClassVar[str] = 'Name'
     STATIC_ALIAS_ATTRIBUTE_NAME: ClassVar[str] = 'Alias'
