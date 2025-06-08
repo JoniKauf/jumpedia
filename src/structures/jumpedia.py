@@ -3,15 +3,15 @@ import time
 from typing import TYPE_CHECKING, Any, Callable, Final, TypedDict
 import logging
 
-from discordtools import feedbackerrors as fbe, helpers
-from structures.attribute import TaskAttribute, UserAttribute
+from discordtools import feedbackerrors as fbe, utils
+from structures import attributes
 from structures.list import List
 from structures.ranks import MetaRank, CommunityRank
-from structures.task import Task
+from structures.tasks.task import Task
 from structures.users import MetaUser
 from utils import metautils, text
-from database import queries, strong as S
-from database.strong import Tables as TBL
+from database import queries, typed as typed
+from database.typed import Tables as TBL
 from dataclasses import dataclass, field
 import discord as dc
 
@@ -31,7 +31,7 @@ LOGGER = logging.getLogger(__name__)
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(metaclass=metautils.Singleton):
     id: int = field(init=False, default=1)
-    database_name: str = field(init=False, default=S.DATABASE_NAME)
+    database_name: str = field(init=False, default=typed.DATABASE_NAME)
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -144,7 +144,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE {TBL.StaticAttribute} (
                         {TBL.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.StaticAttribute.list_id} INT NOT NULL,
-                        {TBL.StaticAttribute.name} VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.StaticAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {TBL.StaticAttribute.value_type} INT NOT NULL,
                         {TBL.StaticAttribute.index} INT NOT NULL,
                         {TBL.StaticAttribute.min_slots} INT NOT NULL,
@@ -166,7 +166,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                         {TBL.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.StaticAttributeAlias.static_attribute_id} INT NOT NULL,
                         {TBL.StaticAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.StaticAttributeAlias.alias} VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.StaticAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({TBL.StaticAttributeAlias.static_attribute_id})
                             REFERENCES {TBL.StaticAttribute}({TBL.StaticAttribute.id})
@@ -183,7 +183,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE {TBL.TaskAttribute} (
                         {TBL.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.TaskAttribute.list_id} INT NOT NULL,
-                        {TBL.TaskAttribute.name} VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.TaskAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {TBL.TaskAttribute.value_type} INT NOT NULL,
                         {TBL.TaskAttribute.index} INT NOT NULL,
                         {TBL.TaskAttribute.min_slots} INT NOT NULL,
@@ -205,7 +205,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                         {TBL.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.TaskAttributeAlias.task_attribute_id} INT NOT NULL,
                         {TBL.TaskAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.TaskAttributeAlias.alias} VARCHAR({TaskAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.TaskAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({TBL.TaskAttributeAlias.task_attribute_id})
                             REFERENCES {TBL.TaskAttribute}({TBL.TaskAttribute.id})
@@ -252,7 +252,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     CREATE TABLE {TBL.UserAttribute} (
                         {TBL.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.UserAttribute.list_id} INT NOT NULL,
-                        {TBL.UserAttribute.name} VARCHAR({UserAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.UserAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {TBL.UserAttribute.index} INT NOT NULL,
                         {TBL.UserAttribute.value_type} INT NOT NULL,
                         {TBL.UserAttribute.min_slots} INT NOT NULL,
@@ -273,7 +273,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                         {TBL.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.UserAttributeAlias.user_attribute_id} INT NOT NULL,
                         {TBL.UserAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.UserAttributeAlias.alias} VARCHAR({UserAttribute.MAX_SYN_LEN}) NOT NULL,
+                        {TBL.UserAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({TBL.UserAttributeAlias.user_attribute_id})
                             REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
@@ -474,7 +474,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     name=name
                 )  
 
-                community.create_or_get_community_user(dc_user.id, helpers.get_user_name(dc_user), CommunityRank.OWNER)
+                community.create_or_get_community_user(dc_user.id, utils.get_user_name(dc_user), CommunityRank.OWNER)
 
                 list = community.create_list('Main')
 
@@ -512,7 +512,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     WHERE {TBL.Community.id} = {h|community.id}
                 """, h.steal())
     
-    def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -522,11 +522,11 @@ class Jumpedia(metaclass=metautils.Singleton):
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _community_data_to_obj(self, data: S.SingleTableRowT) -> 'Community':
+    def _community_data_to_obj(self, data: typed.SingleTableRowT) -> 'Community':
         return Community(
             jumpedia=self,
             id=data[TBL.Community.id],
@@ -559,7 +559,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                 WHERE {TBL.Server.id} = {h|server_id}
             """, h.steal())
 
-            result: S.SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None
@@ -627,7 +627,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                     WHERE {TBL.User.id} = {h|user_id}
                 """, h.steal())
 
-    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -637,11 +637,11 @@ class Jumpedia(metaclass=metautils.Singleton):
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _user_data_to_obj(self, data: S.SingleTableRowT) -> MetaUser:
+    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> MetaUser:
         return MetaUser(
             id=data[TBL.User.id],
             meta_rank=MetaRank.get(data[TBL.User.meta_power]),

@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
 from utils import text
-from database import strong as S
-from database.strong import Tables as TBL
+from database import typed as typed
+from database.typed import Tables as TBL
 
 from structures import users as user_
 
@@ -39,7 +39,7 @@ class Task:
                     AND {TBL.TaskAlias.task_id} = {h|self.id}
             """)
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return frozenset(row[TBL.TaskAlias.alias] for row in result)
 
@@ -57,7 +57,6 @@ class Task:
         return Tavc(task=self)
     
     def get_tuavc(self, user: 'UserIdentifierT') -> Tuavc:
-        from structures.users import MetaUser
         return Tuavc(task=self, user_id=user_.extract_id(user))
         
     

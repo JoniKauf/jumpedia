@@ -31,12 +31,12 @@ class Context:
     @cached_property
     def community(self) -> Community:
         return required.server_with_community(
-            self.community_opt
-        )
+            self.jumpedia.get_community_by_server_id(self.server.id)
+        )    
     
     @cached_property
     def community_opt(self) -> Community | None:
-        return self.jumpedia.get_community_by_server_id(self.server.id)
+        return 
         
     @cached_property
     def meta_user(self) -> MetaUser:

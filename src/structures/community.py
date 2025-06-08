@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, Typed
 import discord as dc
 
 import mariadb
-from structures.attribute import AttributeValueType, StaticAttribute
-from structures.task import Task
+from structures import attributes
+from structures.attributes import AttributeValueType
+from structures.attributes.static_attribute import StaticAttribute
+from structures.task.task import Task
 from utils import metautils, text
-from database import queries, strong as S
-from database.strong import Tables as TBL
+from database import queries, typed as typed
+from database.typed import Tables as TBL
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
@@ -47,7 +49,7 @@ class Community:
                     WHERE {TBL.Server.community_id} = {h|self.id}
                 """, h.steal())
 
-                result: S.ManyTableRowT = cursor.fetchall()
+                result: typed.ManyTableRowT = cursor.fetchall()
 
             self._server_ids = {row[TBL.Server.id] for row in result}
 
@@ -116,7 +118,7 @@ class Community:
                     (),
                     AttributeValueType.get_by_type(str),
                     1,
-                    StaticAttribute.MAX_SLOTS,
+                    attributes.MAX_SLOTS,
                     True,
                     True
                 )
@@ -143,7 +145,7 @@ class Community:
                 """, h.steal())
 
 
-    def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -154,11 +156,11 @@ class Community:
                 {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _list_data_to_obj(self, data: S.SingleTableRowT) -> List:
+    def _list_data_to_obj(self, data: typed.SingleTableRowT) -> List:
         return List(
             community=self,
             id=data[TBL.List.id],
@@ -186,16 +188,16 @@ class Community:
         
         return self.get_list_by_id(self.default_selected_list_id)
     
-    def set_default_selected_list(self, list_name: str | None) -> None:
+    def set_default_selected_list(self, list_id: int | None) -> None:
         from discordtools import required
         
         h = queries.ArgHelper()
 
         with equality_locked(self):
-            if list_name is None:
+            if list_id is None:
                 list_id = None
             else:
-                list_id = required.obj_generic(self.get_list_by_name(list_name), List).id
+                list_id = required.structure_not_found(self.get_list_by_id(list_id), List).id
             
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
@@ -266,7 +268,7 @@ class Community:
                     WHERE {TBL.CommunityUser.user_id} = {h|user_id}
                 """, h.steal())
 
-    def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -278,11 +280,11 @@ class Community:
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _community_user_data_to_obj(self, data: S.SingleTableRowT) -> 'CommunityUser':  
+    def _community_user_data_to_obj(self, data: typed.SingleTableRowT) -> 'CommunityUser':  
         return CommunityUser(
             community=self,
             user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),

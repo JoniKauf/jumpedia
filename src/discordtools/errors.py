@@ -26,9 +26,6 @@ class FeedbackError(UserReturnableError):
     """Its string representation shows a customizable, user-friendly error message."""
 
     def __init__(self, *, header: str, description: str, docs: Sequence[str] | None = None, **msg_kwargs: Any):
-        if self.__class__ == FeedbackError:
-            raise ProgrammingError()
-
         self.error = header
         self.details = description
         self.docs = docs

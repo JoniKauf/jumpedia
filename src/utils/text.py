@@ -34,15 +34,15 @@ def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> se
     
     return result
 
-def sanitize(s: str, whitespace_repl: str = ' ') -> str:
-    s = fix_whitespace(s, whitespace_repl, True) 
-    return ''.join(c for c in s if c.isprintable())
-
 def norm(s: str, whitespace_repl: str = '_') -> str:
     return NORMALIZE_FUNC(sanitize(s, whitespace_repl))
 
 def norm_syn(s: str) -> str:
     return norm(s, ' ')
+
+def sanitize(s: str, whitespace_repl: str = ' ') -> str:
+    s = fix_whitespace(s, whitespace_repl, True) 
+    return ''.join(c for c in s if c.isprintable())
 
 def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str] = ()) -> str:
     from discordtools import feedbackerrors as fbe
@@ -103,16 +103,8 @@ def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_le
 
     return (name, aliases)
 
-
-class FinalDelimiter(Enum):
-    AND = 'and'
-    OR = 'or'
-    SLASH = '/'
-    SPACED_SLASH = ' / '
-
-
-def human_join(sequence: Sequence[Any], final_delimiter: FinalDelimiter) -> str:
+def human_join(sequence: Sequence[Any], final_delimiter: str, delimiter: str = ", ") -> str:
     if len(sequence) <= 1:
-        return ', '.join(sequence)
+        return delimiter.join(sequence)
     
-    return f"{', '.join(sequence[:-1])} {final_delimiter.value} {sequence[-1]}"
+    return f"{delimiter.join(sequence[:-1])}{final_delimiter}{sequence[-1]}"

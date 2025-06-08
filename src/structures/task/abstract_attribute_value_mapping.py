@@ -3,23 +3,19 @@ import pickle
 from typing import TYPE_CHECKING, TypedDict
 
 from database import queries
+from database.typed import Tables as TBL
 
 from discordtools import feedbackerrors as fbe
-
-
-if TYPE_CHECKING:
-    from structures.attribute import AnyAttributeT, AttributeValueTypeT, StaticAttribute, TaskAttribute, UserAttribute
-    from structures.task import Task
-
-type TavcAttributeT = StaticAttribute | TaskAttribute
-type TauvcAttributeT = TavcAttributeT | UserAttribute
+from structures.attributes import AnyAttributeT, AttributeValueTypeT
+from structures.attributes.static_attribute import StaticAttribute
+from structures.attributes.task_attribute import TaskAttribute
+from structures.attributes.user_attribute import UserAttribute
+from structures.task.task import Task
 
 @dataclass(frozen=True, kw_only=True)
-class AbstractTavc[T: AnyAttributeT]:
-    """Abstract Task Attribute Value Collection"""
-
+class UserAttributeValueMapping[T: AnyAttributeT]:
     task: 'Task'
-    mapping: dict[T, list['AttributeValueTypeT']] = field(init=False, default_factory=dict)
+    mapping: dict[T, list[AttributeValueTypeT]] = field(init=False, default_factory=dict)
 
     @property
     def sorted_attributes(self) -> list[T]:
@@ -56,7 +52,7 @@ class AbstractTavc[T: AnyAttributeT]:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
     def __post_init__(self) -> None:
-        if self.__class__ == AbstractTavc:
+        if self.__class__ == UserAttributeValueMapping:
             raise NotImplementedError()
         
         self._add_static_attributes()
@@ -101,65 +97,3 @@ class AbstractTavc[T: AnyAttributeT]:
             raise fbe.TemporaryFeedbackError("Data changed")
 
 
-class TavcResultT(TypedDict):
-    task_id: int
-    task_attribute_id: int
-    value: bytes
-
-@dataclass(frozen=True, kw_only=True)
-class Tavc(AbstractTavc[TavcAttributeT]):
-    """Task Attribute Value Collection"""
-
-
-class TuavcResultT(TypedDict):
-    task_id: int
-    user_id: int
-    user_attribute_id: int
-    value: bytes
-
-@dataclass(frozen=True, kw_only=True)
-class Tuavc(AbstractTavc[TauvcAttributeT]):
-    """Task User Attribute Value Collection"""
-
-    user_id: int
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        self._add_user_attributes()
-
-    def _add_user_attributes(self) -> None:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM user_attribute_task_value
-                WHERE 
-                    task_id = {h|self.task.id}
-                    AND user_id = {h|self.user_id}
-            """, h.steal())
-
-            result: list[TuavcResultT] = cursor.fetchall()
-
-        # Get all attributes specified for this task
-        attributes = self.task.list.get_user_attributes(
-            lambda h: f"id in ({','.join((h|(row['user_attribute_id'])) for row in result)})"
-        )
-
-        attribute_lookup: dict[int, UserAttribute] = {
-            attr.id: attr for attr in attributes
-        }
-
-        for row in result:
-            try:
-                attr = attribute_lookup.pop(row['user_attribute_id'])
-            except KeyError:
-                raise fbe.TemporaryFeedbackError("Data changed")
-            
-            val: list[AttributeValueTypeT] = pickle.loads(row['value'])
-            
-            self.mapping[attr] = val 
-
-        if attribute_lookup:
-            raise fbe.TemporaryFeedbackError("Data changed")
-        

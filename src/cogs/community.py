@@ -4,7 +4,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from discordtools import helpers, modals, msg, predicates, feedbackerrors as fbe, views, required
-from discordtools.context import Context
+from bridges.context import Context
 from structures import ranks
 from structures.list import List
 from structures.ranks import CommunityRank, MetaRank, ServerRank
@@ -61,7 +61,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         community = ctx.community
 
         if list_name is not None:
-            list_name = required.obj_generic(community.get_list_by_name(list_name), List).name
+            list_name = required.structure_name_not_found(community.get_list_by_name(list_name), List).name
 
         community.set_default_selected_list(list_name)
 
@@ -138,7 +138,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def delete_list(self, ia: dc.Interaction, list_name: str) -> None:
         ctx = Context(ia)
 
-        list = required.obj_generic(ctx.community.get_list_by_name(list_name), List)
+        list = required.structure_name_not_found(ctx.community.get_list_by_name(list_name), List)
 
         async def after_submit(ia: dc.Interaction, success: bool) -> None:
             if success:

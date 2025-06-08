@@ -10,17 +10,20 @@ import mariadb
 
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures import attribute
+from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
+from structures.attributes import collection
+from structures.attributes.abstract_attribute import AbstractAttribute
+from structures.attributes.collection import CollectionNode, CollectionNodesT
+from structures.attributes.static_attribute import StaticAttribute
+from structures.attributes.task_attribute import TaskAttribute
+from structures.attributes.user_attribute import UserAttribute
 from utils import metautils, parsetools, text
 
-from database import strong as S
-from database.strong import Tables as TBL
+from database import typed as typed
+from database.typed import Tables as TBL
 
 import pickle
 
-from structures.users import CommunityUser
-
-from structures.attribute import AbstractAttribute, AnyAttributeT, AttributeValueTypeT, CollectionTreeItem, CollectionTreeT, StaticAttribute, TaskAttribute, AttributeValueType, UserAttribute
 from structures.task import Task
 from utils.locked import equality_locked
 
@@ -30,14 +33,12 @@ if TYPE_CHECKING:
 
 # --- Collection Types --- #
 
-class UserCollectionTreeItemT(TypedDict, total=True):
+class UserCollectionNodeT(TypedDict, total=True):
     value: str
     aliases: list[str]
     sort_value: int
-    nodes: NotRequired[list['UserCollectionTreeItemT']]
-type UserCollectionTreeT = list[UserCollectionTreeItemT]
-
-type UserCollectionT = None | UserCollectionTreeT
+    nodes: NotRequired[list['UserCollectionNodeT']]
+type UserCollectionNodesT = list[UserCollectionNodeT]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -72,13 +73,13 @@ class List:
         bad_collection: str, 
         attribute: TaskAttribute | UserAttribute,
     ) -> None:
-        user_collection: UserCollectionT = parsetools.json_loads_safe(
+        user_collection: UserCollectionNodesT = parsetools.json_loads_safe(
             bad_collection, 
-            AbstractAttribute.COLLECTION_MAX_DEPTH
+            attribute.__class__.COLLECTION_MAX_DEPTH
         )
         
         if not isinstance(user_collection, list):
-            raise fbe.TemporaryFeedbackError("Not a tree")
+            raise fbe.TemporaryFeedbackError("Not a collection")
         
         if not user_collection:
             return
@@ -89,53 +90,55 @@ class List:
 
     def _recursively_parse_validate_flatten_user_collection[T: AttributeValueTypeT](
         self,
-        user_collection_tree: UserCollectionTreeT, 
+        user_collection_tree: UserCollectionNodesT, 
         value_type: AttributeValueType[T]
-    ) -> list[CollectionTreeItem[T]]:
-        flattened: list[CollectionTreeItem[T]] = []
+    ) -> CollectionNodesT[T]:
+        flattened: CollectionNodesT[T] = []
         seen: set[T] = set()
 
-        def recursive(tree: UserCollectionTreeT) -> CollectionTreeT[T]:
-            result: CollectionTreeT[T] = []
+        def recursive(tree: UserCollectionNodesT) -> CollectionNodesT[T]:
+            result: CollectionNodesT[T] = []
 
-            for item in tree:
-                value, aliases, sort_value = self._extract_data_from_collection_item(item, value_type)
+            for node in tree:
+                value, aliases, sort_value = self._extract_data_from_collection_item(node, value_type)
 
                 for syn in (value, *aliases):
-                    normed = attribute._normalize_collection_value(syn)
+                    normed = collection.normalize_collection_value(syn)
 
                     if normed in seen:
                         raise fbe.TemporaryFeedbackError(f"The value or alias `{normed}` appeared more than once in the collection.")
                     
                     seen.add(normed)
 
-                nodes = item.get('nodes', [])
+                nodes = node.get('nodes', [])
 
                 if not isinstance(nodes, list):
                     raise fbe.TemporaryFeedbackError("Not a sub tree")
                 
-                item = CollectionTreeItem(
+                node = CollectionNode(
                     value,
                     aliases,
                     sort_value,
                     recursive(nodes)
                 )
 
-                for node in item.nodes:
-                    node.root = item
+                for child_nodes in node.nodes:
+                    child_nodes._post_set_root(node)
 
-                result.append(item)
-                flattened.append(item)
+                result.append(node)
+                flattened.append(node)
 
             return result
-            
+        # end recursive
+
         recursive(user_collection_tree)
 
         return flattened
 
+
     def _extract_data_from_collection_item[T: AttributeValueTypeT](
         self,
-        item: UserCollectionTreeItemT,
+        item: UserCollectionNodeT,
         value_type: AttributeValueType[T]
     ) -> tuple[T, set[T], int]:
         try:
@@ -169,7 +172,7 @@ class List:
 
     def _insert_collection_into_db[T: AttributeValueTypeT](
         self, 
-        unique_flattened: list[CollectionTreeItem[T]], 
+        unique_flattened: CollectionNodesT[T], 
         attribute: TaskAttribute | UserAttribute
     ) -> None:
         if isinstance(attribute, TaskAttribute):
@@ -231,14 +234,6 @@ class List:
 
     # --- All Attributes ---
     
-    # def delete_attribute(self, bad_name: str) -> None:
-    #     static_attribute = self.get_attribute_by_name(text.sanitize(bad_name))
-
-    #     if static_attribute is not None:
-    #         return self.delete_static_attribute()
-
-    #     self._generic_delete_attribute(None, bad_name)
-    
     def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
         return [attr for _, attr_coll in self.get_attributes_categorized(where) for attr in attr_coll]
 
@@ -280,6 +275,7 @@ class List:
 
     def _generic_create_attribute(
         self,
+        attribute_type: type[AnyAttributeT],
         bad_name: str,
         bad_aliases: Iterable[str],
         max_slots: int,
@@ -289,8 +285,8 @@ class List:
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 bad_aliases, 
-                StaticAttribute.MAX_SYN_LEN, 
-                StaticAttribute.MAX_ALIAS_COUNT + 1
+                attribute_type.MAX_SYN_LEN, 
+                attribute_type.MAX_ALIAS_COUNT + 1
             )
 
             attributes = self.get_attributes()
@@ -305,7 +301,7 @@ class List:
                 if self.get_attribute_by_alias(alias) is not None:
                     raise fbe.TemporaryFeedbackError(f"Attribute alias `{alias}` already used as name or alias of different attribute")
 
-            if not (1 <= max_slots <= AbstractAttribute.MAX_SLOTS):
+            if not (1 <= max_slots <= attribute_type.MAX_SLOTS):
                 raise fbe.TemporaryFeedbackError("Max slots must be between 1 and 32 inclusive")
 
             if not (0 <= min_slots <= max_slots):
@@ -314,6 +310,7 @@ class List:
             index = max(attr.index for attr in attributes) + 1 if attributes else 1
 
             return (name, aliases, index)
+        
         
     def _generic_delete_attribute(self, attribute_type: type[TaskAttribute | UserAttribute], bad_name: str) -> None:
         from database import dbutils
@@ -357,7 +354,7 @@ class List:
         with equality_locked(self):
             assert self.get_tasks() == []
             
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots, min_slots)
+            name, aliases, index = self._generic_create_attribute(StaticAttribute, bad_name, bad_aliases, max_slots, min_slots)
 
             h = queries.ArgHelper()
             SAT = TBL.StaticAttribute
@@ -418,7 +415,7 @@ class List:
     def delete_static_attribute(self) -> Never:
         raise fbe.TemporaryFeedbackError("Static attribute cannot be deleted!")
 
-    def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -430,11 +427,11 @@ class List:
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _static_attribute_data_to_obj(self, data: S.SingleTableRowT) -> StaticAttribute:
+    def _static_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> StaticAttribute:
         SAT = TBL.StaticAttribute
 
         return StaticAttribute(
@@ -476,7 +473,7 @@ class List:
                     AND {SAAT.alias} = {h|alias}
             """, h.steal())
 
-            result: S.SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None
@@ -512,7 +509,7 @@ class List:
         unique_value_per_list: bool
     ) -> TaskAttribute[T]:
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots)
+            name, aliases, index = self._generic_create_attribute(TaskAttribute, bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
             
             h = queries.ArgHelper()
@@ -576,7 +573,7 @@ class List:
     def delete_task_attribute(self, bad_name: str) -> None:
         self._generic_delete_attribute(TaskAttribute, bad_name)
             
-    def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -588,11 +585,11 @@ class List:
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _task_attribute_data_to_obj(self, data: S.SingleTableRowT) -> TaskAttribute:
+    def _task_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> TaskAttribute:
         TAT = TBL.TaskAttribute
 
         return TaskAttribute(
@@ -633,7 +630,7 @@ class List:
                     AND {TBL.TaskAttributeAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: S.SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None
@@ -659,7 +656,7 @@ class List:
         unique_slots: bool
     ) -> UserAttribute[T]:
         with equality_locked(self):
-            name, aliases, index = self._generic_create_attribute(bad_name, bad_aliases, max_slots)
+            name, aliases, index = self._generic_create_attribute(UserAttribute, bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
 
             h = queries.ArgHelper()
@@ -721,7 +718,7 @@ class List:
     def delete_user_attribute(self, bad_name: str) -> None:
         self._generic_delete_attribute(UserAttribute, bad_name)
 
-    def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -733,11 +730,11 @@ class List:
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _user_attribute_data_to_obj(self, data: S.SingleTableRowT) -> UserAttribute:
+    def _user_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> UserAttribute:
         UAT = TBL.UserAttribute
 
         return UserAttribute(
@@ -777,7 +774,7 @@ class List:
                     AND {TBL.UserAttributeAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: S.SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
         
         if result is None:
             return None
@@ -877,7 +874,7 @@ class List:
                 if not isinstance(k, str):
                     raise fbe.TemporaryFeedbackError(f"Key `{k}` is not a string")
                 
-                attr = required.obj_generic(
+                attr = required.structure_name_not_found(
                     self.get_task_attribute_by_syn(k),
                     TaskAttribute
                 )
@@ -957,7 +954,7 @@ class List:
                         AND {TBL.Task.id} = {h|task.id}
                 """, h.steal())
         
-    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
+    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
@@ -969,11 +966,11 @@ class List:
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: S.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
         return result
     
-    def _task_data_to_obj(self, data: S.SingleTableRowT) -> Task:
+    def _task_data_to_obj(self, data: typed.SingleTableRowT) -> Task:
         return Task(
             list=self,
             id=data[TBL.Task.id],
@@ -1007,7 +1004,7 @@ class List:
                     AND {TBL.TaskAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: S.SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None
