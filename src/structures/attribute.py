@@ -318,15 +318,8 @@ class AbstractAttribute[T: AttributeValueTypeT]:
         
         return result  # type: ignore
     
-    def from_str(self, s: str, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
-        if not (s := s.strip()):
-            return []
-        
-        try:
-            loaded: str | list[Any] = parsetools.json_loads_safe(s, 1)
-        except fbe.TemporaryFeedbackError:  # TODO if depth too big, custom feedback
-            raise fbe.TemporaryFeedbackError 
 
+    def from_loaded(self, loaded: str | builtins.list[Any], custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
         value_type = custom_value_type or self.value_type
 
         converted: list[T] = []
@@ -357,6 +350,17 @@ class AbstractAttribute[T: AttributeValueTypeT]:
                 raise fbe.TemporaryFeedbackError("Values must be unique for this attribute")
             
         return values
+
+    def from_str(self, s: str, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
+        if not (s := s.strip()):
+            return []
+        
+        try:
+            loaded: str | list[Any] = parsetools.json_loads_safe(s, 1)
+        except fbe.TemporaryFeedbackError:  # TODO if depth too big, custom feedback
+            raise fbe.TemporaryFeedbackError 
+
+        return self.from_loaded(loaded, custom_value_type)
         
 
     def to_str(self, obj: T) -> str:

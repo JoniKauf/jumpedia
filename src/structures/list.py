@@ -325,25 +325,20 @@ class List:
 
         with equality_locked(self), queries.connected() as (conn, cursor):
             if issubclass(attribute_type, TaskAttribute):
-                attr = self.get_user_attribute_by_name(name)
+                attr = self.get_task_attribute_by_name(name)
             else:
                 attr = self.get_user_attribute_by_name(name)
 
             if attr is None:
                 raise fbe.TemporaryFeedbackError("Attribute not found!")
             
-            cursor.execute(f"""
-                DELETE FROM {Tbl}
-                WHERE 
-                    {Tbl.list_id} = {h|self.id}
-                    AND {Tbl.name} = {h|name}
-            """, h.steal())
-
-            # For when attribute_type is given, otherwise this should always be != 0
-            affected: int = cursor.rowcount
-
-            if affected == 0:
-                raise fbe.TemporaryFeedbackError("No attribute with that name found")
+            with equality_locked(attr):  # type: ignore
+                cursor.execute(f"""
+                    DELETE FROM {Tbl}
+                    WHERE 
+                        {Tbl.list_id} = {h|self.id}
+                        AND {Tbl.id} = {h|attr.id}
+                """, h.steal())
 
 
     # --- Static Attribute ---
@@ -850,17 +845,51 @@ class List:
 
     # --- Tasks ---
 
-    def create_task(self, bad_name: str, bad_aliases: Iterable[str], **kwargs: str) -> 'Task':
+    def create_task(
+        self, 
+        bad_name: str, 
+        bad_aliases: str, 
+        bad_str_attribute_value_mapping: str
+    ) -> 'Task':
+        from discordtools import required
         with equality_locked(self):
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
-                bad_aliases, 
+                parsetools.json_loads_safe(bad_aliases, 1), 
                 Task.MAX_SYN_LEN,
                 AbstractAttribute.MAX_ALIAS_COUNT + 1
             )
 
-            if len(self.get_tasks()) >= self.__class__.MAX_TASKS
-            if self.get_task_by_name(name)
+            if len(self.get_tasks()) >= self.__class__.MAX_TASKS:
+                raise fbe.TemporaryFeedbackError("Task limit reached")
+            
+            if self.get_task_by_name(name) is not None:
+                raise fbe.TemporaryFeedbackError("Task with that name already exists")
+            
+            attr_values_loaded: dict[str, str | list[Any]] = parsetools.json_loads_safe(bad_str_attribute_value_mapping, 2)
+
+            if not isinstance(attr_values_loaded, dict):
+                raise fbe.TemporaryFeedbackError("attribute_value_mapping is not a dictionary")
+            
+            attr_value_mapping: dict[TaskAttribute, list[AttributeValueTypeT]] = {}
+
+            for k, v in attr_values_loaded.items():
+                if not isinstance(k, str):
+                    raise fbe.TemporaryFeedbackError(f"Key `{k}` is not a string")
+                
+                attr = required.obj_generic(
+                    self.get_task_attribute_by_syn(k),
+                    TaskAttribute
+                )
+
+                attr_value_mapping[attr] = attr.from_loaded(v)
+            
+            attrs_required = (attr for attr in self.get_task_attributes() if attr.required)
+
+            for attr in attrs_required:
+                if attr not in attr_value_mapping:
+                    raise fbe.TemporaryFeedbackError(f"Required attribute `{attr.name}` missing")
+                
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
@@ -876,23 +905,57 @@ class List:
                 """, h.steal())
 
                 task_id: int = cursor.lastrowid  # type: ignore
+                
+                if aliases:
+                    cursor.execute(f"""
+                        INSERT INTO {TBL.TaskAlias} (
+                            {TBL.TaskAlias.task_id},
+                            {TBL.TaskAlias.list_id},
+                            {TBL.TaskAlias.alias}
+                        ) 
+                        VALUES 
+                            {','.join(f"({h|task_id}, {h|self.id}, {h|alias})" for alias in aliases)}        
+                    """, h.steal())
 
-                cursor.execute(f"""
-                    INSERT INTO {TBL.TaskAlias} (
-                        {TBL.TaskAlias.task_id},
-                        {TBL.TaskAlias.list_id},
-                        {TBL.TaskAlias.alias}
-                    ) 
-                    VALUES 
-                        {','.join(f"({h|task_id}, {h|self.id}, {h|alias})" for alias in aliases)}        
+                if attr_value_mapping:
+                    TATVT = TBL.TaskAttributeTaskValue
                     
-                """, h.steal())
+                    cursor.execute(f"""
+                        INSERT INTO {TATVT} (
+                            {TATVT.task_id},
+                            {TATVT.task_attribute_id},
+                            {TATVT.value}
+                        )
+                        VALUES 
+                            {','.join(f"({h|task_id}, {h|attr.id}, {h|pickle.dumps(v)})" for attr, v in attr_value_mapping.items())}
+                    """, h.steal())
 
             return Task(
                 list=self,
                 id=task_id,
                 name=name
             )
+        
+    def delete_task(self, bad_name: str) -> None:
+        from database import dbutils
+
+        name = text.sanitize(bad_name)
+
+        with equality_locked(self), queries.connected() as (conn, cursor):
+            task = self.get_task_by_name(name)
+
+            if task is None:
+                raise fbe.TemporaryFeedbackError("Attribute not found!")
+            
+            h = queries.ArgHelper()
+
+            with equality_locked(task):
+                cursor.execute(f"""
+                    DELETE FROM {TBL.Task}
+                    WHERE 
+                        {TBL.Task.list_id} = {h|self.id}
+                        AND {TBL.Task.id} = {h|task.id}
+                """, h.steal())
         
     def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> S.ManyTableRowT:
         h = queries.ArgHelper()

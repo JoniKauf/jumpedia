@@ -125,8 +125,10 @@ class Community:
             
             
     def delete_list(self, bad_name: str) -> None:
+        name = text.sanitize(bad_name)
+
         with equality_locked(self):
-            list = self.get_list_by_name(bad_name)
+            list = self.get_list_by_name(name)
 
             # Check if list already deleted, but object used
             if list is None:

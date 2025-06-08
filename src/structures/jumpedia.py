@@ -495,8 +495,10 @@ class Jumpedia(metaclass=metautils.Singleton):
                 return community
     
     def delete_community(self, bad_name: str) -> None:
+        name = text.sanitize(bad_name)
+
         with equality_locked(self):
-            community = self.get_community_by_name(bad_name)
+            community = self.get_community_by_name(name)
 
             # Already deleted
             if community is None:

@@ -12,6 +12,7 @@ from structures.attribute import AttributeValueTypeEnum, StaticAttribute, TaskAt
 from structures.jumpedia import Jumpedia
 from structures.list import List
 from structures.ranks import CommunityRank
+from structures.task import Task
 from utils import parsetools
 
 class ListCog(cmds.GroupCog, group_name="list"):
@@ -47,12 +48,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
     get_group = acmds.Group(name="get", description="Get objects of the list.")
 
     @get_group.command(name="attributes", description="Get all attributes of a list.")
-    async def list_attributes(self, ia: dc.Interaction) -> None:
-        list = Context(ia).selected_list
+    async def get_attributes(self, ia: dc.Interaction, list: str | None = None) -> None:
+        list_obj = Context(ia).get_requested_list(list)
         
         result: builtins.list[str] = []
 
-        for attr_type, attr_coll in list.get_attributes_categorized():
+        for attr_type, attr_coll in list_obj.get_attributes_categorized():
             result.append(
                 f"__**{attr_type.ATTRIBUTE_TYPE_NAME.title()}**__\n" +
                 ('\n'.join(f"- {attr.name}" for attr in attr_coll) or "None")
@@ -64,6 +65,15 @@ class ListCog(cmds.GroupCog, group_name="list"):
             msg.MsgFeedback.INFO
         ))
     
+    @get_group.command(name="tasks", description="Get all tasks of a list.")
+    async def get_tasks(self, ia: dc.Interaction, list: str | None = None) -> None:
+        list_obj = Context(ia).get_requested_list(list)
+
+        await ia.response.send_message(msg.layout(
+            "All Attributes",
+            '\n'.join(task.name for task in list_obj.get_tasks()),
+            msg.MsgFeedback.INFO
+        ))
 
     create_group = acmds.Group(name="create", description="Create objects for a list.")
 
@@ -134,37 +144,24 @@ class ListCog(cmds.GroupCog, group_name="list"):
     
 
     @create_group.command(name="task", description="Create a new task for the specified list.")
-    async def create_task(self, ia: dc.Interaction, attribute_value_mapping: str, list: str | None = None) -> None:
+    async def create_task(
+        self, 
+        ia: dc.Interaction, 
+        name: str, 
+        attribute_value_mapping: str = parsetools.EMPTY_JSON_OBJ, 
+        aliases: str = parsetools.EMPTY_JSON_LIST,
+        list: str | None = None
+    ) -> None:
         ctx = Context(ia)
         list_obj = ctx.get_requested_list(list)
-
-        attr_values_loaded: dict[str, builtins.list[str]] = parsetools.json_loads_safe(attribute_value_mapping, 2)
-
-        if not isinstance(attr_values_loaded, dict):
-            raise fbe.TemporaryFeedbackError("attribute_value_mapping is not a dictionary")
-        
-        attr_values: dict[StaticAttribute | TaskAttribute, builtins.list[str]] = {}
-
-        for k, v in attr_values_loaded.items():
-            if not isinstance(k, str):
-                raise fbe.TemporaryFeedbackError(f"Key `{k}` is not a string")
             
-            attr = required.obj_generic(
-                list_obj.get_task_attribute_by_syn(k) or list_obj.get_static_attribute_by_syn(k), 
-                (StaticAttribute, TaskAttribute)
-            )
+        task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
-            dumped_v: str = json.dumps(v)
-
-            attr_values[attr] = attr.from_str(dumped_v)
-
-        all_attrs_needed = list_obj.get_static_attributes() + list_obj.get_task_attributes()
-        all_attrs_needed = tuple(attr for attr in all_attrs_needed if attr.required)
-
-        for attr in all_attrs_needed:
-            if attr not in attr_values:
-                raise fbe.TemporaryFeedbackError(f"Required attribute `{attr}` missing!")
-            
+        await ia.response.send_message(msg.layout(
+            "Task Created",
+            f"The task `{task.name}` has successfully been created!",
+            msg.MsgFeedback.SUCCESS
+        ))
         
 
     
@@ -236,6 +233,37 @@ class ListCog(cmds.GroupCog, group_name="list"):
         ))
 
     
+    @delete_group.command(name="task")
+    async def delete_task(self, ia: dc.Interaction, name: str, list: str | None = None) -> None:
+        ctx = Context(ia)
+
+        list_obj = ctx.get_requested_list(list)
+
+        task = required.obj_generic(list_obj.get_task_by_name(name), Task)
+
+        async def after_submit(ia: dc.Interaction, success: bool) -> None:
+            if success:
+                list_obj.delete_task(name)
+
+                return await ia.response.send_message(msg.layout(
+                    "Task Deleted",
+                    f"The task `{task.name}` has successfully been deleted!",
+                    msg.MsgFeedback.SUCCESS
+                ))
+
+            await ia.response.send_message(msg.layout(
+                "Task Deletion Aborted",
+                f"The task `{task.name}` has **not** been deleted because the name entered is not correct!",
+                msg.MsgFeedback.WARNING
+            ))
+
+        await ia.response.send_modal(modals.ConfirmByEnteringModal(
+            ia,
+            "Confirm User Task Deletion",
+            "Re-Enter the task's name to confirm",
+            lambda s: s == task.name,
+            after_submit
+        ))
 
 
 
