@@ -6,10 +6,8 @@ from functools import cached_property
 import json
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
 
-import mariadb
-
 from database import queries
-from discordtools import feedbackerrors as fbe
+from discord_structures import feedbackerrors as fbe
 from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
 from structures.attributes import collection
 from structures.attributes.abstract_attribute import AbstractAttribute
@@ -17,28 +15,22 @@ from structures.attributes.collection import CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
+from structures.list import UserCollectionNodeT, UserCollectionNodesT
+from structures.task.task import Task
 from utils import metautils, parsetools, text
-
+from structures import attributes
 from database import typed as typed
 from database.typed import Tables as TBL
 
 import pickle
 
-from structures.task import Task
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
-    from structures.community import Community
+    from structures.community.community import Community
 
 
 # --- Collection Types --- #
-
-class UserCollectionNodeT(TypedDict, total=True):
-    value: str
-    aliases: list[str]
-    sort_value: int
-    nodes: NotRequired[list['UserCollectionNodeT']]
-type UserCollectionNodesT = list[UserCollectionNodeT]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -75,7 +67,7 @@ class List:
     ) -> None:
         user_collection: UserCollectionNodesT = parsetools.json_loads_safe(
             bad_collection, 
-            attribute.__class__.COLLECTION_MAX_DEPTH
+            attributes.COLLECTION_MAX_DEPTH
         )
         
         if not isinstance(user_collection, list):
@@ -285,13 +277,13 @@ class List:
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 bad_aliases, 
-                attribute_type.MAX_SYN_LEN, 
-                attribute_type.MAX_ALIAS_COUNT + 1
+                attributes.MAX_SYN_LEN, 
+                attributes.MAX_ALIAS_COUNT + 1
             )
 
-            attributes = self.get_attributes()
+            attrs = self.get_attributes()
 
-            if len(attributes) >= self.__class__.MAX_ATTRIBUTES:
+            if len(attrs) >= self.__class__.MAX_ATTRIBUTES:
                 raise fbe.TemporaryFeedbackError("Max attributes reached")
 
             if self.get_attribute_by_name(name) is not None:
@@ -301,13 +293,13 @@ class List:
                 if self.get_attribute_by_alias(alias) is not None:
                     raise fbe.TemporaryFeedbackError(f"Attribute alias `{alias}` already used as name or alias of different attribute")
 
-            if not (1 <= max_slots <= attribute_type.MAX_SLOTS):
+            if not (1 <= max_slots <= attributes.MAX_SLOTS):
                 raise fbe.TemporaryFeedbackError("Max slots must be between 1 and 32 inclusive")
 
             if not (0 <= min_slots <= max_slots):
                 raise fbe.TemporaryFeedbackError("Min slots must be between 0 and max slots inclusive")
             
-            index = max(attr.index for attr in attributes) + 1 if attributes else 1
+            index = max(attr.index for attr in attrs) + 1 if attrs else 1
 
             return (name, aliases, index)
         
@@ -492,7 +484,7 @@ class List:
         return name_attribute
     
     def get_static_alias_attribute(self) -> StaticAttribute[str]:
-        alias_attribute = self.get_static_attribute_by_name(Task.STATIC_ALIAS_ATTRIBUTE_NAME)
+        alias_attribute = self.get_static_attribute_by_name(Task.STATIC_ALIASES_ATTRIBUTE_NAME)
         assert alias_attribute is not None
         return alias_attribute
 
@@ -848,13 +840,13 @@ class List:
         bad_aliases: str, 
         bad_str_attribute_value_mapping: str
     ) -> 'Task':
-        from discordtools import required
+        from discord_structures import required
         with equality_locked(self):
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 parsetools.json_loads_safe(bad_aliases, 1), 
                 Task.MAX_SYN_LEN,
-                AbstractAttribute.MAX_ALIAS_COUNT + 1
+                attributes.MAX_ALIAS_COUNT + 1
             )
 
             if len(self.get_tasks()) >= self.__class__.MAX_TASKS:
@@ -876,6 +868,7 @@ class List:
                 
                 attr = required.structure_name_not_found(
                     self.get_task_attribute_by_syn(k),
+                    k,
                     TaskAttribute
                 )
 

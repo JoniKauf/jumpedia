@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+import pickle
 from database import queries, typed
+from structures.attributes import AttributeValueTypeT
 from structures.attributes.user_attribute import UserAttribute
 from structures.task.abstract_attribute_value_mapping import AbstractAttributeValueMapping
 from structures.task.task_attribute_value_mapping import TaskAttributeValueMappingAttributeT
-
+from database.typed import Tables as TBL
 type UserAttributeValueMappingAttributeT = TaskAttributeValueMappingAttributeT | UserAttribute
 
 @dataclass(frozen=True, kw_only=True)
@@ -22,17 +24,21 @@ class UserAttributeValueMapping(AbstractAttributeValueMapping[UserAttributeValue
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM user_attribute_task_value
+                FROM {TBL.UserAttributeTaskValue}
                 WHERE 
-                    task_id = {h|self.task.id}
-                    AND user_id = {h|self.user_id}
+                    {TBL.UserAttributeTaskValue.task_id} = {h|self.task.id}
+                    AND {TBL.UserAttributeTaskValue.user_id} = {h|self.user_id}
             """, h.steal())
 
             result: typed.ManyTableRowT = cursor.fetchall()
 
-        # Get all attributes specified for this task
+        user_attribute_ids: tuple[int, ...] = tuple(
+            row[TBL.UserAttributeTaskValue.user_attribute_id] for row in result
+        )
+
+         # Get all attributes specified for this task
         attributes = self.task.list.get_user_attributes(
-            lambda h: f"id in ({','.join((h|(row['user_attribute_id'])) for row in result)})"
+            lambda h: f"{TBL.UserAttribute.id} in ({','.join((h|attr) for attr in user_attribute_ids)})"
         )
 
         attribute_lookup: dict[int, UserAttribute] = {
@@ -41,7 +47,7 @@ class UserAttributeValueMapping(AbstractAttributeValueMapping[UserAttributeValue
 
         for row in result:
             try:
-                attr = attribute_lookup.pop(row['user_attribute_id'])
+                attr = attribute_lookup.pop(row[TBL.UserAttributeTaskValue.user_attribute_id])
             except KeyError:
                 raise fbe.TemporaryFeedbackError("Data changed")
             

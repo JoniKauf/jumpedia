@@ -2,25 +2,21 @@ import builtins
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
+from structures.abstract_structure import AbstractStructure
 from utils import text
 from database import typed as typed
 from database.typed import Tables as TBL
 
-from structures import users as user_
-
-from structures.tavc import Tavc, Tuavc
-
 if TYPE_CHECKING:
-    from structures.list import List
-    from structures.users import UserIdentifierT
+    from structures.list.list import List
+
 
 @dataclass(frozen=True, kw_only=True)
-class Task:
-    STRUCTURE_NAME: ClassVar[str] = "task"
+class Task(AbstractStructure):
+    __structure_name__ = 'task'
 
-    MAX_SYN_LEN: ClassVar[int] = 80
-    STATIC_NAME_ATTRIBUTE_NAME: ClassVar[str] = 'Name'
-    STATIC_ALIAS_ATTRIBUTE_NAME: ClassVar[str] = 'Alias'
+    STATIC_NAME_ATTRIBUTE_NAME: ClassVar[str] = 'name'
+    STATIC_ALIASES_ATTRIBUTE_NAME: ClassVar[str] = 'aliases'
 
     list: 'List'
     id: int
@@ -46,18 +42,11 @@ class Task:
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
-    
-    def __hash__(self) -> int:
-        return hash(self.identity)
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, self.__class__) and self.identity == value.identity
-    
-    def get_tavc(self) -> Tavc:
-        return Tavc(task=self)
-    
-    def get_tuavc(self, user: 'UserIdentifierT') -> Tuavc:
-        return Tuavc(task=self, user_id=user_.extract_id(user))
+
+    @property
+    def parent(self) -> List:
+        return self.list
+
         
     
 

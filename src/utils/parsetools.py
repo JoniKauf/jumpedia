@@ -1,6 +1,6 @@
 import json
 from typing import Any, Final
-from discordtools import feedbackerrors as fbe
+from discord_structures import feedbackerrors as fbe
 
 DEFAULT_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'

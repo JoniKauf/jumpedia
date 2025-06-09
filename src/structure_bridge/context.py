@@ -1,15 +1,15 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
 import discord as dc
-from discordtools import feedbackerrors as fbe, helpers, required
+from discord_structures import feedbackerrors as fbe, required, utils
 
 from functools import cached_property
 
-from structures.users import CommunityUser, MetaUser, ServerUser
-from structures.community import Community
-from structures.jumpedia import Jumpedia
-from structures.list import List
-from structures.ranks import AnyRank, CommunityRank, MetaRank, ServerRank
+from structures.community.community import Community
+from structures.jumpedia.jumpedia import Jumpedia
+from structures.list.list import List
+from structures.ranks.server_rank import ServerRank
+from structures.users.community_user import CommunityUser
+from structures.users.server_user import ServerUser
 
 @dataclass(frozen=True)
 class Context:
@@ -25,7 +25,7 @@ class Context:
     
     @cached_property
     def jumpedia(self) -> Jumpedia:
-        from structures.jumpedia import Jumpedia
+        from structures.jumpedia.jumpedia import Jumpedia
         return Jumpedia()
     
     @cached_property
@@ -80,13 +80,17 @@ class Context:
 
     @cached_property
     def user_name(self) -> str:
-        return helpers.get_user_name(self.interaction.user)
+        return utils.get_user_name(self.interaction.user)
     
-    def get_requested_list(self, list: str | None) -> List:
-        if list is None:
+    def get_selected_list(self, explicit_list: str | None) -> List:
+        if explicit_list is None:
             return self.selected_list
         
-        return required.list_generic(self.community.get_list_by_name(list))
+        return required.structure_name_not_found(
+            self.community.get_list_by_name(explicit_list),
+            explicit_list,
+            List
+        )
         
     def permitted(self, required: AnyRank) -> None:
         if isinstance(required, MetaRank):

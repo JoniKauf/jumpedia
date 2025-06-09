@@ -1,35 +1,30 @@
 
 import time
-from typing import TYPE_CHECKING, Any, Callable, Final, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, Final, Self, TypedDict
 import logging
 
-from discordtools import feedbackerrors as fbe, utils
-from structures import attributes
-from structures.list import List
+from discord_structures import feedbackerrors as fbe, utils
+from structures import AbstractStructure, attributes
+from structures.list.list import List
 from structures.ranks import MetaRank, CommunityRank
-from structures.tasks.task import Task
-from structures.users import MetaUser
+from structures.task.task import Task
+from structures.users.meta_user import MetaUser
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
 from dataclasses import dataclass, field
 import discord as dc
 
-# -> Jumpedia has many:
-#  -> Community has many:
-#   -> User
-#   -> List has many:
-#    -> Task
-#    -> Attribute
-
-from structures.community import Community
+from structures.community.community import Community
 from utils.locked import equality_locked
 
 LOGGER = logging.getLogger(__name__)
 
+class AbstractStructureAndSingleton(type(AbstractStructure), metautils.Singleton):
+    pass
 
 @dataclass(frozen=True, kw_only=True)
-class Jumpedia(metaclass=metautils.Singleton):
+class Jumpedia(AbstractStructure, metaclass=AbstractStructureAndSingleton):
     id: int = field(init=False, default=1)
     database_name: str = field(init=False, default=typed.DATABASE_NAME)
     
@@ -37,12 +32,10 @@ class Jumpedia(metaclass=metautils.Singleton):
     def identity(self) -> tuple[int, ...]:
         return (self.id,)
     
-    def __hash__(self) -> int:
-        return hash(self.id)
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Jumpedia) and self.id == value.id
-            
+    @property
+    def parent(self) -> Self:
+        return self
+
     def _init(self) -> None:
         with queries.connected(no_db=True) as (conn, cursor):
             cursor.execute(f"""
@@ -609,6 +602,7 @@ class Jumpedia(metaclass=metautils.Singleton):
                         """, h.steal())
                         
                 return MetaUser(
+                    jumpedia=self,
                     id=user_id,
                     meta_rank=meta_rank,
                     name=user_name
@@ -643,6 +637,7 @@ class Jumpedia(metaclass=metautils.Singleton):
     
     def _user_data_to_obj(self, data: typed.SingleTableRowT) -> MetaUser:
         return MetaUser(
+            jumpedia=self,
             id=data[TBL.User.id],
             meta_rank=MetaRank.get(data[TBL.User.meta_power]),
             name=data[TBL.User.name]

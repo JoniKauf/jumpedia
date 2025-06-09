@@ -4,7 +4,7 @@ import math
 from typing import Any, Callable, Coroutine, Sequence
 import discord as dc
 from discord import app_commands as acmds
-from discordtools import errors
+from discord_structures import errors
 
 type ChoiceValueT = int | float | str
 type ChoiceT = acmds.Choice[ChoiceValueT]

@@ -2,9 +2,8 @@ from typing import Any, Callable, Coroutine, Literal, Optional as Opt
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-from discordtools import feedbackerrors as fbe
+from discord_structures import feedbackerrors as fbe
 
-from discordtools.context import Context
 from structures.ranks import AnyRank, MetaRank, ServerRank, CommunityRank
 
 type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]

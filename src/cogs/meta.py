@@ -3,9 +3,9 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from database import queries
-from discordtools import modals, msg, predicates, feedbackerrors as fbe, required
-from database.strong import Tables as TBL
-from discordtools.context import Context
+from discord_structures import modals, msg, predicates, feedbackerrors as fbe, required
+from database.typed import Tables as TBL
+from bridges.context import Context
 from structures.ranks import CommunityRank, MetaRank, ServerRank
 
 

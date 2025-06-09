@@ -8,7 +8,7 @@ import discord as dc
 from discord.ui import Button, View
 import inspect
 
-from discordtools import errors
+from discord_structures import errors
 
 InteractionFuncT = Callable[..., Coroutine]
 
@@ -104,7 +104,7 @@ class MsgFeedback:
 MsgFeedback._init()
 
 
-def layout(header: str, description: str, message_type: MsgFeedback) -> str:
+def layout(header: str, description: str, message_type: MsgFeedback, additional: str) -> str:
     result: list[str] = []
 
     result.append(f"## {header.strip()}")

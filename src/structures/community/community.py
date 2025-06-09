@@ -6,25 +6,26 @@ import discord as dc
 
 import mariadb
 from structures import attributes
+from structures.abstract_structure import AbstractStructure
 from structures.attributes import AttributeValueType
 from structures.attributes.static_attribute import StaticAttribute
+from structures.list.list import List
+from structures.ranks.community_rank import CommunityRank
 from structures.task.task import Task
+from structures.users.community_user import CommunityUser
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
-import discordtools.feedbackerrors as fbe
+import discord_structures.feedbackerrors as fbe
 from typing import Optional as Opt
 
-from structures.list import List
-from structures.users import CommunityUser, MetaUser
-from structures.ranks import ServerRank, CommunityRank
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
-    from structures.jumpedia import Jumpedia
+    from structures.jumpedia.jumpedia import Jumpedia
  
-@dataclass(kw_only=True)
-class Community:
+@dataclass(frozen=True, kw_only=True)
+class Community(AbstractStructure):
     STRUCTURE_NAME: ClassVar[str] = "community"
 
     MAX_NAME_LENGTH: ClassVar[int] = 64
@@ -36,9 +37,12 @@ class Community:
     name: str
     default_selected_list_id: int | None
 
-    _server_ids: set[int] | None = field(init=False, default=None)
+    _server_ids: frozenset[int] | None = field(init=False, default=None)
 
-    def get_server_ids(self) -> set[int]:
+    def _post_set_server_ids(self, value: frozenset[int]) -> None:
+        object.__setattr__(self, '_server_ids', value)
+
+    def get_server_ids(self) -> frozenset[int]:
         if self._server_ids is None:
             h = queries.ArgHelper()
 
@@ -51,20 +55,19 @@ class Community:
 
                 result: typed.ManyTableRowT = cursor.fetchall()
 
-            self._server_ids = {row[TBL.Server.id] for row in result}
-
+            self._post_set_server_ids(frozenset(row[TBL.Server.id] for row in result))
+            assert self._server_ids is not None
+            
         return self._server_ids
         
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.jumpedia.identity
     
-    def __hash__(self) -> int:
-        return hash(self.identity)
+    @property
+    def parent(self) -> Jumpedia:
+        return self.jumpedia
     
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, self.__class__) and self.identity == value.identity
-
     def create_list(self, bad_name: str) -> 'List':
         with equality_locked(self):
             name = text.validate_and_sanitize_name(
@@ -114,7 +117,7 @@ class Community:
                 )
 
                 list.create_static_attribute(
-                    Task.STATIC_ALIAS_ATTRIBUTE_NAME,
+                    Task.STATIC_ALIASES_ATTRIBUTE_NAME,
                     (),
                     AttributeValueType.get_by_type(str),
                     1,
@@ -189,7 +192,7 @@ class Community:
         return self.get_list_by_id(self.default_selected_list_id)
     
     def set_default_selected_list(self, list_id: int | None) -> None:
-        from discordtools import required
+        from discord_structures import required
         
         h = queries.ArgHelper()
 
@@ -243,13 +246,13 @@ class Community:
                             SET {TBL.CommunityUser.power} = {h|community_rank.power}
                             WHERE 
                                 {TBL.CommunityUser.community_id} = {h|self.id}
-                                AND {TBL.CommunityUser.user_id} = {h|community_user.user.id}
+                                AND {TBL.CommunityUser.user_id} = {h|community_user.meta_user.id}
                         """, h.steal())
                     else:
                         community_rank = community_user.community_rank 
 
                 return CommunityUser(
-                    user=user,
+                    meta_user=user,
                     community=self,
                     community_rank=community_rank,
                     selected_list=selected_list
@@ -287,7 +290,7 @@ class Community:
     def _community_user_data_to_obj(self, data: typed.SingleTableRowT) -> 'CommunityUser':  
         return CommunityUser(
             community=self,
-            user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
+            meta_user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
             community_rank=CommunityRank.get(data[TBL.CommunityUser.power]),
             selected_list=self.get_list_by_id(data[TBL.CommunityUser.selected_list_id])
         )
@@ -330,7 +333,7 @@ class Community:
                     )
                 """, h.steal())
 
-            self.get_server_ids().add(server_id)
+            self._post_set_server_ids(self.get_server_ids() | {server_id})
 
     def remove_from_server(self, server_id: int) -> None:
         with equality_locked(self.jumpedia):
@@ -346,4 +349,7 @@ class Community:
                     DELETE FROM {TBL.Server}
                     WHERE {TBL.Server.id} = {h|server_id}
                 """, h.steal())
+
+            self._post_set_server_ids(self.get_server_ids() - {server_id})
+
             

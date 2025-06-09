@@ -1,10 +1,10 @@
 from types import UnionType
 from typing import ClassVar, Never, Protocol
 import discord as dc
-from discordtools.errors import FeedbackError
-import discordtools.feedbackerrors as fbe
-from structures.community import Community
-from structures.list import List
+from discord_structures.errors import FeedbackError
+import discord_structures.feedbackerrors as fbe
+from structures.community.community import Community
+from structures.list.list import List
 from structures.task import Task
 from utils import text
 

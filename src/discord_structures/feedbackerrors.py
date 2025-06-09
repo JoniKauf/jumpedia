@@ -1,6 +1,6 @@
-from discordtools import errors
+from discord_structures import errors
 from typing import Any, Optional as Opt, Sequence
-from discordtools import msg as msgt
+from discord_structures import msg as msgt
 from numbers import Real
 
 from structures import ranks

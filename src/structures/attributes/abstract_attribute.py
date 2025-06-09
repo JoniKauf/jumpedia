@@ -8,7 +8,7 @@ import json
 import pickle
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
-from discordtools import errors, feedbackerrors as fbe
+from discord_structures import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
@@ -21,7 +21,7 @@ from database.typed import Tables as TBL
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
-    from structures.list import List
+    from structures.list.list import List
 
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 

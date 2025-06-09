@@ -7,7 +7,7 @@ from discord import ui
 from discord import app_commands as acmds
 from discord.utils import MISSING
 
-from discordtools import msg
+from discord_structures import msg
 
 
 class ConfirmByEnteringModal(ui.Modal):

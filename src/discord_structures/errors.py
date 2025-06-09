@@ -1,8 +1,9 @@
 import textwrap
 from typing import Any, Sequence
-import discordtools.msg as msgt
 from numbers import Real
 from discord.app_commands.errors import CheckFailure
+
+from discord_structures import msg
 
 class ProgrammingError(RuntimeError):
     """
@@ -26,6 +27,9 @@ class FeedbackError(UserReturnableError):
     """Its string representation shows a customizable, user-friendly error message."""
 
     def __init__(self, *, header: str, description: str, docs: Sequence[str] | None = None, **msg_kwargs: Any):
+        if self.__class__ == FeedbackError:
+            raise AssertionError("Must be subclass of feedbackerror")
+        
         self.error = header
         self.details = description
         self.docs = docs
@@ -36,7 +40,8 @@ class FeedbackError(UserReturnableError):
     def __str__(self) -> str:
         parts = []
 
-        parts.append(f"### {self.error}")
+        msg.layout(header=)
+        parts.append(f"## {self.error}")
         parts.append(self.details)
 
         if self.docs:
