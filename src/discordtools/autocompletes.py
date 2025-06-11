@@ -4,7 +4,7 @@ import math
 from typing import Any, Callable, Coroutine, Sequence
 import discord as dc
 from discord import app_commands as acmds
-from discord_structures import errors
+import errors
 
 type ChoiceValueT = int | float | str
 type ChoiceT = acmds.Choice[ChoiceValueT]
@@ -51,10 +51,10 @@ def _convert_to_choice_values(elems: Sequence[ChoiceT | ChoiceValueT]) -> list[C
 
 def _verify_limit(limit: int) -> None:
     if limit > AUTOCOMPLETE_LIMIT:
-        raise errors.ProgrammingError("discord limit of 25 choices surpassed")
+        raise errors.ImpossibleError("discord limit of 25 choices surpassed")
 
     if limit < 1:
-        raise errors.ProgrammingError(
+        raise errors.ImpossibleError(
             "at least 1 element required for autocomplete"
         )
     

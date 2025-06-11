@@ -8,7 +8,7 @@ import json
 import pickle
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
-from discord_structures import errors, feedbackerrors as fbe
+from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal

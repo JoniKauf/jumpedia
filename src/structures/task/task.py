@@ -2,7 +2,7 @@ import builtins
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
-from structures.abstract_structure import AbstractStructure
+from structures.abstract_structure import StructureBase
 from utils import text
 from database import typed as typed
 from database.typed import Tables as TBL
@@ -12,11 +12,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Task(AbstractStructure):
+class Task(StructureBase):
     __structure_name__ = 'task'
-
-    STATIC_NAME_ATTRIBUTE_NAME: ClassVar[str] = 'name'
-    STATIC_ALIASES_ATTRIBUTE_NAME: ClassVar[str] = 'aliases'
 
     list: 'List'
     id: int

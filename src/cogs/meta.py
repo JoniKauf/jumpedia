@@ -3,7 +3,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from database import queries
-from discord_structures import modals, msg, predicates, feedbackerrors as fbe, required
+from discordtools import messaging, modals, predicates, feedbackerrors as fbe, required
 from database.typed import Tables as TBL
 from bridges.context import Context
 from structures.ranks import CommunityRank, MetaRank, ServerRank
@@ -26,10 +26,10 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
         ctx.jumpedia.create_or_get_user(ia.user.id, JONI_NAME)
         ctx.jumpedia.change_user_meta_rank(ia.user.id, JONI_NAME, MetaRank.JONIKAUF)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Yes, you are Joni.",
             "Everything setup properly.",
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 
@@ -39,10 +39,10 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
     async def show_communities(self, ia: dc.Interaction) -> None:
         communities = Context(ia).jumpedia.get_communities()
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "All Communities",
             '\n'.join(f"- {community.name}" for community in communities) or "None",
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 
@@ -55,10 +55,10 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
 
         community = ctx.jumpedia.create_community(ia.user, ctx.server.id, community_name)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Community Created",
             f"The community `{community.name}` was successfully created and is now connected to this server!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
 
 
@@ -74,16 +74,16 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
             if correct:
                 ctx.jumpedia.delete_community(community.name)
 
-                return await ia.response.send_message(msg.layout(
+                return await ia.response.send_message(messaging.layout(
                     "Community Deleted",
                     f"The community `{community.name}` has successfully been deleted!",
-                    msg.MsgFeedback.SUCCESS
+                    messaging.MessageStatus.SUCCESS
                 ))
             
-            await ia.response.send_message(msg.layout(
+            await ia.response.send_message(messaging.layout(
                 "Community Deletion Aborted",
                 f"The community `{community.name}` has **not** been deleted because the name entered is not correct!",
-                msg.MsgFeedback.WARNING
+                messaging.MessageStatus.WARNING
             ))
 
         await ia.response.send_modal(modals.ConfirmByEnteringModal(
@@ -106,10 +106,10 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
     
         community.add_to_server(server.id)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Community Connected",
             f"This server has successfully been connected with the community `{community.name}`!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
     
     
@@ -124,10 +124,10 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
 
         community.remove_from_server(ctx.server.id)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Community Disconnected",
             f"The community `{community.name}` has successfully been disconnected from this server!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
 
 

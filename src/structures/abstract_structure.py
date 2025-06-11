@@ -8,7 +8,7 @@ from utils import text
 
 
 @dataclass(frozen=True, kw_only=True)
-class AbstractStructure(ABC):
+class StructureBase(ABC):
     __structure_name__: ClassVar[str] = ""
 
     @property
@@ -20,16 +20,11 @@ class AbstractStructure(ABC):
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, AbstractStructure):
+        if not isinstance(value, StructureBase):
             print(f"Compared", value, "to", self)
             return False
         
         return self.__class__ != value.__class__ and self.identity == value.identity
-    
-    @property
-    @abstractmethod
-    def parent(self) -> 'AbstractStructure':
-        ...
 
     def __init_subclass__(cls) -> None:
         structure_name = text.norm(cls.__structure_name__)

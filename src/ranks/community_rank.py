@@ -4,8 +4,8 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from structures.abstract_structure import AbstractStructure
-from structures.ranks.abstract_rank import AbstractRank
+from ranks.abstract_rank import AbstractRank
+from structures.abstract_structure import StructureBase
 
 
 @dataclass(frozen=True)

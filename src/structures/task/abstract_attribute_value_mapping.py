@@ -6,8 +6,8 @@ from database import queries
 from database import typed
 from database.typed import Tables as TBL
 
-from discord_structures import feedbackerrors as fbe
-from structures.abstract_structure import AbstractStructure
+from discordtools import feedbackerrors as fbe
+from structures.abstract_structure import StructureBase
 from structures.attributes import AnyAttributeT, AttributeValueTypeT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
@@ -15,7 +15,7 @@ from structures.attributes.user_attribute import UserAttribute
 from structures.task.task import Task
 
 @dataclass(frozen=True, kw_only=True)
-class AbstractAttributeValueMapping[T: AnyAttributeT](AbstractStructure):
+class AbstractAttributeValueMapping[T: AnyAttributeT](StructureBase):
     task: 'Task'
     mapping: dict[T, list[AttributeValueTypeT]] = field(init=False, default_factory=dict)
 

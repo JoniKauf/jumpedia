@@ -3,7 +3,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import msg, predicates, feedbackerrors as fbe
+from discordtools import messaging, predicates, feedbackerrors as fbe
 from discordtools.context import Context
 from structures.attribute import ATTRIBUTE_TYPES
 
@@ -23,10 +23,10 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                 ('\n'.join(f"- {attr.name}" for attr in attr_coll) or "None")
             )
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "All Attributes",
             '\n\n'.join(result),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 

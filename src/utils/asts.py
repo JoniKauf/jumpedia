@@ -1,8 +1,6 @@
 import ast
 from typing import Iterable, Optional as Opt
-from trickjump import attribute as attrs
-from trickjump.catalog import List
-from trickjump.trickjump import Task
+from structures.task.task import Task
 from utils import devtools as dev
 
 class TrickjumpFilterNodeVisitor(ast.NodeVisitor):

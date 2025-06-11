@@ -1,43 +1,17 @@
 from dataclasses import dataclass
 from enum import Enum
 import textwrap
-from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Iterable, Literal, NamedTuple, Sequence,
+from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Generator, Iterable, Iterator, Literal, NamedTuple, Sequence,
                     TypedDict)
 
 import discord as dc
 from discord.ui import Button, View
 import inspect
 
-from discord_structures import errors
+from discordtools import errors
+from utils import text
 
 InteractionFuncT = Callable[..., Coroutine]
-
-
-# --- Text editing ---
-
-def default_empty() -> str:
-    return "<Empty>"
-
-def shorten(s: str, max: int = 32, more: str = '...') -> str:
-    return s[:max - len(more)] + more if len(s) > max else s
-
-def shorten_seq(elems: Sequence[str], *, max_elems: int = 8, max_s: int = 16, more_elems: str = '...', more_s: str = '...') -> tuple[str, ...]:
-    return (*(shorten(elem, max_s, more_s) for elem in elems[:max_elems]), more_elems) if len(elems) > max_elems else tuple(elems)
-
-def embed_seq(elems: Sequence[str], *, when_empty: str = default_empty()) -> str:
-    return f"`{'`, `'.join(elems)}`" if elems else when_empty
-
-def shorten_and_embed_seq(
-    elems: Sequence[str], 
-    *,
-    max_elems: int = 8, 
-    max_s: int = 16,
-    more_elems: str = '...', 
-    more_s: str = '...',
-    when_empty: str = default_empty()
-):
-    return embed_seq(shorten_seq(elems, max_elems=max_elems, max_s=max_s, more_elems=more_elems, more_s=more_s), when_empty=when_empty)
-
 
 
 def _get_relevant_kwargs(kwargs: dict[str, Any], func: Callable) -> dict[str, Any]:
@@ -81,7 +55,7 @@ async def _handle_interaction_func(
     
 
 @dataclass(frozen=True, slots=True)
-class MsgFeedback:
+class MessageStatus:
     _init_done: ClassVar[bool] = False
 
     emoji: str
@@ -101,16 +75,47 @@ class MsgFeedback:
 
         cls._init_done = True
 
-MsgFeedback._init()
+MessageStatus._init()
 
 
-def layout(header: str, description: str, message_type: MsgFeedback, additional: str) -> str:
+def layout(header: str, body: str, message_status: MessageStatus, more: Sequence[str] = ()) -> str:
     result: list[str] = []
 
     result.append(f"## {header.strip()}")
-    result.append(description.strip())
+    result.append(body.strip())
     
-    if message_type is not MsgFeedback.NONE:
-        result.append(f"\n-# :{message_type.emoji}:  {message_type.name}")
+    if more:
+        result.append('\n\n'.join(more))
+
+    if message_status is not MessageStatus.NONE:
+        result.append(f"\n-# :{message_status.emoji}:  {message_status.name}")
 
     return '\n'.join(result)
+
+
+
+
+def embed(s: str) -> str:
+    return f"`{s}`"
+
+def embed_many(elems: Iterable[str]) -> Generator[str, None, None]:
+    return (embed(elem) for elem in elems)
+
+def shorten_and_embed(s: str, max: int = 32, more: str = '...') -> str:
+    return text.shorten(embed(s), max=max, more=more)
+
+def shorten_and_embed_many(
+    elems: Sequence[str], 
+    *,
+    max_elems: int = 8, 
+    max_s: int = 16,
+    more_elems: str = '...', 
+    more_s: str = '...'
+):
+    return embed_many(text.shorten_many(
+        elems, 
+        max_elems=max_elems, 
+        max_s=max_s, 
+        more_elems=more_elems, 
+        more_s=more_s
+    ))

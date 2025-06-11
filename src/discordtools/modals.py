@@ -7,7 +7,7 @@ from discord import ui
 from discord import app_commands as acmds
 from discord.utils import MISSING
 
-from discord_structures import msg
+from discordtools import messaging
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -35,10 +35,10 @@ class ConfirmByEnteringModal(ui.Modal):
         asyncio.create_task(self.dispose())
 
     async def info_message(self, interaction: dc.Interaction) -> None:
-        await interaction.followup.send(msg.layout(
+        await interaction.followup.send(messaging.layout(
             "Awaiting Confirmation",
             "Please fill out the modal that should be appearing on your screen to confirm!",
-            msg.MsgFeedback.INFO,
+            messaging.MessageStatus.INFO,
         ), ephemeral=True)
 
     async def dispose(self):

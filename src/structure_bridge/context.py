@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 import discord as dc
-from discord_structures import feedbackerrors as fbe, required, utils
+from discordtools import feedbackerrors as fbe, required, utils
 
 from functools import cached_property
 
 from structures.community.community import Community
 from structures.jumpedia.jumpedia import Jumpedia
 from structures.list.list import List
-from structures.ranks.server_rank import ServerRank
 from structures.users.community_user import CommunityUser
 from structures.users.server_user import ServerUser
 

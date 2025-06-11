@@ -3,7 +3,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discord_structures import modals, msg, predicates, feedbackerrors as fbe, utils, views, required
+from discordtools import messaging, modals, predicates, feedbackerrors as fbe, utils, views, required
 from bridges.context import Context
 from structures import ranks
 from structures.list.list import List
@@ -23,7 +23,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         default_selected_list = community.get_default_selected_list()
         default_selected_list_name = default_selected_list.name if default_selected_list is not None else "None"
         
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Community Info",
             '\n'.join(
                 f"**{k}:** {v}" for k, v in [
@@ -33,7 +33,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                     ("Default Selected List", default_selected_list_name)
                 ]
             ),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 
@@ -44,10 +44,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ctx = Context(ia)
         community = ctx.community
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "All Lists",
             ','.join(f"- {list.name}" for list in community.get_lists()) or "None",
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 
@@ -65,12 +65,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
         community.set_default_selected_list(list_name)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Default Selected List Set",
             f"The default selected list has successfully been changed to `{list_name}`!"
             if list_name is not None else
             "The default selected list has successfully been changed to be unset, meaning that users are forced to select one.",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
 
 
@@ -108,10 +108,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
         what_moted = "promoted" if new_rank.power > other_community_user.community_rank.power else "demoted"
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             f"User {what_moted.title()}",
             f"The user `{other_user_name}` has successfully been {what_moted} to `{new_rank}`!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
 
 
@@ -124,10 +124,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
         new_list = ctx.community.create_list(list_name)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "List Created",
             f"The list `{new_list.name}` has been created successfully!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
     
 
@@ -144,16 +144,16 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             if success:
                 ctx.community.delete_list(list_name)
 
-                return await ia.response.send_message(msg.layout(
+                return await ia.response.send_message(messaging.layout(
                     "List Deleted",
                     f"The list `{list.name}` has successfully been deleted!",
-                    msg.MsgFeedback.SUCCESS
+                    messaging.MessageStatus.SUCCESS
                 ))
 
-            await ia.response.send_message(msg.layout(
+            await ia.response.send_message(messaging.layout(
                 "List Deletion Aborted",
                 f"The list `{list.name}` has **not** been deleted because the name entered is not correct!",
-                msg.MsgFeedback.WARNING
+                messaging.MessageStatus.WARNING
             ))
 
         await ia.response.send_modal(modals.ConfirmByEnteringModal(

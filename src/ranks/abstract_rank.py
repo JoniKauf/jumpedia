@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import functools
 from typing import ClassVar, Iterator, Self
 
-from structures.abstract_structure import AbstractStructure
+from structures.abstract_structure import StructureBase
 
 
 @functools.total_ordering
@@ -78,6 +78,6 @@ class AbstractRank:
 
     @property
     @abstractmethod
-    def parent(self) -> AbstractStructure:
+    def parent(self) -> StructureBase:
         """The structure that handles the creation, deletion or editing of this structure."""
 

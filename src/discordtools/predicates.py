@@ -2,9 +2,9 @@ from typing import Any, Callable, Coroutine, Literal, Optional as Opt
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-from discord_structures import feedbackerrors as fbe
-
-from structures.ranks import AnyRank, MetaRank, ServerRank, CommunityRank
+from discordtools import feedbackerrors as fbe
+from ranks import AnyRank
+from structure_bridge.context import Context
 
 type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
 type PredicateT = Callable[[dc.Interaction], Literal[True]]

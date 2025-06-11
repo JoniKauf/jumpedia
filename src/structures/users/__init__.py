@@ -1,10 +1,10 @@
 
 
 import re
-from typing import Sequence
+from typing import Final, Sequence
 import discord as dc
 
-from discord_structures.errors import FeedbackError
+from discordtools.errors import FeedbackError
 from structures.users.community_user import CommunityUser
 from structures.users.meta_user import MetaUser
 from structures.users.server_user import ServerUser
@@ -14,11 +14,14 @@ type AnyUserT = MetaUser | CommunityUser | ServerUser
 type UserIdentifierT = int | str | AnyUserT | dc.User | dc.Member
 
 
+MAX_SYN_LENGTH: Final[int] = 32
+MAX_ALIAS_COUNT: Final[int] = 32
+
 class InvalidUserFormat(FeedbackError):
     def __init__(self, user_format: str):
         return super().__init__(
-            header="Invalid", 
-            description=description
+            header="Invalid User Format", 
+            description="The format `{}`"
         )
 
 def extract_id_from_int(user_id: int) -> int:
@@ -54,3 +57,5 @@ def extract_id(identifier: UserIdentifierT) -> int:
         return identifier.id
     
     raise TypeError()
+
+

@@ -1,6 +1,6 @@
-from discord_structures import errors
+from discordtools import errors
 from typing import Any, Optional as Opt, Sequence
-from discord_structures import msg as msgt
+from discordtools import messaging as msgt
 from numbers import Real
 
 from structures import ranks
@@ -72,7 +72,7 @@ class RequiredAttributesMissing(errors.FeedbackError):
 
         super().__init__(
             header="Attribute Missing Error",
-            description=f"The required attributes {msgt.shorten_and_embed_seq(attrs)} are missing!"
+            description=f"The required attributes {msgt.shorten_and_embed_many(attrs)} are missing!"
         )
 
 class NotAJump(errors.FeedbackError):

@@ -5,7 +5,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from typing import Any, Optional as Opt
-from discordtools import modals, msg, predicates, required
+from discordtools import messaging, modals, predicates, required
 from discordtools.context import Context
 from discordtools import feedbackerrors as fbe
 from structures.attribute import AttributeValueTypeEnum, StaticAttribute, TaskAttribute, UserAttribute
@@ -36,12 +36,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
         
         info.append(("Task Count", len(list_obj.get_tasks())))
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "List Info",
             '\n'.join(
                 f"**{k}:** {v}" for k, v in info
             ),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
 
@@ -59,20 +59,20 @@ class ListCog(cmds.GroupCog, group_name="list"):
                 ('\n'.join(f"- {attr.name}" for attr in attr_coll) or "None")
             )
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "All Attributes",
             '\n\n'.join(result),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
     
     @get_group.command(name="tasks", description="Get all tasks of a list.")
     async def get_tasks(self, ia: dc.Interaction, list: str | None = None) -> None:
         list_obj = Context(ia).get_requested_list(list)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "All Attributes",
             '\n'.join(task.name for task in list_obj.get_tasks()),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
 
     create_group = acmds.Group(name="create", description="Create objects for a list.")
@@ -104,10 +104,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
             unique_value_per_list=unique_value_per_list
         )
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Task Attribute Created",
             f"The task attribute `{task_attribute.name}` has been created successfully!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
 
     
@@ -136,10 +136,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
             unique_slots=unique_slots
         )
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "User Attribute Created",
             f"The user attribute `{task_attribute.name}` has been created successfully!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
     
 
@@ -157,10 +157,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
             
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Task Created",
             f"The task `{task.name}` has successfully been created!",
-            msg.MsgFeedback.SUCCESS
+            messaging.MessageStatus.SUCCESS
         ))
         
 
@@ -179,16 +179,16 @@ class ListCog(cmds.GroupCog, group_name="list"):
             if success:
                 list_obj.delete_task_attribute(name)
 
-                return await ia.response.send_message(msg.layout(
+                return await ia.response.send_message(messaging.layout(
                     "Task Attribute Deleted",
                     f"The task attribute `{task_attribute.name}` has successfully been deleted!",
-                    msg.MsgFeedback.SUCCESS
+                    messaging.MessageStatus.SUCCESS
                 ))
 
-            await ia.response.send_message(msg.layout(
+            await ia.response.send_message(messaging.layout(
                 "Task Attribute Deletion Aborted",
                 f"The task attribute `{task_attribute.name}` has **not** been deleted because the name entered is not correct!",
-                msg.MsgFeedback.WARNING
+                messaging.MessageStatus.WARNING
             ))
 
         await ia.response.send_modal(modals.ConfirmByEnteringModal(
@@ -212,16 +212,16 @@ class ListCog(cmds.GroupCog, group_name="list"):
             if success:
                 list_obj.delete_user_attribute(name)
 
-                return await ia.response.send_message(msg.layout(
+                return await ia.response.send_message(messaging.layout(
                     "User Attribute Deleted",
                     f"The task attribute `{user_attribute.name}` has successfully been deleted!",
-                    msg.MsgFeedback.SUCCESS
+                    messaging.MessageStatus.SUCCESS
                 ))
 
-            await ia.response.send_message(msg.layout(
+            await ia.response.send_message(messaging.layout(
                 "User Attribute Deletion Aborted",
                 f"The user attribute `{user_attribute.name}` has **not** been deleted because the name entered is not correct!",
-                msg.MsgFeedback.WARNING
+                messaging.MessageStatus.WARNING
             ))
 
         await ia.response.send_modal(modals.ConfirmByEnteringModal(
@@ -245,16 +245,16 @@ class ListCog(cmds.GroupCog, group_name="list"):
             if success:
                 list_obj.delete_task(name)
 
-                return await ia.response.send_message(msg.layout(
+                return await ia.response.send_message(messaging.layout(
                     "Task Deleted",
                     f"The task `{task.name}` has successfully been deleted!",
-                    msg.MsgFeedback.SUCCESS
+                    messaging.MessageStatus.SUCCESS
                 ))
 
-            await ia.response.send_message(msg.layout(
+            await ia.response.send_message(messaging.layout(
                 "Task Deletion Aborted",
                 f"The task `{task.name}` has **not** been deleted because the name entered is not correct!",
-                msg.MsgFeedback.WARNING
+                messaging.MessageStatus.WARNING
             ))
 
         await ia.response.send_modal(modals.ConfirmByEnteringModal(

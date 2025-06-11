@@ -7,7 +7,8 @@ import json
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
 
 from database import queries
-from discord_structures import feedbackerrors as fbe
+from discordtools import feedbackerrors as fbe
+from structures.abstract_structure import StructureBase
 from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
 from structures.attributes import collection
 from structures.attributes.abstract_attribute import AbstractAttribute
@@ -18,9 +19,10 @@ from structures.attributes.user_attribute import UserAttribute
 from structures.list import UserCollectionNodeT, UserCollectionNodesT
 from structures.task.task import Task
 from utils import metautils, parsetools, text
-from structures import attributes
+from structures import attributes, task
 from database import typed as typed
 from database.typed import Tables as TBL
+import structures.list as list_package
 
 import pickle
 
@@ -34,14 +36,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
-class List:
-    STRUCTURE_NAME: ClassVar[str] = "list"
-
-    MAX_NAME_LENGTH: ClassVar[int] = 64
-    MAX_ATTRIBUTES: ClassVar[int] = 3
-    MAX_TASKS: ClassVar[int] = 1
-
-    INVALID_ENDING: ClassVar[str] = "list"
+class List(StructureBase):
+    __structure_name__: ClassVar[str] = "list"
 
     community: 'Community'
     id: int
@@ -283,7 +279,7 @@ class List:
 
             attrs = self.get_attributes()
 
-            if len(attrs) >= self.__class__.MAX_ATTRIBUTES:
+            if len(attrs) >= list_package.MAX_ATTRIBUTES:
                 raise fbe.TemporaryFeedbackError("Max attributes reached")
 
             if self.get_attribute_by_name(name) is not None:
@@ -840,16 +836,16 @@ class List:
         bad_aliases: str, 
         bad_str_attribute_value_mapping: str
     ) -> 'Task':
-        from discord_structures import required
+        from discordtools import required
         with equality_locked(self):
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 parsetools.json_loads_safe(bad_aliases, 1), 
-                Task.MAX_SYN_LEN,
+                task.MAX_SY_LEN,
                 attributes.MAX_ALIAS_COUNT + 1
             )
 
-            if len(self.get_tasks()) >= self.__class__.MAX_TASKS:
+            if len(self.get_tasks()) >= list_package.MAX_TASKS:
                 raise fbe.TemporaryFeedbackError("Task limit reached")
             
             if self.get_task_by_name(name) is not None:

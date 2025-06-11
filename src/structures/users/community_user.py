@@ -3,16 +3,16 @@
 
 from dataclasses import dataclass
 
-from structures.abstract_structure import AbstractStructure
+from ranks.community_rank import CommunityRank
+from ranks.meta_rank import MetaRank
+from structures.abstract_structure import StructureBase
 from structures.community.community import Community
 from structures.list.list import List
-from structures.ranks.community_rank import CommunityRank
-from structures.ranks.meta_rank import MetaRank
 from structures.users.meta_user import MetaUser
 
 
 @dataclass(frozen=True, kw_only=True)
-class CommunityUser(AbstractStructure):
+class CommunityUser(StructureBase):
     meta_user: MetaUser
     community: 'Community'
     community_rank: CommunityRank

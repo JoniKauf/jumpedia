@@ -1,9 +1,10 @@
 
 from typing import Iterator
-from structures.ranks.abstract_rank import AbstractRank
-from structures.ranks.community_rank import CommunityRank
-from structures.ranks.meta_rank import MetaRank
-from structures.ranks.server_rank import ServerRank
+
+from ranks.abstract_rank import AbstractRank
+from ranks.community_rank import CommunityRank
+from ranks.meta_rank import MetaRank
+from ranks.server_rank import ServerRank
 
 type AnyRank = MetaRank | CommunityRank | ServerRank
 
@@ -35,5 +36,5 @@ def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
     return scale[idx]
 
 
-def rank_classes_iter(cls: type['AbstractRank']) -> Iterator['AbstractRank']:
-    return iter(cls._lookup.values())
+def rank_classes_iter() -> Iterator[type[AnyRank]]:
+    return iter(AbstractRank.__subclasses__())  # type: ignore

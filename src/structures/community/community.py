@@ -6,7 +6,7 @@ import discord as dc
 
 import mariadb
 from structures import attributes
-from structures.abstract_structure import AbstractStructure
+from structures.abstract_structure import StructureBase
 from structures.attributes import AttributeValueType
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list.list import List
@@ -16,7 +16,7 @@ from structures.users.community_user import CommunityUser
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
-import discord_structures.feedbackerrors as fbe
+import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
 
 from utils.locked import equality_locked
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from structures.jumpedia.jumpedia import Jumpedia
  
 @dataclass(frozen=True, kw_only=True)
-class Community(AbstractStructure):
+class Community(StructureBase):
     STRUCTURE_NAME: ClassVar[str] = "community"
 
     MAX_NAME_LENGTH: ClassVar[int] = 64
@@ -192,7 +192,7 @@ class Community(AbstractStructure):
         return self.get_list_by_id(self.default_selected_list_id)
     
     def set_default_selected_list(self, list_id: int | None) -> None:
-        from discord_structures import required
+        from discordtools import required
         
         h = queries.ArgHelper()
 

@@ -5,8 +5,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from structures.ranks.abstract_rank import AbstractRank
-
+from ranks.abstract_rank import AbstractRank
 
 @dataclass(frozen=True)
 class MetaRank(AbstractRank):

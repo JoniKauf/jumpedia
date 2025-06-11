@@ -3,15 +3,18 @@
 
 from dataclasses import dataclass
 
-from structures.ranks.community_rank import CommunityRank
-from structures.ranks.meta_rank import MetaRank
-from structures.ranks.server_rank import ServerRank
+from ranks.community_rank import CommunityRank
+from ranks.meta_rank import MetaRank
+from ranks.server_rank import ServerRank
+from structures.abstract_structure import StructureBase
 from structures.users.community_user import CommunityUser
 from structures.users.meta_user import MetaUser
 
 
 @dataclass(frozen=True, kw_only=True)
-class ServerUser:
+class ServerUser(StructureBase):
+    __structure_name__ = 'server user'
+
     community_user: CommunityUser
     server_rank: ServerRank
 

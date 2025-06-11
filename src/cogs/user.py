@@ -2,7 +2,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import helpers, msg, predicates, feedbackerrors as fbe
+from discordtools import helpers, messaging, predicates, feedbackerrors as fbe
 from discordtools.context import Context
 from structures.ranks import AnyRank
 
@@ -23,11 +23,11 @@ class UserCog(cmds.GroupCog, group_name="user"):
                 ("Meta Rank", server_user.meta_rank)
             ]
 
-            return await ia.response.send_message(msg.layout(
+            return await ia.response.send_message(messaging.layout(
                 "Rank Information",
                 "You have the following ranks:\n" +
                 ('\n'.join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
-                msg.MsgFeedback.INFO
+                messaging.MessageStatus.INFO
             ))
 
         user_id, user_name = helpers.get_user_id_and_name(user)
@@ -41,11 +41,11 @@ class UserCog(cmds.GroupCog, group_name="user"):
             ("Meta Rank", community_user.meta_rank)
         ]
 
-        await ia.response.send_message(msg.layout(
+        await ia.response.send_message(messaging.layout(
             "Rank Information Retrieved",
             f"The user `{user_name}` has the following ranks:\n" +
             ('\n'.join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
-            msg.MsgFeedback.INFO
+            messaging.MessageStatus.INFO
         ))
         
 

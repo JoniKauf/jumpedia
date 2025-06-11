@@ -3,14 +3,14 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from structures.abstract_structure import AbstractStructure
+from ranks.meta_rank import MetaRank
+from structures.abstract_structure import StructureBase
 from structures.jumpedia.jumpedia import Jumpedia
-from structures.ranks.meta_rank import MetaRank
 
 
 @dataclass(frozen=True, kw_only=True)
-class MetaUser(AbstractStructure):
-    MAX_NAME_LENGTH: ClassVar[int] = 32
+class MetaUser(StructureBase):
+    
 
     jumpedia: Jumpedia
     id: int
