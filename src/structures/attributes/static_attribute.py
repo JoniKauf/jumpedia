@@ -5,36 +5,37 @@ from database import queries
 from database import typed
 from database.typed import Tables as TBL
 
+from structures import attributes
 from structures.attributes import AttributeValueTypeT
-from structures.attributes.abstract_attribute import AbstractAttribute
+from structures.attributes.abstract_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 
-@dataclass(kw_only=True)
-class StaticAttribute[T: AttributeValueTypeT](AbstractAttribute[T]):
-    STRUCTURE_NAME: ClassVar[str] = "static attribute"
-    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "static"
+@dataclass(frozen=True, kw_only=True)
+class StaticAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
+    __structure_name__ = "static attribute"
+
     TYPE_ID: ClassVar[int] = 0
     
-
     unique_value_per_list: bool
     
-    _aliases: set[str] | None = field(init=False, default=None)
-    
-    def get_aliases(self) -> set[str]:
+    _aliases: frozenset[str] | None = field(init=False, default=None)
+
+    def get_aliases(self) -> frozenset[str]:
         if self._aliases is None:
             h = queries.ArgHelper()
-            SAAT = TBL.StaticAttributeAlias
+            Tbl = TBL.StaticAttributeAlias
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    SELECT {TBL.StaticAttributeAlias.alias}
-                    FROM {TBL.StaticAttributeAlias}
-                    WHERE {TBL.StaticAttributeAlias.static_attribute_id} = {h|self.id}
+                    SELECT {Tbl.alias}
+                    FROM {Tbl}
+                    WHERE {Tbl.static_attribute_id} = {h|self.id}
                 """)
 
                 rows: typed.ManyTableRowT = cursor.fetchall()
 
-            self._aliases = {row[SAAT.alias] for row in rows}
+            attributes._post_set_aliases(self, frozenset(row[Tbl.alias] for row in rows))
+            assert self._aliases is not None
         
         return self._aliases
     

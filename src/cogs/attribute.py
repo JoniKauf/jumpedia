@@ -5,7 +5,6 @@ import discord.ext.commands as cmds
 
 from discordtools import messaging, predicates, feedbackerrors as fbe
 from discordtools.context import Context
-from structures.attribute import ATTRIBUTE_TYPES
 
 class AttributeCog(cmds.GroupCog, group_name="attribute"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -13,13 +12,13 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
 
     @acmds.command()
     async def list_attributes(self, ia: dc.Interaction) -> None:
-        list = Context(ia).selected_list
+        list = Context(ia).get_selected_list
         
         result: builtins.list[str] = []
 
         for attr_type, attr_coll in list.get_attributes_categorized():
             result.append(
-                f"__**{attr_type.ATTRIBUTE_TYPE_NAME}**__\n" +
+                f"__**{attr_type.__structure_name__.title()}**__\n" +
                 ('\n'.join(f"- {attr.name}" for attr in attr_coll) or "None")
             )
 

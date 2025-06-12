@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, Typed
 import discord as dc
 
 import mariadb
-from structures import attributes
-from structures.abstract_structure import StructureBase
+from ranks.community_rank import CommunityRank
+from structures import attributes, task
+from structures.base_structure import BaseStructure
 from structures.attributes import AttributeValueType
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list.list import List
-from structures.ranks.community_rank import CommunityRank
 from structures.task.task import Task
 from structures.users.community_user import CommunityUser
 from utils import metautils, text
@@ -18,19 +18,18 @@ from database import queries, typed as typed
 from database.typed import Tables as TBL
 import discordtools.feedbackerrors as fbe
 from typing import Optional as Opt
-
+import structures.list as list_package
 from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.jumpedia.jumpedia import Jumpedia
  
 @dataclass(frozen=True, kw_only=True)
-class Community(StructureBase):
-    STRUCTURE_NAME: ClassVar[str] = "community"
+class Community(BaseStructure):
+    __structure_name__ = "community"
 
     MAX_NAME_LENGTH: ClassVar[int] = 64
     MAX_LISTS: ClassVar[int] = 1
-    INVALID_ENDING: ClassVar[str] = "community".lower()
 
     jumpedia: 'Jumpedia'
     id: int
@@ -64,19 +63,15 @@ class Community(StructureBase):
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.jumpedia.identity
     
-    @property
-    def parent(self) -> Jumpedia:
-        return self.jumpedia
-    
     def create_list(self, bad_name: str) -> 'List':
-        with equality_locked(self):
-            name = text.validate_and_sanitize_name(
-                bad_name,
-                List.MAX_NAME_LENGTH
-            )
+        name = text.validate_and_sanitize_name(
+            bad_name,
+            list_package.MAX_NAME_LENGTH
+        )
 
-            if name.endswith(List.INVALID_ENDING):
-                raise fbe.TemporaryFeedbackError(f"Please leave out `{List.INVALID_ENDING}` from the name, as it is redundant!")
+        with equality_locked(self):
+            if text.norm_syn(name).endswith(List.__structure_name__):
+                raise fbe.TemporaryFeedbackError(f"Please leave out `{List.__structure_name__}` from the name, as it is redundant!")
             
             if self.get_list_by_name(name) is not None:
                 raise fbe.TemporaryFeedbackError("A list with that name already exists")
@@ -107,7 +102,7 @@ class Community(StructureBase):
                 )
 
                 list.create_static_attribute(
-                    Task.STATIC_NAME_ATTRIBUTE_NAME,
+                    task.STATIC_NAME_ATTRIBUTE_NAME,
                     (),
                     AttributeValueType.get_by_type(str),
                     1,
@@ -117,7 +112,7 @@ class Community(StructureBase):
                 )
 
                 list.create_static_attribute(
-                    Task.STATIC_ALIASES_ATTRIBUTE_NAME,
+                    task.STATIC_ALIASES_ATTRIBUTE_NAME,
                     (),
                     AttributeValueType.get_by_type(str),
                     1,
@@ -200,7 +195,7 @@ class Community(StructureBase):
             if list_id is None:
                 list_id = None
             else:
-                list_id = required.structure_not_found(self.get_list_by_id(list_id), List).id
+                list_id = required.structure_not_none(self.get_list_by_id(list_id), List).id
             
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""

@@ -4,11 +4,8 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from discordtools import messaging, modals, predicates, feedbackerrors as fbe, utils, views, required
-from bridges.context import Context
-from structures import ranks
+from structure_bridge.context import Context
 from structures.list.list import List
-from structures.ranks import CommunityRank, MetaRank, ServerRank
-from utils import text
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -55,20 +52,19 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @set_group.command(name="default_selected_list", description="Set the default selected list of the community.")
     @acmds.check(predicates.rank_required(ServerRank.SERVER_ADMINISTRATOR))
-    async def set_default_selected_list(self, ia: dc.Interaction, list_name: str | None = None) -> None:
+    async def set_default_selected_list(self, ia: dc.Interaction, list: str | None = None) -> None:
         ctx = Context(ia)
 
         community = ctx.community
 
-        if list_name is not None:
-            list_name = required.structure_name_not_found(community.get_list_by_name(list_name), List).name
+        selected_list = ctx.get_selected_list(list)
 
-        community.set_default_selected_list(list_name)
+        community.set_default_selected_list(selected_list.id)
 
         await ia.response.send_message(messaging.layout(
             "Default Selected List Set",
-            f"The default selected list has successfully been changed to `{list_name}`!"
-            if list_name is not None else
+            f"The default selected list has successfully been changed to `{list}`!"
+            if list is not None else
             "The default selected list has successfully been changed to be unset, meaning that users are forced to select one.",
             messaging.MessageStatus.SUCCESS
         ))
@@ -138,7 +134,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def delete_list(self, ia: dc.Interaction, list_name: str) -> None:
         ctx = Context(ia)
 
-        list = required.structure_name_not_found(ctx.community.get_list_by_name(list_name), List)
+        list = required.structure_with_name(ctx.community.get_list_by_name(list_name), List)
 
         async def after_submit(ia: dc.Interaction, success: bool) -> None:
             if success:

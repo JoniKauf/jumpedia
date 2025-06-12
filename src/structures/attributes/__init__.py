@@ -3,7 +3,9 @@ import datetime as dt
 from decimal import Decimal
 import decimal
 import enum
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, Self
+
+from structures.attributes.collection import Collection
 
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
@@ -68,7 +70,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
         except KeyError as e:
             raise LookupError(*e.args)
 
-AttributeValueType(1, 'boolean', bool)
+AttributeValueType(1, 'boolean (true/false)', bool)
 AttributeValueType(2, 'integer', int)
 AttributeValueType(3, 'decimal', Decimal)
 AttributeValueType(4, 'time', dt.time)
@@ -85,6 +87,20 @@ if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in Attri
     raise RuntimeError("Enum does not equal type!!")
 
 
+class _PrivateAliasesFieldProtocol(Protocol):
+    _aliases: Final[frozenset[str] | None]
+
+def _post_set_aliases(obj: _PrivateAliasesFieldProtocol, aliases: frozenset[str]) -> None:
+    object.__setattr__(obj, '_aliases', aliases)
+
+
+class _PrivateCollectionFieldProtocol(Protocol):
+    _collection: Final[Collection[AttributeValueTypeT, Any] | None]
+
+
+def _post_set_collection(obj: _PrivateCollectionFieldProtocol, collection: Collection[AttributeValueTypeT, Any]) -> None:
+    object.__setattr__(obj, '_collection', collection)
+    
 
 # number
 NUMBER_MAX: Final[int] = 2 ** 63 - 1
@@ -95,6 +111,7 @@ DECIMAL_DEC_PART_MAX_LEN: Final[int] = DECIMAL_PRECISION - DECIMAL_INT_PART_MAX_
 DECIMAL_MAX_STR_LEN: Final[int] = DECIMAL_PRECISION if DECIMAL_DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
 
 # str
+STR_MIN_LEN: Final[int] = 1
 STR_MAX_LEN: Final[int] = 512
 
 # Collection

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Final, Self, TypedDict
 import logging
 
 from discordtools import feedbackerrors as fbe, utils
-from structures import StructureBase, attributes
+from structures import BaseStructure, attributes
 from structures.list.list import List
 from structures.ranks import MetaRank, CommunityRank
 from structures.task.task import Task
@@ -20,11 +20,11 @@ from utils.locked import equality_locked
 
 LOGGER = logging.getLogger(__name__)
 
-class AbstractStructureAndSingleton(type(StructureBase), metautils.Singleton):
+class AbstractStructureAndSingleton(type(BaseStructure), metautils.Singleton):
     pass
 
 @dataclass(frozen=True, kw_only=True)
-class Jumpedia(StructureBase, metaclass=AbstractStructureAndSingleton):
+class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     id: int = field(init=False, default=1)
     database_name: str = field(init=False, default=typed.DATABASE_NAME)
     

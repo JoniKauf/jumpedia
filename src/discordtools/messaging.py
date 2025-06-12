@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import textwrap
-from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Generator, Iterable, Iterator, Literal, NamedTuple, Sequence,
+from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Final, Generator, Iterable, Iterator, Literal, NamedTuple, Sequence,
                     TypedDict)
 
 import discord as dc
@@ -94,28 +94,31 @@ def layout(header: str, body: str, message_status: MessageStatus, more: Sequence
 
 
 
+EMPTY: Final[str] = "<Empty>"
 
-def embed(s: str) -> str:
-    return f"`{s}`"
 
-def embed_many(elems: Iterable[str]) -> Generator[str, None, None]:
-    return (embed(elem) for elem in elems)
+def code(s: str, empty: str = EMPTY) -> str:
+    return f"`{s or empty}`"
 
-def shorten_and_embed(s: str, max: int = 32, more: str = '...') -> str:
-    return text.shorten(embed(s), max=max, more=more)
+def code_many(elems: Iterable[str], empty: str = EMPTY) -> Generator[str, None, None]:
+    return (code(elem, empty) for elem in elems)
 
-def shorten_and_embed_many(
+def shorten_and_code(s: str, max: int = 32, more: str = '...', empty: str = EMPTY) -> str:
+    return text.shorten(code(s, empty), max=max, more=more)
+
+def shorten_and_code_many(
     elems: Sequence[str], 
     *,
     max_elems: int = 8, 
     max_s: int = 16,
     more_elems: str = '...', 
-    more_s: str = '...'
+    more_s: str = '...',
+    empty: str = EMPTY
 ):
-    return embed_many(text.shorten_many(
+    return code_many(text.shorten_many(
         elems, 
         max_elems=max_elems, 
         max_s=max_s, 
         more_elems=more_elems, 
         more_s=more_s
-    ))
+    ), empty=empty)

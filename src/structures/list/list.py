@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Ne
 
 from database import queries
 from discordtools import feedbackerrors as fbe
-from structures.abstract_structure import StructureBase
+from structures.base_structure import BaseStructure
 from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
 from structures.attributes import collection
-from structures.attributes.abstract_attribute import AbstractAttribute
+from structures.attributes.abstract_attribute import BaseAttribute
 from structures.attributes.collection import CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
-class List(StructureBase):
+class List(BaseStructure):
     __structure_name__: ClassVar[str] = "list"
 
     community: 'Community'
@@ -136,7 +136,7 @@ class List(StructureBase):
         except ValueError as e:
             raise fbe.TemporaryFeedbackError("Not an int", item['sort_value'])
             
-        AbstractAttribute.any_number_valid(sort_value)
+        BaseAttribute.validate_number_valid(sort_value)
 
         try:
             bad_value = item['value']
@@ -151,10 +151,10 @@ class List(StructureBase):
         except TypeError:
             raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
         
-        value: T = AbstractAttribute.from_str_singular(bad_value, value_type)
+        value: T = BaseAttribute.from_str_singular(bad_value, value_type)
 
         bad_aliases = set(bad_aliases)
-        aliases: set[T] = {AbstractAttribute.from_str_singular(alias, value_type) for alias in bad_aliases}
+        aliases: set[T] = {BaseAttribute.from_str_singular(alias, value_type) for alias in bad_aliases}
 
         return (value, aliases, sort_value)
 
@@ -862,7 +862,7 @@ class List(StructureBase):
                 if not isinstance(k, str):
                     raise fbe.TemporaryFeedbackError(f"Key `{k}` is not a string")
                 
-                attr = required.structure_name_not_found(
+                attr = required.structure_with_name(
                     self.get_task_attribute_by_syn(k),
                     k,
                     TaskAttribute

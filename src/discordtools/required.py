@@ -4,32 +4,27 @@ import discord as dc
 import discordtools.feedbackerrors as fbe
 from errors import feedback
 import structures
-from structures.abstract_structure import StructureBase
+from structures.base_structure import BaseStructure
 from structures.community.community import Community
 from structures.list.list import List
 from utils import text
 
 
-def structure_name_not_found[T: StructureBase](obj: T | None, name: str, structures: structures.StructuresTypeT) -> T:
+def structure_with_name[T: BaseStructure](obj: T | None, name: str, structures: structures.StructuresTypeT) -> T:
     if obj is not None:
         return obj
     
-    raise feedback.StructuresNotFound(name, structures)
+    raise feedback.StructuresNotFound(structures, name)
 
-def structure_not_found[T: StructureBase](obj: T | None, type: StructureTypeT) -> T:
+def structure_not_none[T: BaseStructure](obj: T | None, structures: structures.StructuresTypeT) -> T:
     if obj is not None:
         return obj
     
-    type_str = _structure_types_to_str(type)
-        
-    raise FeedbackError(
-        header=f"{type_str.title()} Not Found",
-        description=f"The {type_str.lower()} could not be found!"
-    )
+    raise feedback.StructuresNotFound(structures)
     
-def server_generic(server: dc.Guild | None) -> dc.Guild:
-    if server is not None:
-        return server
+def user_on_server(user: dc.User | dc.Member) -> dc.Guild:
+    if isinstance(user, dc.Member):
+        return user.guild
     
     raise fbe.TemporaryFeedbackError("You must be on a server to use this command")
 

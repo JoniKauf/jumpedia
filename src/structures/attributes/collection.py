@@ -36,7 +36,7 @@ def normalize_collection_value[T: AttributeValueTypeT](value: T) -> T:
 
 _MISSING = object()
 
-@dataclass(frozen=True unsafe_hash=True, eq=True)
+@dataclass(frozen=True, unsafe_hash=True, eq=True)
 class Collection[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]:
     nodes: CollectionNodesT[T1]
     lookup: dict[T1, CollectionNode[T1]]
@@ -55,16 +55,16 @@ class Collection[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]:
 
         result: CollectionNodesT[T1] = []
 
-        table = dbutils.get_attribute_collection_node_table(attribute_type)
+        Tbl = dbutils.get_attribute_collection_node_table(attribute_type)
 
         # Create objects without nodes / root references
         for row in rows:
-            id = row[table.id]
+            id = row[Tbl.id]
             
             item = CollectionNode(
-                value=pickle.loads(row[table.value]),
-                aliases=set(json.loads(row[table._aliases])),
-                sort_value=row[table.sort_value],
+                value=pickle.loads(row[Tbl.value]),
+                aliases=set(json.loads(row[Tbl._aliases])),
+                sort_value=row[Tbl.sort_value],
                 nodes=[],
                 root=None
             )
@@ -78,15 +78,15 @@ class Collection[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]:
                 if syn in lookup_by_syn:
                     raise AssertionError(
                         "Syns from collection, retrieved from database, result in collision?\n" +
-                        f"For table {table}, rows {rows}"
+                        f"For table {Tbl}, rows {rows}"
                     )
                 
                 lookup_by_syn[syn] = item
 
         # Create references of nodes / root
         for row in rows:
-            id = row[table.id]
-            root_id = row[table.root_id]
+            id = row[Tbl.id]
+            root_id = row[Tbl.root_id]
 
             if root_id is None:
                 result.append(lookup_by_id[id])

@@ -3,7 +3,7 @@ import pickle
 from database import queries, typed
 from structures.attributes import AttributeValueTypeT
 from structures.attributes.user_attribute import UserAttribute
-from structures.task.abstract_attribute_value_mapping import AbstractAttributeValueMapping
+from structures.task.base_attribute_value_mapping import AbstractAttributeValueMapping
 from structures.task.task_attribute_value_mapping import TaskAttributeValueMappingAttributeT
 from database.typed import Tables as TBL
 type UserAttributeValueMappingAttributeT = TaskAttributeValueMappingAttributeT | UserAttribute

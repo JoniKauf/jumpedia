@@ -8,7 +8,7 @@ from utils import text
 
 
 @dataclass(frozen=True, kw_only=True)
-class StructureBase(ABC):
+class BaseStructure(ABC):
     __structure_name__: ClassVar[str] = ""
 
     @property
@@ -20,7 +20,7 @@ class StructureBase(ABC):
         return hash(self.identity)
     
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, StructureBase):
+        if not isinstance(value, BaseStructure):
             print(f"Compared", value, "to", self)
             return False
         

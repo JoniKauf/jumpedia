@@ -2,7 +2,7 @@ import builtins
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
 from database import queries
-from structures.abstract_structure import StructureBase
+from structures.base_structure import BaseStructure
 from utils import text
 from database import typed as typed
 from database.typed import Tables as TBL
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Task(StructureBase):
+class Task(BaseStructure):
     __structure_name__ = 'task'
 
     list: 'List'

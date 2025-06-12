@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from ranks.abstract_rank import AbstractRank
-from structures.abstract_structure import StructureBase
+from structures.base_structure import BaseStructure
 
 
 @dataclass(frozen=True)
 class CommunityRank(AbstractRank):
     _init_done: ClassVar[bool] = False
-
+    
     DEFAULT: ClassVar['CommunityRank']
     LOWEST: ClassVar['CommunityRank']
     HIGHEST: ClassVar['CommunityRank']

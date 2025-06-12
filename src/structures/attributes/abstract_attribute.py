@@ -8,13 +8,16 @@ import json
 import pickle
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
-from discordtools import errors, feedbackerrors as fbe
 import re
 from decimal import Decimal
 import decimal
+from discordtools import messaging as msg
+from errors import feedback
+import errors
 from structures import attributes
 from structures.attributes import AttributeValueType, AttributeValueTypeT
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
+from structures.base_structure import BaseStructure
 from utils import parsetools, text, timetools
 from database import typed as typed
 from database.typed import Tables as TBL
@@ -26,11 +29,11 @@ if TYPE_CHECKING:
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 
 
-@dataclass(kw_only=True)
-class AbstractAttribute[T: AttributeValueTypeT](ABC):
+@dataclass(frozen=True, kw_only=True)
+class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
+    __structure_name__ = "base attribute"
 
     # --- CONSTANTS ---
-    ATTRIBUTE_TYPE_NAME: ClassVar[str]
     TYPE_ID: ClassVar[int]
 
     list: 'List'
@@ -53,7 +56,7 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
     # --- Methods ---
 
     def __post_init__(self) -> None:
-        if self.__class__ == AbstractAttribute:
+        if self.__class__ == BaseAttribute:
             raise NotImplementedError()
 
     def __hash__(self) -> int:
@@ -77,41 +80,50 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
         pass
     
     @classmethod
-    def any_number_valid(cls, number: int | float | Decimal) -> None:
-        if not (attributes.NUMBER_MIN <= number <= attributes.NUMBER_MAX):
-            raise fbe.OutsideOfValidRange(number, attributes.NUMBER_MIN, attributes.NUMBER_MAX)
-    
+    def validate_number_valid(cls, number: int | float | Decimal) -> None:
+        MIN, MAX = attributes.NUMBER_MIN, attributes.NUMBER_MAX
+
+        if not (MIN <= number <= MAX):
+            raise feedback.InvalidValue(
+                str(number), 
+                f"it must be a number between {msg.code(str(MIN))} and {msg.code(str(MAX))}"
+            )
+
     @classmethod
     def from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
         vt = value_type.type
-        s = text.sanitize(s)
-
+        s_before, s = s, text.sanitize(s)
+        
         if issubclass(vt, bool):
             s = s.lower()
 
-            if s in "false":
-                result = False
-            elif s == "true":
-                result = True
-            else:
-                raise fbe.NotAProperValue("boolean", s)
+            if s == "false":
+                return False  # type: ignore
+            if s == "true":
+                return True  # type: ignore
+            
+            raise feedback.InvalidValueForAttributeValueType(s, value_type)
 
         elif issubclass(vt, int):
             try:
                 result = int(s)
             except Exception:
-                raise fbe.NotAProperValue("integer", s)
+                raise feedback.InvalidValueForAttributeValueType(s, value_type)
             
-            cls.any_number_valid(result)
+            cls.validate_number_valid(result)
+
+            return result  # type: ignore
     
         elif issubclass(vt, Decimal):
             try:
                 result = Decimal(s)
                 result = result.quantize(Decimal(f"1E-{attributes.DECIMAL_DEC_PART_MAX_LEN}"))
             except Exception:
-                raise fbe.NotAProperValue("decimal", s)
+                raise feedback.InvalidValueForAttributeValueType(s, value_type)
             
-            cls.any_number_valid(result)
+            cls.validate_number_valid(result)
+
+            return result  # type: ignore
             
         elif issubclass(vt, (dt.time, dt.date, dt.datetime)):
             # If a date is in the type
@@ -121,7 +133,7 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
             try:
                 result = vt.fromisoformat(s)
             except Exception:
-                raise fbe.TemporaryFeedbackError("Invalid datetime repr")
+                raise feedback.InvalidValueForAttributeValueType(s, value_type)
             
             if isinstance(result, (dt.time, dt.datetime)):
                 if result.tzinfo is None:
@@ -129,54 +141,61 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
                 
                 if isinstance(result, dt.time):
                     datetime = dt.datetime.combine(dt.date.today(), result, result.tzinfo)
-                    result = datetime.astimezone(dt.timezone.utc).time()
-                else:
-                    result = result.astimezone(dt.timezone.utc)
+                    return datetime.astimezone(dt.timezone.utc).time()  # type: ignore
+                
+                return result.astimezone(dt.timezone.utc)  # type: ignore
 
-        elif issubclass(vt, dt.timedelta):
-            result = timetools.parse_timedelta(s)
+        if issubclass(vt, dt.timedelta):
+            return timetools.parse_timedelta(s)  # type: ignore
 
-        elif issubclass(vt, str):
-            if len(s) > attributes.STR_MAX_LEN:
-                raise fbe.TooLongValue("string", s, attributes.STR_MAX_LEN)
+        if issubclass(vt, str):
+            MIN, MAX = attributes.STR_MIN_LEN, attributes.STR_MAX_LEN
+            if not (MIN <= len(s) <= MAX):
+                raise feedback.InvalidValue(
+                    s_before, 
+                    f"it must be between {msg.code(str(MIN))} and {msg.code(str(MAX))} characters in length (after removing surrounding whitespace characters)"
+                )
             
-            result = s
-        
-        else:
-            raise TypeError()
-        
-        return result  # type: ignore
+            return s  # type: ignore
+
+        raise errors.ImpossibleError("Invalid AttributeValueType", value_type.type)
     
 
     def from_loaded(self, loaded: str | builtins.list[Any], custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
         value_type = custom_value_type or self.value_type
-
-        converted: list[T] = []
 
         if isinstance(loaded, list):
             values = loaded
         else:
             values = [loaded]
 
+        converted: list[T] = []
+
         for elem in values:
             if isinstance(elem, str):
-                if not elem.strip():
-                    continue
-                
                 converted.append(self.from_str_singular(elem, value_type))
+
             elif isinstance(elem, self.value_type.type) and issubclass(self.value_type.type, (bool, int)):
-                converted.append(elem)
+                converted.append(self.from_str_singular(str(elem), value_type))
+
             else:
-                raise fbe.TemporaryFeedbackError
+                raise feedback.InvalidValue(
+                    str(elem),
+                    "it is not valid JSON input.",
+                    f"\nThe value has to be a item or a JSON list of {msg.code(value_type.name)}, wrapped in \"quotation marks\".\n"
+                    f"Examples: \n"
+                    f"- {msg.code(f'"single value"')}\n- {msg.code(f"[{', '.join(f'"value #{i}"' for i in range(1, 3))}]")}"
+                )
         
         if not (self.min_slots <= (count := len(converted)) <= self.max_slots):
-            raise fbe.TemporaryFeedbackError("Count of values not between limits", self.min_slots, count, self.max_slots)
+            raise feedback.TemporaryFeedbackError("Count of values not between limits", self.min_slots, count, self.max_slots)
+        
         
         values = self._collection_conversion_if_needed(converted)
 
         if self.unique_slots:
             if len(values) != len(frozenset(values)):
-                raise fbe.TemporaryFeedbackError("Values must be unique for this attribute")
+                raise feedback.TemporaryFeedbackError("Values must be unique for this attribute")
             
         return values
 
@@ -186,8 +205,8 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
         
         try:
             loaded: str | list[Any] = parsetools.json_loads_safe(s, 1)
-        except fbe.TemporaryFeedbackError:  # TODO if depth too big, custom feedback
-            raise fbe.TemporaryFeedbackError 
+        except RecursionError as e:
+            raise Exception  # TODO
 
         return self.from_loaded(loaded, custom_value_type)
         
@@ -214,7 +233,7 @@ class AbstractAttribute[T: AttributeValueTypeT](ABC):
             node = self.get_collection().lookup_node(elem, None)
             
             if node is None:
-                raise fbe.TemporaryFeedbackError("Not part of collection", elem)
+                raise feedback.TemporaryFeedbackError("Not part of collection", elem)
 
             result.append(node.value)
 

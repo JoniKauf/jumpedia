@@ -72,7 +72,7 @@ class RequiredAttributesMissing(errors.FeedbackError):
 
         super().__init__(
             header="Attribute Missing Error",
-            description=f"The required attributes {msgt.shorten_and_embed_many(attrs)} are missing!"
+            description=f"The required attributes {msgt.shorten_and_code_many(attrs)} are missing!"
         )
 
 class NotAJump(errors.FeedbackError):

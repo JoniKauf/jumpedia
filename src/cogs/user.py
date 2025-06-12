@@ -15,7 +15,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
         ctx = Context(ia)
 
         if user is None or ia.user.id == user.id:
-            server_user = ctx.server_user
+            server_user = ctx.get_server_user
 
             rank_info: list[tuple[str, AnyRank]] = [
                 ("Server Rank", server_user.server_rank),

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import functools
 from typing import ClassVar, Iterator, Self
 
-from structures.abstract_structure import StructureBase
+from structures.base_structure import BaseStructure
 
 
 @functools.total_ordering
@@ -30,10 +30,6 @@ class AbstractRank:
         super().__init_subclass__()
 
         cls._lookup: dict[int, Self] = {}
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.power,)
 
     @classmethod
     def _create_sorted(cls) -> None:
@@ -64,9 +60,6 @@ class AbstractRank:
         
         return self.power < value.power
     
-    def __eq__(self, value: object) -> bool:
-        return self is value
-    
     def __str__(self) -> str:
         return self.name
     
@@ -75,9 +68,15 @@ class AbstractRank:
     
     def __bool__(self) -> bool:
         return bool(self.power)
+    
+    def __hash__(self) -> int:
+        return hash(self.power)
+    
+    def __eq__(self, value: object) -> bool:
+        return self is value
 
     @property
     @abstractmethod
-    def parent(self) -> StructureBase:
+    def parent(self) -> BaseStructure:
         """The structure that handles the creation, deletion or editing of this structure."""
 
