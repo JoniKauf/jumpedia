@@ -3,7 +3,7 @@ import datetime as dt
 from decimal import Decimal
 import decimal
 import enum
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Generator, Protocol, Self
 
 from structures.attributes.collection import Collection
 
@@ -30,14 +30,15 @@ class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
     type: type[T]
+    quote_required: bool = True
 
     _attribute_value_types: ClassVar[list[Self]] = []
-    _attribute_value_type_id_lookup: dict[int, Self] = {}
-    _attribute_value_type_name_lookup: dict[str, Self] = {}
-    _attribute_value_type_type_lookup: dict[str, Self] = {}
+    _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
+    _attribute_value_type_name_lookup: ClassVar[dict[str, Self]] = {}
+    _attribute_value_type_type_lookup: ClassVar[dict[str, Self]] = {}
 
     def __hash__(self):
-        return hash((self.id, self.name, self.type.__qualname__))
+        return hash((self.id, self.name))
     
     def __post_init__(self):
         for elem in AttributeValueType._attribute_value_types:
@@ -69,9 +70,13 @@ class AttributeValueType[T: AttributeValueTypeT]:
             return cls._attribute_value_type_type_lookup[type.__qualname__]
         except KeyError as e:
             raise LookupError(*e.args)
+        
+    @classmethod
+    def get_all(cls) -> list[Self]:
+        return cls._attribute_value_types.copy()
 
-AttributeValueType(1, 'boolean (true/false)', bool)
-AttributeValueType(2, 'integer', int)
+AttributeValueType(1, 'boolean', bool, False)
+AttributeValueType(2, 'integer', int, False)
 AttributeValueType(3, 'decimal', Decimal)
 AttributeValueType(4, 'time', dt.time)
 AttributeValueType(5, 'date', dt.date)

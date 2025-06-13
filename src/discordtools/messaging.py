@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from enum import Enum
 import textwrap
-from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Final, Generator, Iterable, Iterator, Literal, NamedTuple, Sequence,
+from typing import (Any, Awaitable, Callable, ClassVar, Coroutine, Generator, Iterable, Iterator, Literal, NamedTuple, Sequence,
                     TypedDict)
 
 import discord as dc
 from discord.ui import Button, View
 import inspect
 
-from discordtools import errors
+import errors
 from utils import text
 
 InteractionFuncT = Callable[..., Coroutine]
@@ -63,7 +63,7 @@ class MessageStatus:
 
     def __post_init__(self) -> None:
         if self.__class__._init_done:
-            raise errors.ProgrammingError()
+            raise errors.ImpossibleError()
         
     @classmethod
     def _init(cls) -> None:
@@ -78,33 +78,34 @@ class MessageStatus:
 MessageStatus._init()
 
 
-def layout(header: str, body: str, message_status: MessageStatus, more: Sequence[str] = ()) -> str:
+def layout(header: str, core: str, message_status: MessageStatus, *, additional: str | None = None, paragraphs: Sequence[str] = ()) -> str:
     result: list[str] = []
 
     result.append(f"## {header.strip()}")
-    result.append(body.strip())
+    result.append('\n' + core.strip())
+
+    if additional is not None:
+        result.append('\n' + additional.strip())
     
-    if more:
-        result.append('\n\n'.join(more))
+    if paragraphs:
+        result.append(''.join(f"\n\n{p}" for p in paragraphs))
 
     if message_status is not MessageStatus.NONE:
-        result.append(f"\n-# :{message_status.emoji}:  {message_status.name}")
+        result.append(f"\n\n-# :{message_status.emoji}:  {message_status.name}")
 
-    return '\n'.join(result)
-
-
-
-EMPTY: Final[str] = "<Empty>"
+    return ''.join(result)
 
 
-def code(s: str, empty: str = EMPTY) -> str:
-    return f"`{s or empty}`"
 
-def code_many(elems: Iterable[str], empty: str = EMPTY) -> Generator[str, None, None]:
-    return (code(elem, empty) for elem in elems)
 
-def shorten_and_code(s: str, max: int = 32, more: str = '...', empty: str = EMPTY) -> str:
-    return text.shorten(code(s, empty), max=max, more=more)
+def code(s: str) -> str:
+    return f"`{s}`"
+
+def code_many(elems: Iterable[str]) -> Generator[str, None, None]:
+    return (code(elem) for elem in elems)
+
+def shorten_and_code(s: str, max: int = 32, more: str = '...') -> str:
+    return text.shorten(code(s), max=max, more=more)
 
 def shorten_and_code_many(
     elems: Sequence[str], 
@@ -112,8 +113,7 @@ def shorten_and_code_many(
     max_elems: int = 8, 
     max_s: int = 16,
     more_elems: str = '...', 
-    more_s: str = '...',
-    empty: str = EMPTY
+    more_s: str = '...'
 ):
     return code_many(text.shorten_many(
         elems, 
@@ -121,4 +121,4 @@ def shorten_and_code_many(
         max_s=max_s, 
         more_elems=more_elems, 
         more_s=more_s
-    ), empty=empty)
+    ))

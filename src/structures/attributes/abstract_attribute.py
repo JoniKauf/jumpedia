@@ -6,15 +6,17 @@ import datetime as dt
 import functools
 import json
 import pickle
+import textwrap
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
 import re
 from decimal import Decimal
 import decimal
 from discordtools import messaging as msg
-from errors import feedback
+from errors import FeedbackError
 import errors
 from structures import attributes
+import structures
 from structures.attributes import AttributeValueType, AttributeValueTypeT
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.base_structure import BaseStructure
@@ -27,7 +29,6 @@ if TYPE_CHECKING:
     from structures.list.list import List
 
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
-
 
 @dataclass(frozen=True, kw_only=True)
 class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
@@ -84,17 +85,35 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         MIN, MAX = attributes.NUMBER_MIN, attributes.NUMBER_MAX
 
         if not (MIN <= number <= MAX):
-            raise feedback.InvalidValue(
-                str(number), 
-                f"it must be a number between {msg.code(str(MIN))} and {msg.code(str(MAX))}"
+            raise FeedbackError(
+                "Number Out Of Valid Range",
+                f"The number {msg.shorten_and_code(str(number))} is too small or big!",
+                additional=f"It must be a value between {msg.code(str(MIN))} and {msg.code(str(MAX))}."
             )
 
+    _VALUE_TYPE_TO_ADDITIONAL: dict[AttributeValueType, str] = {
+        AttributeValueTypeT
+    }
+
+    @staticmethod
+    def _raise_invalid_value_for_value_type(s: str, value_type: AttributeValueType) -> Never:
+        if value_type.quote_required:
+            additional_modal_verb = "must also be"
+        else:
+            additional_modal_verb = "can optionally also be"
+
+        raise FeedbackError(
+            "Invalid Value For Required Type",
+            f"The value {msg.shorten_and_code(s)} is not valid for attribute's value type {msg.code(value_type.name)}!",
+            additional=f"{additional_start}\nThey {additional_modal_verb} wrapped in \"quotation marks\"."
+        )
+    
     @classmethod
-    def from_str_singular(cls, s: str, value_type: AttributeValueType[T]) -> T:
-        vt = value_type.type
+    def from_str_singular(cls, s: str, value_type: AttributeValueType) -> T:
+        value_type_type = value_type.type
         s_before, s = s, text.sanitize(s)
         
-        if issubclass(vt, bool):
+        if issubclass(value_type_type, bool):
             s = s.lower()
 
             if s == "false":
@@ -102,39 +121,53 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             if s == "true":
                 return True  # type: ignore
             
-            raise feedback.InvalidValueForAttributeValueType(s, value_type)
+            cls._raise_invalid_value_for_value_type(s, value_type)
 
-        elif issubclass(vt, int):
+        elif issubclass(value_type_type, int):
             try:
                 result = int(s)
             except Exception:
-                raise feedback.InvalidValueForAttributeValueType(s, value_type)
+                cls._raise_invalid_value_for_value_type(
+                    s, 
+                    value_type, 
+                    f"These are some examples of valid values:\n" + 
+                    '\n'.join(f"- {msg.code_many(("0", "3", "238283283", "-13"))}")
+                )
             
             cls.validate_number_valid(result)
 
             return result  # type: ignore
     
-        elif issubclass(vt, Decimal):
+        elif issubclass(value_type_type, Decimal):
             try:
                 result = Decimal(s)
                 result = result.quantize(Decimal(f"1E-{attributes.DECIMAL_DEC_PART_MAX_LEN}"))
             except Exception:
-                raise feedback.InvalidValueForAttributeValueType(s, value_type)
+                cls._raise_invalid_value_for_value_type(
+                    s,
+                    value_type,
+                    f"These are some examples of valid values:\n" + 
+                    '\n'.join(f"- {msg.code_many(("0.01", "3", "3.1415926", "-30.7", "148234290329.2382"))}")
+                )
             
             cls.validate_number_valid(result)
 
             return result  # type: ignore
             
-        elif issubclass(vt, (dt.time, dt.date, dt.datetime)):
+        elif issubclass(value_type_type, (dt.time, dt.date, dt.datetime)):
             # If a date is in the type
-            if issubclass(vt, (dt.date, dt.datetime)):
+            if issubclass(value_type_type, (dt.date, dt.datetime)):
                 s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", s)
             
             try:
-                result = vt.fromisoformat(s)
+                result = value_type_type.fromisoformat(s)
             except Exception:
-                raise feedback.InvalidValueForAttributeValueType(s, value_type)
-            
+                cls._raise_invalid_value_for_value_type(
+                    s,
+                    value_type,
+                    "Todo"
+                )
+                
             if isinstance(result, (dt.time, dt.datetime)):
                 if result.tzinfo is None:
                     result = result.replace(tzinfo=dt.timezone.utc)
@@ -145,15 +178,24 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 
                 return result.astimezone(dt.timezone.utc)  # type: ignore
 
-        if issubclass(vt, dt.timedelta):
-            return timetools.parse_timedelta(s)  # type: ignore
+        if issubclass(value_type_type, dt.timedelta):
+            try:
+                return timetools.parse_timedelta(s)  # type: ignore
+            except ValueError:
+                cls._raise_invalid_value_for_value_type(
+                    s,
+                    value_type,
+                    "Todo"
+                )
 
-        if issubclass(vt, str):
+        if issubclass(value_type_type, str):
             MIN, MAX = attributes.STR_MIN_LEN, attributes.STR_MAX_LEN
+
             if not (MIN <= len(s) <= MAX):
-                raise feedback.InvalidValue(
-                    s_before, 
-                    f"it must be between {msg.code(str(MIN))} and {msg.code(str(MAX))} characters in length (after removing surrounding whitespace characters)"
+                cls._raise_invalid_value_for_value_type(
+                    s,
+                    value_type,
+                    "Todo"
                 )
             
             return s  # type: ignore
@@ -179,12 +221,9 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 converted.append(self.from_str_singular(str(elem), value_type))
 
             else:
-                raise feedback.InvalidValue(
-                    str(elem),
-                    "it is not valid JSON input.",
-                    f"\nThe value has to be a item or a JSON list of {msg.code(value_type.name)}, wrapped in \"quotation marks\".\n"
-                    f"Examples: \n"
-                    f"- {msg.code(f'"single value"')}\n- {msg.code(f"[{', '.join(f'"value #{i}"' for i in range(1, 3))}]")}"
+                raise FeedbackError(
+                    "Invalid Value Format",
+                    "The value must be valid JSON format of either a single value or a list of values."
                 )
         
         if not (self.min_slots <= (count := len(converted)) <= self.max_slots):
