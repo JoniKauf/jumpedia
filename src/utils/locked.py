@@ -6,21 +6,22 @@ import contextlib
 
 _active_locks: dict[Hashable, RLock] = {}
 _ref_count: dict[Hashable, int] = {}
-_lock = RLock()
+_locks_lock = RLock()
 
 @contextlib.contextmanager
 def equality_locked(obj: Hashable):
     """Lock objects that are equal with the same lock."""
     
-    with _lock:
+    with _locks_lock:
         lock = _active_locks.setdefault(obj, RLock())
         _ref_count[obj] = _ref_count.get(obj, 0) + 1
-        lock.acquire()
+    
+    lock.acquire()
 
     try:
         yield lock
     finally:
-        with _lock:
+        with _locks_lock:
             lock.release()
             
             _ref_count[obj] -= 1

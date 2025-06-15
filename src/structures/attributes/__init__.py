@@ -92,21 +92,6 @@ if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in Attri
     raise RuntimeError("Enum does not equal type!!")
 
 
-class _PrivateAliasesFieldProtocol(Protocol):
-    _aliases: Final[frozenset[str] | None]
-
-def _post_set_aliases(obj: _PrivateAliasesFieldProtocol, aliases: frozenset[str]) -> None:
-    object.__setattr__(obj, '_aliases', aliases)
-
-
-class _PrivateCollectionFieldProtocol(Protocol):
-    _collection: Final[Collection[AttributeValueTypeT, Any] | None]
-
-
-def _post_set_collection(obj: _PrivateCollectionFieldProtocol, collection: Collection[AttributeValueTypeT, Any]) -> None:
-    object.__setattr__(obj, '_collection', collection)
-    
-
 # number
 NUMBER_MAX: Final[int] = 2 ** 63 - 1
 NUMBER_MIN: Final[int] = -NUMBER_MAX - 1

@@ -3,9 +3,13 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import messaging, modals, predicates, feedbackerrors as fbe, utils, views, required
-from structure_bridge.context import Context
-from structures.list.list import List
+from utils import required
+from discord_structures import modals, predicates, views
+from discordtools import messaging, feedbackerrors as fbe, user
+from bridges.context import Context
+import ranks
+from ranks.community_rank import CommunityRank
+from ranks.server_rank import ServerRank
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -15,7 +19,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def info(self, ia: dc.Interaction) -> None:
         ctx = Context(ia)
 
-        community = ctx.community
+        community = ctx.get_community()
         
         default_selected_list = community.get_default_selected_list()
         default_selected_list_name = default_selected_list.name if default_selected_list is not None else "None"
@@ -39,7 +43,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @get_group.command(name="lists", description="Get all lists of the community.")
     async def list_lists(self, ia: dc.Interaction) -> None:
         ctx = Context(ia)
-        community = ctx.community
+        community = ctx.get_community()
 
         await ia.response.send_message(messaging.layout(
             "All Lists",
@@ -55,9 +59,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def set_default_selected_list(self, ia: dc.Interaction, list: str | None = None) -> None:
         ctx = Context(ia)
 
-        community = ctx.community
+        community = ctx.get_community()
 
-        selected_list = ctx.get_selected_list(list)
+        selected_list = ctx.get_explicit_or_selected_list(list)
 
         community.set_default_selected_list(selected_list.id)
 
@@ -80,9 +84,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def user_community_rank(self, ia: dc.Interaction, other_user: dc.User, rank_enum: SetRanks) -> None:
         ctx = Context(ia)
 
-        other_user_id, other_user_name = utils.get_user_id_and_name(other_user)
+        other_user_id, other_user_name = user.get_user_id_and_name(other_user)
 
-        other_community_user = ctx.community.create_or_get_community_user(
+        other_community_user = ctx.get_community().create_or_get_community_user(
             other_user.id, other_user_name
         )
 
@@ -91,14 +95,14 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         if new_rank.power == other_community_user.community_rank.power:
             raise fbe.TemporaryFeedbackError("The new rank for the user is equal to the one they already have.")
         
-        community_user = ctx.community_user
+        community_user = ctx.get_community_user()
 
-        rank_below_mine = ranks.get_offset_rank(community_user.highest_rank, -1)
+        rank_below_mine = ranks.get_offset_rank(community_user.most_important_rank, -1)
         
         if new_rank.power > rank_below_mine.power:
             raise fbe.TemporaryFeedbackError("The rank you want to give to that user is too high. You must be higher than the rank you want to give.")
 
-        ctx.community.change_community_user_community_rank(
+        ctx.get_community().change_community_user_community_rank(
             other_user_id, other_user_name, new_rank
         )
 
@@ -118,7 +122,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def create_list(self, ia: dc.Interaction, list_name: str) -> None:
         ctx = Context(ia)
 
-        new_list = ctx.community.create_list(list_name)
+        new_list = ctx.get_community().create_list(list_name)
 
         await ia.response.send_message(messaging.layout(
             "List Created",
@@ -134,7 +138,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def delete_list(self, ia: dc.Interaction, list_name: str) -> None:
         ctx = Context(ia)
 
-        list = required.structure_with_name(ctx.community.get_list_by_name(list_name), List)
+        list = required.structure_not_none(ctx.get_community().get_list_by_name(list_name), list_name, List)
 
         async def after_submit(ia: dc.Interaction, success: bool) -> None:
             if success:

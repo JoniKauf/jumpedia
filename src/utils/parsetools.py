@@ -28,8 +28,8 @@ def json_loads_safe(s: str, max_depth: int = -1, max_length: int = DEFAULT_MAX_L
     
     try:
         result: Any = json.loads(s, **kwargs)
-    except (json.JSONDecodeError, TypeError) as e:
-        raise ValueError("Not a json string")
+    except json.JSONDecodeError as e:
+        raise e
     except RecursionError as e:
         raise RecursionError(None, max_depth, e)
     except Exception as e:

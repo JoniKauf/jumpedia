@@ -3,17 +3,13 @@ import builtins
 from dataclasses import dataclass, field
 import enum
 import datetime as dt
-import functools
-import json
-import pickle
-import textwrap
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
 from database import queries
 import re
 from decimal import Decimal
 import decimal
 from discordtools import messaging as msg
-from errors import FeedbackError
+from errors.feedback import FeedbackError
 import errors
 from structures import attributes
 import structures

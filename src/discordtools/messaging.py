@@ -13,14 +13,7 @@ from utils import text
 
 InteractionFuncT = Callable[..., Coroutine]
 
-
-def _get_relevant_kwargs(kwargs: dict[str, Any], func: Callable) -> dict[str, Any]:
-    """Get all kwargs a given function accepts."""
-    sig = inspect.signature(func)
-    return {k: v for k, v in kwargs.items() if k in sig.parameters}
-
-
-def _is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
+def is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
     return func not in (
         interaction.response.send_message,
         interaction.response.edit_message,
@@ -28,31 +21,6 @@ def _is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
         interaction.response.pong
     )
 
-
-async def _handle_interaction_func(
-    interaction: dc.Interaction,
-    msg_kwargs: dict[str, Any] | None = None,
-    *,
-    success_func: InteractionFuncT | None = None
-):
-    if success_func is None:
-        if interaction.response.is_done():
-            success_func = interaction.followup.send
-        else:
-            success_func = interaction.response.send_message
-
-    else:
-        if interaction.response.is_done():
-            if _is_followup_func(success_func, interaction):
-                await interaction.response.defer()
-            else:
-                raise ValueError(f"func '{success_func}' not executable anymore, because response is done")
-            
-    msg_kwargs = _get_relevant_kwargs(msg_kwargs, success_func) if msg_kwargs else {}
-
-    await success_func(**msg_kwargs)
-
-    
 
 @dataclass(frozen=True, slots=True)
 class MessageStatus:
@@ -122,3 +90,6 @@ def shorten_and_code_many(
         more_elems=more_elems, 
         more_s=more_s
     ))
+
+def code_big(s: str) -> str:
+    return f"```{s}```"

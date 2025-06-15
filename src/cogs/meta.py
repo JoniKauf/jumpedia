@@ -2,8 +2,10 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from utils import required
 from database import queries
-from discordtools import messaging, modals, predicates, feedbackerrors as fbe, required
+from discord_structures import modals, predicates
+from discordtools import messaging, feedbackerrors as fbe
 from database.typed import Tables as TBL
 from bridges.context import Context
 from structures.ranks import CommunityRank, MetaRank, ServerRank
@@ -117,7 +119,7 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
 
     @disconnect_group.command(name="community", description="Disconnect a community from this server.")
     @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
-    async def diconnect_community(self, ia: dc.Interaction) -> None:
+    async def disconnect_community(self, ia: dc.Interaction) -> None:
         ctx = Context(ia)
         
         community = ctx.community

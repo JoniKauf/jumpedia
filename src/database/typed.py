@@ -50,7 +50,7 @@ class Tables:
         community_id: ColumnName
         name: ColumnName
 
-    class User(metaclass=TableMeta):
+    class MetaUser(metaclass=TableMeta):
         id: ColumnName
         name: ColumnName
         meta_power: ColumnName

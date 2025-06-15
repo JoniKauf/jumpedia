@@ -3,15 +3,15 @@ import functools
 import types
 from typing import Any, Callable, Literal
 import discord as dc
-from discordtools import feedbackerrors as fbe, required, utils
+from utils import required
 
 from ranks import AnyRank
 from ranks.community_rank import CommunityRank
 from ranks.meta_rank import MetaRank
 from ranks.server_rank import ServerRank
-from structures.community.community import Community
-from structures.jumpedia.jumpedia import Jumpedia
-from structures.list.list import List
+from structures.community import Community
+from structures.jumpedia import Jumpedia
+from structures.list import List
 from structures.users.community_user import CommunityUser
 from structures.users.meta_user import MetaUser
 from structures.users.server_user import ServerUser
@@ -37,7 +37,7 @@ class Context:
 
     @optimized_no_arg_method_cache
     def get_server(self) -> dc.Guild:
-        return required.user_on_server(self.interaction.user)
+        return required.server_not_none(self.interaction.user)
     
     @optimized_no_arg_method_cache
     def get_jumpedia(self) -> Jumpedia:
@@ -82,14 +82,14 @@ class Context:
 
     @optimized_no_arg_method_cache
     def get_user_name(self) -> str:
-        return utils.get_user_name(self.interaction.user)
+        return user.get_user_name(self.interaction.user)
     
     @functools.lru_cache
     def get_explicit_or_selected_list(self, explicit_list_name: str | None = None) -> List:
         if explicit_list_name is None:
             return self.get_selected_list()
         
-        return required.structure_with_name(
+        return required.structure_not_none(
             self.get_community().get_list_by_name(explicit_list_name),
             explicit_list_name,
             List
@@ -119,3 +119,5 @@ class Context:
         
         raise fbe.TemporaryFeedbackError(f"You must at least have the server rank {required}")
 
+    @functools.lru_cache
+    def get_list_by_name(self, name: str) -> 
