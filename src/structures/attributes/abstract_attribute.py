@@ -92,7 +92,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
 
     @staticmethod
     def _raise_invalid_value_for_value_type(s: str, value_type: AttributeValueType) -> Never:
-        if value_type.quote_required:
+        if value_type.json_load_no_quotes_possible:
             additional_modal_verb = "must also be"
         else:
             additional_modal_verb = "can optionally also be"

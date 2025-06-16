@@ -3,9 +3,12 @@ import datetime as dt
 from decimal import Decimal
 import decimal
 import enum
+import json
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Generator, Protocol, Self
 
+from errors.feedback import FeedbackError, feedbacks
 from structures.attributes.collection import Collection
+from utils import parsetools
 
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
@@ -30,7 +33,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
     type: type[T]
-    quote_required: bool = True
+    json_load_no_quotes_possible: bool = False
 
     _attribute_value_types: ClassVar[list[Self]] = []
     _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
@@ -74,9 +77,14 @@ class AttributeValueType[T: AttributeValueTypeT]:
     @classmethod
     def get_all(cls) -> list[Self]:
         return cls._attribute_value_types.copy()
+    
+    @classmethod
+    def json_loads_valid(cls) -> frozenset[type_[list | AttributeValueTypeT]]:
+        return frozenset((list, str, *(avt.type for avt in cls.get_all() if avt.json_load_no_quotes_possible)))
+    
 
-AttributeValueType(1, 'boolean', bool, False)
-AttributeValueType(2, 'integer', int, False)
+AttributeValueType(1, 'boolean', bool, True)
+AttributeValueType(2, 'integer', int, True)
 AttributeValueType(3, 'decimal', Decimal)
 AttributeValueType(4, 'time', dt.time)
 AttributeValueType(5, 'date', dt.date)
