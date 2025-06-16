@@ -66,6 +66,6 @@ def extract_id(identifier: UserIdentifierT) -> int:
     if isinstance(identifier, MetaUser | dc.User | dc.Member):
         return identifier.id
     
-    raise ImpossibleError
+    raise ImpossibleError()
 
 

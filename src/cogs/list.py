@@ -5,8 +5,10 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from typing import Any, Optional as Opt
-from discordtools import messaging, modals, predicates, required
-from discordtools.context import Context
+from utils import required
+from discord_structures import modals, predicates
+from discordtools import messaging
+from bridges.context import Context
 from discordtools import feedbackerrors as fbe
 from structures.attribute import AttributeValueTypeEnum, StaticAttribute, TaskAttribute, UserAttribute
 from structures.jumpedia import Jumpedia

@@ -19,7 +19,6 @@ from structures.base_structure import BaseStructure
 from utils import parsetools, text, timetools
 from database import typed as typed
 from database.typed import Tables as TBL
-from utils.locked import equality_locked
 
 if TYPE_CHECKING:
     from structures.list.list import List

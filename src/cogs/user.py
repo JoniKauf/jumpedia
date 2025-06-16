@@ -2,8 +2,9 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discordtools import helpers, messaging, predicates, feedbackerrors as fbe
-from discordtools.context import Context
+from discord_structures import predicates
+from discordtools import helpers, messaging, feedbackerrors as fbe
+from bridges.context import Context
 from structures.ranks import AnyRank
 
 class UserCog(cmds.GroupCog, group_name="user"):
