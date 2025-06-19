@@ -1,3 +1,4 @@
+from typing import Any, Mapping, Sequence
 from discordtools import messaging
 from errors import BaseUserReturnableError
 

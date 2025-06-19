@@ -1,8 +1,6 @@
 from typing import Any, Mapping, Sequence
 from discord.app_commands.errors import CheckFailure
 
-from discordtools import messaging
-
 class ImpossibleError(RuntimeError):
     """
     An error that is thrown whenever a part in the code is reached that should

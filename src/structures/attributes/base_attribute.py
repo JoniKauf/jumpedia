@@ -9,7 +9,7 @@ import re
 from decimal import Decimal
 import decimal
 from discordtools import messaging as msg
-from errors.feedback import FeedbackError
+from errors.feedback import FeedbackError, feedbacks
 import errors
 from structures import attributes
 import structures
@@ -21,7 +21,7 @@ from database import typed as typed
 from database.typed import Tables as TBL
 
 if TYPE_CHECKING:
-    from structures.list.list import List
+    from structures.list import List
 
 _DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
 
@@ -48,7 +48,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     @property
     def required(self) -> bool:
         return self.min_slots > 0
-
+    
     # --- Methods ---
 
     def __post_init__(self) -> None:
@@ -92,7 +92,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
 
     @staticmethod
     def _raise_invalid_value_for_value_type(s: str, value_type: AttributeValueType) -> Never:
-        if value_type.json_load_no_quotes_possible:
+        if value_type.literal_to_str_possible:
             additional_modal_verb = "must also be"
         else:
             additional_modal_verb = "can optionally also be"
@@ -198,38 +198,33 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         raise errors.ImpossibleError("Invalid AttributeValueType", value_type.type)
     
 
-    def from_loaded(self, loaded: str | builtins.list[Any], custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
+    def from_loaded(self, loaded: Any, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
         value_type = custom_value_type or self.value_type
 
-        if isinstance(loaded, list):
-            values = loaded
-        else:
-            values = [loaded]
+        if not isinstance(loaded, list):
+            loaded = [loaded]
 
-        converted: list[T] = []
-
-        for elem in values:
-            if isinstance(elem, str):
-                converted.append(self.from_str_singular(elem, value_type))
-
-            elif isinstance(elem, self.value_type.type) and issubclass(self.value_type.type, (bool, int)):
-                converted.append(self.from_str_singular(str(elem), value_type))
-
-            else:
-                raise FeedbackError(
-                    "Invalid Value Format",
-                    "The value must be valid JSON format of either a single value or a list of values."
-                )
+        if not (self.min_slots <= (count := len(loaded)) <= self.max_slots):
+            raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
-        if not (self.min_slots <= (count := len(converted)) <= self.max_slots):
-            raise feedback.TemporaryFeedbackError("Count of values not between limits", self.min_slots, count, self.max_slots)
+        parsed_values: list[T] = []
         
+        for value in loaded:
+            if not isinstance(value, value_type.type):
+                raise feedbacks.temp(f"not list, str or value type '{loaded}'")
+            
+            if not value_type.literal_to_str_possible:
+                raise feedbacks.temp(f"value type '{value_type}' is not valid")
+            
+            parsed_value = self.__class__.from_str_singular(str(value), value_type)
+
+            parsed_values.append(parsed_value)
         
-        values = self._collection_conversion_if_needed(converted)
+        values = self._collection_conversion_if_needed(parsed_values)
 
         if self.unique_slots:
             if len(values) != len(frozenset(values)):
-                raise feedback.TemporaryFeedbackError("Values must be unique for this attribute")
+                raise feedbacks.temp("Values must be unique for this attribute")
             
         return values
 
@@ -257,9 +252,9 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         
         raise TypeError("Invalid")
 
-    def _collection_conversion_if_needed(self, elems: Iterable[T]) -> builtins.list[T]:
+    def _collection_conversion_if_needed(self, elems: builtins.list[T]) -> builtins.list[T]:
         if not self.has_collection():
-            return list(elems)
+            return elems
         
         result: list[T] = []
 
@@ -267,7 +262,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             node = self.get_collection().lookup_node(elem, None)
             
             if node is None:
-                raise feedback.TemporaryFeedbackError("Not part of collection", elem)
+                raise feedbacks.temp("Not part of the collection", elem)
 
             result.append(node.value)
 

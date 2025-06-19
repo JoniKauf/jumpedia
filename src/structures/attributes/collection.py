@@ -29,7 +29,7 @@ class CollectionNode[T]:
 
 def normalize_collection_value[T: AttributeValueTypeT](value: T) -> T:
     if isinstance(value, str):
-        return text.norm(value)
+        return text.sanitize(value)
     
     return value
 

@@ -6,8 +6,8 @@ from database import queries
 from database.typed import Tables as TBL
 from database import typed
 from structures import attributes
-from structures.attributes import AttributeValueTypeT
-from structures.attributes.abstract_attribute import BaseAttribute
+from structures.attributes import AttributeDataCache, AttributeValueTypeT
+from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 
 
@@ -17,51 +17,52 @@ class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
     ATTRIBUTE_TYPE_NAME: ClassVar[str] = "user"
     TYPE_ID: ClassVar[int] = 2
 
-    _aliases: frozenset[str] | None = field(init=False, default=None)
-    _collection: Collection[T, 'UserAttribute'] | None = field(init=False, default=None)
-
+    _cache: AttributeDataCache[T, 'UserAttribute[T]'] = field(init=False, default_factory=AttributeDataCache)
+    
     def get_aliases(self) -> frozenset[str]:
-        if self._aliases is None:
-            h = queries.ArgHelper()
-            Tbl = TBL.UserAttributeAlias
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    SELECT {Tbl.alias}
-                    FROM {Tbl}
-                    WHERE {Tbl.user_attribute_id} = {h|self.id}
-                """)
-
-                rows: typed.ManyTableRowT = cursor.fetchall()
-
-            attributes._post_set_aliases(self, frozenset(row[Tbl.alias] for row in rows))
-            assert self._aliases is not None
+        if self._cache.aliases is not None:
+            return self._cache.aliases
         
-        return self._aliases
+        h = queries.ArgHelper()
+        Tbl = TBL.UserAttributeAlias
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT {Tbl.alias}
+                FROM {Tbl}
+                WHERE {Tbl.user_attribute_id} = {h|self.id}
+            """)
+
+            rows: typed.ManyTableRowT = cursor.fetchall()
+
+        self._cache.aliases = frozenset(row[Tbl.alias] for row in rows)
+        
+        return self._cache.aliases
     
     def get_collection(self) -> Collection[T, 'UserAttribute']:
-        if self._collection is None:
-            h = queries.ArgHelper()
-            UACNT = TBL.UserAttributeCollectionNode
-            UACNAT = TBL.UserAttributeCollectionNodeAlias
+        if self._cache.collection is not None:
+            return self._cache.collection
+        
+        h = queries.ArgHelper()
+        NodeTbl = TBL.UserAttributeCollectionNode
+        NodeAliasTbl = TBL.UserAttributeCollectionNodeAlias
 
-            with queries.connected() as (conn, cursor):
-                
-                cursor.execute(f"""
-                    SELECT 
-                        n.*,
-                        COALESCE(
-                            JSON_ARRAYAGG(a.{UACNAT.alias}),
-                            JSON_ARRAY()
-                        ) AS {UACNT._aliases}
-                    FROM {UACNT} n
-                    LEFT JOIN {UACNAT} a
-                        ON a.{UACNAT.user_attribute_collection_node_id} = n.{UACNT.id}
-                    WHERE {UACNT.user_attribute_id} = {h|self.id}
-                    GROUP BY n.{UACNT.id}
-                """, h.steal())
-
-            attributes._post_set_collection(self, Collection.from_rows(cursor.fetchall(), self.__class__))
-            assert self._collection is not None
+        with queries.connected() as (conn, cursor):
             
-        return self._collection
+            cursor.execute(f"""
+                SELECT 
+                    n.*,
+                    COALESCE(
+                        JSON_ARRAYAGG(a.{NodeAliasTbl.alias}),
+                        JSON_ARRAY()
+                    ) AS {NodeTbl._aliases}
+                FROM {NodeTbl} n
+                LEFT JOIN {NodeAliasTbl} a
+                    ON a.{NodeAliasTbl.user_attribute_collection_node_id} = n.{NodeTbl.id}
+                WHERE {NodeTbl.user_attribute_id} = {h|self.id}
+                GROUP BY n.{NodeTbl.id}
+            """, h.steal())
+
+        self._cache.collection = Collection.from_rows(cursor.fetchall(), self.__class__)
+            
+        return self._cache.collection

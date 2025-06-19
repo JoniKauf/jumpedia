@@ -1,5 +1,5 @@
 import textwrap
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from errors.feedback import FeedbackError
 from discordtools import messaging as msg
 from structures.base_structure import BaseStructure
@@ -66,4 +66,12 @@ def invalid_attribute_value_mapping(additional_what_is_wrong_exactly: str) -> Fe
             f"for the task attribute {msg.code("amount")} and the two specified texts "
             f"for the task attribute {msg.code("more_info")}."
         ]
+    )
+
+def temp(*args: Any, **kwargs: Any) -> FeedbackError:
+    return FeedbackError(
+        "Temporary Error!",
+        "Data:" + 
+        ("Args:" + msg.code_big('\n'.join(args))) if args else '' +
+        ("KWArgs:" + msg.code_big('\n'.join(f"{k}: {v}" for k, v in kwargs.items())) if kwargs else '')
     )

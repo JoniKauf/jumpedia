@@ -1,13 +1,13 @@
 
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from database import queries
 from database.typed import Tables as TBL
 from database import typed
 from structures import attributes
-from structures.attributes import AttributeValueTypeT
-from structures.attributes.abstract_attribute import BaseAttribute
+from structures.attributes import AttributeDataCache, AttributeValueTypeT
+from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 from structures.attributes import collection
 
@@ -20,52 +20,52 @@ class TaskAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
 
     unique_value_per_list: bool
 
-    _aliases: frozenset[str] | None = field(init=False, default=None)
-    _collection: Collection[T, 'TaskAttribute'] | None = field(init=False, default=None)
+    _cache: AttributeDataCache[T, 'TaskAttribute[T]'] = field(init=False, default_factory=AttributeDataCache)
     
     def get_aliases(self) -> frozenset[str]:
-        if self._aliases is None:
-            h = queries.ArgHelper()
-            Tbl = TBL.TaskAttributeAlias
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    SELECT {Tbl.alias}
-                    FROM {Tbl}
-                    WHERE {Tbl.task_attribute_id} = {h|self.id}
-                """)
-
-                rows: typed.ManyTableRowT = cursor.fetchall()
-
-            attributes._post_set_aliases(self, frozenset(row[Tbl.alias] for row in rows))
-            assert self._aliases is not None
+        if self._cache.aliases is not None:
+            return self._cache.aliases
         
-        return self._aliases
+        h = queries.ArgHelper()
+        Tbl = TBL.TaskAttributeAlias
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT {Tbl.alias}
+                FROM {Tbl}
+                WHERE {Tbl.task_attribute_id} = {h|self.id}
+            """)
+
+            rows: typed.ManyTableRowT = cursor.fetchall()
+        
+        self._cache.aliases = frozenset(row[Tbl.alias] for row in rows)
+
+        return self._cache.aliases
     
 
     def get_collection(self) -> Collection[T, 'TaskAttribute']:
-        if self._collection is None:
-            h = queries.ArgHelper()
-            TACNT = TBL.TaskAttributeCollectionNode
-            TACNAT = TBL.TaskAttributeCollectionNodeAlias
+        if self._cache.collection is not None:
+            return self._cache.collection
+        
+        h = queries.ArgHelper()
+        TblNode = TBL.TaskAttributeCollectionNode
+        TblNodeAlias = TBL.TaskAttributeCollectionNodeAlias
 
-            with queries.connected() as (conn, cursor):
-                
-                cursor.execute(f"""
-                    SELECT 
-                        n.*,
-                        COALESCE(
-                            JSON_ARRAYAGG(a.{TACNAT.alias}),
-                            JSON_ARRAY()
-                        ) AS {TACNT._aliases}
-                    FROM {TACNT} n
-                    LEFT JOIN {TACNAT} a
-                        ON a.{TACNAT.task_attribute_collection_node_id} = n.{TACNT.id}
-                    WHERE {TACNT.task_attribute_id} = {h|self.id}
-                    GROUP BY n.{TACNT.id}
-                """, h.steal())
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT 
+                    n.*,
+                    COALESCE(
+                        JSON_ARRAYAGG(a.{TblNodeAlias.alias}),
+                        JSON_ARRAY()
+                    ) AS {TblNode._aliases}
+                FROM {TblNode} n
+                LEFT JOIN {TblNodeAlias} a
+                    ON a.{TblNodeAlias.task_attribute_collection_node_id} = n.{TblNode.id}
+                WHERE {TblNode.task_attribute_id} = {h|self.id}
+                GROUP BY n.{TblNode.id}
+            """, h.steal())
 
-            attributes._post_set_collection(self, Collection.from_rows(cursor.fetchall(), self.__class__))
-            assert self._collection is not None
-            
-        return self._collection
+            self._cache.collection = Collection.from_rows(cursor.fetchall(), self.__class__)
+
+        return self._cache.collection

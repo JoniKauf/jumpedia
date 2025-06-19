@@ -4,9 +4,10 @@ from decimal import Decimal
 import decimal
 import enum
 import json
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Generator, Protocol, Self
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Protocol, Self, TypedDict
 
 from errors.feedback import FeedbackError, feedbacks
+from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 from utils import parsetools
 
@@ -33,16 +34,13 @@ class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
     type: type[T]
-    json_load_no_quotes_possible: bool = False
+    literal_to_str_possible: bool = False
 
     _attribute_value_types: ClassVar[list[Self]] = []
     _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
     _attribute_value_type_name_lookup: ClassVar[dict[str, Self]] = {}
     _attribute_value_type_type_lookup: ClassVar[dict[str, Self]] = {}
 
-    def __hash__(self):
-        return hash((self.id, self.name))
-    
     def __post_init__(self):
         for elem in AttributeValueType._attribute_value_types:
             if self.name == elem.name or self.id == elem.id or self.type == elem.type:
@@ -53,6 +51,14 @@ class AttributeValueType[T: AttributeValueTypeT]:
         AttributeValueType._attribute_value_type_name_lookup[self.name] = self
         AttributeValueType._attribute_value_type_type_lookup[self.type.__qualname__] = self
 
+    def __hash__(self):
+        return hash((self.id, self.name))
+    
+    def __str__(self) -> str:
+        return self.name
+    
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(id={self.id!r}, name={self.name!r}, type={self.type!r}, literal_to_str_possible={self.literal_to_str_possible!r})'
     @classmethod
     def get_by_id(cls, id: int) -> Self:
         try:
@@ -77,11 +83,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     @classmethod
     def get_all(cls) -> list[Self]:
         return cls._attribute_value_types.copy()
-    
-    @classmethod
-    def json_loads_valid(cls) -> frozenset[type_[list | AttributeValueTypeT]]:
-        return frozenset((list, str, *(avt.type for avt in cls.get_all() if avt.json_load_no_quotes_possible)))
-    
+
 
 AttributeValueType(1, 'boolean', bool, True)
 AttributeValueType(2, 'integer', int, True)
@@ -90,7 +92,7 @@ AttributeValueType(4, 'time', dt.time)
 AttributeValueType(5, 'date', dt.date)
 AttributeValueType(6, 'date_and_time', dt.datetime)
 AttributeValueType(7, 'timespan', dt.timedelta)
-AttributeValueType(8, 'text', str)
+AttributeValueType(8, 'text', str, True)
 
 AttributeValueTypeEnum = enum.Enum(
     'AttributeValueTypeEnum', [(avt.name, avt) for avt in AttributeValueType._attribute_value_types] + []
@@ -99,6 +101,10 @@ AttributeValueTypeEnum = enum.Enum(
 if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in AttributeValueTypeEnum):  # type: ignore
     raise RuntimeError("Enum does not equal type!!")
 
+@dataclass
+class AttributeDataCache[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]():
+    aliases: frozenset[str] | None = None
+    collection: Collection[T1, T2] | None = None
 
 # number
 NUMBER_MAX: Final[int] = 2 ** 63 - 1
@@ -123,3 +129,5 @@ MAX_ALIAS_COUNT: Final[int] = 32
 MAX_COLLECTION_ALIASES: Final[int] = 7
 MAX_SLOTS: Final[int] = 32
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+
+

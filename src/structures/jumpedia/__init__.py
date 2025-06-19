@@ -33,10 +33,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,)
-    
-    @property
-    def parent(self) -> Self:
-        return self
 
     def _init(self) -> None:
         with queries.connected(no_db=True) as (conn, cursor):

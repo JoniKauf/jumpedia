@@ -10,7 +10,7 @@ from database import queries
 from structures.base_structure import BaseStructure
 from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
 from structures.attributes import collection
-from structures.attributes.abstract_attribute import BaseAttribute
+from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute

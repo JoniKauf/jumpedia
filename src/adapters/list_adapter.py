@@ -28,7 +28,7 @@ class ListAdapter(BaseAdapter[List]):
 
         if attribute_value_mapping is not None:
             MAX_DEPTH: int = 2
-            VALID_SINGLE_VALUE_ATTRIBUTE_VALUE_TYPES: frozenset[type] = frozenset(avt.type for avt in attributes.AttributeValueType.get_all() if not avt.json_load_no_quotes_possible)
+            VALID_SINGLE_VALUE_ATTRIBUTE_VALUE_TYPES: frozenset[type] = frozenset(avt.type for avt in attributes.AttributeValueType.get_all() if not avt.literal_to_str_possible)
 
             try:
                 avm_loaded: Any = parsetools.json_loads_safe(attribute_value_mapping, MAX_DEPTH)

@@ -4,8 +4,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from discord_structures import predicates
-from discordtools import messaging, feedbackerrors as fbe
-from bridges.context import Context
+from discordtools import messaging
 
 class AttributeCog(cmds.GroupCog, group_name="attribute"):
     def __init__(self, bot: cmds.Bot) -> None:
