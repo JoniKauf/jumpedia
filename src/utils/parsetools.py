@@ -25,7 +25,7 @@ def json_depth(o: Any) -> int:
 
 type SupportedTypesT = None | bool | int | float | str | list[SupportedTypesT] | dict[str, SupportedTypesT] | Any
 
-def validate_json_loaded_is_strict_type_simple(obj: SupportedTypesT, expected_type: type[SupportedTypesT] | None | NoneType = Any) -> None:  # type: ignore
+def validate_json_type(obj: SupportedTypesT, expected_type: type[SupportedTypesT] = Any) -> None:  # type: ignore
     if expected_type == Any:
         return
     
@@ -51,7 +51,7 @@ def validate_json_loaded_is_strict_type_simple(obj: SupportedTypesT, expected_ty
             return
         
         for child_obj in obj:
-            validate_json_loaded_is_strict_type_simple(child_obj, type_elems)
+            validate_json_type(child_obj, type_elems)
 
     elif isinstance(obj, dict):
         type_k = type_args[0]
@@ -61,8 +61,8 @@ def validate_json_loaded_is_strict_type_simple(obj: SupportedTypesT, expected_ty
             type_v = type_args[1]
         
         for k, v in obj.items():
-            validate_json_loaded_is_strict_type_simple(k, type_k)
-            validate_json_loaded_is_strict_type_simple(v, type_v)  # type: ignore
+            validate_json_type(k, type_k)
+            validate_json_type(v, type_v)  # type: ignore
     
 
 
@@ -82,7 +82,7 @@ def json_loads_safe(s: str, max_depth: int = -1, max_length: int = DEFAULT_MAX_L
     except Exception as e:
         raise e
     
-    validate_json_loaded_is_strict_type_simple(result, strict_type)
+    validate_json_type(result, strict_type)
     
     if max_depth >= 0 and (depth := json_depth(result)) > max_depth:
         raise RecursionError(depth, max_depth)
