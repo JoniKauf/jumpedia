@@ -5,7 +5,7 @@ from typing import ClassVar
 
 from ranks.meta_rank import MetaRank
 from structures.base_structure import BaseStructure
-from structures.jumpedia.jumpedia import Jumpedia
+from structures.meta.jumpedia import Jumpedia
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -10,7 +10,7 @@ from ranks.community_rank import CommunityRank
 from ranks.meta_rank import MetaRank
 from ranks.server_rank import ServerRank
 from structures.community import Community
-from structures.jumpedia import Jumpedia
+from structures.meta import Meta
 from structures.list import List
 from structures.users.community_user import CommunityUser
 from structures.users.meta_user import MetaUser
@@ -40,8 +40,8 @@ class Context:
         return required.server_not_none(self.interaction.user)
     
     @optimized_no_arg_method_cache
-    def get_jumpedia(self) -> Jumpedia:
-        return Jumpedia()
+    def get_jumpedia(self) -> Meta:
+        return Meta()
     
     @optimized_no_arg_method_cache
     def get_community(self) -> Community:

@@ -3,7 +3,8 @@ import builtins
 from dataclasses import dataclass, field
 import enum
 import datetime as dt
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict
+import json
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict, Union
 from database import queries
 import re
 from decimal import Decimal
@@ -13,10 +14,10 @@ from errors.feedback import FeedbackError, feedbacks
 import errors
 from structures import attributes
 import structures
-from structures.attributes import AttributeValueType, AttributeValueTypeT
+from structures.attributes import AttributeValueType, AttributeValueTypeT, Uniqueness
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.base_structure import BaseStructure
-from utils import parsetools, text, timetools
+from utils import parsetools, text
 from database import typed as typed
 from database.typed import Tables as TBL
 
@@ -39,7 +40,13 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     index: int
     min_slots: int
     max_slots: int
-    unique_slots: bool
+    uniqueness: Uniqueness
+
+    value_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
+        max_depth=attributes.COLLECTION_MAX_DEPTH,
+        strict_type=attributes.ATTRIBUTE_VALUE_PARSE_TYPES
+    )
+    
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -85,13 +92,9 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 f"The number {msg.shorten_and_code(str(number))} is too small or big!",
                 additional=f"It must be a value between {msg.code(str(MIN))} and {msg.code(str(MAX))}."
             )
-
-    _VALUE_TYPE_TO_ADDITIONAL: dict[AttributeValueType, str] = {
-        AttributeValueTypeT
-    }
-
+        
     @staticmethod
-    def _raise_invalid_value_for_value_type(s: str, value_type: AttributeValueType) -> Never:
+    def _feedback_invalid_value_for_value_type(s: str, value_type: AttributeValueType, additional_start: str) -> FeedbackError:
         if value_type.literal_to_str_possible:
             additional_modal_verb = "must also be"
         else:
@@ -104,9 +107,12 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         )
     
     @classmethod
-    def from_str_singular(cls, s: str, value_type: AttributeValueType) -> T:
+    def value_from_str_singular(cls, s: str, value_type: AttributeValueType) -> T:
         value_type_type = value_type.type
-        s_before, s = s, text.sanitize(s)
+        old_s, s = s, text.sanitize(s)
+
+        if not s:
+            raise feedbacks.temp(f"empty or only whitespace values like {msg.code(old_s)} are not allowed")
         
         if issubclass(value_type_type, bool):
             s = s.lower()
@@ -116,13 +122,13 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             if s == "true":
                 return True  # type: ignore
             
-            cls._raise_invalid_value_for_value_type(s, value_type)
+            raise cls._feedback_invalid_value_for_value_type(s, value_type, f"The only valid values are {msg.code('true')} or {msg.code('false')}.")
 
         elif issubclass(value_type_type, int):
             try:
                 result = int(s)
             except Exception:
-                cls._raise_invalid_value_for_value_type(
+                raise cls._feedback_invalid_value_for_value_type(
                     s, 
                     value_type, 
                     f"These are some examples of valid values:\n" + 
@@ -138,7 +144,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 result = Decimal(s)
                 result = result.quantize(Decimal(f"1E-{attributes.DECIMAL_DEC_PART_MAX_LEN}"))
             except Exception:
-                cls._raise_invalid_value_for_value_type(
+                raise cls._feedback_invalid_value_for_value_type(
                     s,
                     value_type,
                     f"These are some examples of valid values:\n" + 
@@ -157,7 +163,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             try:
                 result = value_type_type.fromisoformat(s)
             except Exception:
-                cls._raise_invalid_value_for_value_type(
+                raise cls._feedback_invalid_value_for_value_type(
                     s,
                     value_type,
                     "Todo"
@@ -177,7 +183,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             try:
                 return timetools.parse_timedelta(s)  # type: ignore
             except ValueError:
-                cls._raise_invalid_value_for_value_type(
+                raise cls._feedback_invalid_value_for_value_type(
                     s,
                     value_type,
                     "Todo"
@@ -187,7 +193,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             MIN, MAX = attributes.STR_MIN_LEN, attributes.STR_MAX_LEN
 
             if not (MIN <= len(s) <= MAX):
-                cls._raise_invalid_value_for_value_type(
+                raise cls._feedback_invalid_value_for_value_type(
                     s,
                     value_type,
                     "Todo"
@@ -198,46 +204,52 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         raise errors.ImpossibleError("Invalid AttributeValueType", value_type.type)
     
 
-    def from_loaded(self, loaded: Any, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
-        value_type = custom_value_type or self.value_type
-
+    def value_from_loaded(self, loaded: attributes.AttributeValueParseTypesT) -> builtins.list[T]:
         if not isinstance(loaded, list):
             loaded = [loaded]
 
         if not (self.min_slots <= (count := len(loaded)) <= self.max_slots):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
-        parsed_values: list[T] = []
+        result_values: list[T] = []
         
-        for value in loaded:
-            if not isinstance(value, value_type.type):
+        for slot in loaded:
+            if not isinstance(slot, self.value_type.type):
                 raise feedbacks.temp(f"not list, str or value type '{loaded}'")
             
-            if not value_type.literal_to_str_possible:
-                raise feedbacks.temp(f"value type '{value_type}' is not valid")
+            if not self.value_type.literal_to_str_possible:
+                raise feedbacks.temp(f"value type '{self.value_type}' is not valid")
             
-            parsed_value = self.__class__.from_str_singular(str(value), value_type)
+            parsed_value = self.__class__.value_from_str_singular(str(slot), self.value_type)
 
-            parsed_values.append(parsed_value)
+            result_values.append(parsed_value)
         
-        values = self._collection_conversion_if_needed(parsed_values)
+        values = self._collection_conversion_if_needed(result_values)
 
-        if self.unique_slots:
+        if self.uniqueness >= Uniqueness.per_value:
             if len(values) != len(frozenset(values)):
-                raise feedbacks.temp("Values must be unique for this attribute")
+                raise feedbacks.temp("Slots must be unique for this attribute")
             
         return values
+    
+    def value_from_str(self, s: str) -> Any:
+        return self.value_from_str(self.__class__.general_from_str(
+            s, 
+            self.__class__.value_parser
+        ))
 
-    def from_str(self, s: str, custom_value_type: AttributeValueType | None = None) -> builtins.list[T]:
-        if not (s := s.strip()):
-            return []
-        
+    @classmethod
+    def general_from_str(cls, s: str, parser: parsetools.SafeJsonParser) -> Any:
         try:
-            loaded: str | list[Any] = parsetools.json_loads_safe(s, 1)
+            return parser.loads(s)
+        except json.JSONDecodeError as e:
+            raise feedbacks.temp(f"Not valid json at ...{e.msg[e.pos:e.pos + 10]}...")
         except RecursionError as e:
-            raise Exception  # TODO
-
-        return self.from_loaded(loaded, custom_value_type)
+            raise feedbacks.temp(f"Max depth for json exceeded")
+        except TypeError as e:
+            raise feedbacks.temp(f"object {msg.code(e.args[0])} is not of type {msg.code(e.args[1])}")
+        except Exception:
+            raise feedbacks.temp("Unknown json parse exception")
         
 
     def to_str(self, obj: T) -> str:
@@ -248,7 +260,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             return obj.isoformat()
         
         if isinstance(obj, (dt.timedelta)):
-            return timetools.unparse_timedelta(obj)
+            return parsetools.unparse_timedelta(obj)
         
         raise TypeError("Invalid")
 
@@ -298,7 +310,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         raise TypeError()
         
     def sort_key(self, s: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
-        values = self.from_str(s)
+        values = self.value_from_str(s)
         
         if not values:
             return (attributes.SORT_KEY_NONE_NUMBER + 1) * sign
@@ -318,6 +330,3 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 )
         
         return tuple(self._sort_key_singular(value, sign, self.value_type) for value in values)
-    
-    def is_empty(self, value: str) -> bool:
-        return bool(self.from_str(value, None)) 

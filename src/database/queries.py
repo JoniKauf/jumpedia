@@ -13,7 +13,7 @@ from database import secret
 import mariadb
 
 if TYPE_CHECKING:
-    from structures.jumpedia import Jumpedia
+    from structures.meta import Meta
     from structures.community import Community
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
@@ -39,12 +39,12 @@ def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozen
 
 @contextmanager
 def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[tuple[mariadb.Connection, mariadb.cursors.Cursor]]:
-    from structures.jumpedia import Jumpedia
+    from structures.meta import Meta
     
     if no_db:
         database = {}
     else:
-        database = {'db': Jumpedia().database_name}
+        database = {'db': Meta().database_name}
 
     connection_data = __get_connection_data() | database
     hashable = _connection_data_to_hashable(connection_data)

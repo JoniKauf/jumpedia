@@ -6,15 +6,12 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
 import discord as dc
 
-import mariadb
-from errors import FeedbackError
 from ranks.community_rank import CommunityRank
 from structures import attributes, task
 from structures.base_structure import BaseStructure
 from structures.attributes import AttributeValueType
 from structures.attributes.static_attribute import StaticAttribute
-from structures.list.list import List
-from structures.task.task import Task
+from structures.list import List
 from structures.users.community_user import CommunityUser
 from utils import metautils, required, text
 from database import queries, typed as typed
@@ -24,7 +21,7 @@ import structures.list as list_package
 from discordtools import messaging as msg
 
 if TYPE_CHECKING:
-    from structures.jumpedia import Jumpedia
+    from structures.meta import Meta
  
 
 MAX_NAME_LENGTH: int = 64
@@ -35,7 +32,7 @@ class Community(BaseStructure):
 
     MAX_LISTS: ClassVar[int] = 1
 
-    jumpedia: 'Jumpedia'
+    jumpedia: 'Meta'
     id: int
     name: str
     default_selected_list_id: int | None

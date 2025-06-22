@@ -10,4 +10,3 @@ from structures.attributes import AnyAttributeT
 @dataclass(frozen=True)
 class AttributeAdapter[T: AnyAttributeT[Any]](BaseAdapter[T]):
     pass
-

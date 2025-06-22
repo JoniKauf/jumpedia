@@ -38,6 +38,7 @@ class Tables:
         name: ColumnName
         default_selected_list_id: ColumnName
 
+
     class Server(metaclass=TableMeta):
         id: ColumnName
         community_id: ColumnName
@@ -72,8 +73,7 @@ class Tables:
         index: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
-        unique_slots: ColumnName
-        unique_value_per_list: ColumnName
+        uniqueness: ColumnName
 
     class StaticAttributeAlias(metaclass=TableMeta):
         id: ColumnName
@@ -94,8 +94,7 @@ class Tables:
         index: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
-        unique_slots: ColumnName
-        unique_value_per_list: ColumnName
+        uniqueness: ColumnName
 
     class TaskAttributeAlias(metaclass=TableMeta):
         id: ColumnName
@@ -133,7 +132,7 @@ class Tables:
         value_type: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
-        unique_slots: ColumnName
+        uniqueness: ColumnName
 
     class UserAttributeAlias(metaclass=TableMeta):
         id: ColumnName

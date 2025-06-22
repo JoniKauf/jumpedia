@@ -9,14 +9,13 @@ from ranks.meta_rank import MetaRank
 from structures import BaseStructure, attributes, task, users
 from structures import community
 from structures.community import Community
-from structures.list.list import List
-from structures.task.task import Task
+from structures.list import List
+from structures.task import Task
 from structures.users.meta_user import MetaUser
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
 from dataclasses import dataclass, field
-import discord as dc
 from discordtools import messaging as msg, user
 from structures import list as list_
 
@@ -26,7 +25,7 @@ class AbstractStructureAndSingleton(type(BaseStructure), metautils.Singleton):
     pass
 
 @dataclass(frozen=True, kw_only=True)
-class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
+class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
     id: int = field(init=False, default=1)
     database_name: str = field(init=False, default=typed.DATABASE_NAME)
     
@@ -652,4 +651,4 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         data = self._fetch_from_user_table(lambda h: f"{TBL.MetaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 
-Jumpedia()._init()
+Meta()._init()

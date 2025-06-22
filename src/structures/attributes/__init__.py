@@ -1,10 +1,13 @@
+import builtins
 from dataclasses import dataclass
 import datetime as dt
 from decimal import Decimal
 import decimal
 import enum
+import functools
 import json
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Protocol, Self, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Protocol, Self, TypedDict, Union
+import typing
 
 from errors.feedback import FeedbackError, feedbacks
 from structures.attributes.base_attribute import BaseAttribute
@@ -34,7 +37,10 @@ class AttributeValueType[T: AttributeValueTypeT]:
     id: int
     name: str
     type: type[T]
-    literal_to_str_possible: bool = False
+
+    @property
+    def literal_to_str_possible(self) -> bool:
+        return self.type in LITERAL_TO_STR_POSSIBLE
 
     _attribute_value_types: ClassVar[list[Self]] = []
     _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
@@ -85,21 +91,66 @@ class AttributeValueType[T: AttributeValueTypeT]:
         return cls._attribute_value_types.copy()
 
 
-AttributeValueType(1, 'boolean', bool, True)
-AttributeValueType(2, 'integer', int, True)
+AttributeValueType(1, 'boolean', bool)
+AttributeValueType(2, 'integer', int)
 AttributeValueType(3, 'decimal', Decimal)
 AttributeValueType(4, 'time', dt.time)
 AttributeValueType(5, 'date', dt.date)
 AttributeValueType(6, 'date_and_time', dt.datetime)
 AttributeValueType(7, 'timespan', dt.timedelta)
-AttributeValueType(8, 'text', str, True)
+AttributeValueType(8, 'text_string', str)
 
 AttributeValueTypeEnum = enum.Enum(
     'AttributeValueTypeEnum', [(avt.name, avt) for avt in AttributeValueType._attribute_value_types] + []
 )
 
+# Validate integrity
 if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in AttributeValueTypeEnum):  # type: ignore
     raise RuntimeError("Enum does not equal type!!")
+
+
+# Single point of truth is type so we can use type checking; data -> type doesn't work
+type LiteralToStrPossibleT = bool | int | str
+LITERAL_TO_STR_POSSIBLE = frozenset(typing.get_args(LiteralToStrPossibleT.__value__))
+
+# Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
+type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
+ATTRIBUTE_VALUE_PARSE_TYPES = LiteralToStrPossibleT.__value__ | list[LiteralToStrPossibleT.__value__]
+
+@functools.total_ordering
+class Uniqueness(enum.Enum):
+    none = 0
+    per_value = 1
+
+    def __lt__(self, other: Any):
+        if not isinstance(other, UNIQUENESS_ENUMS):
+            return NotImplemented
+        
+        return self.value < other.value
+    
+@functools.total_ordering
+class UniquenessExtended(enum.Enum):
+    none = 0
+    per_task = 1
+    per_list = 2
+
+    def __lt__(self, other: Any):
+        if not isinstance(other, UNIQUENESS_ENUMS):
+            return NotImplemented
+        
+        return self.value < other.value
+
+UNIQUENESS_ENUMS = (Uniqueness, UniquenessExtended)
+
+if not set(Uniqueness._value2member_map_).issubset(UniquenessExtended._value2member_map_):
+    raise RuntimeError(Uniqueness.__name__, "must be subset of", UniquenessExtended.__name__)
+
+def get_uniqueness_for_attribute_cls(attribute_cls: type[AnyAttributeT]):
+    if issubclass(attribute_cls, UserAttribute):
+        return Uniqueness
+    
+    return UniquenessExtended
+
 
 @dataclass
 class AttributeDataCache[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]():

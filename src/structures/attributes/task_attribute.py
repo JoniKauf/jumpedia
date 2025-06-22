@@ -10,6 +10,7 @@ from structures.attributes import AttributeDataCache, AttributeValueTypeT
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 from structures.attributes import collection
+from utils import parsetools
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -21,6 +22,7 @@ class TaskAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
     unique_value_per_list: bool
 
     _cache: AttributeDataCache[T, 'TaskAttribute[T]'] = field(init=False, default_factory=AttributeDataCache)
+    
     
     def get_aliases(self) -> frozenset[str]:
         if self._cache.aliases is not None:

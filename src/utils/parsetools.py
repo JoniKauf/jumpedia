@@ -2,17 +2,16 @@ import datetime
 from decimal import Decimal
 import json
 import re
-from types import NoneType
-from typing import Any, Final
+from types import NoneType, UnionType
+from typing import Any, Final, Union
 import typing
-from errors.feedback import feedbacks
 
-DEFAULT_MAX_LENGTH: Final[int] = 2**20
+PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'
 
-EMPTY_JSON_STR: Final[str] = '""'
-EMPTY_JSON_LIST: Final[str] = '[]'
-EMPTY_JSON_OBJ: Final[str] = '{}'
+EMPTY_JSON_STR: Final[str] = json.dumps("")
+EMPTY_JSON_LIST: Final[str] = json.dumps([])
+EMPTY_JSON_OBJ: Final[str] = json.dumps({})
 
 
 # From https://stackoverflow.com/a/30928645/20895654
@@ -23,73 +22,113 @@ def json_depth(o: Any) -> int:
         return 1 + max(json_depth(a) for a in o)
     return 0
 
-type SupportedTypesT = None | bool | int | float | str | list[SupportedTypesT] | dict[str, SupportedTypesT] | Any
+type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT] | Any
+type SupportedJsonTypesTypeT = type[SupportedJsonTypesT] | UnionType
 
-def validate_json_type(obj: SupportedTypesT, expected_type: type[SupportedTypesT] = Any) -> None:  # type: ignore
-    if expected_type == Any:
-        return
+SUPPORTED_JSON_TYPES = frozenset(
+    cls if (origin := typing.get_origin(cls)) is None else origin 
+    for cls in 
+    typing.get_args(SupportedJsonTypesT.__value__)
+)
+
+class StrictTypeError(ValueError):
+    """The given strict_type is invalid"""
+
+
+class SafeJsonParser:
+    MAX_LENGTH: int = PARSING_MAX_LENGTH
+
+    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = Any) -> None:  # type: ignore
+        self.max_depth = max_depth
+        self.max_length = max_length
+        self.strict_type = strict_type
+
+    def loads(self, s: str, **kwargs: Any) -> Any:  # type: ignore
+        s = s.strip()
+        length = len(s)
+
+        if length > self.max_length:
+            raise ValueError(length)
+        
+        try:
+            result: Any = json.loads(s, **kwargs)
+        except json.JSONDecodeError as e:
+            raise e
+        except RecursionError as e:
+            raise e
+        except Exception as e:
+            raise e
+        
+        self.validate_json_type(result, self.strict_type)
+        
+        if self.max_depth >= 0 and (depth := json_depth(result)) > self.max_depth:
+            raise RecursionError(depth)
+
+        return result
     
-    type_origin = typing.get_origin(expected_type)
-
-    if expected_type in (None, type[None], NoneType):
-        type_origin = NoneType
-    elif type_origin is None:
-        type_origin = expected_type
-
-    if not isinstance(obj, type_origin):
-        raise TypeError(obj, expected_type)
-    
-    type_args = typing.get_args(expected_type)
-
-    if not type_args:
-        return
-    
-    if isinstance(obj, list):
-        type_elems = type_args[0]
-
-        if type_elems == Any:
+    @classmethod
+    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = Any) -> None:  # type: ignore
+        if strict_type == Any:
             return
         
-        for child_obj in obj:
-            validate_json_type(child_obj, type_elems)
+        type_cls = typing.get_origin(strict_type)
 
-    elif isinstance(obj, dict):
-        type_k = type_args[0]
-        type_v = Any
+        # Union: Union[str, int]
+        # UnionType: int | str
+        if type_cls in (Union, UnionType):
+            success: bool = False
+            for union_member in typing.get_args(strict_type):
+                try:
+                    cls.validate_json_type(obj, union_member)
+                except TypeError:  # Fail, continue to next member and try it
+                    continue
+                else:    # Success, at least one member of the union didn't fail
+                    success = True
+                    # Success so rest of types get validated (example: we succeed but at the end we include bytes. If this is a valid strict_type, we wouldn't check then)
+                    continue
+            
+            if success:
+                return
+            
+            # Not a single union_member matched the type
+            raise TypeError(obj, strict_type)
+                
+        if type_cls is None:
+            type_cls = strict_type
 
-        if len(type_args) > 1:
-            type_v = type_args[1]
+        if not type_cls in SUPPORTED_JSON_TYPES:
+            raise StrictTypeError(type_cls)
         
-        for k, v in obj.items():
-            validate_json_type(k, type_k)
-            validate_json_type(v, type_v)  # type: ignore
-    
+        # Not isinstance because sees bool as int and more...
+        if not type(obj) == type_cls:
+            raise TypeError(obj, strict_type) 
+        
+        type_args = typing.get_args(strict_type)
 
+        if not type_args:
+            return
+        
+        if isinstance(obj, list):
+            type_elems = type_args[0]
 
-def json_loads_safe(s: str, max_depth: int = -1, max_length: int = DEFAULT_MAX_LENGTH, strict_type: type[SupportedTypesT] | None = Any, **kwargs: Any) -> Any:  # type: ignore
-    s = s.strip()
-    length = len(s)
+            if type_elems == Any:
+                return
+            
+            for child_obj in obj:
+                cls.validate_json_type(child_obj, type_elems)
 
-    if length > max_length:
-        raise feedbacks.temp(length, max_length)
-    
-    try:
-        result: Any = json.loads(s, **kwargs)
-    except json.JSONDecodeError as e:
-        raise e
-    except RecursionError as e:
-        raise RecursionError(None, max_depth, e)
-    except Exception as e:
-        raise e
-    
-    validate_json_type(result, strict_type)
-    
-    if max_depth >= 0 and (depth := json_depth(result)) > max_depth:
-        raise RecursionError(depth, max_depth)
+        elif isinstance(obj, dict):
+            type_k = type_args[0]
+            type_v: type[SupportedJsonTypesT] = Any  # type: ignore
 
-    return result
+            if len(type_args) > 1:
+                type_v = type_args[1]
+            
+            for k, v in obj.items():
+                cls.validate_json_type(k, type_k)
+                cls.validate_json_type(v, type_v)   
 
-
+SafeJsonParser(strict_type=bytes)
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
@@ -185,3 +224,18 @@ def unparse_timedelta(obj: datetime.timedelta) -> str:
         parts.append(f"{abs(seconds)}s")
         
     return ''.join(parts)
+
+
+if __name__ == '__main__':
+    print(Union[str], Union[(str,)], Union[(str, int)])
+    
+    # Single point of truth is type so we can use type checking; data -> type doesn't work
+    type LiteralToStrPossibleT = bool | int | str
+    LITERAL_TO_STR_POSSIBLE = frozenset(typing.get_args(LiteralToStrPossibleT.__value__))
+
+    # Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
+    type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
+    ATTRIBUTE_VALUE_PARSE_TYPES = LiteralToStrPossibleT.__value__ | list[LiteralToStrPossibleT.__value__]
+
+    parser = SafeJsonParser(strict_type=ATTRIBUTE_VALUE_PARSE_TYPES)
+    parser.loads('0.0')

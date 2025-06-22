@@ -21,7 +21,7 @@ def main():
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-    from structures import jumpedia
+    from structures import meta
     
     BOT = commands.Bot(command_prefix=" ", intents=dc.Intents.default(), help_command=None)
     runpy.run_module('running', init_globals={'BOT': BOT})

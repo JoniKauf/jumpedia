@@ -167,10 +167,10 @@ class List(BaseStructure):
         except TypeError:
             raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
         
-        value: T = BaseAttribute.from_str_singular(bad_value, value_type)
+        value: T = BaseAttribute.value_from_str_singular(bad_value, value_type)
 
         bad_aliases = set(bad_aliases)
-        aliases: set[T] = {BaseAttribute.from_str_singular(alias, value_type) for alias in bad_aliases}
+        aliases: set[T] = {BaseAttribute.value_from_str_singular(alias, value_type) for alias in bad_aliases}
 
         return (value, aliases, sort_value)
 
@@ -592,18 +592,18 @@ class List(BaseStructure):
         return result
     
     def _task_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> TaskAttribute:
-        TAT = TBL.TaskAttribute
+        Tbl = TBL.TaskAttribute
 
         return TaskAttribute(
             list=self,
-            id=data[TAT.id],
-            name=data[TAT.name],
-            index=data[TAT.index],
-            value_type=AttributeValueType.get_by_id(data[TAT.value_type]),
-            min_slots=data[TAT.min_slots],
-            max_slots=data[TAT.max_slots],
-            unique_slots=data[TAT.unique_slots],
-            unique_value_per_list=data[TAT.unique_value_per_list]
+            id=data[Tbl.id],
+            name=data[Tbl.name],
+            index=data[Tbl.index],
+            value_type=AttributeValueType.get_by_id(data[Tbl.value_type]),
+            min_slots=data[Tbl.min_slots],
+            max_slots=data[Tbl.max_slots],
+            unique_slots=data[Tbl.unique_slots],
+            unique_value_per_list=data[Tbl.unique_value_per_list]
         )
     
     def get_task_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[TaskAttribute]:

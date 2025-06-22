@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from adapters.base_adapter import BaseAdapter
 from adapters.community_adapter import CommunityAdapter
 from structures.community import Community
-from structures.jumpedia import Jumpedia
+from structures.meta import Meta
 from utils import required, text
 import discord as dc
 
 @dataclass(frozen=True)
-class JumpediaAdapter(BaseAdapter[Jumpedia]):
+class JumpediaAdapter(BaseAdapter[Meta]):
     
     def get_communities(self) -> list[CommunityAdapter]:
         return [
