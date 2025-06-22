@@ -6,7 +6,7 @@ from database import typed
 from database.typed import Tables as TBL
 
 from structures import attributes
-from structures.attributes import AttributeDataCache, AttributeValueTypeT
+from structures.attributes import AttributeDataCache, AttributeValueTypeT, UniquenessExtended
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 
@@ -16,9 +16,9 @@ class StaticAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
 
     TYPE_ID: ClassVar[int] = 0
     
-    unique_value_per_list: bool
+    uniqueness: UniquenessExtended
     
-    _cache: AttributeDataCache[T, Any] = field(init=False, default_factory=AttributeDataCache)
+    _cache: AttributeDataCache[T] = field(init=False, default_factory=AttributeDataCache)
     
     def get_aliases(self) -> frozenset[str]:
         if self._cache.aliases is not None:
@@ -41,5 +41,5 @@ class StaticAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
         return self._cache.aliases
     
     
-    def get_collection(self) -> Collection[T, Any]:
-        return Collection.empty()
+    def get_collection(self) -> Collection[T]:
+        return Collection.empty(self)

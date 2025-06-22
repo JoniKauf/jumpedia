@@ -139,8 +139,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.StaticAttribute.index} INT NOT NULL,
                         {TBL.StaticAttribute.min_slots} INT NOT NULL,
                         {TBL.StaticAttribute.max_slots} INT NOT NULL,
-                        {TBL.StaticAttribute.unique_slots} BOOL NOT NULL,
-                        {TBL.StaticAttribute.unique_value_per_list} BOOL NOT NULL,
+                        {TBL.StaticAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({TBL.StaticAttribute.list_id})
                             REFERENCES {TBL.List}({TBL.List.id})
@@ -178,8 +177,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.TaskAttribute.index} INT NOT NULL,
                         {TBL.TaskAttribute.min_slots} INT NOT NULL,
                         {TBL.TaskAttribute.max_slots} INT NOT NULL,
-                        {TBL.TaskAttribute.unique_slots} BOOL NOT NULL,
-                        {TBL.TaskAttribute.unique_value_per_list} BOOL NOT NULL,
+                        {TBL.TaskAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({TBL.TaskAttribute.list_id})
                             REFERENCES {TBL.List}({TBL.List.id})
@@ -247,7 +245,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.UserAttribute.value_type} INT NOT NULL,
                         {TBL.UserAttribute.min_slots} INT NOT NULL,
                         {TBL.UserAttribute.max_slots} INT NOT NULL,
-                        {TBL.UserAttribute.unique_slots} BOOL NOT NULL,
+                        {TBL.UserAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({TBL.UserAttribute.list_id})
                             REFERENCES {TBL.List}({TBL.List.id})

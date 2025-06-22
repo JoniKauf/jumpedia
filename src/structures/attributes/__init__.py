@@ -1,18 +1,14 @@
-import builtins
 from dataclasses import dataclass
 import datetime as dt
 from decimal import Decimal
 import decimal
 import enum
 import functools
-import json
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Protocol, Self, TypedDict, Union
 import typing
 
-from errors.feedback import FeedbackError, feedbacks
-from structures.attributes.base_attribute import BaseAttribute
+import errors
 from structures.attributes.collection import Collection
-from utils import parsetools
 
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
@@ -22,6 +18,9 @@ if TYPE_CHECKING:
 
 
 type AnyAttributeT[T: AttributeValueTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
+type UniquenessAttributeT[T: AttributeValueTypeT] = UserAttribute[T]
+type UniquenessExtendedAttributeT[T: AttributeValueTypeT] = StaticAttribute[T] | TaskAttribute[T]
+type CollectionAttributeT[T: AttributeValueTypeT] = TaskAttribute[T] | UserAttribute[T]
 
 type AttributeValueTypeT = (
     bool | int | Decimal | 
@@ -117,33 +116,74 @@ LITERAL_TO_STR_POSSIBLE = frozenset(typing.get_args(LiteralToStrPossibleT.__valu
 type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
 ATTRIBUTE_VALUE_PARSE_TYPES = LiteralToStrPossibleT.__value__ | list[LiteralToStrPossibleT.__value__]
 
-@functools.total_ordering
-class Uniqueness(enum.Enum):
-    none = 0
-    per_value = 1
 
-    def __lt__(self, other: Any):
-        if not isinstance(other, UNIQUENESS_ENUMS):
-            return NotImplemented
+@functools.total_ordering
+class Uniqueness:
+    _value_mapping: dict[int, Self] = {}
+    _name_mapping: dict[str, Self] = {}
+
+    def __init__(self, name: str, value: int) -> None:
+        self.name = name
+        self.value = value
+
+        if self.value in self.__class__._value_mapping:
+            raise RuntimeError
         
-        return self.value < other.value
+        if self.name in self.__class__._name_mapping:
+            raise RuntimeError
+        
+        self.__class__._value_mapping[value] = self
+        self.__class__._name_mapping[name] = self
+
+    @classmethod
+    def _init_cls(cls):
+        cls.NONE = cls('none', 0)
+        cls.PER_VALUE = cls('per_value', 1)
+
+        for subcls in cls.__subclasses__():
+            subcls._value_mapping = cls._value_mapping.copy()
+            subcls._name_mapping = cls._name_mapping.copy()
+            subcls._init_cls()
+            
+    def __lt__(self, other: Any):
+        if isinstance(other, Uniqueness):
+            return self.value < other.value
+        
+        return NotImplemented
     
+    def __bool__(self) -> bool:
+        return bool(self.value)
+    
+    @classmethod
+    def get_by_value(cls, value: int) -> Self:
+        return cls._value_mapping[value]
+    
+    @classmethod
+    def get_by_name(cls, name: str) -> Self:
+        return cls._name_mapping[name]
+    
+
 @functools.total_ordering
-class UniquenessExtended(enum.Enum):
-    none = 0
-    per_task = 1
-    per_list = 2
+class UniquenessExtended(Uniqueness):
+    @classmethod
+    def _init_cls(cls):
+        cls._value_mapping = cls._value_mapping.copy()
+        cls._name_mapping = cls._name_mapping.copy()
 
-    def __lt__(self, other: Any):
-        if not isinstance(other, UNIQUENESS_ENUMS):
-            return NotImplemented
-        
-        return self.value < other.value
+        cls.PER_LIST = cls('per_list', 2)
 
-UNIQUENESS_ENUMS = (Uniqueness, UniquenessExtended)
+Uniqueness._init_cls()
 
-if not set(Uniqueness._value2member_map_).issubset(UniquenessExtended._value2member_map_):
-    raise RuntimeError(Uniqueness.__name__, "must be subset of", UniquenessExtended.__name__)
+
+UniquenessEnum: enum.Enum = enum.Enum(
+    'UniquenessEnum', [(obj.name, obj) for obj in Uniqueness._value_mapping.values()]
+)
+
+UniquenessExtendedEnum = enum.Enum(
+    'UniquenessEnum', [(obj.name, obj) for obj in UniquenessExtended._value_mapping.values()]
+)
+
+type AnyUniquenessT = Uniqueness | UniquenessExtended
 
 def get_uniqueness_for_attribute_cls(attribute_cls: type[AnyAttributeT]):
     if issubclass(attribute_cls, UserAttribute):
@@ -153,9 +193,9 @@ def get_uniqueness_for_attribute_cls(attribute_cls: type[AnyAttributeT]):
 
 
 @dataclass
-class AttributeDataCache[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]():
+class AttributeDataCache[T: AttributeValueTypeT]():
     aliases: frozenset[str] | None = None
-    collection: Collection[T1, T2] | None = None
+    collection: Collection[T] | None = None
 
 # number
 NUMBER_MAX: Final[int] = 2 ** 63 - 1
@@ -180,5 +220,3 @@ MAX_ALIAS_COUNT: Final[int] = 32
 MAX_COLLECTION_ALIASES: Final[int] = 7
 MAX_SLOTS: Final[int] = 32
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
-
-

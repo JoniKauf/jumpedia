@@ -1,12 +1,17 @@
+"""Require something to continue, otherwise fail hard.
+
+A module to handle states where something specific is required to be able to
+continue, otherwise an appropriate exceptions will be raised.
+"""
+
 from types import UnionType
 from typing import ClassVar, Never, Protocol
 import discord as dc
-import discordtools.feedbackerrors as fbe
-from errors import FeedbackError
+from errors.feedback import FeedbackError, feedbacks
 import structures
 from structures.base_structure import BaseStructure
-from structures.community.community import Community
-from structures.list.list import List
+from structures.community import Community
+from structures.list import List
 from utils import text
 from discordtools import messaging as msg
 
@@ -30,10 +35,10 @@ def server_not_none(server: dc.Guild | None) -> dc.Guild:
     if server is not None:
         return server
     
-    raise fbe.TemporaryFeedbackError("You must be on a server to use this command")
+    raise feedbacks.temp("You must be on a server to use this command")
 
 def server_with_community(community: Community | None) -> Community:
     if community is not None:
         return community
     
-    raise fbe.TemporaryFeedbackError("You must be on a server with a community on it")
+    raise feedbacks.temp("You must be on a server with a community on it")

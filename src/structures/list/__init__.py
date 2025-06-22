@@ -7,8 +7,9 @@ import json
 from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
 
 from database import queries 
+from errors.feedback import feedbacks
 from structures.base_structure import BaseStructure
-from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT
+from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT, Uniqueness, UniquenessExtended
 from structures.attributes import collection
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import CollectionNode, CollectionNodesT
@@ -83,7 +84,7 @@ class List(BaseStructure):
         )
         
         if not isinstance(user_collection, list):
-            raise fbe.TemporaryFeedbackError("Not a collection")
+            raise feedbacks.temp("Not a collection")
         
         if not user_collection:
             return
@@ -110,14 +111,14 @@ class List(BaseStructure):
                     normed = collection.normalize_collection_value(syn)
 
                     if normed in seen:
-                        raise fbe.TemporaryFeedbackError(f"The value or alias `{normed}` appeared more than once in the collection.")
+                        raise feedbacks.temp(f"The value or alias `{normed}` appeared more than once in the collection.")
                     
                     seen.add(normed)
 
                 nodes = node.get('nodes', [])
 
                 if not isinstance(nodes, list):
-                    raise fbe.TemporaryFeedbackError("Not a sub tree")
+                    raise feedbacks.temp("Not a sub tree")
                 
                 node = CollectionNode(
                     value,
@@ -148,16 +149,16 @@ class List(BaseStructure):
         try:
             sort_value: int = int(item['sort_value'])
         except KeyError as e:
-            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+            raise feedbacks.temp(f"Missing {e.args[0]}")
         except ValueError as e:
-            raise fbe.TemporaryFeedbackError("Not an int", item['sort_value'])
+            raise feedbacks.temp("Not an int", item['sort_value'])
             
         BaseAttribute.validate_number_valid(sort_value)
 
         try:
             bad_value = item['value']
         except KeyError as e:
-            raise fbe.TemporaryFeedbackError(f"Missing {e.args[0]}")
+            raise feedbacks.temp(f"Missing {e.args[0]}")
         
         try:
             bad_aliases = item.get('aliases', [])
@@ -165,7 +166,7 @@ class List(BaseStructure):
             if not isinstance(bad_aliases, list):
                 raise TypeError()
         except TypeError:
-            raise fbe.TemporaryFeedbackError(f"Not a list of aliases")
+            raise feedbacks.temp(f"Not a list of aliases")
         
         value: T = BaseAttribute.value_from_str_singular(bad_value, value_type)
 
@@ -174,66 +175,7 @@ class List(BaseStructure):
 
         return (value, aliases, sort_value)
 
-    def _insert_collection_into_db[T: AttributeValueTypeT](
-        self, 
-        unique_flattened: CollectionNodesT[T], 
-        attribute: TaskAttribute | UserAttribute
-    ) -> None:
-        if isinstance(attribute, TaskAttribute):
-            AttrCollTable = TBL.TaskAttributeCollectionNode
-            AttrCollAliasTable = TBL.TaskAttributeCollectionNodeAlias
-        elif isinstance(attribute, UserAttribute):
-            AttrCollTable = TBL.UserAttributeCollectionNode
-            AttrCollAliasTable = TBL.UserAttributeCollectionNodeAlias
-        else:
-            raise RuntimeError()
-        
-        h = queries.ArgHelper()
-        value_to_id: dict[T, int] = {}
-
-        with self.locked, queries.connected() as (conn, cursor):
-            # Insert all nodes, roots are NULL for now and map value to ids
-            for item in unique_flattened:
-                cursor.execute(f"""
-                    INSERT INTO {AttrCollTable} (
-                        {AttrCollTable.root_id},
-                        {AttrCollTable._attribute_id},
-                        {AttrCollTable.value},
-                        {AttrCollTable.sort_value}
-                    )
-                    VALUES 
-                    (
-                        {h|None},
-                        {h|attribute.id},
-                        {h|pickle.dumps(item.value)},
-                        {h|item.sort_value}
-                    )
-                """, h.steal())
-
-                item_id: int = cursor.lastrowid  # type: ignore
-                value_to_id[item.value] = item_id
-
-            # Now that ids are known, insert the roots and insert aliases
-            for item in unique_flattened:
-                item_id = value_to_id[item.value]
-
-                if item.root is not None:
-                    root_id = value_to_id[item.root.value]
-
-                    cursor.execute(f"""
-                        UPDATE {AttrCollTable}
-                        SET {AttrCollTable.root_id} = {h|root_id}
-                        WHERE {AttrCollTable.id} = {h|item_id}
-                    """, h.steal())
-
-                cursor.execute(f"""
-                    INSERT INTO {AttrCollAliasTable} (
-                        {AttrCollAliasTable._attribute_collection_node_id},
-                        {AttrCollAliasTable.alias}
-                    )
-                    VALUES 
-                        {','.join(f"({h|item_id}, {h|alias})" for alias in item.aliases)}
-                """, h.steal()) 
+    
     
 
     # --- All Attributes ---
@@ -283,7 +225,7 @@ class List(BaseStructure):
         max_slots: int,
         min_slots: int = 0
     ) -> tuple[str, set[str], int]:
-        with equality_locked(self):
+        with self.locked:
             name, aliases = text.validate_and_sanitize_syns(
                 bad_name, 
                 bad_aliases, 
@@ -294,20 +236,20 @@ class List(BaseStructure):
             attrs = self.get_attributes()
 
             if len(attrs) >= list_package.MAX_ATTRIBUTES:
-                raise fbe.TemporaryFeedbackError("Max attributes reached")
+                raise feedbacks.temp("Max attributes reached")
 
             if self.get_attribute_by_name(name) is not None:
-                raise fbe.TemporaryFeedbackError(f"Attribute name `{name}` already used as name or alias of different attribute")
+                raise feedbacks.temp(f"Attribute name `{name}` already used as name or alias of different attribute")
             
             for alias in aliases:
                 if self.get_attribute_by_alias(alias) is not None:
-                    raise fbe.TemporaryFeedbackError(f"Attribute alias `{alias}` already used as name or alias of different attribute")
+                    raise feedbacks.temp(f"Attribute alias `{alias}` already used as name or alias of different attribute")
 
             if not (1 <= max_slots <= attributes.MAX_SLOTS):
-                raise fbe.TemporaryFeedbackError("Max slots must be between 1 and 32 inclusive")
+                raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
 
             if not (0 <= min_slots <= max_slots):
-                raise fbe.TemporaryFeedbackError("Min slots must be between 0 and max slots inclusive")
+                raise feedbacks.temp("Min slots must be between 0 and max slots inclusive")
             
             index = max(attr.index for attr in attrs) + 1 if attrs else 1
 
@@ -322,16 +264,16 @@ class List(BaseStructure):
         h = queries.ArgHelper()
         Tbl = dbutils.get_attribute_table(attribute_type)
 
-        with equality_locked(self), queries.connected() as (conn, cursor):
+        with self.locked, queries.connected() as (conn, cursor):
             if issubclass(attribute_type, TaskAttribute):
                 attr = self.get_task_attribute_by_name(name)
             else:
                 attr = self.get_user_attribute_by_name(name)
 
             if attr is None:
-                raise fbe.TemporaryFeedbackError("Attribute not found!")
+                raise feedbacks.temp("Attribute not found!")
             
-            with equality_locked(attr):  # type: ignore
+            with attr.locked:  # type: ignore
                 cursor.execute(f"""
                     DELETE FROM {Tbl}
                     WHERE 
@@ -349,29 +291,27 @@ class List(BaseStructure):
         value_type: AttributeValueType[T],
         min_slots: int,
         max_slots: int,
-        unique_slots: bool,
-        unique_value_per_list: bool
+        uniqueness: UniquenessExtended
     ) -> StaticAttribute[T]:
         """This method should not public to the user!"""
-        with equality_locked(self):
+        with self.locked:
             assert self.get_tasks() == []
             
-            name, aliases, index = self._attribute_creation_basics(StaticAttribute, bad_name, bad_aliases, max_slots, min_slots)
+            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots, min_slots)
 
             h = queries.ArgHelper()
-            SAT = TBL.StaticAttribute
+            Tbl = TBL.StaticAttribute
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO {SAT} (
-                        {SAT.list_id},
-                        {SAT.name},
-                        {SAT.value_type},
-                        {SAT.index},
-                        {SAT.min_slots},
-                        {SAT.max_slots},
-                        {SAT.unique_slots},
-                        {SAT.unique_value_per_list}
+                    INSERT INTO {Tbl} (
+                        {Tbl.list_id},
+                        {Tbl.name},
+                        {Tbl.value_type},
+                        {Tbl.index},
+                        {Tbl.min_slots},
+                        {Tbl.max_slots},
+                        {Tbl.uniqueness},
                     )
                     VALUES (
                         {h|self.id},
@@ -380,8 +320,7 @@ class List(BaseStructure):
                         {h|index},
                         {h|min_slots},
                         {h|max_slots},
-                        {h|unique_slots},
-                        {h|unique_value_per_list}
+                        {h|uniqueness.value}
                     )
                 """, h.steal())
 
@@ -408,14 +347,13 @@ class List(BaseStructure):
                     index=index,
                     min_slots=0,
                     max_slots=max_slots,
-                    unique_slots=unique_slots,
-                    unique_value_per_list=unique_value_per_list
+                    uniqueness=uniqueness,
                 )
 
                 return obj
             
     def delete_static_attribute(self) -> Never:
-        raise fbe.TemporaryFeedbackError("Static attribute cannot be deleted!")
+        raise feedbacks.temp("Static attribute cannot be deleted!")
 
     def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
@@ -444,8 +382,7 @@ class List(BaseStructure):
             index=data[SAT.index],
             min_slots=data[SAT.min_slots],
             max_slots=data[SAT.max_slots],
-            unique_slots=data[SAT.unique_slots],
-            unique_value_per_list=data[SAT.unique_value_per_list]
+            uniqueness=data[SAT.uniqueness],
         )
     
     def get_static_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[StaticAttribute]:
@@ -800,21 +737,21 @@ class List(BaseStructure):
     ) -> Task:
         with self.locked:
             if len(self.get_tasks()) >= list_package.MAX_TASKS:
-                raise fbe.TemporaryFeedbackError("Task limit reached")
+                raise feedbacks.temp("Task limit reached")
             
             if self.get_task_by_name(name) is not None:
-                raise fbe.TemporaryFeedbackError("Task with that name already exists")
+                raise feedbacks.temp("Task with that name already exists")
             
             attr_values_loaded: dict[str, str | list[Any]] = parsetools.json_loads_safe(attribute_value_mapping, 2)
 
             if not isinstance(attr_values_loaded, dict):
-                raise fbe.TemporaryFeedbackError("attribute_value_mapping is not a dictionary")
+                raise feedbacks.temp("attribute_value_mapping is not a dictionary")
             
             attr_value_mapping: dict[TaskAttribute, list[AttributeValueTypeT]] = {}
 
             for k, v in attr_values_loaded.items():
                 if not isinstance(k, str):
-                    raise fbe.TemporaryFeedbackError(f"Key `{k}` is not a string")
+                    raise feedbacks.temp(f"Key `{k}` is not a string")
                 
                 attr = required.structure_not_none(
                     self.get_task_attribute_by_syn(k),
@@ -828,7 +765,7 @@ class List(BaseStructure):
 
             for attr in attrs_required:
                 if attr not in attr_value_mapping:
-                    raise fbe.TemporaryFeedbackError(f"Required attribute `{attr.name}` missing")
+                    raise feedbacks.temp(f"Required attribute `{attr.name}` missing")
                 
             h = queries.ArgHelper()
 
@@ -881,7 +818,7 @@ class List(BaseStructure):
             task = self.get_task_by_name(name)
 
             if task is None:
-                raise fbe.TemporaryFeedbackError("Attribute not found!")
+                raise feedbacks.temp("Attribute not found!")
             
             h = queries.ArgHelper()
 

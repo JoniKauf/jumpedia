@@ -41,7 +41,7 @@ class ListAdapter(BaseAdapter[List]):
             attribute_value_mapping or parsetools.EMPTY_JSON_OBJ
         )
 
-        unique_values_taken: dict[TaskAttribute, set[attributes.AttributeValueTypeT]] = {}
+        unique_values_used: dict[TaskAttribute, set[attributes.AttributeValueTypeT]] = {}
 
         for k, v in avm_parsed.items():
             k = text.sanitize(k)
@@ -54,9 +54,14 @@ class ListAdapter(BaseAdapter[List]):
 
             value = attr.value_from_loaded(v)
 
-            if attr.unique_value_per_list:
+            if attr.uniqueness >= attributes.UniquenessExtended.PER_LIST:
+                unique_values_used[attr] = unique = set()
+                
+                # TODO
                 for slot in value:
-                    if self._structure.get_tasks()
+                    
+                    unique.add(slot)
+
             avm_result[attr] = value  
         
         return TaskAdapter(self.context, self._structure.create_task(
@@ -64,10 +69,14 @@ class ListAdapter(BaseAdapter[List]):
             frozenset(aliases_set),
             avm_result
         ))
-        
+    
     def delete_task(self, name: str) -> None:
         name = text.sanitize(name)
         self._structure.delete_task(name)
+
+    def edit_task(self) -> None:
+        ...
+        # TODO: Make sure to check if unique value
 
     def create_task_attribute(self) -> :
         self._structure.create_task_attribute()

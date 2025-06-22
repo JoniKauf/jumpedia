@@ -17,7 +17,7 @@ class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
     ATTRIBUTE_TYPE_NAME: ClassVar[str] = "user"
     TYPE_ID: ClassVar[int] = 2
 
-    _cache: AttributeDataCache[T, 'UserAttribute[T]'] = field(init=False, default_factory=AttributeDataCache)
+    _cache: AttributeDataCache[T] = field(init=False, default_factory=AttributeDataCache)
     
     def get_aliases(self) -> frozenset[str]:
         if self._cache.aliases is not None:
@@ -39,7 +39,7 @@ class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
         
         return self._cache.aliases
     
-    def get_collection(self) -> Collection[T, 'UserAttribute']:
+    def get_collection(self) -> Collection[T]:
         if self._cache.collection is not None:
             return self._cache.collection
         
@@ -63,6 +63,6 @@ class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
                 GROUP BY n.{NodeTbl.id}
             """, h.steal())
 
-        self._cache.collection = Collection.from_rows(cursor.fetchall(), self.__class__)
+        self._cache.collection = Collection.from_rows(cursor.fetchall(), self)
             
         return self._cache.collection

@@ -79,7 +79,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         pass
 
     @abstractmethod
-    def get_collection(self) -> Collection[T, Any]:
+    def get_collection(self) -> Collection[T]:
         pass
     
     @classmethod
@@ -181,7 +181,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
 
         if issubclass(value_type_type, dt.timedelta):
             try:
-                return timetools.parse_timedelta(s)  # type: ignore
+                return parsetools.parse_timedelta(s)  # type: ignore
             except ValueError:
                 raise cls._feedback_invalid_value_for_value_type(
                     s,
@@ -226,7 +226,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         
         values = self._collection_conversion_if_needed(result_values)
 
-        if self.uniqueness >= Uniqueness.per_value:
+        if self.uniqueness >= Uniqueness.PER_VALUE:
             if len(values) != len(frozenset(values)):
                 raise feedbacks.temp("Slots must be unique for this attribute")
             

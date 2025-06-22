@@ -4,9 +4,10 @@ from dataclasses import dataclass
 import json
 import pickle
 from typing import Any, Self, overload
-from structures.attributes import AttributeValueTypeT
+from structures.attributes import AnyAttributeT, AttributeValueTypeT, CollectionAttributeT
 from database import typed
 from database.typed import Tables as TBL
+from structures.base_structure import BaseStructure
 from utils import text
 from database import dbutils
 
@@ -36,26 +37,28 @@ def normalize_collection_value[T: AttributeValueTypeT](value: T) -> T:
 
 _MISSING = object()
 
-@dataclass(frozen=True, unsafe_hash=True, eq=True)
-class Collection[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]:
-    nodes: CollectionNodesT[T1]
-    lookup: dict[T1, CollectionNode[T1]]
+@dataclass(frozen=True)
+class Collection[T: AttributeValueTypeT](BaseStructure):
+    # We support StaticAttribute for empty(), but other methods only work without StaticAttribute
+    attribute: AnyAttributeT[T]
+    nodes: CollectionNodesT[T]
+    lookup: dict[T, CollectionNode[T]]
 
     @classmethod
-    def empty(cls) -> Self:
-        return cls([], {})
+    def empty(cls, attribute: AnyAttributeT[T]) -> Self:
+        return cls(attribute, [], {})
     
     @classmethod
-    def from_rows(cls, rows: typed.ManyTableRowT, attribute_type: type[T2]) -> Self:
+    def from_rows(cls, rows: typed.ManyTableRowT, attribute: CollectionAttributeT) -> Self:
         if not rows:
-            cls([], {})
+            cls(attribute, [], {})
         
-        lookup_by_id: dict[int, CollectionNode[T1]] = {}
-        lookup_by_syn: dict[T1, CollectionNode[T1]] = {}
+        lookup_by_id: dict[int, CollectionNode[T]] = {}
+        lookup_by_syn: dict[T, CollectionNode[T]] = {}
 
-        result: CollectionNodesT[T1] = []
+        result: CollectionNodesT[T] = []
 
-        Tbl = dbutils.get_attribute_collection_node_table(attribute_type)
+        Tbl = dbutils.get_attribute_collection_node_table(type(attribute))
 
         # Create objects without nodes / root references
         for row in rows:
@@ -99,23 +102,20 @@ class Collection[T1: AttributeValueTypeT, T2: TaskAttribute | UserAttribute]:
             node._post_set_root(root)
 
         return cls(
+            attribute,
             result, 
             lookup_by_syn
         )
     
-    @property
-    def is_empty(self) -> bool:
-        return self.__class__.empty() == self
-    
     @overload
-    def lookup_node(self, value: T1) -> CollectionNode[T1]: 
+    def lookup_node(self, value: T) -> CollectionNode[T]: 
         ...
     
     @overload
-    def lookup_node[TDefault: Any](self, value: T1, default: TDefault) -> CollectionNode[T1] | TDefault: 
+    def lookup_node[TDefault: Any](self, value: T, default: TDefault) -> CollectionNode[T] | TDefault: 
         ...
 
-    def lookup_node(self, value: T1, default: Any = _MISSING) -> Any:
+    def lookup_node(self, value: T, default: Any = _MISSING) -> Any:
         value = normalize_collection_value(value)
 
         if default is _MISSING:

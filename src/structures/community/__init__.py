@@ -6,10 +6,11 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
 import discord as dc
 
+from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from structures import attributes, task
 from structures.base_structure import BaseStructure
-from structures.attributes import AttributeValueType
+from structures.attributes import AttributeValueType, Uniqueness, UniquenessExtended
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list import List
 from structures.users.community_user import CommunityUser
@@ -24,6 +25,11 @@ if TYPE_CHECKING:
     from structures.meta import Meta
  
 
+@dataclass
+class CommunityDataCache:
+    server_ids: frozenset[int] | None = None
+
+
 MAX_NAME_LENGTH: int = 64
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,28 +43,26 @@ class Community(BaseStructure):
     name: str
     default_selected_list_id: int | None
 
-    _server_ids: frozenset[int] | None = field(init=False, default=None)
-
-    def _post_set_server_ids(self, value: frozenset[int]) -> None:
-        object.__setattr__(self, '_server_ids', value)
+    _cache: CommunityDataCache = field(init=False, default_factory=CommunityDataCache)
 
     def get_server_ids(self) -> frozenset[int]:
-        if self._server_ids is None:
-            h = queries.ArgHelper()
+        if self._cache.server_ids is not None:
+            return self._cache.server_ids
+        
+        h = queries.ArgHelper()
 
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    SELECT {TBL.Server.id}
-                    FROM {TBL.Server}
-                    WHERE {TBL.Server.community_id} = {h|self.id}
-                """, h.steal())
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT {TBL.Server.id}
+                FROM {TBL.Server}
+                WHERE {TBL.Server.community_id} = {h|self.id}
+            """, h.steal())
 
-                result: typed.ManyTableRowT = cursor.fetchall()
+            result: typed.ManyTableRowT = cursor.fetchall()
 
-            self._post_set_server_ids(frozenset(row[TBL.Server.id] for row in result))
-            assert self._server_ids is not None
-            
-        return self._server_ids
+        self._cache.server_ids = frozenset(row[TBL.Server.id] for row in result)
+
+        return self._cache.server_ids
         
     @property
     def identity(self) -> tuple[int, ...]:
@@ -73,10 +77,10 @@ class Community(BaseStructure):
                 )
             
             if self.get_list_by_name(name) is not None:
-                raise fbe.TemporaryFeedbackError("A list with that name already exists")
+                raise feedbacks.temp("A list with that name already exists")
             
             if (count := len(self.get_lists())) >= Community.MAX_LISTS:
-                raise fbe.TemporaryFeedbackError("Limit of lists reached", count)
+                raise feedbacks.temp("Limit of lists reached", count)
             
             h = queries.ArgHelper()
 
@@ -106,8 +110,7 @@ class Community(BaseStructure):
                     AttributeValueType.get_by_type(str),
                     1,
                     1,
-                    True,
-                    True
+                    UniquenessExtended.PER_LIST,
                 )
 
                 list.create_static_attribute(
@@ -116,8 +119,7 @@ class Community(BaseStructure):
                     AttributeValueType.get_by_type(str),
                     1,
                     attributes.MAX_SLOTS,
-                    True,
-                    True
+                    UniquenessExtended.PER_LIST
                 )
 
             return list
@@ -309,6 +311,8 @@ class Community(BaseStructure):
                         "Server Already Connected To Specified Community",
                         f"This server is already connected to the specified community ({msg.code(self.name)})!"
                     )
+                
+                import cogs.meta
                 
                 connect_cmd = cogs.meta.MetaCog.connect_community.qualified_name
                 disconnect_cmd = cogs.meta.MetaCog.disconnect_community.qualified_name

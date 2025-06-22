@@ -28,7 +28,7 @@ class BaseStructure(ABC):
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, BaseStructure):
             print(f"Compared", value, "to", self)
-            return False
+            return NotImplemented
         
         return self.__class__ != value.__class__ and self.identity == value.identity
 
