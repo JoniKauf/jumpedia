@@ -3,6 +3,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from adapters.context import Context
 from discord_structures import predicates
 from discordtools import messaging
 
@@ -12,7 +13,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
 
     @acmds.command()
     async def list_attributes(self, ia: dc.Interaction) -> None:
-        list = Context(ia).get_selected_list
+        list = Context(ia).get_selected_list()
         
         result: builtins.list[str] = []
 

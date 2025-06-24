@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from ranks.community_rank import CommunityRank
 from ranks.meta_rank import MetaRank
 from structures.base_structure import BaseStructure
-from structures.community.community import Community
-from structures.list.list import List
+from structures.community import Community
+from structures.list import List
 from structures.users.meta_user import MetaUser
 
 

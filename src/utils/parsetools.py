@@ -23,7 +23,7 @@ def json_depth(o: Any) -> int:
     return 0
 
 type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT] | Any
-type SupportedJsonTypesTypeT = type[SupportedJsonTypesT] | UnionType
+type SupportedJsonTypesTypeT = type[None | bool | int | float | str] | list[SupportedJsonTypesTypeT] | dict[type[str], SupportedJsonTypesTypeT] | type[object] | UnionType
 
 SUPPORTED_JSON_TYPES = frozenset(
     cls if (origin := typing.get_origin(cls)) is None else origin 
@@ -38,7 +38,7 @@ class StrictTypeError(ValueError):
 class SafeJsonParser:
     MAX_LENGTH: int = PARSING_MAX_LENGTH
 
-    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = Any) -> None:  # type: ignore
+    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = object) -> None:
         self.max_depth = max_depth
         self.max_length = max_length
         self.strict_type = strict_type
@@ -67,14 +67,12 @@ class SafeJsonParser:
         return result
     
     @classmethod
-    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = Any) -> None:  # type: ignore
-        if strict_type == Any:
+    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = object) -> None:
+        if strict_type == object:
             return
         
         type_cls = typing.get_origin(strict_type)
 
-        # Union: Union[str, int]
-        # UnionType: int | str
         if type_cls in (Union, UnionType):
             success: bool = False
             for union_member in typing.get_args(strict_type):

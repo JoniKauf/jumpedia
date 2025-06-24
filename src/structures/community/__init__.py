@@ -297,8 +297,8 @@ class Community(BaseStructure):
             for data in self._fetch_from_community_user_table(where)
         ]
 
-    def get_community_user_by_id(self, id: int) -> 'CommunityUser | None':
-        data = self._fetch_from_community_user_table(lambda h: f"{TBL.CommunityUser.user_id} = {h|id}")
+    def get_community_user_by_id(self, user_id: int) -> 'CommunityUser | None':
+        data = self._fetch_from_community_user_table(lambda h: f"{TBL.CommunityUser.user_id} = {h|user_id}")
         return self._community_user_data_to_obj(data[0]) if data else None
     
     def add_to_server(self, server_id: int) -> 'Community':

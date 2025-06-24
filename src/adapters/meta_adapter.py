@@ -10,7 +10,7 @@ from utils import required, text
 import discord as dc
 
 @dataclass(frozen=True)
-class JumpediaAdapter(BaseAdapter[Meta]):
+class MetaAdapter(BaseAdapter[Meta]):
     
     def get_communities(self) -> list[CommunityAdapter]:
         return [

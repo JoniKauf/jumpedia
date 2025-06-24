@@ -5,12 +5,12 @@ from typing import ClassVar
 
 from ranks.meta_rank import MetaRank
 from structures.base_structure import BaseStructure
-from structures.meta.jumpedia import Jumpedia
+from structures.meta import Meta
 
 
 @dataclass(frozen=True, kw_only=True)
 class MetaUser(BaseStructure):
-    jumpedia: Jumpedia
+    jumpedia: Meta
     id: int
     meta_rank: MetaRank
     name: str
@@ -20,5 +20,5 @@ class MetaUser(BaseStructure):
         return (self.id,)
 
     @property
-    def parent(self) -> Jumpedia:
+    def parent(self) -> Meta:
         return self.jumpedia
