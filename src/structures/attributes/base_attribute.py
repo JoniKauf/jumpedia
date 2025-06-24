@@ -13,7 +13,6 @@ from discordtools import messaging as msg
 from errors.feedback import FeedbackError, feedbacks
 import errors
 from structures import attributes
-import structures
 from structures.attributes import AttributeValueType, AttributeValueTypeT, Uniqueness
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.base_structure import BaseStructure
@@ -107,7 +106,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         )
     
     @classmethod
-    def value_from_str_singular(cls, s: str, value_type: AttributeValueType) -> T:
+    def slot_from_str(cls, s: str, value_type: AttributeValueType) -> T:
         value_type_type = value_type.type
         old_s, s = s, text.sanitize(s)
 
@@ -220,7 +219,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             if not self.value_type.literal_to_str_possible:
                 raise feedbacks.temp(f"value type '{self.value_type}' is not valid")
             
-            parsed_value = self.__class__.value_from_str_singular(str(slot), self.value_type)
+            parsed_value = self.__class__.slot_from_str(str(slot), self.value_type)
 
             result_values.append(parsed_value)
         

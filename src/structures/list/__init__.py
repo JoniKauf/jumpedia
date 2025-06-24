@@ -168,10 +168,10 @@ class List(BaseStructure):
         except TypeError:
             raise feedbacks.temp(f"Not a list of aliases")
         
-        value: T = BaseAttribute.value_from_str_singular(bad_value, value_type)
+        value: T = BaseAttribute.slot_from_str(bad_value, value_type)
 
         bad_aliases = set(bad_aliases)
-        aliases: set[T] = {BaseAttribute.value_from_str_singular(alias, value_type) for alias in bad_aliases}
+        aliases: set[T] = {BaseAttribute.slot_from_str(alias, value_type) for alias in bad_aliases}
 
         return (value, aliases, sort_value)
 
