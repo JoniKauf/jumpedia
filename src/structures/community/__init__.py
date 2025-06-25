@@ -13,8 +13,8 @@ from structures.base_structure import BaseStructure
 from structures.attributes import AttributeValueType, Uniqueness, UniquenessExtended
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list import List
-from structures.users.community_user import CommunityUser
-from utils import metautils, required, text
+from structures.user.community_user import CommunityUser
+from utils import required, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
 from typing import Optional as Opt
@@ -22,7 +22,7 @@ import structures.list as list_package
 from discordtools import messaging as msg
 
 if TYPE_CHECKING:
-    from structures.meta import Meta
+    from structures.jumpedia import Jumpedia
  
 
 @dataclass
@@ -38,7 +38,7 @@ class Community(BaseStructure):
 
     MAX_LISTS: ClassVar[int] = 1
 
-    jumpedia: 'Meta'
+    jumpedia: 'Jumpedia'
     id: int
     name: str
     default_selected_list_id: int | None
@@ -242,13 +242,13 @@ class Community(BaseStructure):
                             SET {TBL.CommunityUser.power} = {h|community_rank.power}
                             WHERE 
                                 {TBL.CommunityUser.community_id} = {h|self.id}
-                                AND {TBL.CommunityUser.user_id} = {h|community_user.meta_user.id}
+                                AND {TBL.CommunityUser.user_id} = {h|community_user.jumpedia_user.id}
                         """, h.steal())
                     else:
                         community_rank = community_user.community_rank 
 
                 return CommunityUser(
-                    meta_user=user,
+                    jumpedia_user=user,
                     community=self,
                     community_rank=community_rank,
                     selected_list=selected_list
@@ -286,7 +286,7 @@ class Community(BaseStructure):
     def _community_user_data_to_obj(self, data: typed.SingleTableRowT) -> 'CommunityUser':  
         return CommunityUser(
             community=self,
-            meta_user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
+            jumpedia_user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
             community_rank=CommunityRank.get(data[TBL.CommunityUser.power]),
             selected_list=self.get_list_by_id(data[TBL.CommunityUser.selected_list_id])
         )
@@ -312,10 +312,10 @@ class Community(BaseStructure):
                         f"This server is already connected to the specified community ({msg.code(self.name)})!"
                     )
                 
-                import cogs.meta
+                import cogs.jumpedia
                 
-                connect_cmd = cogs.meta.MetaCog.connect_community.qualified_name
-                disconnect_cmd = cogs.meta.MetaCog.disconnect_community.qualified_name
+                connect_cmd = cogs.jumpedia.JumpediaCog.connect_community.qualified_name
+                disconnect_cmd = cogs.jumpedia.JumpediaCog.disconnect_community.qualified_name
 
                 raise FeedbackError(
                     "Server Already Connected To A Community",

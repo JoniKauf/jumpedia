@@ -7,11 +7,11 @@ from database import queries
 from discord_structures import modals, predicates
 from discordtools import messaging, feedbackerrors as fbe
 from database.typed import Tables as TBL
-from bridges.context import Context
+from adapters.context import Context
 from structures.ranks import CommunityRank, MetaRank, ServerRank
 
 
-class MetaCog(cmds.GroupCog, group_name="meta"):
+class JumpediaCog(cmds.GroupCog, group_name="meta"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
@@ -25,8 +25,8 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
         if ia.user.id != JONI_ID:
             raise fbe.TemporaryFeedbackError("You are not Joni...")
 
-        ctx.jumpedia.create_or_get_user(ia.user.id, JONI_NAME)
-        ctx.jumpedia.change_user_meta_rank(ia.user.id, JONI_NAME, MetaRank.JONIKAUF)
+        ctx.get_jumpedia().create_or_get_user(ia.user.id, JONI_NAME)
+        ctx.get_jumpedia().change_user_meta_rank(ia.user.id, JONI_NAME, MetaRank.JONIKAUF)
 
         await ia.response.send_message(messaging.layout(
             "Yes, you are Joni.",
@@ -134,4 +134,4 @@ class MetaCog(cmds.GroupCog, group_name="meta"):
 
 
 async def setup(bot: cmds.Bot):
-    await bot.add_cog(MetaCog(bot))
+    await bot.add_cog(JumpediaCog(bot))

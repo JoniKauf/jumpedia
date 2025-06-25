@@ -1,9 +1,24 @@
 
 
+import functools
 import inspect
-from typing import Any, Callable
+from typing import Any, Callable, MutableMapping, Protocol
 
 def get_relevant_kwargs(kwargs: dict[str, Any], func: Callable[..., Any]) -> dict[str, Any]:
     """Get all kwargs a given function accepts."""
     sig = inspect.signature(func)
     return {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+
+class CacheProtocol[T](Protocol):
+    
+    @property
+    def _cache(self) -> MutableMapping[str, T]:
+        ...
+
+def optimized_no_arg_method_cache[T1: CacheProtocol, T2](func: Callable[[T1], T2]) -> Callable[[T1], T2]:
+    @functools.wraps(func)
+    def wrapper(self: T1) -> T2:
+        return self._cache.setdefault(func.__name__, func(self))
+
+    return wrapper

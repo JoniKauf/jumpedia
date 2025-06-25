@@ -30,7 +30,7 @@ class BaseStructure(ABC):
             print(f"Compared", value, "to", self)
             return NotImplemented
         
-        return self.__class__ != value.__class__ and self.identity == value.identity
+        return self.__class__ == value.__class__ and self.identity == value.identity
 
     def __init_subclass__(cls) -> None:
         structure_name = text.norm(cls.__structure_name__)

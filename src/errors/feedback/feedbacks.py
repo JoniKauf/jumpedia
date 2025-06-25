@@ -14,10 +14,10 @@ def server_already_connected_to_community(current_community: 'Community', new_co
             f"This server is already connected to the specified community ({msg.code(current_community.name)})!"
         )
     
-    import cogs.meta
+    import cogs.jumpedia
 
-    connect_cmd = cogs.meta.MetaCog.connect_community.qualified_name
-    disconnect_cmd = cogs.meta.MetaCog.disconnect_community.qualified_name
+    connect_cmd = cogs.jumpedia.JumpediaCog.connect_community.qualified_name
+    disconnect_cmd = cogs.jumpedia.JumpediaCog.disconnect_community.qualified_name
 
     return FeedbackError(
         "Server Already Connected To A Community",

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 from typing import Any, ClassVar
 from adapters.base_adapter import BaseAdapter
-from adapters.task_adapter import TaskAdapter
+from adapters.task_adapter import _TaskAdapter
 from errors.feedback import FeedbackError, feedbacks
 from structures import attributes, task
 from structures.attributes.task_attribute import TaskAttribute
@@ -13,7 +13,7 @@ from utils import parsetools, required, text
 from discordtools import messaging as msg
 
 @dataclass(frozen=True)
-class ListAdapter(BaseAdapter[List]):
+class _ListAdapter(BaseAdapter[List]):
     alias_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
         max_depth=1,
         strict_type=list[str]
@@ -24,7 +24,7 @@ class ListAdapter(BaseAdapter[List]):
         strict_type=dict[str, attributes.ATTRIBUTE_VALUE_PARSE_TYPES]
     )
     
-    def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
+    def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> _TaskAdapter:
         name = text.sanitize(name)
         aliases_parsed: list[str] = self.__class__.alias_parser.loads(aliases)
 
@@ -64,7 +64,7 @@ class ListAdapter(BaseAdapter[List]):
 
             avm_result[attr] = value  
         
-        return TaskAdapter(self.context, self._structure.create_task(
+        return _TaskAdapter(self.context, self._structure.create_task(
             name, 
             frozenset(aliases_set),
             avm_result

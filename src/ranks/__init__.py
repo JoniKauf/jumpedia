@@ -3,10 +3,10 @@ from typing import Iterator
 
 from ranks.abstract_rank import AbstractRank
 from ranks.community_rank import CommunityRank
-from ranks.meta_rank import MetaRank
+from ranks.jumpedia_rank import JumpediaRank
 from ranks.server_rank import ServerRank
 
-type AnyRank = MetaRank | CommunityRank | ServerRank
+type AnyRank = JumpediaRank | CommunityRank | ServerRank
 
 def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
     """
@@ -20,10 +20,10 @@ def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
     Server ranks are something that only goes one way.
     """
     
-    if isinstance(base_rank, (MetaRank, CommunityRank)):
-        scale = CommunityRank.SORTED + MetaRank.SORTED[1:]
+    if isinstance(base_rank, (JumpediaRank, CommunityRank)):
+        scale = CommunityRank.SORTED + JumpediaRank.SORTED[1:]
     else:
-        scale = ServerRank.SORTED + MetaRank.SORTED[1:]
+        scale = ServerRank.SORTED + JumpediaRank.SORTED[1:]
     
     idx = scale.index(base_rank) + offset
 

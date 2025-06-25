@@ -3,27 +3,23 @@ import functools
 import types
 from typing import Any, Callable, Literal
 import discord as dc
-from utils import required
+from adapters.community_adapter import _CommunityAdapter
+from adapters.jumpedia_adapter import JumpediaAdapter
+from utils import functools2, required
 
 from ranks import AnyRank
 from ranks.community_rank import CommunityRank
-from ranks.meta_rank import MetaRank
+from ranks.jumpedia_rank import JumpediaRank
 from ranks.server_rank import ServerRank
 from structures.community import Community
-from structures.meta import Meta
+from structures.jumpedia import Jumpedia
 from structures.list import List
-from structures.users.community_user import CommunityUser
-from structures.users.meta_user import MetaUser
-from structures.users.server_user import ServerUser
+from structures.user.community_user import CommunityUser
+from structures.user.jumpedia_user import JumpediaUser
+from structures.user.server_user import ServerUser
 
 
-def optimized_no_arg_method_cache[T](func: Callable[['Context'], T]) -> Callable[['Context'], T]:
 
-    @functools.wraps(func)
-    def wrapper(self: Context) -> T:
-        return self._cache.setdefault(func.__name__, func(self))
-
-    return wrapper
 
 
 @dataclass(frozen=True)
@@ -35,22 +31,16 @@ class Context:
     interaction: dc.Interaction
     _cache: dict[str, Any] = field(init=False, default_factory=dict)
 
-    @optimized_no_arg_method_cache
-    def get_server(self) -> dc.Guild:
-        return required.server_not_none(self.interaction.user)
     
-    @optimized_no_arg_method_cache
-    def get_jumpedia(self) -> Meta:
-        return Meta()
     
-    @optimized_no_arg_method_cache
-    def get_community(self) -> Community:
+    @functools2.optimized_no_arg_method_cache
+    def get_community(self) -> _CommunityAdapter:
         return required.server_with_community(
             self.get_jumpedia().get_community_by_server_id(self.get_server().id)
         )    
 
     @optimized_no_arg_method_cache
-    def get_meta_user(self) -> MetaUser:
+    def get_meta_user(self) -> JumpediaUser:
         user = self.interaction.user
         return self.get_jumpedia().create_or_get_user(user.id, user.name)
     
@@ -65,20 +55,7 @@ class Context:
             server_rank=ServerRank.get_from_discord_user(self.interaction.user)
         )
     
-    @optimized_no_arg_method_cache
-    def get_selected_list(self) -> List:
-        community_user = self.get_server_user().community_user
-
-        if community_user is not None and (list := community_user.selected_list) is not None:
-            return list
-        
-        if (community := self.get_community()) is not None:
-            list = community.get_default_selected_list()
-
-            if list is not None:
-                return list
-        
-        raise fbe.TemporaryFeedbackError("Neither you, nor the community you are in has a default list selected.")
+    
 
     @optimized_no_arg_method_cache
     def get_user_name(self) -> str:
@@ -97,15 +74,15 @@ class Context:
     
     @functools.lru_cache
     def permitted(self, required: AnyRank) -> None:
-        if isinstance(required, MetaRank):
-            if self.get_meta_user().meta_rank >= required:
+        if isinstance(required, JumpediaRank):
+            if self.get_meta_user().jumpedia_rank >= required:
                 return
             
             raise fbe.TemporaryFeedbackError(f"You must at least have the meta rank {required}")
 
         # Any meta rank is better than the other 2 ranks, so if one is given
         # we are successful
-        if self.get_meta_user().meta_rank > MetaRank.NONE:
+        if self.get_meta_user().jumpedia_rank > JumpediaRank.NONE:
             return
         
         if isinstance(required, CommunityRank):

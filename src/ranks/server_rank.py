@@ -5,7 +5,7 @@ import discord as dc
 from dataclasses import dataclass
 from typing import ClassVar
 
-from structures.ranks.abstract_rank import AbstractRank
+from ranks.abstract_rank import AbstractRank
 
 
 @dataclass(frozen=True)
@@ -29,19 +29,5 @@ class ServerRank(AbstractRank):
         cls.DEFAULT = cls.LOWEST
 
         cls._create_sorted()
-
-    @classmethod
-    def get_from_discord_user(cls, dc_user: dc.User | dc.Member) -> 'ServerRank':
-        if not isinstance(dc_user, dc.Member):
-            return ServerRank.MEMBER
-        
-        if dc_user.id == dc_user.guild.owner_id:
-            return ServerRank.SERVER_OWNER
-        
-        if dc_user.guild_permissions.administrator:
-            return ServerRank.SERVER_ADMINISTRATOR
-        
-        return ServerRank.MEMBER
-    
 
 ServerRank._init()

@@ -11,7 +11,7 @@ from discordtools import messaging
 from bridges.context import Context
 from discordtools import feedbackerrors as fbe
 from structures.attribute import AttributeValueTypeEnum, StaticAttribute, TaskAttribute, UserAttribute
-from structures.meta import Meta
+from structures.jumpedia import Jumpedia
 from structures.list import List
 from structures.ranks import CommunityRank
 from structures.task import Task

@@ -51,10 +51,10 @@ class Tables:
         community_id: ColumnName
         name: ColumnName
 
-    class MetaUser(metaclass=TableMeta):
+    class JumpediaUser(metaclass=TableMeta):
         id: ColumnName
         name: ColumnName
-        meta_power: ColumnName
+        power: ColumnName
 
     class CommunityUser(metaclass=TableMeta):
         community_id: ColumnName

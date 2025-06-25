@@ -11,7 +11,7 @@ from database import typed as typed
 from database.typed import Tables as TBL
 
 if TYPE_CHECKING:
-    from structures.list.list import List
+    from structures.list import List
 
 STATIC_NAME_ATTRIBUTE_NAME: Final[str] = 'name'
 STATIC_ALIASES_ATTRIBUTE_NAME: Final[str] = 'aliases'

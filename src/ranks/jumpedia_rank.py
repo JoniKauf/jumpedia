@@ -8,20 +8,20 @@ from typing import ClassVar
 from ranks.abstract_rank import AbstractRank
 
 @dataclass(frozen=True)
-class MetaRank(AbstractRank):
+class JumpediaRank(AbstractRank):
     _init_done: ClassVar[bool] = False
 
-    DEFAULT: ClassVar['MetaRank']
-    LOWEST: ClassVar['MetaRank']
-    HIGHEST: ClassVar['MetaRank']
+    DEFAULT: ClassVar['JumpediaRank']
+    LOWEST: ClassVar['JumpediaRank']
+    HIGHEST: ClassVar['JumpediaRank']
 
     @classmethod
     def _init(cls) -> None:
         super()._init()
         
-        cls.NONE = MetaRank(0, "None")
-        cls.META_ADMIN = MetaRank(100, "Meta Administrator")
-        cls.JONIKAUF = MetaRank(10 ** 6, "JoniKauf")
+        cls.NONE = JumpediaRank(0, "None")
+        cls.META_ADMIN = JumpediaRank(100, "Meta Administrator")
+        cls.JONIKAUF = JumpediaRank(10 ** 6, "JoniKauf")
 
         cls.LOWEST = cls.NONE
         cls.HIGHEST = cls.JONIKAUF
@@ -30,4 +30,4 @@ class MetaRank(AbstractRank):
         cls._create_sorted()
 
 
-MetaRank._init()
+JumpediaRank._init()

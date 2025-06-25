@@ -5,7 +5,7 @@ import discord.ext.commands as cmds
 
 from utils import required
 from discord_structures import modals, predicates, views
-from discordtools import messaging, feedbackerrors as fbe, user
+from discordtools import messaging, feedbackerrors as fbe, users
 from bridges.context import Context
 import ranks
 from ranks.community_rank import CommunityRank
@@ -84,7 +84,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def user_community_rank(self, ia: dc.Interaction, other_user: dc.User, rank_enum: SetRanks) -> None:
         ctx = Context(ia)
 
-        other_user_id, other_user_name = user.get_user_id_and_name(other_user)
+        other_user_id, other_user_name = users.get_user_id_and_name(other_user)
 
         other_community_user = ctx.get_community().create_or_get_community_user(
             other_user.id, other_user_name

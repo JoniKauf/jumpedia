@@ -2,21 +2,22 @@
 import time
 from typing import TYPE_CHECKING, Any, Callable, Final, Self, TypedDict
 import logging
+import discord as dc
 
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
-from ranks.meta_rank import MetaRank
-from structures import BaseStructure, attributes, task, users
+from ranks.jumpedia_rank import JumpediaRank
+from structures import BaseStructure, attributes, task, user
 from structures import community
 from structures.community import Community
 from structures.list import List
 from structures.task import Task
-from structures.users.meta_user import MetaUser
+from structures.user import User
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
 from dataclasses import dataclass, field
-from discordtools import messaging as msg, user
+from discordtools import messaging as msg, users
 from structures import list as list_
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class AbstractStructureAndSingleton(type(BaseStructure), metautils.Singleton):
     pass
 
 @dataclass(frozen=True, kw_only=True)
-class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
+class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     id: int = field(init=False, default=1)
     database_name: str = field(init=False, default=typed.DATABASE_NAME)
     
@@ -44,10 +45,10 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
             exists = cursor.fetchone() is not None
 
             if exists:
-                LOGGER.info("Meta database already exists, not creating new")
+                LOGGER.info("Jumpedia database already exists, not creating new")
                 return
 
-            LOGGER.warning("Meta database does NOT exist, creating new in 5 seconds")
+            LOGGER.warning("Jumpedia database does NOT exist, creating new in 5 seconds")
 
             time.sleep(5)
 
@@ -102,10 +103,10 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.MetaUser} (
-                        {TBL.MetaUser.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {TBL.MetaUser.name} VARCHAR({users.MAX_NAME_LENGTH}) NOT NULL,
-                        {TBL.MetaUser.meta_power} INT NOT NULL
+                    CREATE TABLE {TBL.JumpediaUser} (
+                        {TBL.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
+                        {TBL.JumpediaUser.name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
+                        {TBL.JumpediaUser.power} INT NOT NULL
                     )
                 """)
 
@@ -122,7 +123,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {TBL.Community}({TBL.Community.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.CommunityUser.user_id})
-                            REFERENCES {TBL.MetaUser}({TBL.MetaUser.id})
+                            REFERENCES {TBL.JumpediaUser}({TBL.JumpediaUser.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.CommunityUser.selected_list_id})
                             REFERENCES {TBL.List}({TBL.List.id})
@@ -393,7 +394,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.UserAttributeTaskValue.user_id})
-                            REFERENCES {TBL.MetaUser}({TBL.MetaUser.id})
+                            REFERENCES {TBL.JumpediaUser}({TBL.JumpediaUser.id})
                             ON DELETE CASCADE
                     )
                 """)
@@ -405,7 +406,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 finally:
                     raise e
             
-        LOGGER.info("Meta database successfully created!")
+        LOGGER.info("Jumpedia database successfully created!")
     
 
     # --- Communities ---
@@ -460,7 +461,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     name=name
                 )  
 
-                community_.create_or_get_community_user(dc_user.id, user.get_user_name(dc_user), CommunityRank.OWNER)
+                community_.create_or_get_community_user(dc_user.id, users.get_user_name(dc_user), CommunityRank.OWNER)
 
                 list = community_.create_list('Main')
 
@@ -552,9 +553,9 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return self.get_community_by_id(result[TBL.Server.community_id])
     
 
-    # --- Meta Users ---
+    # --- Jumpedia Users ---
 
-    def create_or_get_user(self, user_id: int, user_name: str | None) -> MetaUser:
+    def create_or_get_user(self, user_id: int, user_name: str | None) -> JumpediaUser:
         with self.locked:
             user = self.get_user_by_id(user_id)
             
@@ -569,42 +570,42 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             additional="A user must have interacted with Jumpedia at least once before to be recognized."
                         )
 
-                    meta_rank = MetaRank.DEFAULT
+                    jumpedia_rank = JumpediaRank.DEFAULT
 
                     cursor.execute(f"""
-                        INSERT INTO {TBL.MetaUser} (
-                            {TBL.MetaUser.id},
-                            {TBL.MetaUser.meta_power},
-                            {TBL.MetaUser.name}
+                        INSERT INTO {TBL.JumpediaUser} (
+                            {TBL.JumpediaUser.id},
+                            {TBL.JumpediaUser.power},
+                            {TBL.JumpediaUser.name}
                         )
                         VALUES (
                             {h|user_id},
-                            {h|meta_rank.power},
+                            {h|jumpedia_rank.power},
                             {h|user_name}
                         )
                     """, h.steal())
 
                 else:
-                    meta_rank = user.meta_rank
+                    jumpedia_rank = user.jumpedia_rank
                     
                     if user_name is None:
                         user_name = user.name
 
                     elif user.name != user_name:
                         cursor.execute(f"""
-                            UPDATE {TBL.MetaUser} 
-                            SET {TBL.MetaUser.name} = {h|user_name}
-                            WHERE {TBL.MetaUser.id} = {h|user.id}
+                            UPDATE {TBL.JumpediaUser} 
+                            SET {TBL.JumpediaUser.name} = {h|user_name}
+                            WHERE {TBL.JumpediaUser.id} = {h|user.id}
                         """, h.steal())
                         
-                return MetaUser(
+                return JumpediaUser(
                     jumpedia=self,
                     id=user_id,
-                    meta_rank=meta_rank,
+                    jumpedia_rank=jumpedia_rank,
                     name=user_name
                 )
             
-    def change_user_meta_rank(self, user_id: int, user_name: str, meta_rank: MetaRank) -> None:
+    def change_user_jumpedia_rank(self, user_id: int, user_name: str, jumpedia_rank: JumpediaRank) -> None:
         with self.locked:
             self.create_or_get_user(user_id, user_name)
 
@@ -612,9 +613,9 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    UPDATE {TBL.MetaUser} 
-                    SET {TBL.MetaUser.meta_power} = {h|meta_rank.power}
-                    WHERE {TBL.MetaUser.id} = {h|user_id}
+                    UPDATE {TBL.JumpediaUser} 
+                    SET {TBL.JumpediaUser.power} = {h|jumpedia_rank.power}
+                    WHERE {TBL.JumpediaUser.id} = {h|user_id}
                 """, h.steal())
 
     def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
@@ -623,7 +624,7 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.MetaUser}
+                FROM {TBL.JumpediaUser}
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
@@ -631,22 +632,22 @@ class Meta(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
         return result
     
-    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> MetaUser:
-        return MetaUser(
+    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> JumpediaUser:
+        return JumpediaUser(
             jumpedia=self,
-            id=data[TBL.MetaUser.id],
-            meta_rank=MetaRank.get(data[TBL.MetaUser.meta_power]),
-            name=data[TBL.MetaUser.name]
+            id=data[TBL.JumpediaUser.id],
+            jumpedia_rank=JumpediaRank.get(data[TBL.JumpediaUser.power]),
+            name=data[TBL.JumpediaUser.name]
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[MetaUser]:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[JumpediaUser]:
         return [
             self._user_data_to_obj(data) 
             for data in self._fetch_from_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> MetaUser | None:
-        data = self._fetch_from_user_table(lambda h: f"{TBL.MetaUser.id} = {h|id}")
+    def get_user_by_id(self, id: int) -> JumpediaUser | None:
+        data = self._fetch_from_user_table(lambda h: f"{TBL.JumpediaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 
-Meta()._init()
+Jumpedia()._init()
