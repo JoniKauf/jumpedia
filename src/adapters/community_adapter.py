@@ -20,7 +20,7 @@ class _CommunityAdapter(BaseAdapter[Community]):
     def get_list_by_name(self, name: str) -> _ListAdapter:
         name = text.sanitize(name)
 
-        return _ListAdapter(self.context, required.structure_not_none(
+        return _ListAdapter(self._interaction, required.structure_not_none(
             self._structure.get_list_by_name(name),
             List,
             name
@@ -32,9 +32,11 @@ class _CommunityAdapter(BaseAdapter[Community]):
             list_.MAX_NAME_LENGTH
         )
 
-        return _ListAdapter(self.context, self._structure.create_list(name))
+        return _ListAdapter(self._interaction, self._structure.create_list(name))
     
     def delete_list(self, name: str) -> None:
         name = text.sanitize(name)
 
         return self._structure.delete_list_by_name(name)
+    
+    

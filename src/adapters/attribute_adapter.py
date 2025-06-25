@@ -8,5 +8,5 @@ from structures.attributes import AnyAttributeT
 
 
 @dataclass(frozen=True)
-class AttributeAdapter[T: AnyAttributeT[Any]](BaseAdapter[T]):
+class _AttributeAdapter[T: AnyAttributeT[Any]](BaseAdapter[T]):
     pass
