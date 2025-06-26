@@ -63,13 +63,7 @@ class List(BaseStructure):
     
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.community.identity
-
-    def __hash__(self) -> int:
-        return hash(self.identity)
-    
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, self.__class__) and self.identity == value.identity
+        return (self.id, *self.community.identity)
 
     # --- Handle User Collection ---
 
@@ -444,11 +438,11 @@ class List(BaseStructure):
         value_type: AttributeValueType[T],
         bad_collection: str,
         max_slots: int,
-        unique_slots: bool,
+        uniqueness: UniquenessExtended,
         unique_value_per_list: bool
     ) -> TaskAttribute[T]:
         with self.locked:
-            name, aliases, index = self._attribute_creation_basics(TaskAttribute, bad_name, bad_aliases, max_slots)
+            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
             
             h = queries.ArgHelper()
@@ -463,8 +457,7 @@ class List(BaseStructure):
                         {SAT.index},
                         {SAT.min_slots},
                         {SAT.max_slots},
-                        {SAT.unique_slots},
-                        {SAT.unique_value_per_list}
+                        {SAT.uniqueness},
                     )
                     VALUES (
                         {h|self.id},
@@ -473,8 +466,7 @@ class List(BaseStructure):
                         {h|index},
                         {h|MIN_SLOTS},
                         {h|max_slots},
-                        {h|unique_slots},
-                        {h|unique_value_per_list}
+                        {h|uniqueness.value},
                     )
                 """, h.steal())
 
@@ -501,8 +493,7 @@ class List(BaseStructure):
                     index=index,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
-                    unique_slots=unique_slots,
-                    unique_value_per_list=unique_value_per_list
+                    uniqueness=uniqueness
                 )
 
                 self.handle_user_collection(bad_collection, obj)
@@ -539,8 +530,7 @@ class List(BaseStructure):
             value_type=AttributeValueType.get_by_id(data[Tbl.value_type]),
             min_slots=data[Tbl.min_slots],
             max_slots=data[Tbl.max_slots],
-            unique_slots=data[Tbl.unique_slots],
-            unique_value_per_list=data[Tbl.unique_value_per_list]
+            uniqueness=data[Tbl.uniqueness],
         )
     
     def get_task_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[TaskAttribute]:
@@ -592,10 +582,10 @@ class List(BaseStructure):
         value_type: AttributeValueType[T],
         bad_collection: str,
         max_slots: int,
-        unique_slots: bool
+        uniqueness: Uniqueness
     ) -> UserAttribute[T]:
         with self.locked:
-            name, aliases, index = self._attribute_creation_basics(UserAttribute, bad_name, bad_aliases, max_slots)
+            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
 
             h = queries.ArgHelper()
@@ -610,7 +600,7 @@ class List(BaseStructure):
                         {UAT.index},
                         {UAT.min_slots},
                         {UAT.max_slots},
-                        {UAT.unique_slots}
+                        {UAT.uniqueness}
                     )
                     VALUES (
                         {h|self.id},
@@ -619,7 +609,7 @@ class List(BaseStructure):
                         {h|index},
                         {h|MIN_SLOTS},
                         {h|max_slots},
-                        {h|unique_slots}
+                        {h|uniqueness.value}
                     )
                 """, h.steal())
 
@@ -647,7 +637,7 @@ class List(BaseStructure):
                     index=index,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
-                    unique_slots=unique_slots
+                    uniqueness=uniqueness
                 )
 
                 self.handle_user_collection(bad_collection, obj)
@@ -684,7 +674,7 @@ class List(BaseStructure):
             value_type=AttributeValueType.get_by_id(data[UAT.value_type]),
             min_slots=data[UAT.min_slots],
             max_slots=data[UAT.max_slots],
-            unique_slots=data[UAT.unique_slots]
+            uniqueness=data[UAT.uniqueness]
         )
     
     def get_user_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[UserAttribute]:

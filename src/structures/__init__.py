@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import enum
 from typing import Callable, ClassVar
 
 from errors.feedback import FeedbackError

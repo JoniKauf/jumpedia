@@ -13,7 +13,7 @@ from structures.base_structure import BaseStructure
 from structures.attributes import AttributeValueType, Uniqueness, UniquenessExtended
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list import List
-from structures.user.community_user import CommunityUser
+from structures.user import User
 from utils import required, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
@@ -205,7 +205,7 @@ class Community(BaseStructure):
                     WHERE {TBL.Community.id} = {h|self.id}
                 """, h.steal())
     
-    def create_or_get_community_user(self, user_id: int, user_name: str, repl_community_rank: CommunityRank | None = None) -> CommunityUser:
+    def create_or_get_community_user(self, user_id: int, user_name: str, community_rank: CommunityRank | None = None) -> User:
         with self.locked:
             community_user = self.get_community_user_by_id(user_id)
             user = self.jumpedia.create_or_get_user(user_id, user_name)
@@ -214,7 +214,7 @@ class Community(BaseStructure):
 
             with queries.connected() as (conn, cursor):
                 if community_user is None:
-                    community_rank = repl_community_rank or CommunityRank.DEFAULT
+                    community_rank = community_rank or CommunityRank.DEFAULT
                     selected_list = None
 
                     cursor.execute(f"""
@@ -233,7 +233,7 @@ class Community(BaseStructure):
                     """, h.steal())
 
                 else:
-                    community_rank = repl_community_rank or community_user.community_rank
+                    community_rank = community_rank or community_user.community_rank
                     selected_list = community_user.selected_list
 
                     if community_rank != community_user.community_rank:
@@ -297,8 +297,8 @@ class Community(BaseStructure):
             for data in self._fetch_from_community_user_table(where)
         ]
 
-    def get_community_user_by_id(self, user_id: int) -> 'CommunityUser | None':
-        data = self._fetch_from_community_user_table(lambda h: f"{TBL.CommunityUser.user_id} = {h|user_id}")
+    def get_community_user_by_id(self, user_id: int) -> User | None:
+        data = self._fetch_from_community_user_table(lambda h: f"{TBL.CommunityUser.community_id} = {h|self.id} AND {TBL.CommunityUser.user_id} = {h|user_id}")
         return self._community_user_data_to_obj(data[0]) if data else None
     
     def add_to_server(self, server_id: int) -> 'Community':

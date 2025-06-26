@@ -2,10 +2,11 @@
 
 from dataclasses import dataclass
 import re
-from typing import Final, Never, Sequence
+from typing import Final, Never, Sequence, overload
 import discord as dc
 
 from database import queries
+from database import typed
 from discordtools import messaging as msg
 from errors.feedback import FeedbackError
 from errors import ImpossibleError
@@ -17,6 +18,7 @@ from structures.community import Community
 from structures.jumpedia import Jumpedia
 from database.typed import Tables as TBL
 from database.typed import SingleTableRowT
+from structures.list import List
 
 type UserIdentifierT = int | str | User | dc.User | dc.Member
 
@@ -79,19 +81,41 @@ class User(BaseStructure):
     name: str
 
     jumpedia: Jumpedia
-    
     jumpedia_rank: JumpediaRank
 
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.id,)
+        return (self.id, *self.jumpedia.identity)
 
-    def get_community_rank(self, community_id: int) -> CommunityRank | None:
-        community = self.jumpedia.get_community_by_id(community_id)
+    def get_selected_list(self, community: Community) -> List | None:
+        with queries.connected() as (conn, cursor):
+            h = queries.ArgHelper()
 
-        if community is None:
+            cursor.execute(f"""
+                SELECT *
+                FROM {TBL.List}
+                WHERE {TBL.List.id} = (
+                    SELECT {TBL.CommunityUser.selected_list_id}
+                    FROM {TBL.CommunityUser}
+                    WHERE 
+                        {TBL.CommunityUser.community_id} = {h|community.id}
+                        AND {TBL.CommunityUser.user_id} = {h|self.id}
+                )
+            """, h.steal())
+
+            result: typed.SingleTableRowT | None = cursor.fetchone()
+
+        if result is None:
             return None
         
+        return List(
+            community=community,
+            id=result[TBL.List.id],
+            name=result[TBL.List.name]
+        )
+
+
+    def get_community_rank(self, community: Community) -> CommunityRank | None:
         h = queries.ArgHelper()
 
         with queries.connected() as (conn, cursor):
@@ -99,7 +123,7 @@ class User(BaseStructure):
                 SELECT {TBL.CommunityUser.power} 
                 FROM {TBL.CommunityUser}
                 WHERE 
-                    {TBL.CommunityUser.community_id} = {h|community_id}
+                    {TBL.CommunityUser.community_id} = {h|community}
                     AND {TBL.CommunityUser.user_id} = {h|self.id}
             """)
 
@@ -123,6 +147,5 @@ class User(BaseStructure):
         
         return ServerRank.MEMBER
 
-
-    def most_important_rank_for_jumpedia(self, community_id: int) -> CommunityRank | JumpediaRank:
-        return self.jumpedia_rank or self.get_community_rank(community_id) or JumpediaRank.NONE
+    def most_important_rank_for_jumpedia(self, community: Community) -> CommunityRank | JumpediaRank:
+        return self.jumpedia_rank or self.get_community_rank(community) or JumpediaRank.NONE

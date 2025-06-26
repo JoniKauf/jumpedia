@@ -3,15 +3,15 @@
 from typing import Any
 from adapters.base_adapter import BaseAdapter
 from adapters.list_adapter import _ListAdapter
-from structures.user import AnyUserT
+from structures.user import User
 from utils import functools2
 
 
 
-class _UserAdapter(BaseAdapter[Any]):
+class _UserAdapter(BaseAdapter[User]):
 
     def get_best_selected_list(self) -> _ListAdapter:
-        community_user = self..community_user
+    
 
         if community_user is not None and (list := community_user.selected_list) is not None:
             return list
