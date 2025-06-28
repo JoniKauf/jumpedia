@@ -1,5 +1,7 @@
 import discord as dc
 
+type AnyDiscordUserT = dc.Member | dc.Member
+
 def get_user_name(user: dc.User | dc.Member) -> str:
     return user.global_name or user.name
 

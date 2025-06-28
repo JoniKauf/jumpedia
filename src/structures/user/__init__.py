@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 import re
-from typing import Final, Never, Sequence, overload
+from typing import Final, NamedTuple, Never, Sequence, overload
 import discord as dc
 
 from database import queries
@@ -73,6 +73,10 @@ def extract_id(identifier: UserIdentifierT) -> int:
     raise ImpossibleError()
 
 
+class CommunityUserData(NamedTuple):
+    community_rank: CommunityRank
+    selected_list: List | None
+
 @dataclass(frozen=True)
 class User(BaseStructure):
     __structure_name__ = 'user'
@@ -86,54 +90,6 @@ class User(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id, *self.jumpedia.identity)
-
-    def get_selected_list(self, community: Community) -> List | None:
-        with queries.connected() as (conn, cursor):
-            h = queries.ArgHelper()
-
-            cursor.execute(f"""
-                SELECT *
-                FROM {TBL.List}
-                WHERE {TBL.List.id} = (
-                    SELECT {TBL.CommunityUser.selected_list_id}
-                    FROM {TBL.CommunityUser}
-                    WHERE 
-                        {TBL.CommunityUser.community_id} = {h|community.id}
-                        AND {TBL.CommunityUser.user_id} = {h|self.id}
-                )
-            """, h.steal())
-
-            result: typed.SingleTableRowT | None = cursor.fetchone()
-
-        if result is None:
-            return None
-        
-        return List(
-            community=community,
-            id=result[TBL.List.id],
-            name=result[TBL.List.name]
-        )
-
-
-    def get_community_rank(self, community: Community) -> CommunityRank | None:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {TBL.CommunityUser.power} 
-                FROM {TBL.CommunityUser}
-                WHERE 
-                    {TBL.CommunityUser.community_id} = {h|community}
-                    AND {TBL.CommunityUser.user_id} = {h|self.id}
-            """)
-
-            result: SingleTableRowT | None = cursor.fetchone()
-
-        if result is None:
-            return None
-        
-        return CommunityRank.get(result[TBL.CommunityUser.power])
-    
     
     def get_server_rank(self, discord_user: dc.User | dc.Member) -> ServerRank | None:
         if isinstance(discord_user, dc.User):

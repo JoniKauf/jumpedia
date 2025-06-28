@@ -2,24 +2,23 @@
 
 from typing import Any
 from adapters.base_adapter import BaseAdapter
+from adapters.community_adapter import _CommunityAdapter
+from adapters.jumpedia_adapter import JumpediaAdapter
 from adapters.list_adapter import _ListAdapter
+from errors.feedback import feedbacks
 from structures.user import User
 from utils import functools2
 
 
 
 class _UserAdapter(BaseAdapter[User]):
+    def get_best_selected_list(self, community: _CommunityAdapter) -> _ListAdapter:
+        list = (
+            self._structure.get_selected_list(community._structure)
+            or community._structure.get_default_selected_list()
+        )
 
-    def get_best_selected_list(self) -> _ListAdapter:
-    
-
-        if community_user is not None and (list := community_user.selected_list) is not None:
-            return list
+        if list is not None:
+            return _ListAdapter(self._interaction, list)
         
-        if (community := self.get_community()) is not None:
-            list = community.get_default_selected_list()
-
-            if list is not None:
-                return list
-        
-        raise fbe.TemporaryFeedbackError("Neither you, nor the community you are in has a default list selected.")
+        raise feedbacks.temp("Neither you, nor the community you are in has a default list selected.")

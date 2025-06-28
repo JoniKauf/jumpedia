@@ -6,6 +6,8 @@ from typing import ClassVar, Self
 from adapters.base_adapter import BaseAdapter
 from adapters.community_adapter import _CommunityAdapter
 from adapters.user_adapter import _UserAdapter
+from discordtools import users
+from ranks.jumpedia_rank import JumpediaRank
 from structures.community import Community
 from structures.jumpedia import Jumpedia
 from utils import required, text
@@ -42,5 +44,13 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
             required.structure_not_none(community, Community, name)
         )
     
-    def get_user(self) -> _UserAdapter:
-        self._structure.get_or_create_user
+    def get_user(self, user: users.AnyDiscordUserT) -> _UserAdapter:
+        return _UserAdapter(self._interaction, self._structure.get_or_create_user(
+            *users.get_user_id_and_name(user),
+            JumpediaRank.DEFAULT,
+            True,
+            False
+        ))
+    
+    def a(self):
+        self._structure.create_community()

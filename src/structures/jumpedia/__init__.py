@@ -411,7 +411,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     # --- Communities ---
 
-    def create_community(self, dc_user: dc.User | dc.Member, server_id: int, bad_name: str) -> 'Community':
+    def create_community(self, user: User, server_id: int, bad_name: str) -> 'Community':
         with self.locked:
             community_ = self.get_community_by_server_id(server_id)
 
@@ -461,7 +461,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     name=name
                 )  
 
-                community_.create_or_get_community_user(dc_user.id, users.get_user_name(dc_user), CommunityRank.OWNER)
+                community_.add_or_create_community_user(user.id, user.name, CommunityRank.OWNER)
 
                 list = community_.create_list('Main')
 
@@ -557,16 +557,16 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     def get_or_create_user(
         self, 
-        user_id: int, 
-        user_name: str, 
+        id: int, 
+        name: str, 
         jumpedia_rank: JumpediaRank, 
-        override_rank_if_user_exists: bool,
-        override_name_if_user_exists: bool
+        override_name_if_user_exists: bool,
+        override_jumpedia_rank_if_user_exists: bool
     ) -> User:
         h = queries.ArgHelper()
 
         with self.locked:
-            user = self.get_user_by_id(user_id)
+            user = self.get_user_by_id(id)
 
             with queries.connected() as (conn, cursor):
                 if user is None:
@@ -577,21 +577,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             {TBL.JumpediaUser.name}
                         )
                         VALUES (
-                            {h|user_id},
+                            {h|id},
                             {h|jumpedia_rank.power},
-                            {h|user_name}
+                            {h|name}
                         )
                     """, h.steal())
 
                 else:
-                    jumpedia_rank = jumpedia_rank if override_rank_if_user_exists else user.jumpedia_rank
-                    user_name = user_name if override_name_if_user_exists else user.name
+                    jumpedia_rank = jumpedia_rank if override_jumpedia_rank_if_user_exists else user.jumpedia_rank
+                    name = name if override_name_if_user_exists else user.name
 
-                    if user_name != user.name or jumpedia_rank != user.jumpedia_rank:
+                    if name != user.name or jumpedia_rank != user.jumpedia_rank:
                         cursor.execute(f"""
                             UPDATE {TBL.JumpediaUser} 
                             SET 
-                                {TBL.JumpediaUser.name} = {h|user_name}
+                                {TBL.JumpediaUser.name} = {h|name}
                                 {TBL.JumpediaUser.power} = {h|jumpedia_rank.power}
                             WHERE 
                                 {TBL.JumpediaUser.id} = {h|user.id}
@@ -599,9 +599,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         
                 return User(
                     jumpedia=self,
-                    id=user_id,
+                    id=id,
                     jumpedia_rank=jumpedia_rank,
-                    name=user_name
+                    name=name
                 )
 
     def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
