@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self
 from adapters.base_adapter import BaseAdapter
 from adapters.community_adapter import _CommunityAdapter
+from adapters.user_adapter import _UserAdapter
 from structures.community import Community
 from structures.jumpedia import Jumpedia
 from utils import required, text
@@ -40,3 +41,6 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
             self._interaction, 
             required.structure_not_none(community, Community, name)
         )
+    
+    def get_user(self) -> _UserAdapter:
+        self._structure.get_or_create_user

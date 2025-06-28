@@ -208,7 +208,7 @@ class Community(BaseStructure):
     def create_or_get_community_user(self, user_id: int, user_name: str, community_rank: CommunityRank | None = None) -> User:
         with self.locked:
             community_user = self.get_community_user_by_id(user_id)
-            user = self.jumpedia.create_or_get_user(user_id, user_name)
+            user = self.jumpedia.get_or_create_user(user_id, user_name)
 
             h = queries.ArgHelper()
 
@@ -286,7 +286,7 @@ class Community(BaseStructure):
     def _community_user_data_to_obj(self, data: typed.SingleTableRowT) -> 'CommunityUser':  
         return CommunityUser(
             community=self,
-            jumpedia_user=self.jumpedia.create_or_get_user(data[TBL.CommunityUser.user_id], None),
+            jumpedia_user=self.jumpedia.get_or_create_user(data[TBL.CommunityUser.user_id], None),
             community_rank=CommunityRank.get(data[TBL.CommunityUser.power]),
             selected_list=self.get_list_by_id(data[TBL.CommunityUser.selected_list_id])
         )

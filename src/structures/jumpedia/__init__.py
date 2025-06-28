@@ -555,23 +555,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     # --- Jumpedia Users ---
 
-    def create_or_get_user(self, user_id: int, user_name: str | None) -> JumpediaUser:
+    def get_or_create_user(
+        self, 
+        user_id: int, 
+        user_name: str, 
+        jumpedia_rank: JumpediaRank, 
+        override_rank_if_user_exists: bool,
+        override_name_if_user_exists: bool
+    ) -> User:
+        h = queries.ArgHelper()
+
         with self.locked:
             user = self.get_user_by_id(user_id)
-            
-            h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
                 if user is None:
-                    if user_name is None:
-                        raise FeedbackError(
-                            "User Not Found",
-                            f"The user with the id {msg.shorten_and_code(str(user_id))} could not be found!",
-                            additional="A user must have interacted with Jumpedia at least once before to be recognized."
-                        )
-
-                    jumpedia_rank = JumpediaRank.DEFAULT
-
                     cursor.execute(f"""
                         INSERT INTO {TBL.JumpediaUser} (
                             {TBL.JumpediaUser.id},
@@ -586,37 +584,25 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     """, h.steal())
 
                 else:
-                    jumpedia_rank = user.jumpedia_rank
-                    
-                    if user_name is None:
-                        user_name = user.name
+                    jumpedia_rank = jumpedia_rank if override_rank_if_user_exists else user.jumpedia_rank
+                    user_name = user_name if override_name_if_user_exists else user.name
 
-                    elif user.name != user_name:
+                    if user_name != user.name or jumpedia_rank != user.jumpedia_rank:
                         cursor.execute(f"""
                             UPDATE {TBL.JumpediaUser} 
-                            SET {TBL.JumpediaUser.name} = {h|user_name}
-                            WHERE {TBL.JumpediaUser.id} = {h|user.id}
+                            SET 
+                                {TBL.JumpediaUser.name} = {h|user_name}
+                                {TBL.JumpediaUser.power} = {h|jumpedia_rank.power}
+                            WHERE 
+                                {TBL.JumpediaUser.id} = {h|user.id}
                         """, h.steal())
                         
-                return JumpediaUser(
+                return User(
                     jumpedia=self,
                     id=user_id,
                     jumpedia_rank=jumpedia_rank,
                     name=user_name
                 )
-            
-    def change_user_jumpedia_rank(self, user_id: int, user_name: str, jumpedia_rank: JumpediaRank) -> None:
-        with self.locked:
-            self.create_or_get_user(user_id, user_name)
-
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    UPDATE {TBL.JumpediaUser} 
-                    SET {TBL.JumpediaUser.power} = {h|jumpedia_rank.power}
-                    WHERE {TBL.JumpediaUser.id} = {h|user_id}
-                """, h.steal())
 
     def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
@@ -632,21 +618,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
         return result
     
-    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> JumpediaUser:
-        return JumpediaUser(
+    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> User:
+        return User(
             jumpedia=self,
+            name=data[TBL.JumpediaUser.name],
             id=data[TBL.JumpediaUser.id],
-            jumpedia_rank=JumpediaRank.get(data[TBL.JumpediaUser.power]),
-            name=data[TBL.JumpediaUser.name]
+            jumpedia_rank=JumpediaRank.get(data[TBL.JumpediaUser.power])
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[JumpediaUser]:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[User]:
         return [
             self._user_data_to_obj(data) 
             for data in self._fetch_from_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> JumpediaUser | None:
+    def get_user_by_id(self, id: int) -> User | None:
         data = self._fetch_from_user_table(lambda h: f"{TBL.JumpediaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 
