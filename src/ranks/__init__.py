@@ -1,7 +1,7 @@
 
 from typing import Iterator
 
-from ranks.abstract_rank import AbstractRank
+from ranks.base_rank import BaseRank
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from ranks.server_rank import ServerRank
@@ -37,4 +37,4 @@ def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
 
 
 def rank_classes_iter() -> Iterator[type[AnyRank]]:
-    return iter(AbstractRank.__subclasses__())  # type: ignore
+    return iter(BaseRank.__subclasses__())  # type: ignore

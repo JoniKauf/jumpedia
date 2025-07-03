@@ -5,10 +5,10 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ranks.abstract_rank import AbstractRank
+from ranks.base_rank import BaseRank
 
 @dataclass(frozen=True)
-class JumpediaRank(AbstractRank):
+class JumpediaRank(BaseRank):
     _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['JumpediaRank']

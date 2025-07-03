@@ -12,7 +12,7 @@ from structures import community
 from structures.community import Community
 from structures.list import List
 from structures.task import Task
-from structures.user import User
+from structures.user import JumpediaUser
 from utils import metautils, text
 from database import queries, typed as typed
 from database.typed import Tables as TBL
@@ -411,7 +411,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     # --- Communities ---
 
-    def create_community(self, user: User, server_id: int, bad_name: str) -> 'Community':
+    def create_community(self, user: JumpediaUser, server_id: int, bad_name: str) -> 'Community':
         with self.locked:
             community_ = self.get_community_by_server_id(server_id)
 
@@ -562,7 +562,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         jumpedia_rank: JumpediaRank, 
         override_name_if_user_exists: bool,
         override_jumpedia_rank_if_user_exists: bool
-    ) -> User:
+    ) -> JumpediaUser:
         h = queries.ArgHelper()
 
         with self.locked:
@@ -597,7 +597,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                                 {TBL.JumpediaUser.id} = {h|user.id}
                         """, h.steal())
                         
-                return User(
+                return JumpediaUser(
                     jumpedia=self,
                     id=id,
                     jumpedia_rank=jumpedia_rank,
@@ -618,21 +618,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
         return result
     
-    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> User:
-        return User(
+    def _user_data_to_obj(self, data: typed.SingleTableRowT) -> JumpediaUser:
+        return JumpediaUser(
             jumpedia=self,
             name=data[TBL.JumpediaUser.name],
             id=data[TBL.JumpediaUser.id],
             jumpedia_rank=JumpediaRank.get(data[TBL.JumpediaUser.power])
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[User]:
+    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[JumpediaUser]:
         return [
             self._user_data_to_obj(data) 
             for data in self._fetch_from_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> User | None:
+    def get_user_by_id(self, id: int) -> JumpediaUser | None:
         data = self._fetch_from_user_table(lambda h: f"{TBL.JumpediaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 

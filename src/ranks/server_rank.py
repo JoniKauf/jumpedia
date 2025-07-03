@@ -5,11 +5,11 @@ import discord as dc
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ranks.abstract_rank import AbstractRank
+from ranks.base_rank import BaseRank
 
 
 @dataclass(frozen=True)
-class ServerRank(AbstractRank):
+class ServerRank(BaseRank):
     _init_done: ClassVar[bool] = False
 
     DEFAULT: ClassVar['ServerRank']

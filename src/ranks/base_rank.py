@@ -10,7 +10,7 @@ from structures.base_structure import BaseStructure
 
 @functools.total_ordering
 @dataclass(frozen=True)
-class AbstractRank:
+class BaseRank:
     _init_done: ClassVar[bool] = False
     SORTED: ClassVar[tuple[Self, ...]]
 
@@ -40,7 +40,7 @@ class AbstractRank:
     @abstractmethod
     @classmethod
     def _init(cls) -> None:
-        if cls == AbstractRank:
+        if cls == BaseRank:
             raise NotImplementedError()
         
         cls._init_done = True
@@ -74,9 +74,3 @@ class AbstractRank:
     
     def __eq__(self, value: object) -> bool:
         return self is value
-
-    @property
-    @abstractmethod
-    def parent(self) -> BaseStructure:
-        """The structure that handles the creation, deletion or editing of this structure."""
-

@@ -4,12 +4,12 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ranks.abstract_rank import AbstractRank
+from ranks.base_rank import BaseRank
 from structures.base_structure import BaseStructure
 
 
 @dataclass(frozen=True)
-class CommunityRank(AbstractRank):
+class CommunityRank(BaseRank):
     _init_done: ClassVar[bool] = False
     
     DEFAULT: ClassVar['CommunityRank']

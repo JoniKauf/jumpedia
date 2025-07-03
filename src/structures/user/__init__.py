@@ -19,8 +19,9 @@ from structures.jumpedia import Jumpedia
 from database.typed import Tables as TBL
 from database.typed import SingleTableRowT
 from structures.list import List
+from structures.user.jumpedia_user import JumpediaUser
 
-type UserIdentifierT = int | str | User | dc.User | dc.Member
+type UserIdentifierT = int | str | JumpediaUser | dc.User | dc.Member
 
 
 MAX_NAME_LENGTH: Final[int] = 32
@@ -67,41 +68,7 @@ def extract_id(identifier: UserIdentifierT) -> int:
     if isinstance(identifier, str):
         return extract_id_from_str(identifier)
     
-    if isinstance(identifier, User | dc.User | dc.Member):
+    if isinstance(identifier, JumpediaUser | dc.User | dc.Member):
         return identifier.id
     
     raise ImpossibleError()
-
-
-class CommunityUserData(NamedTuple):
-    community_rank: CommunityRank
-    selected_list: List | None
-
-@dataclass(frozen=True)
-class User(BaseStructure):
-    __structure_name__ = 'user'
-
-    id: int
-    name: str
-
-    jumpedia: Jumpedia
-    jumpedia_rank: JumpediaRank
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id, *self.jumpedia.identity)
-    
-    def get_server_rank(self, discord_user: dc.User | dc.Member) -> ServerRank | None:
-        if isinstance(discord_user, dc.User):
-            return None
-        
-        if discord_user.id == discord_user.guild.owner_id:
-            return ServerRank.SERVER_OWNER
-        
-        if discord_user.guild_permissions.administrator:
-            return ServerRank.SERVER_ADMINISTRATOR
-        
-        return ServerRank.MEMBER
-
-    def most_important_rank_for_jumpedia(self, community: Community) -> CommunityRank | JumpediaRank:
-        return self.jumpedia_rank or self.get_community_rank(community) or JumpediaRank.NONE
