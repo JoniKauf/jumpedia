@@ -1,10 +1,13 @@
 
 
 
+from dataclasses import dataclass
 from database.typed import Tables as TBL
 from database import typed
 from database import queries
 from ranks.community_rank import CommunityRank
+from ranks.jumpedia_rank import JumpediaRank
+from structures.base_structure import BaseStructure
 from structures.community import Community
 from structures.list import List
 from structures.user.jumpedia_user import JumpediaUser
@@ -17,7 +20,7 @@ class CommunityUser(BaseStructure):
     community: Community
     jumpedia_user: JumpediaUser
     community_rank: CommunityRank
-    selected_list_id: int
+    selected_list_id: int | None
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -35,7 +38,7 @@ class CommunityUser(BaseStructure):
                     AND {TBL.List.id} = {h|self.selected_list_id}
             """, h.steal())
 
-            result: SingleTableRowT | None = cursor.fetchone()
+            result: typed.SingleTableRowT | None = cursor.fetchone()
 
         if result is None:
             return None

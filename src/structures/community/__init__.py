@@ -13,7 +13,8 @@ from structures.base_structure import BaseStructure
 from structures.attributes import AttributeValueType, Uniqueness, UniquenessExtended
 from structures.attributes.static_attribute import StaticAttribute
 from structures.list import List
-from structures.user import CommunityUserData, JumpediaUser
+from structures.user import JumpediaUser
+from structures.user.community_user import CommunityUser
 from utils import required, text
 from database import queries, typed as typed
 from database.typed import SingleTableRowT, Tables as TBL
@@ -205,21 +206,21 @@ class Community(BaseStructure):
                     WHERE {TBL.Community.id} = {h|self.id}
                 """, h.steal())
     
-    def add_or_create_community_user(
+    def create_or_get_community_user(
         self, 
-        user: JumpediaUser, 
+        jumpedia_user: JumpediaUser, 
         community_rank: CommunityRank, 
-        selected_list: List | None, 
+        selected_list_id: int | None, 
         override_community_rank_if_user_exists: bool,
         override_selected_list_if_user_exists: bool
-    ) -> JumpediaUser:
+    ) -> CommunityUser:
         h = queries.ArgHelper()
         with self.locked:
-            fetched_community_rank = self.get_user_community_rank(user)
+            community_user = self.get_community_user(jumpedia_user)
             
             with queries.connected() as (conn, cursor):
                 # User doesn't exist yet
-                if fetched_community_rank is None:
+                if community_user is None:
                     cursor.execute(f"""
                         INSERT INTO {TBL.CommunityUser} (
                             {TBL.CommunityUser.community_id},
@@ -229,43 +230,45 @@ class Community(BaseStructure):
                         )
                         VALUES (
                             {h|self.id},
-                            {h|user.id},
+                            {h|jumpedia_user.id},
                             {h|community_rank.power},
-                            {h|(None if selected_list is None else selected_list.id)}
+                            {h|(None if selected_list_id is None else selected_list_id)}
                         )
                     """, h.steal())
 
                 else:
-                    fetched_selected_list = self.get_default_selected_list()
+                    community_rank = community_rank if override_community_rank_if_user_exists else community_user.community_rank
+                    selected_list_id = selected_list_id if override_selected_list_if_user_exists else community_user.selected_list_id
 
-                    community_rank = community_rank if override_community_rank_if_user_exists else fetched_community_rank
-                    selected_list = selected_list if override_selected_list_if_user_exists else fetched_selected_list
-
-                    if community_rank != fetched_community_rank or selected_list != fetched_selected_list:
+                    if community_rank != community_user or selected_list_id != selected_list_id:
                         cursor.execute(f"""
                             UPDATE {TBL.CommunityUser}
                             SET 
                                 {TBL.CommunityUser.power} = {h|community_rank.power}
-                                {TBL.CommunityUser.selected_list_id} = {h|(None if selected_list is None else selected_list.id)}
+                                {TBL.CommunityUser.selected_list_id} = {h|(None if selected_list_id is None else selected_list_id)}
                             WHERE 
                                 {TBL.CommunityUser.community_id} = {h|self.id}
-                                AND {TBL.CommunityUser.user_id} = {h|user.id}
+                                AND {TBL.CommunityUser.user_id} = {h|jumpedia_user.id}
                         """, h.steal()) 
 
-                return 
+                return CommunityUser(
+                    community=self,
+                    jumpedia_user=jumpedia_user,
+                    community_rank=community_rank,
+                    selected_list_id=selected_list_id
+                )
 
     
-    
-    def get_user_community_rank(self, user: JumpediaUser) -> CommunityRank | None:
+    def get_community_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
         h = queries.ArgHelper()
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.CommunityUser.power}
+                SELECT *
                 FROM {TBL.CommunityUser}
                 WHERE 
                     {TBL.CommunityUser.community_id} = {h|self.id}
-                    AND {TBL.CommunityUser.user_id} = {h|user.id}
+                    AND {TBL.CommunityUser.user_id} = {h|jumpedia_user.id}
             """)
 
             result: SingleTableRowT | None = cursor.fetchone()
@@ -273,7 +276,12 @@ class Community(BaseStructure):
         if result is None:
             return None
         
-        return CommunityRank.get(result[TBL.CommunityUser.power])
+        return CommunityUser(
+            community=self,
+            jumpedia_user=jumpedia_user,
+            community_rank=CommunityRank.get(result[TBL.CommunityUser.power]),
+            selected_list_id=result[TBL.CommunityUser.selected_list_id]
+        )
     
     def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()
@@ -347,7 +355,9 @@ class Community(BaseStructure):
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     DELETE FROM {TBL.Server}
-                    WHERE {TBL.Server.id} = {h|server_id}
+                    WHERE 
+                        {TBL.Server.id} = {h|server_id}
+                        AND {TBL.Server.community_id} = {TBL.Server.id}
                 """, h.steal())
 
         return required.structure_not_none(

@@ -45,7 +45,7 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
         )
     
     def get_user(self, user: users.AnyDiscordUserT) -> _UserAdapter:
-        return _UserAdapter(self._interaction, self._structure.get_or_create_user(
+        return _UserAdapter(self._interaction, self._structure.get_or_create_jumpedia_user(
             *users.get_user_id_and_name(user),
             JumpediaRank.DEFAULT,
             True,

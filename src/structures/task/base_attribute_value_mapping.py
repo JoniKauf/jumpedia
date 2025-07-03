@@ -6,13 +6,13 @@ from database import queries
 from database import typed
 from database.typed import Tables as TBL
 
-from discordtools import feedbackerrors as fbe
+from errors.feedback import feedbacks
 from structures.base_structure import BaseStructure
 from structures.attributes import AnyAttributeT, AttributeValueTypeT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
-from structures.task.task import Task
+from structures.task import Task
 
 @dataclass(frozen=True, kw_only=True)
 class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
@@ -87,13 +87,13 @@ class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
             try:
                 attr = attribute_lookup.pop(row['task_attribute_id'])
             except KeyError:
-                raise fbe.TemporaryFeedbackError("Data changed")
+                raise feedbacks.temp("Data changed")
             
             val: list[AttributeValueTypeT] = pickle.loads(row['value'])
             
             self.mapping[attr] = val  # type: ignore
 
         if attribute_lookup:
-            raise fbe.TemporaryFeedbackError("Data changed")
+            raise feedbacks.temp("Data changed")
 
 

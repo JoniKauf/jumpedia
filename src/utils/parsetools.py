@@ -25,15 +25,17 @@ def json_depth(o: Any) -> int:
 type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT] | Any
 type SupportedJsonTypesTypeT = type[None | bool | int | float | str] | list[SupportedJsonTypesTypeT] | dict[type[str], SupportedJsonTypesTypeT] | type[object] | UnionType
 
-SUPPORTED_JSON_TYPES = frozenset(
-    cls if (origin := typing.get_origin(cls)) is None else origin 
-    for cls in 
-    typing.get_args(SupportedJsonTypesT.__value__)
-)
+
+_NON_UNION_EXPECTED_TYPE = frozenset((NoneType, bool, int, float, str, object))
 
 class StrictTypeError(ValueError):
     """The given strict_type is invalid"""
 
+class WrongAmountOfArgs(ValueError):
+    def __init__(self, given: tuple[int, ...], expected: int, *args: object) -> NoneType:
+        super().__init__(*args)
+        self.given = given
+        self.expected = expected
 
 class SafeJsonParser:
     MAX_LENGTH: int = PARSING_MAX_LENGTH
@@ -71,9 +73,9 @@ class SafeJsonParser:
         if strict_type == object:
             return
         
-        type_cls = typing.get_origin(strict_type)
+        type_origin = typing.get_origin(strict_type)
 
-        if type_cls in (Union, UnionType):
+        if type_origin in (Union, UnionType):
             success: bool = False
             for union_member in typing.get_args(strict_type):
                 try:
@@ -90,43 +92,36 @@ class SafeJsonParser:
             
             # Not a single union_member matched the type
             raise TypeError(obj, strict_type)
-                
-        if type_cls is None:
-            type_cls = strict_type
 
-        if not type_cls in SUPPORTED_JSON_TYPES:
-            raise StrictTypeError(type_cls)
-        
+        if type_origin is None:
+            type_origin = strict_type
+
         # Not isinstance because sees bool as int and more...
-        if not type(obj) == type_cls:
+        if not type(obj) == type_origin:
             raise TypeError(obj, strict_type) 
         
+        if isinstance(type_origin, list):
+            # No elements
+            if not type_origin or type_origin[0] == object:
+                return
+
+            expected_elems_type = type_origin[0]
+
+            for child_obj in type_origin:
+                cls.validate_json_type(child_obj, expected_elems_type)
+        elif isinstance(type_origin)
+        
+        
+        if not type_origin in _NON_UNION_EXPECTED_TYPE:
+            raise StrictTypeError(type_origin)
+        
+
         type_args = typing.get_args(strict_type)
 
         if not type_args:
             return
         
-        if isinstance(obj, list):
-            type_elems = type_args[0]
-
-            if type_elems == Any:
-                return
-            
-            for child_obj in obj:
-                cls.validate_json_type(child_obj, type_elems)
-
-        elif isinstance(obj, dict):
-            type_k = type_args[0]
-            type_v: type[SupportedJsonTypesT] = Any  # type: ignore
-
-            if len(type_args) > 1:
-                type_v = type_args[1]
-            
-            for k, v in obj.items():
-                cls.validate_json_type(k, type_k)
-                cls.validate_json_type(v, type_v)   
-
-SafeJsonParser(strict_type=bytes)
+        
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
     ([-+])?               # [Group 1: Optional '-' or '+' sign]

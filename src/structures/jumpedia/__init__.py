@@ -461,9 +461,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     name=name
                 )  
 
-                community_.add_or_create_community_user(user.id, user.name, CommunityRank.OWNER)
+                community_.create_or_get_community_user(
+                    self.get_or_create_jumpedia_user(
+                        user.id, 
+                        user.name,
+                        JumpediaRank.DEFAULT,
+                        True,
+                        False
+                    ), 
+                    CommunityRank.OWNER, 
+                    None,
+                    True, 
+                    True
+                )
 
-                list = community_.create_list('Main')
+                list = community_.create_list('main')
 
                 cursor.execute(f"""
                     UPDATE {TBL.Community}
@@ -555,7 +567,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     # --- Jumpedia Users ---
 
-    def get_or_create_user(
+    def get_or_create_jumpedia_user(
         self, 
         id: int, 
         name: str, 
