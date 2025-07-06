@@ -2,11 +2,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from threading import RLock
-from typing import ClassVar, final
+from typing import ClassVar
 from contextlib import _GeneratorContextManager
 import structures
 from utils import text
-from utils.locked import equality_locked
+from utils import locked
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -20,7 +20,7 @@ class BaseStructure(ABC):
     
     @property
     def locked(self) -> _GeneratorContextManager[RLock, None, None]:
-        return equality_locked(self)
+        return locked.equality_locked(self)
     
     def __hash__(self) -> int:
         return hash(self.identity)

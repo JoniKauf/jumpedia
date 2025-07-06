@@ -5,7 +5,9 @@ from threading import RLock
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
 import discord as dc
-
+import mariadb
+import mariadb.constants
+from mariadb.constants import ERR
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from structures import attributes, task
@@ -71,12 +73,6 @@ class Community(BaseStructure):
     
     def create_list(self, name: str) -> 'List':
         with self.locked:
-            if text.norm_syn(name).endswith(List.__structure_name__):
-                raise FeedbackError(
-                    f"Name Ends In {List.__structure_name__.title()}",
-                    f"The specified name for the {List.__structure_name__.lower()}"
-                )
-            
             if self.get_list_by_name(name) is not None:
                 raise feedbacks.temp("A list with that name already exists")
             
@@ -126,23 +122,18 @@ class Community(BaseStructure):
             return list
             
             
-    def delete_list_by_name(self, name: str) -> None:
-        with self.locked:
-            list = self.get_list_by_name(name)
+    def delete_list(self, list_id: int) -> bool:
+        h = queries.ArgHelper()
 
-            # Check if list already deleted, but object used
-            if list is None:
-                return
-                
-            h = queries.ArgHelper()
+        with self.locked, queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                DELETE FROM {TBL.List}
+                WHERE 
+                    {TBL.List.community_id} = {h|self.id}
+                    AND {TBL.List.id} = {h|list_id}
+            """, h.steal())
 
-            with list.locked, queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    DELETE FROM {TBL.List}
-                    WHERE {TBL.List.id} = {h|list.id}
-                """, h.steal())
-
-                cursor.rowcount
+            return cursor.rowcount > 0
 
 
     def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
@@ -188,25 +179,27 @@ class Community(BaseStructure):
         
         return self.get_list_by_id(self.default_selected_list_id)
     
-    def set_default_selected_list(self, list_id: int | None) -> None:
-        from utils import required
-        
+    def set_default_selected_list(self, list_id: int | None) -> bool:
         h = queries.ArgHelper()
 
-        with self.locked:
-            if list_id is None:
-                list_id = None
-            else:
-                list_id = required.structure_not_none(self.get_list_by_id(list_id), List).id
-            
-            with queries.connected() as (conn, cursor):
+        with queries.connected() as (conn, cursor):
+            try:
                 cursor.execute(f"""
                     UPDATE {TBL.Community} 
                     SET {TBL.Community.default_selected_list_id} = {h|list_id}
                     WHERE {TBL.Community.id} = {h|self.id}
                 """, h.steal())
+            except mariadb.IntegrityError as e:
+                # list_id doesn't exist
+                if e.errno == ERR.ER_NO_REFERENCED_ROW_2:
+                    return False
+                
+                raise e
+            
+            return True
+                
     
-    def create_or_get_community_user(
+    def get_or_create_community_user(
         self, 
         jumpedia_user: JumpediaUser, 
         community_rank: CommunityRank, 
@@ -282,87 +275,3 @@ class Community(BaseStructure):
             community_rank=CommunityRank.get(result[TBL.CommunityUser.power]),
             selected_list_id=result[TBL.CommunityUser.selected_list_id]
         )
-    
-    def _fetch_from_community_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
-        h = queries.ArgHelper()
-        
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM {TBL.CommunityUser}
-                WHERE 
-                    {TBL.CommunityUser.community_id} = {h|self.id}
-                    {f"AND {where(h)}" if where is not None else ""}
-            """, h.steal())
-
-            result: typed.ManyTableRowT = cursor.fetchall()
-
-        return result
-    
-    def add_to_server(self, server_id: int) -> 'Community':
-        with self.jumpedia.locked:
-            existing_community = self.jumpedia.get_community_by_server_id(server_id)
-
-            if existing_community is not None:
-                if self == existing_community:
-                    raise FeedbackError(
-                        "Server Already Connected To Specified Community",
-                        f"This server is already connected to the specified community ({msg.code(self.name)})!"
-                    )
-                
-                import cogs.jumpedia
-                
-                connect_cmd = cogs.jumpedia.JumpediaCog.connect_community.qualified_name
-                disconnect_cmd = cogs.jumpedia.JumpediaCog.disconnect_community.qualified_name
-
-                raise FeedbackError(
-                    "Server Already Connected To A Community",
-                    f"This server is already connected to a different community called {msg.code(existing_community.name)}!",
-                    additional="A server can only be connected to one community at a time.",
-                    paragraphs=[
-                        f"If you want to change the community for this server, see the commands "
-                        f"{msg.code(connect_cmd)} and {msg.code(disconnect_cmd)}."
-                    ]
-                )     
-            
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO {TBL.Server} (
-                        {TBL.Server.id},
-                        {TBL.Server.community_id}
-                    )
-                    VALUES (
-                        {h|server_id},
-                        {h|self.id}
-                    )
-                """, h.steal())
-
-        return required.structure_not_none(
-            self.jumpedia.get_community_by_id(self.id),
-            Community
-        )
-
-    def remove_from_server(self, server_id: int) -> 'Community':
-        with self.locked, self.jumpedia.locked:
-            existing_community = self.jumpedia.get_community_by_server_id(server_id)
-
-            required.server_with_community(existing_community)
-
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    DELETE FROM {TBL.Server}
-                    WHERE 
-                        {TBL.Server.id} = {h|server_id}
-                        AND {TBL.Server.community_id} = {TBL.Server.id}
-                """, h.steal())
-
-        return required.structure_not_none(
-            self.jumpedia.get_community_by_id(self.id),
-            Community
-        )
-
-            

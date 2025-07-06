@@ -110,11 +110,18 @@ if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in Attri
 
 # Single point of truth is type so we can use type checking; data -> type doesn't work
 type LiteralToStrPossibleT = bool | int | str
-LITERAL_TO_STR_POSSIBLE = frozenset(typing.get_args(LiteralToStrPossibleT.__value__))
+LITERAL_TO_STR_POSSIBLE = (bool, int, str)
 
 # Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
 type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
-ATTRIBUTE_VALUE_PARSE_TYPES = LiteralToStrPossibleT.__value__ | list[LiteralToStrPossibleT.__value__]
+ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
+
+if typing.get_args(LiteralToStrPossibleT.__value__) != LITERAL_TO_STR_POSSIBLE:
+    raise RuntimeError()
+
+# Checking ATTRIBUTE_VALUE_PARSE_TYPES is too much effort and hard to generalize
+# Just make sure it stays consistent when changing one
+
 
 
 @functools.total_ordering

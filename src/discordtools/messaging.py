@@ -66,17 +66,17 @@ def layout(header: str, core: str, message_status: MessageStatus, *, additional:
 
 
 
-def code(s: str) -> str:
-    return f"`{s}`"
+def code(o: Any) -> str:
+    return f"`{o}`"
 
-def code_many(elems: Iterable[str]) -> Generator[str, None, None]:
-    return (code(elem) for elem in elems)
+def code_many(objects: Iterable[Any]) -> Generator[str, None, None]:
+    return (code(elem) for elem in objects)
 
-def shorten_and_code(s: str, max: int = 32, more: str = '...') -> str:
-    return text.shorten(code(s), max=max, more=more)
+def shorten_and_code(o: Any, max: int = 32, more: str = '...') -> str:
+    return text.shorten(code(o), max=max, more=more)
 
 def shorten_and_code_many(
-    elems: Sequence[str], 
+    objects: Sequence[Any], 
     *,
     max_elems: int = 8, 
     max_s: int = 16,
@@ -84,12 +84,12 @@ def shorten_and_code_many(
     more_s: str = '...'
 ):
     return code_many(text.shorten_many(
-        elems, 
+        objects, 
         max_elems=max_elems, 
         max_s=max_s, 
         more_elems=more_elems, 
         more_s=more_s
     ))
 
-def code_big(s: str) -> str:
-    return f"```{s}```"
+def code_big(o: Any) -> str:
+    return f"```{o}```"

@@ -6,9 +6,9 @@ from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from ranks.server_rank import ServerRank
 
-type AnyRank = JumpediaRank | CommunityRank | ServerRank
+type AnyRankT = JumpediaRank | CommunityRank | ServerRank
 
-def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
+def get_offset_rank(base_rank: AnyRankT, offset: int) -> AnyRankT:
     """
     This hierarchy is kind of confusing:
 
@@ -36,5 +36,5 @@ def get_offset_rank(base_rank: AnyRank, offset: int) -> AnyRank:
     return scale[idx]
 
 
-def rank_classes_iter() -> Iterator[type[AnyRank]]:
+def rank_classes_iter() -> Iterator[type[AnyRankT]]:
     return iter(BaseRank.__subclasses__())  # type: ignore

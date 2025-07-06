@@ -31,8 +31,8 @@ def server_already_connected_to_community(current_community: 'Community', new_co
 
 def name_ends_in_structure_name(name: str, structure: type[BaseStructure]) -> FeedbackError:
     return FeedbackError(
-        f"Name Ends In {structure.structure_name(True)}",
-        f"The name of the specified {structure.structure_name()} ends in {msg.code(name)}!",
+        f"Name Ends In {structure.get_structure_name(True)}",
+        f"The name of the specified {structure.get_structure_name()} ends in {msg.code(name)}!",
         additional="Please leave that part out of the name, as it is redundant and it makes feedback messages more confusing to understand."
     )
 

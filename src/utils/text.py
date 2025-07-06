@@ -103,21 +103,24 @@ def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_le
 
     return (name, aliases)
 
-def human_join(sequence: Sequence[str], final_delimiter: str, delimiter: str = ", ") -> str:
-    if len(sequence) <= 1:
-        return delimiter.join(sequence)
-    
-    return f"{delimiter.join(sequence[:-1])}{final_delimiter}{sequence[-1]}"
+def human_join(objects: Sequence[Any], final_delimiter: str, delimiter: str = ", ") -> str:
+    objects_str = tuple(map(str, objects))
 
-def shorten(s: str, max: int = 32, more: str = '...') -> str:
+    if len(objects) <= 1:
+        return delimiter.join(objects_str)
+    
+    return f"{delimiter.join(objects_str[:-1])}{final_delimiter}{objects[-1]}"
+
+def shorten(o: Any, max: int = 32, more: str = '...') -> str:
+    s = str(o)
     return s[:max - len(more)] + more if len(s) > max else s
 
-def shorten_many(elems: Sequence[str], *, max_elems: int = 8, max_s: int = 16, more_elems: str = '...', more_s: str = '...') -> Generator[str, None, None]:
-    if len(elems) >= max_elems:
-        yield from elems
+def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16, more_elems: str = '...', more_s: str = '...') -> Generator[str, None, None]:
+    if len(objects) >= max_elems:
+        yield from map(str, objects)
         return
     
-    for elem in elems[:max_elems]:
+    for elem in objects[:max_elems]:
         yield shorten(elem, max_s, more_s)
 
     yield more_elems

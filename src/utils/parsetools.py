@@ -3,7 +3,7 @@ from decimal import Decimal
 import json
 import re
 from types import NoneType, UnionType
-from typing import Any, Final, Union
+from typing import Any, Final, Never, Self, Union
 import typing
 
 PARSING_MAX_LENGTH: Final[int] = 2**20
@@ -22,25 +22,35 @@ def json_depth(o: Any) -> int:
         return 1 + max(json_depth(a) for a in o)
     return 0
 
-type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT] | Any
-type SupportedJsonTypesTypeT = type[None | bool | int | float | str] | list[SupportedJsonTypesTypeT] | dict[type[str], SupportedJsonTypesTypeT] | type[object] | UnionType
+type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT]
+
+# This represents the strict type. 
+# A literal tuple represents a union. 
+# There are two variants, the ...NoUnionT is there to not allow nested tuples/unions. 
+type SupportedJsonTypesTypeNoUnionT = type[None | bool | int | float | str] | list[SupportedJsonTypesTypeT] | dict[type[str], SupportedJsonTypesTypeT] | type[Anything]
+type SupportedJsonTypesTypeT = SupportedJsonTypesTypeNoUnionT | tuple[SupportedJsonTypesTypeNoUnionT, ...]
+
+_NON_UNION_EXPECTED_TYPE = frozenset((NoneType, bool, int, float, str))
+
+class Anything:
+    def __new__(cls) -> Never:
+        raise RuntimeError()
 
 
-_NON_UNION_EXPECTED_TYPE = frozenset((NoneType, bool, int, float, str, object))
 
 class StrictTypeError(ValueError):
     """The given strict_type is invalid"""
 
-class WrongAmountOfArgs(ValueError):
-    def __init__(self, given: tuple[int, ...], expected: int, *args: object) -> NoneType:
+class TooManyArgs(ValueError):
+    def __init__(self, given: int, max: int, *args: object) -> NoneType:
         super().__init__(*args)
         self.given = given
-        self.expected = expected
+        self.max = max
 
 class SafeJsonParser:
     MAX_LENGTH: int = PARSING_MAX_LENGTH
 
-    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = object) -> None:
+    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = Anything) -> None:
         self.max_depth = max_depth
         self.max_length = max_length
         self.strict_type = strict_type
@@ -69,15 +79,65 @@ class SafeJsonParser:
         return result
     
     @classmethod
-    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = object) -> None:
-        if strict_type == object:
+    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = Anything) -> None:
+        if strict_type == Anything:
             return
         
         type_origin = typing.get_origin(strict_type)
 
-        if type_origin in (Union, UnionType):
+        if type_origin is None:
+            type_origin = strict_type
+        
+        # Ex: [str]
+        if isinstance(type_origin, list):
+            if not isinstance(obj, list):
+                raise TypeError
+
+            if len(type_origin) > 1:
+                raise TooManyArgs(len(type_origin), 1)
+            
+            if not type_origin:
+                return
+            
+            expected_elems_type = type_origin[0]
+
+            if expected_elems_type == Anything:
+                return
+
+            for child_obj in obj:
+                cls.validate_json_type(child_obj, expected_elems_type)
+
+            return
+
+        # Ex: {str: int}
+        if isinstance(type_origin, dict):
+            if not isinstance(obj, dict):
+                raise TypeError
+            
+            if len(type_origin) > 1:
+                raise TooManyArgs(len(type_origin), 1)
+            
+            if not type_origin:
+                return
+            
+            expected_k_type, expected_v_type = next(iter(type_origin.items()))
+
+            if expected_v_type != str:
+                raise StrictTypeError("Key must be type of str")
+            
+            for child_k, child_v in obj.items():
+                if not isinstance(child_k, expected_k_type):
+                    raise TypeError("Dict key not str")
+                
+                if expected_v_type != Anything:
+                    cls.validate_json_type(child_v, expected_v_type)
+
+            return
+
+        if isinstance(type_origin, tuple):
             success: bool = False
-            for union_member in typing.get_args(strict_type):
+            
+            for union_member in type_origin:
                 try:
                     cls.validate_json_type(obj, union_member)
                 except TypeError:  # Fail, continue to next member and try it
@@ -92,35 +152,17 @@ class SafeJsonParser:
             
             # Not a single union_member matched the type
             raise TypeError(obj, strict_type)
-
-        if type_origin is None:
-            type_origin = strict_type
-
-        # Not isinstance because sees bool as int and more...
-        if not type(obj) == type_origin:
-            raise TypeError(obj, strict_type) 
-        
-        if isinstance(type_origin, list):
-            # No elements
-            if not type_origin or type_origin[0] == object:
-                return
-
-            expected_elems_type = type_origin[0]
-
-            for child_obj in type_origin:
-                cls.validate_json_type(child_obj, expected_elems_type)
-        elif isinstance(type_origin)
-        
         
         if not type_origin in _NON_UNION_EXPECTED_TYPE:
             raise StrictTypeError(type_origin)
+   
+        if typing.get_args(strict_type):
+            raise StrictTypeError
         
-
-        type_args = typing.get_args(strict_type)
-
-        if not type_args:
-            return
-        
+        # Not isinstance because sees bool as int and more...
+        if not type(obj) == type_origin:
+            raise TypeError(obj, strict_type)  
+            
         
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
 _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
@@ -217,18 +259,3 @@ def unparse_timedelta(obj: datetime.timedelta) -> str:
         parts.append(f"{abs(seconds)}s")
         
     return ''.join(parts)
-
-
-if __name__ == '__main__':
-    print(Union[str], Union[(str,)], Union[(str, int)])
-    
-    # Single point of truth is type so we can use type checking; data -> type doesn't work
-    type LiteralToStrPossibleT = bool | int | str
-    LITERAL_TO_STR_POSSIBLE = frozenset(typing.get_args(LiteralToStrPossibleT.__value__))
-
-    # Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
-    type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
-    ATTRIBUTE_VALUE_PARSE_TYPES = LiteralToStrPossibleT.__value__ | list[LiteralToStrPossibleT.__value__]
-
-    parser = SafeJsonParser(strict_type=ATTRIBUTE_VALUE_PARSE_TYPES)
-    parser.loads('0.0')

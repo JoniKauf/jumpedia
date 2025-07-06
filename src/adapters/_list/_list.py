@@ -3,28 +3,59 @@
 from dataclasses import dataclass
 import json
 from typing import Any, ClassVar
-from adapters.base_adapter import BaseAdapter
-from adapters.task_adapter import _TaskAdapter
+from adapters._base_adapter import BaseAdapter
+from adapters._community import CommunityAdapter
+from adapters._task import TaskAdapter
 from errors.feedback import FeedbackError, feedbacks
 from structures import attributes, task
+from structures.task import Task
 from structures.attributes.task_attribute import TaskAttribute
 from structures.list import List
-from utils import parsetools, required, text
+from utils import parsetools, text
 from discordtools import messaging as msg
 
+
+def _require_task_with_name(name: str, list: List) -> Task:
+    task = list.get_task_by_name(name)
+
+    if task is None:
+        raise feedbacks.temp(f"Task with name `{name}` not found!")
+    
+    return task
+
+
 @dataclass(frozen=True)
-class _ListAdapter(BaseAdapter[List]):
+class ListAdapter(BaseAdapter):
+    _list: List
+    community: CommunityAdapter
+    
     alias_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
         max_depth=1,
-        strict_type=list[str]
+        strict_type=[str]
     )
 
     attribute_value_mapping_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
         max_depth=attributes.COLLECTION_MAX_DEPTH,
-        strict_type=dict[str, attributes.ATTRIBUTE_VALUE_PARSE_TYPES]
+        strict_type={str: attributes.ATTRIBUTE_VALUE_PARSE_TYPES}
     )
     
-    def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> _TaskAdapter:
+    # --- Task ---
+
+    def get_tasks(self) -> list[TaskAdapter]:
+        return [
+            TaskAdapter(self._ia, task, self)
+            for task
+            in self._list.get_tasks()
+        ]
+    
+    def get_task(self, name: str) -> TaskAdapter:
+        return TaskAdapter(
+            self._ia,
+            _require_task_with_name(text.sanitize(name), self._list),
+            self
+        )
+
+    def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
         name = text.sanitize(name)
         aliases_parsed: list[str] = self.__class__.alias_parser.loads(aliases)
 
@@ -47,7 +78,7 @@ class _ListAdapter(BaseAdapter[List]):
             k = text.sanitize(k)
 
             attr = required.structure_not_none(
-                self._structure.get_task_attribute_by_name(k),
+                self._list.get_task_attribute_by_name(k),
                 TaskAttribute,
                 k
             )
@@ -64,7 +95,7 @@ class _ListAdapter(BaseAdapter[List]):
 
             avm_result[attr] = value  
         
-        return _TaskAdapter(self.context, self._structure.create_task(
+        return TaskAdapter(self.context, self._structure.create_task(
             name, 
             frozenset(aliases_set),
             avm_result

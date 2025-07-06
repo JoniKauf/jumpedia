@@ -3,7 +3,7 @@
 from typing import Final
 import builtins
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Never, NotRequired, Self, TypedDict
+from typing import TYPE_CHECKING
 from database import queries
 from structures.base_structure import BaseStructure
 from utils import text

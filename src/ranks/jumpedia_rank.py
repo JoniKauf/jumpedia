@@ -19,11 +19,11 @@ class JumpediaRank(BaseRank):
     def _init(cls) -> None:
         super()._init()
         
-        cls.NONE = JumpediaRank(0, "None")
+        cls.JUMPEDIA_USER = JumpediaRank(0, "None")
         cls.META_ADMIN = JumpediaRank(100, "Meta Administrator")
-        cls.JONIKAUF = JumpediaRank(10 ** 6, "JoniKauf")
+        cls.JONIKAUF = JumpediaRank(200, "JoniKauf")
 
-        cls.LOWEST = cls.NONE
+        cls.LOWEST = cls.JUMPEDIA_USER
         cls.HIGHEST = cls.JONIKAUF
         cls.DEFAULT = cls.LOWEST
 

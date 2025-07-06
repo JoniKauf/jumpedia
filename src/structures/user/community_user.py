@@ -44,11 +44,3 @@ class CommunityUser(BaseStructure):
             return None
         
         return self.community._list_data_to_obj(result)
-    
-    @property
-    def most_important_rank(self) -> CommunityRank | JumpediaRank:
-        return (
-            self.jumpedia_user.jumpedia_rank 
-            or self.community_rank 
-            or JumpediaRank.NONE
-        )
