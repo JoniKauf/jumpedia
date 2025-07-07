@@ -3,18 +3,18 @@ from functools import cached_property
 import discord as dc
 
 from adapters._base_adapter import BaseAdapter
+from adapters._discord.member import MemberAdapter
 from adapters._jumpedia import JumpediaAdapter
-from adapters._users.discord_user import DiscordUserAdapter
-from adapters._discord_server import DiscordServerAdapter
+from adapters._discord.user import UserAdapter
+from adapters._discord.server import ServerAdapter
 from errors.feedback import feedbacks
 from ranks.server_rank import ServerRank
 
-
-def _require_server(server: dc.Guild | None) -> dc.Guild:
-    if server is None:
-        raise feedbacks.temp("Server is None")
+def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
+    if isinstance(user_or_member, dc.User):
+        raise feedbacks.temp("You must be on a server")
     
-    return server
+    return user_or_member
 
 
 @dataclass(frozen=True)
@@ -30,25 +30,23 @@ class InteractionAdapter(BaseAdapter):
         self.jumpedia.get_or_create_current_jumpedia_user()
 
     @cached_property
-    def discord_user(self) -> DiscordUserAdapter:
+    def server(self) -> ServerAdapter:
+        user = _require_member(self._interaction.user)
+        return ServerAdapter(user.guild, self)
+    
+    @cached_property
+    def user(self) -> UserAdapter:
         user_or_member = self._interaction.user
         
         if isinstance(user_or_member, dc.Member):
-            return DiscordUserAdapter(user_or_member._user)
+            return UserAdapter(user_or_member._user, self)
         
-        return DiscordUserAdapter(user_or_member)
+        return UserAdapter(user_or_member, self)
     
     @cached_property
-    def discord_server(self) -> DiscordServerAdapter:
-        server = _require_server(self._interaction.guild)
-
-        assert isinstance(self._interaction.user, dc.Member)
-
-        return DiscordServerAdapter(
-            server,
-            self._interaction.user
-        )
-        
+    def member(self) -> MemberAdapter:
+        member = _require_member(self._interaction.user)
+        return MemberAdapter(member, self.server, self.user)
     
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:

@@ -9,4 +9,5 @@ import builtins
 @dataclass(frozen=True)
 class TaskAdapter(BaseAdapter):
     _task: Task
+    
     list: ListAdapter

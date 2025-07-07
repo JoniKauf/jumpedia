@@ -4,6 +4,8 @@ import string
 from typing import Any, Callable, Container, Final, Generator, Iterable, Literal, Sequence
 from collections.abc import Set
 
+from errors.feedback import feedbacks
+
 PASCAL_REPLACE_PATTERN = re.compile(r'(?!^)([A-Z]+)')
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + '_')
@@ -44,64 +46,57 @@ def sanitize(s: str, whitespace_repl: str = ' ') -> str:
     s = fix_whitespace(s, whitespace_repl, True) 
     return ''.join(c for c in s if c.isprintable())
 
-def validate_and_sanitize_name(bad_name: str, max_length: int, forbidden: Iterable[str] = ()) -> str:
-    from discordtools import feedbackerrors as fbe
+def valnitize(s: str, min_length: int, max_length: int) -> str:
+    name = sanitize(s)
+    length = len(name)
 
-    name = sanitize(bad_name)
-    
-    if not name:
-        raise fbe.TemporaryFeedbackError("Name is empty or just spaces.")
-    
-    if (length := len(name)) > max_length:
-        raise fbe.TemporaryFeedbackError("Too long name", name, length, max_length)
-    
-    if NORMALIZE_FUNC(name) in (NORMALIZE_FUNC(f) for f in forbidden):
-        raise fbe.TemporaryFeedbackError("Name is already taken.")
+    if not (min_length <= length <= max_length):
+        raise feedbacks.temp(f"Name must be between", min_length, "and", max_length, "characters long")
     
     return name
 
-def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> set[str]:
-    from discordtools import feedbackerrors as fbe
+# def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> set[str]:
+#     from discordtools import feedbackerrors as fbe
 
-    result: set[str] = set()
+#     result: set[str] = set()
 
-    forbidden = frozenset(NORMALIZE_FUNC(f) for f in forbidden)
+#     forbidden = frozenset(NORMALIZE_FUNC(f) for f in forbidden)
 
-    for alias in bad_aliases:
-        alias = sanitize(alias)
+#     for alias in bad_aliases:
+#         alias = sanitize(alias)
 
-        if not alias:
-            continue
+#         if not alias:
+#             continue
 
-        if (length := len(alias)) > max_length:
-            raise fbe.TemporaryFeedbackError("Too long alias", alias, length, max_length)
+#         if (length := len(alias)) > max_length:
+#             raise fbe.TemporaryFeedbackError("Too long alias", alias, length, max_length)
         
-        if alias in forbidden:
-            raise fbe.TemporaryFeedbackError("Not allowed alias (already taken)", alias, forbidden)
+#         if alias in forbidden:
+#             raise fbe.TemporaryFeedbackError("Not allowed alias (already taken)", alias, forbidden)
         
-        result.add(alias)
+#         result.add(alias)
         
-    if (count := len(result)) > max_count:
-        raise fbe.TemporaryFeedbackError("Too many aliases", result, count, max_count)
+#     if (count := len(result)) > max_count:
+#         raise fbe.TemporaryFeedbackError("Too many aliases", result, count, max_count)
     
-    return result
+#     return result
 
-def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> tuple[str, set[str]]:
-    from discordtools import feedbackerrors as fbe
+# def validate_and_sanitize_syns(bad_name: str, bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> tuple[str, set[str]]:
+#     from discordtools import feedbackerrors as fbe
     
-    forbidden = tuple(forbidden)
+#     forbidden = tuple(forbidden)
 
-    name = validate_and_sanitize_name(bad_name, max_length, forbidden)
-    aliases = validate_and_sanitize_aliases(bad_aliases, max_length, max_count, forbidden)
+#     name = valnitize(bad_name, max_length, forbidden)
+#     aliases = validate_and_sanitize_aliases(bad_aliases, max_length, max_count, forbidden)
 
-    if name in aliases:
-        aliases.remove(name)
-    elif (count := len(aliases)) > max_count:
-        # Retest count because above we didn't subtract one to account for name
-        # possibly being in, but because now we know it isn't in, it could be 1 too many
-        raise fbe.TemporaryFeedbackError("Too many aliases", aliases, count, max_count)
+#     if name in aliases:
+#         aliases.remove(name)
+#     elif (count := len(aliases)) > max_count:
+#         # Retest count because above we didn't subtract one to account for name
+#         # possibly being in, but because now we know it isn't in, it could be 1 too many
+#         raise fbe.TemporaryFeedbackError("Too many aliases", aliases, count, max_count)
 
-    return (name, aliases)
+#     return (name, aliases)
 
 def human_join(objects: Sequence[Any], final_delimiter: str, delimiter: str = ", ") -> str:
     objects_str = tuple(map(str, objects))

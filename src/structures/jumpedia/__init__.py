@@ -414,7 +414,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     # --- Communities ---
 
-    def create_community(self, *, name: str, server_id: int, jumpedia_user: JumpediaUser, list_name: str) -> 'Community':
+    def create_community(self, *, name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
         with self.locked:
             community_ = self.get_community_by_server_id(server_id)
 
@@ -472,19 +472,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     True
                 )
 
-                list = community_.create_list(list_name)
-
-                cursor.execute(f"""
-                    UPDATE {TBL.Community}
-                    SET {TBL.Community.default_selected_list_id} = {h|list.id}
-                    WHERE {TBL.Community.id} = {h|community_.id}
-                """, h.steal())
-
                 community_ = Community(
                     jumpedia=self,
                     id=community_id,
-                    default_selected_list_id=list.id,
-                    name=name
+                    name=name,
+                    default_selected_list_id=None
                 )
 
                 # Rollback if anything goes wrong up to this point
@@ -638,12 +630,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         data = self._fetch_from_user_table(lambda h: f"{TBL.JumpediaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 
-    def add_community_to_server(self, community: Community, server_id: int) -> 'Community':
-        with self.locked, community.locked:
+    def add_community_to_server(self, community_id: int, server_id: int) -> 'Community':
+        with self.locked:
             existing_community = self.get_community_by_server_id(server_id)
 
             if existing_community is not None:
-                if community == existing_community:
+                if community_id == existing_community.id:
                     raise feedbacks.temp("Community is already in this server!")
                 
                 import cogs.jumpedia
@@ -671,15 +663,15 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                     VALUES (
                         {h|server_id},
-                        {h|community.id}
+                        {h|community_id}
                     )
                 """, h.steal())
 
             # Community must now be connected
             return self.get_community_by_server_id(server_id)  # type: ignore
 
-    def remove_community_from_server(self, community: Community, server_id: int) -> 'Community':
-        with self.locked, community.locked:
+    def remove_community_from_server(self, server_id: int) -> 'Community':
+        with self.locked:
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
@@ -687,14 +679,13 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     DELETE FROM {TBL.Server}
                     WHERE 
                         {TBL.Server.id} = {h|server_id}
-                        AND {TBL.Server.community_id} = {TBL.Server.id}
                 """, h.steal())
 
                 if cursor.rowcount < 1:
                     raise NotInServerError
             
             # Community must exist
-            return self.get_community_by_id(community.id)  # type: ignore  
+            return self.get_community_by_id(community_id)  # type: ignore  
         
     
 

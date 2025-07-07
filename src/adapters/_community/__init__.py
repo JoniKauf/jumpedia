@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, overload
 from adapters._base_adapter import BaseAdapter
 from adapters._list._list import ListAdapter
+from adapters._users.community_user import CommunityUserAdapter
 from adapters._users.jumpedia_user import JumpediaUserAdapter
 from adapters._jumpedia import JumpediaAdapter
 from discordtools import users
@@ -14,7 +15,6 @@ from structures import list as list_
 from structures.list import List
 from structures.user.community_user import CommunityUser
 from structures.user.jumpedia_user import JumpediaUser
-from utils import text
 
 
 def _require_list_with_name(name: str, community: Community) -> List:
@@ -25,9 +25,19 @@ def _require_list_with_name(name: str, community: Community) -> List:
     
     return list
 
+def _valnitize_list_name(name: str) -> str:
+    from utils import text
+
+    return text.valnitize(
+        name, 
+        list_.MIN_NAME_LENGTH, 
+        list_.MAX_NAME_LENGTH
+    )
+
 @dataclass(frozen=True)
 class CommunityAdapter(BaseAdapter):
     _community: Community
+
     jumpedia: JumpediaAdapter
 
     @property
@@ -38,34 +48,26 @@ class CommunityAdapter(BaseAdapter):
 
     def get_lists(self) -> list[ListAdapter]:
         return [
-            ListAdapter(self._ia, list, self)
+            ListAdapter(list, self)
             for list in
             self._community.get_lists()
         ]
     
     def get_list(self, name: str) -> ListAdapter:
         return ListAdapter(
-            self._ia, 
-            _require_list_with_name(text.sanitize(name), self._community), 
+            _require_list_with_name(_valnitize_list_name(name), self._community), 
             self
         )
-
+    
     def create_list(self, name: str) -> ListAdapter:
-        name = text.validate_and_sanitize_name(
-            name,
-            list_.MAX_NAME_LENGTH
-        )
+        from utils import text
 
-        if text.norm_syn(name).endswith(List.__structure_name__):
-            raise FeedbackError(
-                f"Name Ends In {List.__structure_name__.title()}",
-                f"The specified name for the {List.__structure_name__.lower()}"
-            )
+        name = _valnitize_list_name(name)
         
-        return ListAdapter(self._ia, self._community.create_list(name), self)
+        return ListAdapter(self._community.create_list(name), self)
     
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(text.sanitize(name), self._community)
+        list = _require_list_with_name(_valnitize_list_name(name), self._community)
 
         if not self._community.delete_list(list.id):
             raise feedbacks.temp("The community or list was just deleted!")
@@ -81,7 +83,7 @@ class CommunityAdapter(BaseAdapter):
     _MISSING = object()
 
     def get_default_selected_list(self, name: str, default: Any = _MISSING):
-        name = text.sanitize(name)
+        name = _valnitize_list_name(name)
 
         list = self._community.get_default_selected_list()
 
@@ -99,7 +101,7 @@ class CommunityAdapter(BaseAdapter):
             list_id = None
         else:
             list_id = _require_list_with_name(
-                text.sanitize(name), self._community
+                _valnitize_list_name(name), self._community
             ).id
         
         if not self._community.set_default_selected_list(list_id):
@@ -108,16 +110,16 @@ class CommunityAdapter(BaseAdapter):
 
     # --- User ---
     
-    def get_or_create_community_user(self, jumpedia_user: JumpediaUserAdapter, override_community_rank: CommunityRank | None = None) -> CommunityUser:
-        return self._community.get_or_create_community_user(
+    def get_or_create_community_user(self, jumpedia_user: JumpediaUserAdapter, override_community_rank: CommunityRank | None = None) -> CommunityUserAdapter:
+        return CommunityUserAdapter(self._community.get_or_create_community_user(
             jumpedia_user._jumpedia_user,
             override_community_rank or CommunityRank.DEFAULT,
             None,
             override_community_rank is not None,
             False
-        )
+        ), self, jumpedia_user)
     
-    def get_or_create_current_community_user(self, override_community_rank: CommunityRank | None = None) -> CommunityUser:
+    def get_or_create_current_community_user(self, override_community_rank: CommunityRank | None = None) -> CommunityUserAdapter:
         return self.get_or_create_community_user(
             self.jumpedia.get_or_create_current_jumpedia_user(),
             override_community_rank

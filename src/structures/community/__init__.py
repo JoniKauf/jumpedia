@@ -17,7 +17,7 @@ from structures.attributes.static_attribute import StaticAttribute
 from structures.list import List
 from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
-from utils import required, text
+from utils import text
 from database import queries, typed as typed
 from database.typed import SingleTableRowT, Tables as TBL
 from typing import Optional as Opt
@@ -34,6 +34,7 @@ class CommunityDataCache:
 
 
 MAX_NAME_LENGTH: int = 64
+MIN_NAME_LENGTH: int = 2
 
 @dataclass(frozen=True, kw_only=True)
 class Community(BaseStructure):
@@ -143,8 +144,9 @@ class Community(BaseStructure):
             cursor.execute(f"""
                 SELECT *
                 FROM {TBL.List}
-                WHERE {TBL.List.community_id} = {h|self.id}
-                {f"AND {where(h)}" if where is not None else ""}
+                WHERE 
+                    {TBL.List.community_id} = {h|self.id}
+                    {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
             result: typed.ManyTableRowT = cursor.fetchall()
@@ -198,7 +200,6 @@ class Community(BaseStructure):
             
             return True
                 
-    
     def get_or_create_community_user(
         self, 
         jumpedia_user: JumpediaUser, 

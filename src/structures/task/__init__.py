@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 STATIC_NAME_ATTRIBUTE_NAME: Final[str] = 'name'
 STATIC_ALIASES_ATTRIBUTE_NAME: Final[str] = 'aliases'
 
-MAX_SYN_LEN: Final[int] = 80
+MIN_SYN_LEN: Final[int] = 1
+MAX_SYN_LEN: Final[int] = 128
 
 @dataclass(frozen=True, kw_only=True)
 class Task(BaseStructure):

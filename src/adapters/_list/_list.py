@@ -11,7 +11,7 @@ from structures import attributes, task
 from structures.task import Task
 from structures.attributes.task_attribute import TaskAttribute
 from structures.list import List
-from utils import parsetools, text
+from utils import parsetools
 from discordtools import messaging as msg
 
 
@@ -23,10 +23,14 @@ def _require_task_with_name(name: str, list: List) -> Task:
     
     return task
 
+def _valnitize_task_name(name: str) -> str:
+    from utils import text
+    return text.valnitize(name, task.MAX_SYN_LEN, task.MAX_SYN_LEN)
 
 @dataclass(frozen=True)
 class ListAdapter(BaseAdapter):
     _list: List
+    
     community: CommunityAdapter
     
     alias_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
@@ -39,24 +43,27 @@ class ListAdapter(BaseAdapter):
         strict_type={str: attributes.ATTRIBUTE_VALUE_PARSE_TYPES}
     )
     
+    @property
+    def name(self) -> str:
+        return self._list.name
+
     # --- Task ---
 
     def get_tasks(self) -> list[TaskAdapter]:
         return [
-            TaskAdapter(self._ia, task, self)
+            TaskAdapter(task, self)
             for task
             in self._list.get_tasks()
         ]
     
     def get_task(self, name: str) -> TaskAdapter:
         return TaskAdapter(
-            self._ia,
-            _require_task_with_name(text.sanitize(name), self._list),
+            _require_task_with_name(_valnitize_task_name(name), self._list),
             self
         )
 
     def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
-        name = text.sanitize(name)
+        name = _valnitize_task_name(name)
         aliases_parsed: list[str] = self.__class__.alias_parser.loads(aliases)
 
         name, aliases_set = text.validate_and_sanitize_syns(

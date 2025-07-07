@@ -26,7 +26,8 @@ def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
         if not rank_required:
             return True
         
-        jumpedia_user = InteractionAdapter(interaction).jumpedia.get_or_create_current_jumpedia_user()
+        jumpedia = InteractionAdapter(interaction).jumpedia
+        jumpedia_user = jumpedia.get_or_create_current_jumpedia_user()
         jumpedia_rank = jumpedia_user.jumpedia_rank
 
         if isinstance(rank_required, JumpediaRank):
@@ -39,7 +40,7 @@ def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
             if jumpedia_rank:
                 return True
             
-            server_rank = InteractionAdapter(interaction).server_rank
+            server_rank = InteractionAdapter(interaction).member.server_rank
 
             if server_rank >= rank_required:
                 return True
@@ -50,7 +51,12 @@ def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
             if jumpedia_rank:
                 return True
             
-            community_rank = jumpedia_user.get_or_create_current_community_user().community_rank
+            community_rank = (
+                jumpedia
+                .get_current_community()
+                .get_or_create_community_user(jumpedia_user)
+                .community_rank
+            )
 
             if community_rank >= rank_required:
                 return True

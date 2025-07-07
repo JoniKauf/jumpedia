@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
 import json
-from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Iterable, Literal, Never, NotRequired, Self, TypedDict
+from multiprocessing.util import Finalize
+from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Self, TypedDict
 
 from database import queries 
 from errors.feedback import feedbacks
@@ -31,9 +32,10 @@ if TYPE_CHECKING:
     from structures.community import Community
 
 
-MAX_NAME_LENGTH: int = 64
-MAX_ATTRIBUTES: int = 3
-MAX_TASKS: int = 1
+MIN_NAME_LENGTH: Final[int] = 2
+MAX_NAME_LENGTH: Final[int] = 64
+MAX_ATTRIBUTES: Final[int] = 3
+MAX_TASKS: Final[int] = 1
 
 
 class UserCollectionNodeT(TypedDict, total=True):

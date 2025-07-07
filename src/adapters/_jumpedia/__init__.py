@@ -5,22 +5,22 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, overload
 from adapters._base_adapter import BaseAdapter
 from adapters._community import CommunityAdapter
+from adapters._discord.user import UserAdapter
 from adapters._users.jumpedia_user import JumpediaUserAdapter
 from adapters.interaction import InteractionAdapter
 from discordtools import users
 from errors.feedback import feedbacks
 from ranks.jumpedia_rank import JumpediaRank
+from structures import community
 from structures.community import Community
 from structures.jumpedia import Jumpedia
-from utils import text
 import discord as dc
 
-
-def _require_server(server: dc.Guild | None) -> dc.Guild:
-    if server is None:
-        raise feedbacks.temp("Server is None")
+def _require_server_with_community(community: Community | None) -> Community:
+    if community is None:
+        raise feedbacks.temp("Server isnt connected ot community")
     
-    return server
+    return community
 
 def _require_community_with_name(name: str, jumpedia: Jumpedia) -> Community:
     community = jumpedia.get_community_by_name(name)
@@ -29,23 +29,23 @@ def _require_community_with_name(name: str, jumpedia: Jumpedia) -> Community:
         raise feedbacks.temp(f"Community with the name `{name}` could not be found!")
     
     return community
-    
-def _require_server_with_community(server: dc.Guild | None, jumpedia: Jumpedia) -> tuple[dc.Guild, Community]:
-    server = _require_server(server)
-    
-    community = jumpedia.get_community_by_server_id(server.id)
 
-    if community is None:
-        raise feedbacks.temp("Server not connected to community")
-    
-    return (server, community)
 
+def _valnitize_community_name(name: str) -> str:
+    from utils import text
+
+    return text.valnitize(
+        name, 
+        community.MIN_NAME_LENGTH, 
+        community.MAX_NAME_LENGTH
+    )
 
 
 
 @dataclass(frozen=True)
 class JumpediaAdapter(BaseAdapter):
     _jumpedia: Jumpedia = field(init=False, default=Jumpedia())
+    
     interaction: InteractionAdapter
 
     # --- Community ---
@@ -59,54 +59,56 @@ class JumpediaAdapter(BaseAdapter):
     
     def get_community(self, name: str) -> CommunityAdapter:
         return CommunityAdapter(
-            _require_community_with_name(text.sanitize(name), self._jumpedia),
+            _require_community_with_name(_valnitize_community_name(name), self._jumpedia),
             self
         )
     
     def get_current_community(self) -> CommunityAdapter:
-        return CommunityAdapter(
-            _require_server_with_community(self.interaction, self._jumpedia)[1],
-            self
-        )
+        return self.get_community(_require_server_with_community(
+            self._jumpedia.get_community_by_server_id(self.interaction.server.id)
+        ).name)
     
-    def create_community(self, name: str, list_name: str) -> CommunityAdapter:
+    def create_community(self, name: str, initial_list_name: str | None) -> CommunityAdapter:
         jumpedia_user = self.get_or_create_current_jumpedia_user()._jumpedia_user
-        server_id = _require_server(self._interaction.guild).id
-
-        return CommunityAdapter(self._jumpedia.create_community(
+        
+        community = CommunityAdapter(self._jumpedia.create_community(
             jumpedia_user=jumpedia_user,
-            server_id=server_id,
-            name=text.sanitize(name),
-            list_name=text.sanitize(list_name)
+            server_id=self.interaction.server.id,
+            name=_valnitize_community_name(name)
         ), self)
+
+        if initial_list_name is not None:
+            list = community.create_list(initial_list_name)
+            community.set_default_selected_list(list.name)
+
+        return community
     
     def delete_community(self, name: str) -> None:
-        community = _require_community_with_name(text.sanitize(name), self._jumpedia)
+        community = _require_community_with_name(_valnitize_community_name(name), self._jumpedia)
 
         if not self._jumpedia.delete_community(community):
             raise feedbacks.temp("The community was just deleted!")
         
     def delete_current_community(self) -> None:
-        _, community = _require_server_with_community(self._interaction.guild, self._jumpedia)
-        self._jumpedia.delete_community(community)
+        self._jumpedia.delete_community(self.get_current_community()._community)
     
     def add_community_to_current_server(self, name: str) -> None:
-        server = _require_server(self._interaction.guild)
-        community = _require_community_with_name(text.sanitize(name), self._jumpedia)
+        self._jumpedia.add_community_to_server(
+            self.get_community(name)._community.id, 
+            self.interaction.server.id
+        )
 
-        self._jumpedia.add_community_to_server(community, server.id)
-
-    def remove_current_community_from_current_server(self) -> None:
-        server, community = _require_server_with_community(self._interaction.guild, self._jumpedia)
-        self._jumpedia.remove_community_from_server(community, server.id)
+    def remove_community_from_current_server(self) -> None:
+        self._jumpedia.remove_community_from_server(self.interaction.server._server.id)
 
 
 
     # --- Jumpedia User ---
 
-    def get_or_create_jumpedia_user(self, dc_user: users.AnyDiscordUserT, override_jumpedia_rank: JumpediaRank | None = None) -> JumpediaUserAdapter:
+    def get_or_create_jumpedia_user(self, user: UserAdapter, override_jumpedia_rank: JumpediaRank | None = None) -> JumpediaUserAdapter:
         jumpedia_user = self._jumpedia.create_or_get_jumpedia_user(
-            *users.get_user_id_and_name(dc_user),
+            user.id,
+            user.name,
             override_jumpedia_rank or JumpediaRank.DEFAULT,
             True,
             override_jumpedia_rank is not None
@@ -115,6 +117,6 @@ class JumpediaAdapter(BaseAdapter):
         return JumpediaUserAdapter(jumpedia_user, self)
     
     def get_or_create_current_jumpedia_user(self, override_jumpedia_rank: JumpediaRank | None = None) -> JumpediaUserAdapter:
-        return self.get_or_create_jumpedia_user(self._interaction.user, override_jumpedia_rank)
+        return self.get_or_create_jumpedia_user(self.interaction.user, override_jumpedia_rank)
 
         
