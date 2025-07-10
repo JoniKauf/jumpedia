@@ -1,11 +1,12 @@
 import datetime
 from decimal import Decimal
 import json
+import json.tool
 import re
 from types import NoneType, UnionType
-from typing import Any, Final, Never, Self, Union
+from typing import Any, Final, Mapping, Never, Self, Sequence, Union
 import typing
-
+import json
 PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'
 
@@ -22,7 +23,8 @@ def json_depth(o: Any) -> int:
         return 1 + max(json_depth(a) for a in o)
     return 0
 
-type SupportedJsonTypesT = None | bool | int | float | str | list[SupportedJsonTypesT] | dict[str, SupportedJsonTypesT]
+# Because list and dict are not covariant, we have to use other ways. This is a known issue.
+type SupportedJsonTypesT = None | bool | int | float | str | Sequence[SupportedJsonTypesT] | Mapping[str, SupportedJsonTypesT]
 
 # This represents the strict type. 
 # A literal tuple represents a union. 
@@ -47,7 +49,7 @@ class TooManyArgs(ValueError):
         self.given = given
         self.max = max
 
-class SafeJsonParser:
+class SafeJsonParser[T: SupportedJsonTypesT]:
     MAX_LENGTH: int = PARSING_MAX_LENGTH
 
     def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = Anything) -> None:
@@ -55,7 +57,7 @@ class SafeJsonParser:
         self.max_length = max_length
         self.strict_type = strict_type
 
-    def loads(self, s: str, **kwargs: Any) -> Any:  # type: ignore
+    def loads(self, s: str, **kwargs: Any) -> T:  # type: ignore
         s = s.strip()
         length = len(s)
 

@@ -175,7 +175,7 @@ class List(BaseStructure):
     
 
     # --- All Attributes ---
-    
+
     def get_attributes(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[AnyAttributeT]:
         return [attr for _, attr_coll in self.get_attributes_categorized(where) for attr in attr_coll]
 
@@ -860,7 +860,6 @@ class List(BaseStructure):
         return self._task_data_to_obj(data[0]) if data else None
 
     def get_task_by_alias(self, alias: str) -> Task | None:
-        alias = text.sanitize(alias)
         h = queries.ArgHelper()
 
         with queries.connected() as (conn, cursor):
@@ -878,3 +877,9 @@ class List(BaseStructure):
             return None
         
         return self.get_task_by_id(result[TBL.TaskAlias.task_id])
+    
+    def get_task_by_syn(self, syn: str) -> Task | None:
+        return (
+            self.get_task_by_name(syn) or
+            self.get_task_by_alias(syn)
+        )

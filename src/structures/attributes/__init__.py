@@ -9,6 +9,7 @@ import typing
 
 import errors
 from structures.attributes.collection import Collection
+from utils import text
 
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
@@ -64,6 +65,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(id={self.id!r}, name={self.name!r}, type={self.type!r}, literal_to_str_possible={self.literal_to_str_possible!r})'
+    
     @classmethod
     def get_by_id(cls, id: int) -> Self:
         try:
@@ -88,6 +90,15 @@ class AttributeValueType[T: AttributeValueTypeT]:
     @classmethod
     def get_all(cls) -> list[Self]:
         return cls._attribute_value_types.copy()
+    
+    def norm(self, value: T) -> T:
+        if type(value) == self.type:
+            raise ValueError
+        
+        if issubclass(self.type, str):
+            return text.norm(value)  # type: ignore
+        
+        return value
 
 
 AttributeValueType(1, 'boolean', bool)
@@ -222,6 +233,7 @@ COLLECTION_MAX_ELEMS: Final[int] = 1024
 COLLECTION_MAX_DEPTH: Final[int] = 16
 
 # General
+MIN_SYN_LEN: Final[int] = 1
 MAX_SYN_LEN: Final[int] = 32
 MAX_ALIAS_COUNT: Final[int] = 32
 MAX_COLLECTION_ALIASES: Final[int] = 7

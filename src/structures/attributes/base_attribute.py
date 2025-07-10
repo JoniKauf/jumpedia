@@ -225,10 +225,18 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         
         values = self._collection_conversion_if_needed(result_values)
 
-        if self.uniqueness >= Uniqueness.PER_VALUE:
-            if len(values) != len(frozenset(values)):
-                raise feedbacks.temp("Slots must be unique for this attribute")
-            
+        normed_to_val: dict[T, T] = {}
+
+
+        for v in values:
+            normed_v = self.value_type.norm(v)
+            other_v = normed_to_val.get(normed_v, None)
+
+            if other_v is None:
+                normed_to_val[normed_v] = v
+            elif other_v != v:
+                raise feedbacks.temp(f"All values that are equal case insensitively must be exactly equal. {other_v} != {v}")
+
         return values
     
     def value_from_str(self, s: str) -> Any:
@@ -238,7 +246,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         ))
 
     @classmethod
-    def general_from_str(cls, s: str, parser: parsetools.SafeJsonParser) -> Any:
+    def general_from_str[T_: attributes.AttributeValueParseTypesT](cls, s: str, parser: parsetools.SafeJsonParser[T_]) -> T_:
         try:
             return parser.loads(s)
         except json.JSONDecodeError as e:

@@ -2,19 +2,16 @@
 
 
 from dataclasses import dataclass, field
-from typing import ClassVar, Self, overload
 from adapters._base_adapter import BaseAdapter
 from adapters._community import CommunityAdapter
 from adapters._discord.user import UserAdapter
 from adapters._users.jumpedia_user import JumpediaUserAdapter
 from adapters.interaction import InteractionAdapter
-from discordtools import users
 from errors.feedback import feedbacks
 from ranks.jumpedia_rank import JumpediaRank
 from structures import community
 from structures.community import Community
 from structures.jumpedia import Jumpedia
-import discord as dc
 
 def _require_server_with_community(community: Community | None) -> Community:
     if community is None:
