@@ -123,7 +123,7 @@ class List(BaseStructure):
                     recursive(nodes)
                 )
 
-                for child_nodes in node.nodes:
+                for child_nodes in node.children:
                     child_nodes._post_set_root(node)
 
                 result.append(node)

@@ -1,5 +1,6 @@
 
 from dataclasses import dataclass, field
+import json
 from typing import ClassVar, Self
 
 from database import queries
@@ -68,6 +69,17 @@ class TaskAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
                 GROUP BY n.{TblNode.id}
             """, h.steal())
 
-            self._cache.collection = Collection.from_rows(cursor.fetchall(), self)
+            result: typed.ManyTableRowT = cursor.fetchall()
+        
+        self._cache.collection = Collection.create([
+            collection.CollectionNodeRaw(
+                id=row[TblNode.id],
+                value=row[TblNode.value],
+                aliases=json.loads(row[TblNode._aliases]),
+                sort_value=row[TblNode.sort_value],
+                root_id=row[TblNode.root_id]
+            )
+            for row in result
+        ], self)
 
         return self._cache.collection

@@ -42,4 +42,4 @@ class StaticAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
     
     
     def get_collection(self) -> Collection[T]:
-        return Collection.empty(self)
+        return Collection.create((), self)

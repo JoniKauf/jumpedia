@@ -162,7 +162,13 @@ class Uniqueness:
             subcls._value_mapping = cls._value_mapping.copy()
             subcls._name_mapping = cls._name_mapping.copy()
             subcls._init_cls()
-            
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Uniqueness) and self.value == other.value:
+            return True
+        
+        return NotImplemented
+    
     def __lt__(self, other: Any):
         if isinstance(other, Uniqueness):
             return self.value < other.value

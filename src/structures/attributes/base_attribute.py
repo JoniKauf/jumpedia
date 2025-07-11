@@ -35,7 +35,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     list: 'List'
     id: int 
     name: str
-    value_type: AttributeValueType
+    value_type: AttributeValueType[T]
     index: int
     min_slots: int
     max_slots: int
@@ -226,7 +226,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         values = self._collection_conversion_if_needed(result_values)
 
         normed_to_val: dict[T, T] = {}
-
+        unique_slots: bool = self.uniqueness >= Uniqueness.PER_VALUE
 
         for v in values:
             normed_v = self.value_type.norm(v)
@@ -234,7 +234,12 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
 
             if other_v is None:
                 normed_to_val[normed_v] = v
-            elif other_v != v:
+                continue
+            
+            if unique_slots:
+                raise feedbacks.temp(f"For the attribute {self.name} the slots must be unique. The value {v} appeared multiple times.")
+
+            if other_v != v:
                 raise feedbacks.temp(f"All values that are equal case insensitively must be exactly equal. {other_v} != {v}")
 
         return values

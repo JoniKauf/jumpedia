@@ -1,12 +1,14 @@
 
 
 from dataclasses import dataclass, field
+import json
 from typing import ClassVar
 from database import queries
 from database.typed import Tables as TBL
 from database import typed
 from structures import attributes
 from structures.attributes import AttributeDataCache, AttributeValueTypeT
+from structures.attributes import collection
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 
@@ -44,25 +46,34 @@ class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
             return self._cache.collection
         
         h = queries.ArgHelper()
-        NodeTbl = TBL.UserAttributeCollectionNode
-        NodeAliasTbl = TBL.UserAttributeCollectionNodeAlias
+        TblNode = TBL.UserAttributeCollectionNode
+        TblNodeAlias = TBL.UserAttributeCollectionNodeAlias
 
         with queries.connected() as (conn, cursor):
-            
             cursor.execute(f"""
                 SELECT 
                     n.*,
                     COALESCE(
-                        JSON_ARRAYAGG(a.{NodeAliasTbl.alias}),
+                        JSON_ARRAYAGG(a.{TblNodeAlias.alias}),
                         JSON_ARRAY()
-                    ) AS {NodeTbl._aliases}
-                FROM {NodeTbl} n
-                LEFT JOIN {NodeAliasTbl} a
-                    ON a.{NodeAliasTbl.user_attribute_collection_node_id} = n.{NodeTbl.id}
-                WHERE {NodeTbl.user_attribute_id} = {h|self.id}
-                GROUP BY n.{NodeTbl.id}
+                    ) AS {TblNode._aliases}
+                FROM {TblNode} n
+                LEFT JOIN {TblNodeAlias} a
+                    ON a.{TblNodeAlias.user_attribute_collection_node_id} = n.{TblNode.id}
+                WHERE {TblNode.user_attribute_id} = {h|self.id}
+                GROUP BY n.{TblNode.id}
             """, h.steal())
 
-        self._cache.collection = Collection.from_rows(cursor.fetchall(), self)
-            
+            result: typed.ManyTableRowT = cursor.fetchall()
+
+        self._cache.collection = Collection.create([
+            collection.CollectionNodeRaw(
+                id=row[TblNode.id],
+                value=row[TblNode.value],
+                aliases=json.loads(row[TblNode._aliases]),
+                sort_value=row[TblNode.sort_value],
+                root_id=row[TblNode.root_id]
+            )
+            for row in result
+        ], self)
         return self._cache.collection

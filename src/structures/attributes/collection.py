@@ -3,10 +3,12 @@
 from dataclasses import dataclass
 import json
 import pickle
-from typing import Any, Self, overload
+from types import MappingProxyType
+from typing import Any, Iterable, Self, Sequence, overload
 from structures.attributes import AnyAttributeT, AttributeValueTypeT, CollectionAttributeT
 from database import typed
 from database.typed import Tables as TBL
+from structures.attributes.static_attribute import StaticAttribute
 from structures.base_structure import BaseStructure
 from utils import text
 from database import dbutils
@@ -14,98 +16,122 @@ from database import dbutils
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
 
-type CollectionNodesT[T] = list[CollectionNode[T]]
+type CollectionNodesT[T: AttributeValueTypeT] = tuple[CollectionNode[T], ...]
 
 @dataclass(frozen=True, unsafe_hash=True, eq=True)
-class CollectionNode[T]:
+class CollectionNode[T: AttributeValueTypeT]:
+    id: int
     value: T
-    aliases: set[T]
+    aliases: frozenset[T]
     sort_value: int
-    nodes: CollectionNodesT[T]
+    children: CollectionNodesT[T]
     root: 'CollectionNode[T] | None' = None
 
-    def _post_set_root(self, value: 'CollectionNode[T]') -> None:
-        object.__setattr__(self, 'root', value)
+    def _post_set_children(self, children: 'CollectionNodesT[T]') -> None:
+        object.__setattr__(self, 'children', children)
 
 
-def normalize_collection_value[T: AttributeValueTypeT](value: T) -> T:
-    if isinstance(value, str):
-        return text.sanitize(value)
-    
-    return value
+@dataclass(frozen=True)
+class CollectionNodeRaw[T: AttributeValueTypeT]:
+    id: int
+    value: T
+    aliases: frozenset[T]
+    sort_value: int
+    root_id: int | None
 
 
 _MISSING = object()
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Collection[T: AttributeValueTypeT](BaseStructure):
     # We support StaticAttribute for empty(), but other methods only work without StaticAttribute
     attribute: AnyAttributeT[T]
     nodes: CollectionNodesT[T]
-    lookup: dict[T, CollectionNode[T]]
+    normed_node_value_to_node: MappingProxyType[T, CollectionNode[T]]
 
-    @classmethod
-    def empty(cls, attribute: AnyAttributeT[T]) -> Self:
-        return cls(attribute, [], {})
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (0, *self.attribute.identity)
     
+    @overload
     @classmethod
-    def from_rows(cls, rows: typed.ManyTableRowT, attribute: CollectionAttributeT) -> Self:
-        if not rows:
-            cls(attribute, [], {})
+    def create(cls, raw_nodes: tuple[()], attribute: StaticAttribute[T]) -> 'Collection[T]':
+        pass
+
+    @overload
+    @classmethod
+    def create(cls, raw_nodes: Sequence[CollectionNodeRaw[T]], attribute: CollectionAttributeT[T]) -> 'Collection[T]':
+        pass
+
+    @classmethod
+    def create(cls, raw_nodes: Sequence[CollectionNodeRaw[T]], attribute: AnyAttributeT[T]) -> 'Collection[T]':
+        if not raw_nodes:
+            return cls(attribute=attribute, nodes=(), normed_node_value_to_node=MappingProxyType({}))
         
-        lookup_by_id: dict[int, CollectionNode[T]] = {}
-        lookup_by_syn: dict[T, CollectionNode[T]] = {}
+        id_to_raw_node: dict[int, CollectionNodeRaw[T]] = {}
 
-        result: CollectionNodesT[T] = []
-
-        Tbl = dbutils.get_attribute_collection_node_table(type(attribute))
-
-        # Create objects without nodes / root references
-        for row in rows:
-            id = row[Tbl.id]
+        for raw_node in raw_nodes:
+            if raw_node.id in id_to_raw_node:
+                raise RuntimeError("Id appeared twice")
             
-            item = CollectionNode(
-                value=pickle.loads(row[Tbl.value]),
-                aliases=set(json.loads(row[Tbl._aliases])),
-                sort_value=row[Tbl.sort_value],
-                nodes=[],
-                root=None
-            )
+            id_to_raw_node[raw_node.id] = raw_node
 
-            lookup_by_id[id] = item
+        node_to_children: dict[int | None, list[int]] = {}
+
+        for raw_node in id_to_raw_node.values():
+            if raw_node.root_id == raw_node.id:
+                raise RuntimeError("Node is root of itself")
             
-            # Create lookup via syn
-            for syn in (item.value, *item.aliases):
-                syn = normalize_collection_value(syn)
+            if raw_node.root_id is not None and raw_node.root_id not in id_to_raw_node:
+                raise RuntimeError(f"Root id {raw_node.root_id} is invalid")
+            
+            node_to_children.setdefault(raw_node.root_id, []).append(raw_node.id)
+        
+        normed_value_to_node: dict[T, CollectionNode[T]] = {}
 
-                if syn in lookup_by_syn:
-                    raise AssertionError(
-                        "Syns from collection, retrieved from database, result in collision?\n" +
-                        f"For table {Tbl}, rows {rows}"
-                    )
+        def recursively_create_collection_nodes(root: CollectionNode[T] | None, seen: set[int]) -> CollectionNodesT[T]:
+            if root is not None:
+                if root.id in seen:
+                    raise RuntimeError(f"Id {root.id} already seen, cyclic")
                 
-                lookup_by_syn[syn] = item
+                seen.add(root.id)
 
-        # Create references of nodes / root
-        for row in rows:
-            id = row[Tbl.id]
-            root_id = row[Tbl.root_id]
+            result: list[CollectionNode[T]] = []
 
-            if root_id is None:
-                result.append(lookup_by_id[id])
-                continue
+            for child_id in node_to_children.get(None if root is None else root.id, []):
+                child_node_raw = id_to_raw_node[child_id]
 
-            node = lookup_by_id[id]
-            root = lookup_by_id[root_id]
+                child_node = CollectionNode(
+                    id=child_node_raw.id,
+                    value=child_node_raw.value,
+                    aliases=child_node_raw.aliases,
+                    sort_value=child_node_raw.sort_value,
+                    children=(),
+                    root=root
+                )
+                child_node._post_set_children(recursively_create_collection_nodes(child_node, seen))
+                result.append(child_node)
 
-            root.nodes.append(node)
-            node._post_set_root(root)
+                normed_value = attribute.value_type.norm(child_node.value)
 
-        return cls(
-            attribute,
-            result, 
-            lookup_by_syn
+                if normed_value in normed_value_to_node:
+                    raise RuntimeError("Value appeared more than once")
+                
+                normed_value_to_node[normed_value] = child_node
+
+            if root is not None:
+                seen.remove(root.id)
+
+            return tuple(result)
+        
+        nodes = recursively_create_collection_nodes(None, set())
+
+        return Collection(
+            attribute=attribute,
+            nodes=nodes,
+            normed_node_value_to_node=MappingProxyType(normed_value_to_node)
         )
+            
     
     @overload
     def lookup_node(self, value: T) -> CollectionNode[T]: 
@@ -116,9 +142,9 @@ class Collection[T: AttributeValueTypeT](BaseStructure):
         ...
 
     def lookup_node(self, value: T, default: Any = _MISSING) -> Any:
-        value = normalize_collection_value(value)
+        value = self.attribute.value_type.norm(value)
 
         if default is _MISSING:
-            return self.lookup[value]
+            return self.normed_node_value_to_node[value]
         
-        return self.lookup.get(value, default)
+        return self.normed_node_value_to_node.get(value, default)
