@@ -117,6 +117,14 @@ class ArgHelper:
         return self._params.copy()
     
 
+def collate_equal(a: str, b: str) -> bool:
+    _KEY = "eq"
+
+    with connected() as (_, cursor):
+        cursor.execute(f"SELECT ? = ? COLLATE utf8mb4_general_ci AS {_KEY}", (a, b))
+    
+        return cursor.fetchone()[_KEY]
+
 # def collapse_rows[T: Hashable](
 #     rows: list[dict[str, T | Hashable]], 
 #     collapse_columns: str, 

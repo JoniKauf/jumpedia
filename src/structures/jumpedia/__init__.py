@@ -140,7 +140,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.StaticAttribute.list_id} INT NOT NULL,
                         {TBL.StaticAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {TBL.StaticAttribute.value_type} INT NOT NULL,
-                        {TBL.StaticAttribute.index} INT NOT NULL,
+                        {TBL.StaticAttribute.position} INT NOT NULL,
                         {TBL.StaticAttribute.min_slots} INT NOT NULL,
                         {TBL.StaticAttribute.max_slots} INT NOT NULL,
                         {TBL.StaticAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
@@ -150,7 +150,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({TBL.StaticAttribute.list_id}, {TBL.StaticAttribute.name}),
-                        UNIQUE ({TBL.StaticAttribute.list_id}, {TBL.StaticAttribute.index})
+                        UNIQUE ({TBL.StaticAttribute.list_id}, {TBL.StaticAttribute.position})
                     )
                 """)
 
@@ -178,7 +178,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.TaskAttribute.list_id} INT NOT NULL,
                         {TBL.TaskAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {TBL.TaskAttribute.value_type} INT NOT NULL,
-                        {TBL.TaskAttribute.index} INT NOT NULL,
+                        {TBL.TaskAttribute.position} INT NOT NULL,
                         {TBL.TaskAttribute.min_slots} INT NOT NULL,
                         {TBL.TaskAttribute.max_slots} INT NOT NULL,
                         {TBL.TaskAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
@@ -188,7 +188,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({TBL.TaskAttribute.list_id}, {TBL.TaskAttribute.name}),
-                        UNIQUE ({TBL.TaskAttribute.list_id}, {TBL.TaskAttribute.index})
+                        UNIQUE ({TBL.TaskAttribute.list_id}, {TBL.TaskAttribute.position})
                     )
                 """)
 
@@ -213,12 +213,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {TBL.TaskAttributeCollectionNode} (
                         {TBL.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAttributeCollectionNode.root_id} INT,
+                        {TBL.TaskAttributeCollectionNode.parent_id} INT,
                         {TBL.TaskAttributeCollectionNode.task_attribute_id} INT NOT NULL,
                         {TBL.TaskAttributeCollectionNode.value} BLOB NOT NULL,
                         {TBL.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAttributeCollectionNode.root_id})
+                        FOREIGN KEY ({TBL.TaskAttributeCollectionNode.parent_id})
                             REFERENCES {TBL.TaskAttributeCollectionNode}({TBL.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({TBL.TaskAttributeCollectionNode.task_attribute_id})
@@ -245,7 +245,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {TBL.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {TBL.UserAttribute.list_id} INT NOT NULL,
                         {TBL.UserAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {TBL.UserAttribute.index} INT NOT NULL,
+                        {TBL.UserAttribute.position} INT NOT NULL,
                         {TBL.UserAttribute.value_type} INT NOT NULL,
                         {TBL.UserAttribute.min_slots} INT NOT NULL,
                         {TBL.UserAttribute.max_slots} INT NOT NULL,
@@ -256,7 +256,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({TBL.UserAttribute.list_id}, {TBL.UserAttribute.name}),
-                        UNIQUE ({TBL.UserAttribute.list_id}, {TBL.UserAttribute.index})
+                        UNIQUE ({TBL.UserAttribute.list_id}, {TBL.UserAttribute.position})
                     )
                 """)
 

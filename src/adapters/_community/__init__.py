@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, overload
 from adapters._base_adapter import BaseAdapter
-from adapters._list._list import ListAdapter
+from adapters._list import ListAdapter
 from adapters._users.community_user import CommunityUserAdapter
 from adapters._users.jumpedia_user import JumpediaUserAdapter
 from adapters._jumpedia import JumpediaAdapter

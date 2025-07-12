@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from adapters._base_adapter import BaseAdapter
-from adapters._list._list import ListAdapter
+from adapters._list import ListAdapter
 from structures.attributes.task_attribute import TaskAttribute
 
 

@@ -36,7 +36,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     id: int 
     name: str
     value_type: AttributeValueType[T]
-    index: int
+    position: int
     min_slots: int
     max_slots: int
     uniqueness: Uniqueness
@@ -71,10 +71,14 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         return {self.name} | self.get_aliases()
     
     def has_collection(self) -> bool:
-        return bool(self.get_collection().nodes)
+        return bool(self.get_collection().top_nodes)
     
     @abstractmethod
     def get_aliases(self) -> set[str]:
+        pass
+
+    @abstractmethod
+    def _create_collection(self) -> None:
         pass
 
     @abstractmethod
@@ -241,7 +245,7 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
 
             if other_v != v:
                 raise feedbacks.temp(f"All values that are equal case insensitively must be exactly equal. {other_v} != {v}")
-
+        
         return values
     
     def value_from_str(self, s: str) -> Any:

@@ -30,12 +30,12 @@ class InteractionAdapter(BaseAdapter):
         self.jumpedia.get_or_create_current_jumpedia_user()
 
     @cached_property
-    def server(self) -> ServerAdapter:
+    def current_server(self) -> ServerAdapter:
         user = _require_member(self._interaction.user)
         return ServerAdapter(user.guild, self)
     
     @cached_property
-    def user(self) -> UserAdapter:
+    def current_user(self) -> UserAdapter:
         user_or_member = self._interaction.user
         
         if isinstance(user_or_member, dc.Member):
@@ -44,9 +44,9 @@ class InteractionAdapter(BaseAdapter):
         return UserAdapter(user_or_member, self)
     
     @cached_property
-    def member(self) -> MemberAdapter:
+    def current_member(self) -> MemberAdapter:
         member = _require_member(self._interaction.user)
-        return MemberAdapter(member, self.server, self.user)
+        return MemberAdapter(member, self.current_server, self.current_user)
     
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:

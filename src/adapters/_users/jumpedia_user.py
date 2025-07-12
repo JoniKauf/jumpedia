@@ -4,7 +4,7 @@ import discord as dc
 
 from adapters._base_adapter import BaseAdapter
 from adapters._community import CommunityAdapter
-from adapters._list._list import ListAdapter
+from adapters._list import ListAdapter
 from adapters._jumpedia import JumpediaAdapter
 from adapters._users.community_user import CommunityUserAdapter
 from errors.feedback import feedbacks

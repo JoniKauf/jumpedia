@@ -62,7 +62,7 @@ class JumpediaAdapter(BaseAdapter):
     
     def get_current_community(self) -> CommunityAdapter:
         return self.get_community(_require_server_with_community(
-            self._jumpedia.get_community_by_server_id(self.interaction.server.id)
+            self._jumpedia.get_community_by_server_id(self.interaction.current_server.id)
         ).name)
     
     def create_community(self, name: str, initial_list_name: str | None) -> CommunityAdapter:
@@ -70,7 +70,7 @@ class JumpediaAdapter(BaseAdapter):
         
         community = CommunityAdapter(self._jumpedia.create_community(
             jumpedia_user=jumpedia_user,
-            server_id=self.interaction.server.id,
+            server_id=self.interaction.current_server.id,
             name=_valnitize_community_name(name)
         ), self)
 
@@ -92,11 +92,11 @@ class JumpediaAdapter(BaseAdapter):
     def add_community_to_current_server(self, name: str) -> None:
         self._jumpedia.add_community_to_server(
             self.get_community(name)._community.id, 
-            self.interaction.server.id
+            self.interaction.current_server.id
         )
 
     def remove_community_from_current_server(self) -> None:
-        self._jumpedia.remove_community_from_server(self.interaction.server._server.id)
+        self._jumpedia.remove_community_from_server(self.interaction.current_server._server.id)
 
 
 
@@ -114,6 +114,6 @@ class JumpediaAdapter(BaseAdapter):
         return JumpediaUserAdapter(jumpedia_user, self)
     
     def get_or_create_current_jumpedia_user(self, override_jumpedia_rank: JumpediaRank | None = None) -> JumpediaUserAdapter:
-        return self.get_or_create_jumpedia_user(self.interaction.user, override_jumpedia_rank)
+        return self.get_or_create_jumpedia_user(self.interaction.current_user, override_jumpedia_rank)
 
         

@@ -23,7 +23,7 @@ class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
     def sorted_attributes(self) -> list[T]:
         return [
             attr for attr in sorted(
-                self.mapping, key=lambda a: a.index
+                self.mapping, key=lambda a: a.position
             )
         ]
     
@@ -31,7 +31,7 @@ class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
     def sorted_values(self) -> list[list['AttributeValueTypeT']]:
         return [
             v for _, v in (
-                sorted(self.mapping.items(), key=lambda item: item[0].index)
+                sorted(self.mapping.items(), key=lambda item: item[0].position)
             )
         ]
     
@@ -39,7 +39,7 @@ class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
     def sorted_items(self) -> list[tuple[T, list['AttributeValueTypeT']]]:
         return [
             (attr, v) for attr, v in (
-                sorted(self.mapping.items(), key=lambda item: item[0].index)
+                sorted(self.mapping.items(), key=lambda item: item[0].position)
             )
         ]
     

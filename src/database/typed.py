@@ -70,7 +70,7 @@ class Tables:
         list_id: ColumnName
         name: ColumnName
         value_type: ColumnName
-        index: ColumnName
+        position: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
         uniqueness: ColumnName
@@ -91,7 +91,7 @@ class Tables:
         list_id: ColumnName
         name: ColumnName
         value_type: ColumnName
-        index: ColumnName
+        position: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
         uniqueness: ColumnName
@@ -106,7 +106,7 @@ class Tables:
 
     class TaskAttributeCollectionNode(metaclass=TableMeta):
         id: ColumnName
-        root_id: ColumnName
+        parent_id: ColumnName
         task_attribute_id: ColumnName
         value: ColumnName
         sort_value: ColumnName
@@ -128,7 +128,7 @@ class Tables:
         id: ColumnName
         list_id: ColumnName
         name: ColumnName
-        index: ColumnName
+        position: ColumnName
         value_type: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName

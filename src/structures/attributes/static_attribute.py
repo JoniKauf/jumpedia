@@ -40,6 +40,5 @@ class StaticAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
 
         return self._cache.aliases
     
-    
     def get_collection(self) -> Collection[T]:
         return Collection.create((), self)

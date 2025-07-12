@@ -4,7 +4,7 @@ from decimal import Decimal
 import decimal
 import enum
 import functools
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Protocol, Self, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, NamedTuple, Protocol, Self, TypedDict, Union, overload
 import typing
 
 import errors
@@ -91,6 +91,7 @@ class AttributeValueType[T: AttributeValueTypeT]:
     def get_all(cls) -> list[Self]:
         return cls._attribute_value_types.copy()
     
+    @functools.lru_cache(maxsize=1024, typed=True)
     def norm(self, value: T) -> T:
         if type(value) == self.type:
             raise ValueError
@@ -207,19 +208,19 @@ UniquenessExtendedEnum = enum.Enum(
     'UniquenessEnum', [(obj.name, obj) for obj in UniquenessExtended._value_mapping.values()]
 )
 
-type AnyUniquenessT = Uniqueness | UniquenessExtended
-
-def get_uniqueness_for_attribute_cls(attribute_cls: type[AnyAttributeT]):
-    if issubclass(attribute_cls, UserAttribute):
-        return Uniqueness
-    
-    return UniquenessExtended
-
-
 @dataclass
 class AttributeDataCache[T: AttributeValueTypeT]():
     aliases: frozenset[str] | None = None
     collection: Collection[T] | None = None
+
+
+type RawCollectionNodesT[T: AttributeValueTypeT] = frozenset[RawCollectionNode[T]]
+
+class RawCollectionNode[T: AttributeValueTypeT](NamedTuple):
+    value: T
+    aliases: frozenset[T]
+    sort_value: int
+    children: RawCollectionNodesT[T]
 
 # number
 NUMBER_MAX: Final[int] = 2 ** 63 - 1

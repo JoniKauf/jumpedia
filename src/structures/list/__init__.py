@@ -13,7 +13,7 @@ from structures.base_structure import BaseStructure
 from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT, Uniqueness, UniquenessExtended
 from structures.attributes import collection
 from structures.attributes.base_attribute import BaseAttribute
-from structures.attributes.collection import CollectionNode, CollectionNodesT
+from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
@@ -214,32 +214,25 @@ class List(BaseStructure):
             or self.get_user_attribute_by_syn(syn)
         )
 
-    def _attribute_creation_basics(
+    def _validate_attribute_attributes(
         self,
-        bad_name: str,
-        bad_aliases: Iterable[str],
+        name: str,
+        aliases: frozenset[str],
         max_slots: int,
         min_slots: int = 0
-    ) -> tuple[str, set[str], int]:
+    ) -> int:
         with self.locked:
-            name, aliases = text.validate_and_sanitize_syns(
-                bad_name, 
-                bad_aliases, 
-                attributes.MAX_SYN_LEN, 
-                attributes.MAX_ALIAS_COUNT + 1
-            )
-
             attrs = self.get_attributes()
 
             if len(attrs) >= list_package.MAX_ATTRIBUTES:
                 raise feedbacks.temp("Max attributes reached")
-
-            if self.get_attribute_by_name(name) is not None:
-                raise feedbacks.temp(f"Attribute name `{name}` already used as name or alias of different attribute")
             
-            for alias in aliases:
-                if self.get_attribute_by_alias(alias) is not None:
-                    raise feedbacks.temp(f"Attribute alias `{alias}` already used as name or alias of different attribute")
+            for syn in (name, *aliases):
+                if len(syn) > attributes.MAX_SYN_LEN:
+                    raise feedbacks.temp("Max syn length exceeded")
+                
+                if self.get_attribute_by_syn(syn) is not None:
+                    raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
 
             if not (1 <= max_slots <= attributes.MAX_SLOTS):
                 raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
@@ -247,9 +240,7 @@ class List(BaseStructure):
             if not (0 <= min_slots <= max_slots):
                 raise feedbacks.temp("Min slots must be between 0 and max slots inclusive")
             
-            index = max(attr.index for attr in attrs) + 1 if attrs else 1
-
-            return (name, aliases, index)
+            return max(attr.position for attr in attrs) + 1 if attrs else 1
         
         
     def _generic_delete_attribute(self, attribute_type: type[TaskAttribute | UserAttribute], bad_name: str) -> None:
@@ -282,8 +273,8 @@ class List(BaseStructure):
 
     def create_static_attribute[T: AttributeValueTypeT](
         self,
-        bad_name: str,
-        bad_aliases: Iterable[str],
+        name: str,
+        aliases: frozenset[str],
         value_type: AttributeValueType[T],
         min_slots: int,
         max_slots: int,
@@ -293,7 +284,7 @@ class List(BaseStructure):
         with self.locked:
             assert self.get_tasks() == []
             
-            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots, min_slots)
+            position = self._validate_attribute_attributes(name, aliases, max_slots, min_slots)
 
             h = queries.ArgHelper()
             Tbl = TBL.StaticAttribute
@@ -304,7 +295,7 @@ class List(BaseStructure):
                         {Tbl.list_id},
                         {Tbl.name},
                         {Tbl.value_type},
-                        {Tbl.index},
+                        {Tbl.position},
                         {Tbl.min_slots},
                         {Tbl.max_slots},
                         {Tbl.uniqueness},
@@ -313,7 +304,7 @@ class List(BaseStructure):
                         {h|self.id},
                         {h|name},
                         {h|value_type.id},
-                        {h|index},
+                        {h|position},
                         {h|min_slots},
                         {h|max_slots},
                         {h|uniqueness.value}
@@ -340,7 +331,7 @@ class List(BaseStructure):
                     id=attribute_id,
                     name=name,
                     value_type=value_type,
-                    index=index,
+                    position=position,
                     min_slots=0,
                     max_slots=max_slots,
                     uniqueness=uniqueness,
@@ -375,7 +366,7 @@ class List(BaseStructure):
             id=data[SAT.id],
             name=data[SAT.name],
             value_type=AttributeValueType.get_by_id(data[SAT.value_type]),
-            index=data[SAT.index],
+            position=data[SAT.position],
             min_slots=data[SAT.min_slots],
             max_slots=data[SAT.max_slots],
             uniqueness=data[SAT.uniqueness],
@@ -435,17 +426,17 @@ class List(BaseStructure):
     
     def create_task_attribute[T: AttributeValueTypeT](
         self,
-        bad_name: str,
-        bad_aliases: Iterable[str],
+        name: str,
+        aliases: frozenset[str],
         value_type: AttributeValueType[T],
         bad_collection: str,
         max_slots: int,
-        uniqueness: UniquenessExtended,
-        unique_value_per_list: bool
+        uniqueness: UniquenessExtended
     ) -> TaskAttribute[T]:
         with self.locked:
-            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
+
+            index = self._validate_attribute_attributes(name, aliases, max_slots, MIN_SLOTS)
             
             h = queries.ArgHelper()
             SAT = TBL.TaskAttribute
@@ -456,7 +447,7 @@ class List(BaseStructure):
                         {SAT.list_id},
                         {SAT.name},
                         {SAT.value_type},
-                        {SAT.index},
+                        {SAT.position},
                         {SAT.min_slots},
                         {SAT.max_slots},
                         {SAT.uniqueness},
@@ -492,7 +483,7 @@ class List(BaseStructure):
                     id=attribute_id,
                     name=name,
                     value_type=value_type,
-                    index=index,
+                    position=index,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     uniqueness=uniqueness
@@ -528,7 +519,7 @@ class List(BaseStructure):
             list=self,
             id=data[Tbl.id],
             name=data[Tbl.name],
-            index=data[Tbl.index],
+            position=data[Tbl.position],
             value_type=AttributeValueType.get_by_id(data[Tbl.value_type]),
             min_slots=data[Tbl.min_slots],
             max_slots=data[Tbl.max_slots],
@@ -579,36 +570,37 @@ class List(BaseStructure):
 
     def create_user_attribute[T: AttributeValueTypeT](
         self,
-        bad_name: str,
-        bad_aliases: Iterable[str],
+        name: str,
+        aliases: frozenset[str],
         value_type: AttributeValueType[T],
-        bad_collection: str,
+        collection: Collection[T],
         max_slots: int,
         uniqueness: Uniqueness
     ) -> UserAttribute[T]:
         with self.locked:
-            name, aliases, index = self._attribute_creation_basics(bad_name, bad_aliases, max_slots)
             MIN_SLOTS = 0
+            position = self._validate_attribute_attributes(name, aliases, max_slots, MIN_SLOTS)
 
             h = queries.ArgHelper()
-            UAT = TBL.UserAttribute
 
             with queries.connected() as (conn, cursor):
+                Tbl = TBL.UserAttribute
+
                 cursor.execute(f"""
-                    INSERT INTO {UAT} (
-                        {UAT.list_id},
-                        {UAT.name},
-                        {UAT.value_type},
-                        {UAT.index},
-                        {UAT.min_slots},
-                        {UAT.max_slots},
-                        {UAT.uniqueness}
+                    INSERT INTO {Tbl} (
+                        {Tbl.list_id},
+                        {Tbl.name},
+                        {Tbl.value_type},
+                        {Tbl.position},
+                        {Tbl.min_slots},
+                        {Tbl.max_slots},
+                        {Tbl.uniqueness}
                     )
                     VALUES (
                         {h|self.id},
                         {h|name},
                         {h|value_type.id},
-                        {h|index},
+                        {h|position},
                         {h|MIN_SLOTS},
                         {h|max_slots},
                         {h|uniqueness.value}
@@ -617,34 +609,47 @@ class List(BaseStructure):
 
                 attribute_id: int = cursor.lastrowid  # type: ignore
 
-                UAAT = TBL.UserAttributeAlias
-
                 if aliases:
+                    Tbl = TBL.UserAttributeAlias
+
                     cursor.execute(f"""
-                        INSERT INTO {UAAT} (
-                            {UAAT.user_attribute_id},
-                            {UAAT.list_id},
-                            {UAAT.alias}
+                        INSERT INTO {Tbl} (
+                            {Tbl.user_attribute_id},
+                            {Tbl.list_id},
+                            {Tbl.alias}
                         ) 
                         VALUES 
                             {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
                         )
                     """, h.steal())
 
-                obj = UserAttribute(
+                user_attribute = UserAttribute(
                     list=self,
                     id=attribute_id,
                     name=name,
                     value_type=value_type,
-                    index=index,
+                    position=position,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     uniqueness=uniqueness
                 )
 
-                self.handle_user_collection(bad_collection, obj)
+                all_nodes = collection.all_nodes
 
-                return obj
+                if all_nodes:
+                    Tbl = TBL.UserAttributeCollectionNode
+
+                    cursor.execute(f"""
+                        INSERT INTO {Tbl} (
+                            {Tbl.user_attribute_id},
+                            {Tbl.value},
+                            {Tbl.sort_value},
+                            {Tbl.root_id}
+                        ) VALUES (
+                            {','.join(f"({h|user_attribute.id}, {h|node.id}, )" for node in all_nodes)}
+                        )
+                    """, h.steal())
+                return user_attribute
     
     def delete_user_attribute(self, bad_name: str) -> None:
         self._generic_delete_attribute(UserAttribute, bad_name)
@@ -672,7 +677,7 @@ class List(BaseStructure):
             list=self,
             id=data[UAT.id],
             name=data[UAT.name],
-            index=data[UAT.index],
+            position=data[UAT.position],
             value_type=AttributeValueType.get_by_id(data[UAT.value_type]),
             min_slots=data[UAT.min_slots],
             max_slots=data[UAT.max_slots],
@@ -731,34 +736,14 @@ class List(BaseStructure):
             if len(self.get_tasks()) >= list_package.MAX_TASKS:
                 raise feedbacks.temp("Task limit reached")
             
-            if self.get_task_by_name(name) is not None:
-                raise feedbacks.temp("Task with that name already exists")
-            
-            attr_values_loaded: dict[str, str | list[Any]] = parsetools.json_loads_safe(attribute_value_mapping, 2)
-
-            if not isinstance(attr_values_loaded, dict):
-                raise feedbacks.temp("attribute_value_mapping is not a dictionary")
-            
-            attr_value_mapping: dict[TaskAttribute, list[AttributeValueTypeT]] = {}
-
-            for k, v in attr_values_loaded.items():
-                if not isinstance(k, str):
-                    raise feedbacks.temp(f"Key `{k}` is not a string")
+            for syn in (name, *aliases):
+                if self.get_task_by_syn(syn) is not None:
+                    raise feedbacks.temp(f"Task with name or alias {syn} already exists")
                 
-                attr = required.structure_not_none(
-                    self.get_task_attribute_by_syn(k),
-                    k,
-                    TaskAttribute
-                )
+            for attr in self.get_task_attributes():
+                if attr.required and attr not in attribute_value_mapping:
+                    raise feedbacks.temp(f"Attribute {attr} is required (min >= 1 slots) but it received no values")
 
-                attr_value_mapping[attr] = attr.from_loaded(v)
-            
-            attrs_required = (attr for attr in self.get_task_attributes() if attr.required)
-
-            for attr in attrs_required:
-                if attr not in attr_value_mapping:
-                    raise feedbacks.temp(f"Required attribute `{attr.name}` missing")
-                
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
@@ -786,17 +771,17 @@ class List(BaseStructure):
                             {','.join(f"({h|task_id}, {h|self.id}, {h|alias})" for alias in aliases)}        
                     """, h.steal())
 
-                if attr_value_mapping:
-                    TATVT = TBL.TaskAttributeTaskValue
+                if attribute_value_mapping:
+                    Tbl = TBL.TaskAttributeTaskValue
                     
                     cursor.execute(f"""
-                        INSERT INTO {TATVT} (
-                            {TATVT.task_id},
-                            {TATVT.task_attribute_id},
-                            {TATVT.value}
+                        INSERT INTO {Tbl} (
+                            {Tbl.task_id},
+                            {Tbl.task_attribute_id},
+                            {Tbl.value}
                         )
                         VALUES 
-                            {','.join(f"({h|task_id}, {h|attr.id}, {h|pickle.dumps(v)})" for attr, v in attr_value_mapping.items())}
+                            {','.join(f"({h|task_id}, {h|attr.id}, {h|pickle.dumps(v)})" for attr, v in attribute_value_mapping.items())}
                     """, h.steal())
 
             return Task(
@@ -805,22 +790,18 @@ class List(BaseStructure):
                 name=name
             )
         
-    def delete_task(self, name: str) -> None:
+    def delete_task(self, id: int) -> bool:
         with self.locked, queries.connected() as (conn, cursor):
-            task = self.get_task_by_name(name)
-
-            if task is None:
-                raise feedbacks.temp("Attribute not found!")
-            
             h = queries.ArgHelper()
 
-            with task.locked:
-                cursor.execute(f"""
-                    DELETE FROM {TBL.Task}
-                    WHERE 
-                        {TBL.Task.list_id} = {h|self.id}
-                        AND {TBL.Task.id} = {h|task.id}
-                """, h.steal())
+            cursor.execute(f"""
+                DELETE FROM {TBL.Task}
+                WHERE 
+                    {TBL.Task.list_id} = {h|self.id}
+                    AND {TBL.Task.id} = {h|id}
+            """, h.steal())
+
+            return cursor.rowcount > 0
         
     def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
         h = queries.ArgHelper()

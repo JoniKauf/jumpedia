@@ -91,6 +91,7 @@ ATTRIBUTE_VALUE_MAPPING_PARSER: parsetools.SafeJsonParser[dict[str, attributes.A
     strict_type={str: attributes.ATTRIBUTE_VALUE_PARSE_TYPES}
 )
 
+
 @dataclass(frozen=True)
 class ListAdapter(BaseAdapter):
     _list: List
@@ -127,18 +128,23 @@ class ListAdapter(BaseAdapter):
             attribute_value_mapping or parsetools.EMPTY_JSON_OBJ
         )
 
-        avm_final: dict[TaskAttribute, attributes.AttributeValueTypeT] = {}
+        avm_final: dict[TaskAttribute, list[attributes.AttributeValueTypeT]] = {}
 
         for k, v in avm_parsed:
-            task_attr = self.get_task_attribute(k)
-            value = task_attr._task_attribute.value_from_loaded(value)
+            task_attr = self.get_task_attribute(k)._task_attribute
+            value = task_attr.value_from_loaded(v)
 
-        self._list.create_task(name, aliases_parsed, avm_parsed)
+            avm_final[task_attr] = value
+
+        return TaskAdapter(
+            self._list.create_task(name, aliases_parsed, avm_final),
+            self
+        )
 
     
-    def delete_task(self, name: str) -> None:
-        name = text.sanitize(name)
-        self._structure.delete_task(name)
+    def delete_task(self, syn: str) -> None:
+        task = self.get_task(_valnitize_task_syn(syn))
+        self._list.delete_task(task._task.id)
 
     def edit_task(self) -> None:
         ...
@@ -166,3 +172,6 @@ class ListAdapter(BaseAdapter):
     def get_task_attribute(self, syn: str) -> TaskAttributeAdapter:
         task_attribute = _require_task_attribute_with_syn(_valnitize_attribute_syn(syn), self._list)
         return TaskAttributeAdapter(task_attribute, self)
+
+    def create_task_attribute(self) -> TaskAttributeAdapter:
+        self._list.create_task_attribute()

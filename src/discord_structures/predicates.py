@@ -40,7 +40,7 @@ def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
             if jumpedia_rank:
                 return True
             
-            server_rank = InteractionAdapter(interaction).member.server_rank
+            server_rank = InteractionAdapter(interaction).current_member.server_rank
 
             if server_rank >= rank_required:
                 return True
