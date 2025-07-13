@@ -27,6 +27,7 @@ class TableMeta(type):
 
 DATABASE_NAME: str = 'jumpedia'
 
+
 class Tables:
     # --- Meta ---
 
