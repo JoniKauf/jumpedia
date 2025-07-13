@@ -2,7 +2,7 @@
 
 
 from dataclasses import dataclass
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 from database import typed
 from database import queries
 from ranks.community_rank import CommunityRank
@@ -32,10 +32,10 @@ class CommunityUser(BaseStructure):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.List}
+                FROM {Tables.List}
                 WHERE 
-                    {TBL.List.community_id} = {h|self.community.id}
-                    AND {TBL.List.id} = {h|self.selected_list_id}
+                    {Tables.List.community_id} = {h|self.community.id}
+                    AND {Tables.List.id} = {h|self.selected_list_id}
             """, h.steal())
 
             result: typed.SingleTableRowT | None = cursor.fetchone()

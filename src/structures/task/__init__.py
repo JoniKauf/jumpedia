@@ -8,7 +8,7 @@ from database import queries
 from structures.base_structure import BaseStructure
 from utils import text
 from database import typed as typed
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 
 if TYPE_CHECKING:
     from structures.list import List
@@ -33,16 +33,16 @@ class Task(BaseStructure):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.TaskAlias.alias}
-                FROM {TBL.TaskAlias}
+                SELECT {Tables.TaskAlias.alias}
+                FROM {Tables.TaskAlias}
                 WHERE 
-                    {TBL.TaskAlias.list_id} = {h|self.list.id}
-                    AND {TBL.TaskAlias.task_id} = {h|self.id}
+                    {Tables.TaskAlias.list_id} = {h|self.list.id}
+                    AND {Tables.TaskAlias.task_id} = {h|self.id}
             """)
 
             result: typed.ManyTableRowT = cursor.fetchall()
 
-        return frozenset(row[TBL.TaskAlias.alias] for row in result)
+        return frozenset(row[Tables.TaskAlias.alias] for row in result)
 
     @property
     def identity(self) -> tuple[int, ...]:

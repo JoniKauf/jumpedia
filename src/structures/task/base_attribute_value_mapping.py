@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from database import queries
 from database import typed
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 
 from errors.feedback import feedbacks
 from structures.base_structure import BaseStructure
@@ -64,19 +64,19 @@ class AbstractAttributeValueMapping[T: AnyAttributeT](BaseStructure):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.TaskAttributeTaskValue}
-                WHERE {TBL.TaskAttributeTaskValue.task_id} = {h|self.task.id}
+                FROM {Tables.TaskAttributeTaskValue}
+                WHERE {Tables.TaskAttributeTaskValue.task_id} = {h|self.task.id}
             """, h.steal())
 
             result: typed.ManyTableRowT = cursor.fetchall()
 
         task_attribute_ids: tuple[int, ...] = tuple(
-            row[TBL.TaskAttributeTaskValue.task_attribute_id] for row in result
+            row[Tables.TaskAttributeTaskValue.task_attribute_id] for row in result
         )
         
         # Get all attributes specified for this task
         attributes = self.task.list.get_task_attributes(
-            lambda h: f"{TBL.TaskAttribute.id} in ({','.join((h|attr) for attr in task_attribute_ids)})"
+            lambda h: f"{Tables.TaskAttribute.id} in ({','.join((h|attr) for attr in task_attribute_ids)})"
         )
 
         attribute_lookup: dict[int, TaskAttribute] = {

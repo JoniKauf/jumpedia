@@ -83,8 +83,10 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[t
                 _connections.pop(hashable)
                 conn.close()
 
-            
+type OneRowT = dict[str, Any]
+type OneRowOptionalT = OneRowT | None
 
+type ManyRowsT[T: OneRowT = OneRowT] = list[T]
 
 class ArgHelper:
     """Helper to make inserting parameters into a query easier and more

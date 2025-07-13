@@ -4,13 +4,21 @@ from decimal import Decimal
 import decimal
 import enum
 import functools
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, NamedTuple, Protocol, Self, TypedDict, Union, overload
+import json
+import pickle
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, NamedTuple, Protocol, Self, TypeAliasType, TypedDict, Union, overload
 import typing
 
+from database import dbutils, queries
 import errors
-from structures.attributes.collection import Collection
-from utils import text
-
+from errors.feedback import feedbacks
+from structures.attributes import slot_type
+from structures.attributes import collection
+from structures.attributes.slot_type import LiteralToStrPossibleT, SlotTypeT
+from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
+from utils import numbers, text
+from database.typed import Tables
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
     from structures.attributes.task_attribute import TaskAttribute
@@ -18,122 +26,17 @@ if TYPE_CHECKING:
 
 
 
-type AnyAttributeT[T: AttributeValueTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
-type UniquenessAttributeT[T: AttributeValueTypeT] = UserAttribute[T]
-type UniquenessExtendedAttributeT[T: AttributeValueTypeT] = StaticAttribute[T] | TaskAttribute[T]
-type CollectionAttributeT[T: AttributeValueTypeT] = TaskAttribute[T] | UserAttribute[T]
+type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
+ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
 
-type AttributeValueTypeT = (
-    bool | int | Decimal | 
-    dt.time | dt.date | dt.datetime | dt.timedelta | 
-    str
-)
+type UniquenessAttributeT[T: SlotTypeT] = UserAttribute[T]
+UNIQUENESS_ATTRIBUTE = (UserAttribute,)
 
+type UniquenessExtendedAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T]
+UNIQUENESS_EXTENDED_ATTRIBUTE = (StaticAttribute, TaskAttribute)
 
-type_ = type
-
-@dataclass
-class AttributeValueType[T: AttributeValueTypeT]:
-    id: int
-    name: str
-    type: type[T]
-
-    @property
-    def literal_to_str_possible(self) -> bool:
-        return self.type in LITERAL_TO_STR_POSSIBLE
-
-    _attribute_value_types: ClassVar[list[Self]] = []
-    _attribute_value_type_id_lookup: ClassVar[dict[int, Self]] = {}
-    _attribute_value_type_name_lookup: ClassVar[dict[str, Self]] = {}
-    _attribute_value_type_type_lookup: ClassVar[dict[str, Self]] = {}
-
-    def __post_init__(self):
-        for elem in AttributeValueType._attribute_value_types:
-            if self.name == elem.name or self.id == elem.id or self.type == elem.type:
-                raise AssertionError()
-            
-        AttributeValueType._attribute_value_types.append(self)
-        AttributeValueType._attribute_value_type_id_lookup[self.id] = self
-        AttributeValueType._attribute_value_type_name_lookup[self.name] = self
-        AttributeValueType._attribute_value_type_type_lookup[self.type.__qualname__] = self
-
-    def __hash__(self):
-        return hash((self.id, self.name))
-    
-    def __str__(self) -> str:
-        return self.name
-    
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(id={self.id!r}, name={self.name!r}, type={self.type!r}, literal_to_str_possible={self.literal_to_str_possible!r})'
-    
-    @classmethod
-    def get_by_id(cls, id: int) -> Self:
-        try:
-            return cls._attribute_value_type_id_lookup[id]
-        except KeyError as e:
-            raise LookupError(*e.args)
-        
-    @classmethod
-    def get_by_name(cls, name: str) -> Self:
-        try:
-            return cls._attribute_value_type_name_lookup[name]
-        except KeyError as e:
-            raise LookupError(*e.args)
-        
-    @classmethod
-    def get_by_type(cls, type: type_[T]) -> 'AttributeValueType[T]':
-        try:
-            return cls._attribute_value_type_type_lookup[type.__qualname__]
-        except KeyError as e:
-            raise LookupError(*e.args)
-        
-    @classmethod
-    def get_all(cls) -> list[Self]:
-        return cls._attribute_value_types.copy()
-    
-    @functools.lru_cache(maxsize=1024, typed=True)
-    def norm(self, value: T) -> T:
-        if type(value) == self.type:
-            raise ValueError
-        
-        if issubclass(self.type, str):
-            return text.norm(value)  # type: ignore
-        
-        return value
-
-
-AttributeValueType(1, 'boolean', bool)
-AttributeValueType(2, 'integer', int)
-AttributeValueType(3, 'decimal', Decimal)
-AttributeValueType(4, 'time', dt.time)
-AttributeValueType(5, 'date', dt.date)
-AttributeValueType(6, 'date_and_time', dt.datetime)
-AttributeValueType(7, 'timespan', dt.timedelta)
-AttributeValueType(8, 'text_string', str)
-
-AttributeValueTypeEnum = enum.Enum(
-    'AttributeValueTypeEnum', [(avt.name, avt) for avt in AttributeValueType._attribute_value_types] + []
-)
-
-# Validate integrity
-if AttributeValueTypeT.__value__.__args__ != tuple(vt.value.type for vt in AttributeValueTypeEnum):  # type: ignore
-    raise RuntimeError("Enum does not equal type!!")
-
-
-# Single point of truth is type so we can use type checking; data -> type doesn't work
-type LiteralToStrPossibleT = bool | int | str
-LITERAL_TO_STR_POSSIBLE = (bool, int, str)
-
-# Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
-type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
-ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
-
-if typing.get_args(LiteralToStrPossibleT.__value__) != LITERAL_TO_STR_POSSIBLE:
-    raise RuntimeError()
-
-# Checking ATTRIBUTE_VALUE_PARSE_TYPES is too much effort and hard to generalize
-# Just make sure it stays consistent when changing one
-
+type CollectionAttributeT[T: SlotTypeT] = TaskAttribute[T] | UserAttribute[T]
+COLLECTION_ATTRIBUTE = (TaskAttribute, UserAttribute)
 
 
 @functools.total_ordering
@@ -209,35 +112,18 @@ UniquenessExtendedEnum = enum.Enum(
 )
 
 @dataclass
-class AttributeDataCache[T: AttributeValueTypeT]():
+class AttributeDataCache[T: SlotTypeT]():
     aliases: frozenset[str] | None = None
     collection: Collection[T] | None = None
 
 
-type RawCollectionNodesT[T: AttributeValueTypeT] = frozenset[RawCollectionNode[T]]
+type RawCollectionNodesT[T: SlotTypeT] = frozenset[RawCollectionNode[T]]
 
-class RawCollectionNode[T: AttributeValueTypeT](NamedTuple):
+class RawCollectionNode[T: SlotTypeT](NamedTuple):
     value: T
     aliases: frozenset[T]
     sort_value: int
     children: RawCollectionNodesT[T]
-
-# number
-NUMBER_MAX: Final[int] = 2 ** 63 - 1
-NUMBER_MIN: Final[int] = -NUMBER_MAX - 1
-DECIMAL_PRECISION: Final[int] = decimal.getcontext().prec
-DECIMAL_INT_PART_MAX_LEN: Final[int] = max(len(str(NUMBER_MAX)), len(str(NUMBER_MIN)))
-DECIMAL_DEC_PART_MAX_LEN: Final[int] = DECIMAL_PRECISION - DECIMAL_INT_PART_MAX_LEN
-DECIMAL_MAX_STR_LEN: Final[int] = DECIMAL_PRECISION if DECIMAL_DEC_PART_MAX_LEN <= 0 else DECIMAL_PRECISION + 1
-
-# str
-STR_MIN_LEN: Final[int] = 1
-STR_MAX_LEN: Final[int] = 512
-
-# Collection
-COLLECTION_MAX_MEMORY: Final[int] = 1024 * 32
-COLLECTION_MAX_ELEMS: Final[int] = 1024
-COLLECTION_MAX_DEPTH: Final[int] = 16
 
 # General
 MIN_SYN_LEN: Final[int] = 1
@@ -245,4 +131,215 @@ MAX_SYN_LEN: Final[int] = 32
 MAX_ALIAS_COUNT: Final[int] = 32
 MAX_COLLECTION_ALIASES: Final[int] = 7
 MAX_SLOTS: Final[int] = 32
-SORT_KEY_NONE_NUMBER: Final[int] = max(abs(NUMBER_MIN), abs(NUMBER_MAX)) + 1
+SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
+
+
+# Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
+type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
+ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
+
+# Checking ATTRIBUTE_VALUE_PARSE_TYPES is too much effort and hard to generalize
+# Just make sure it stays consistent when changing one
+
+
+
+def set_collection_helper[T: SlotTypeT](
+    top_raw_nodes: RawCollectionNodesT[T], 
+    attribute: CollectionAttributeT
+) -> 'Collection[T]':
+    if not top_raw_nodes:
+        return Collection(
+            attribute=attribute,
+            top_nodes=frozenset(),
+            normed_syn_to_node=MappingProxyType({})
+        )
+    
+    normed_to_node: dict[T, CollectionNode[T]] = {}
+    node_count: int = 0
+
+    def recursively_create_children(parent: None | CollectionNode[T], raw_node: RawCollectionNode[T], depth: int) -> CollectionNode[T]:
+        if depth > collection.MAX_DEPTH:
+            raise feedbacks.temp("Max collection depth exceeded")
+
+        nonlocal node_count
+        node_count += 1
+
+        if node_count > collection.MAX_ELEMS:
+            raise feedbacks.temp("Max amount of collection elems surpassed!")
+        
+        if not numbers.is_int32(raw_node.sort_value):
+            raise feedbacks.temp("Sort value out of range")
+        
+        normed_value: T = attribute.slot_type.norm(raw_node.value)
+        aliases: set[T] = set(map(attribute.slot_type.norm, raw_node.aliases))
+
+        if normed_value in aliases:
+            aliases.remove(normed_value)
+        
+        node = CollectionNode(
+            value=raw_node.value,
+            aliases=frozenset(aliases),
+            sort_value=raw_node.sort_value,
+            children=frozenset(),
+            parent=parent,
+            slot_type=attribute.slot_type
+        )
+
+        depth += 1
+        
+        node._post_set_children(frozenset(
+            recursively_create_children(node, child, depth) 
+            for child in 
+            raw_node.children
+        ))
+
+        for normed_syn in (normed_value, *node.aliases):
+            if normed_syn in normed_to_node:
+                raise feedbacks.temp("Same syn appeared twice")
+            
+            normed_to_node[normed_syn] = node
+        
+        return node
+    
+    top_nodes = frozenset(recursively_create_children(None, raw_node, 1) for raw_node in top_raw_nodes)
+
+    TblNodes = dbutils.get_attribute_collection_node_table(type(attribute))
+    TblAliases = dbutils.get_attribute_collection_node_alias_table(type(attribute))
+    
+    def recursively_insert_children(parent_id: int | None, nodes: CollectionNodesT[T]) -> None:
+        if not nodes:
+            return
+        
+        for node in nodes:
+            cursor.execute(f"""
+                INSERT INTO {TblNodes} (
+                    {TblNodes._attribute_id},
+                    {TblNodes.value},
+                    {TblNodes.sort_value},
+                    {TblNodes.parent_id}
+                ) 
+                VALUES (
+                    {h|attribute.id},
+                    {h|pickle.dumps(node.value)},
+                    {h|node.sort_value},
+                    {h|parent_id}
+                )
+            """, h.steal())
+
+            node_id: int = cursor.lastrowid  # type: ignore
+
+            if node.aliases:
+                cursor.execute(f"""
+                    INSERT INTO {TblAliases} (
+                        {TblAliases._attribute_id},
+                        {TblAliases._attribute_collection_node_id},
+                        {TblAliases.alias}
+                    )
+                    VALUES 
+                        {','.join(f"""(
+                            {h|attribute.id},
+                            {h|node_id},
+                            {h|pickle.dumps(alias)}
+                        )""" for alias in node.aliases)}
+                """, h.steal())
+
+            recursively_insert_children(node_id, node.children)
+
+    h = queries.ArgHelper()
+
+    with queries.connected() as (_, cursor), attribute.locked:
+        # We go from top nodes down the tree so we can be sure
+        # the parent_id is already inserted and the foreign key
+        # check succeeds
+        recursively_insert_children(None, top_nodes)
+
+    return Collection(
+        attribute=attribute,
+        top_nodes=top_nodes,
+        normed_syn_to_node=MappingProxyType(normed_to_node)
+    )
+
+def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> Collection[T]:
+    h = queries.ArgHelper()
+    ALIASES_KEY: str = 'aliases'
+
+    TblNode = dbutils.get_attribute_collection_node_table(type(attribute))
+    TblNodeAlias = dbutils.get_attribute_collection_node_alias_table(type(attribute))
+
+    with queries.connected() as (conn, cursor):
+        cursor.execute(f"""
+            SELECT *
+            FROM {TblNode}
+            WHERE {TblNode._attribute_id} = {h|attribute.id}
+        """, h.steal())
+
+        result: queries.ManyRowsT = cursor.fetchall()
+
+        cursor.execute(f"""
+            SELECT 
+                {TblNodeAlias._attribute_collection_node_id},
+                {TblNodeAlias.alias}
+            FROM
+                {TblNodeAlias}
+            WHERE
+                {TblNodeAlias._attribute_id} = {h|attribute.id}
+        """, h.steal())
+
+        aliases_result: queries.ManyRowsT = cursor.fetchall()
+
+    row_id_to_row: dict[int, queries.OneRowT] = {row[TblNode.id]: row for row in result}
+    row_id_to_child_row_ids: dict[int, list[int]] = {}
+
+    top_rows: queries.ManyRowsT = []
+    
+    for row in result:
+        row_id_to_child_row_ids \
+            .setdefault(row[TblNode.parent_id], []) \
+            .append(row[TblNode.id])
+        
+        if row[TblNode.parent_id] is None:
+            top_rows.append(row)
+    
+        row[TblNode.value] = pickle.loads(row[TblNode.value])
+        row[ALIASES_KEY] = []
+
+    for alias_row in aliases_result:
+        row = row_id_to_row[alias_row[TblNodeAlias._attribute_collection_node_id]]
+        alias = pickle.loads(alias_row[TblNodeAlias.alias])
+
+        row[ALIASES_KEY].append(alias)
+
+    del TblNodeAlias
+
+    normed_syn_to_node: dict[T, CollectionNode[T]] = {}
+
+    def recursively_create_children(parent: CollectionNode[T] | None, row: queries.OneRowT) -> CollectionNode[T]:
+        node = CollectionNode(
+            value=row[TblNode.value],
+            aliases=frozenset(row[ALIASES_KEY]),
+            sort_value=row[TblNode.sort_value],
+            children=frozenset(),
+            parent=parent,
+            slot_type=attribute.slot_type
+        )
+
+        children_ids = row_id_to_child_row_ids.get(row[TblNode.id], [])
+
+        if children_ids:
+            node._post_set_children(frozenset(
+                recursively_create_children(node, row_id_to_row[child_id])
+                for child_id in children_ids
+            ))
+
+        for syn in (node.value, *node.aliases):
+            normed_syn_to_node[attribute.slot_type.norm(syn)] = node
+
+        return node
+
+    top_nodes = frozenset(recursively_create_children(None, row) for row in top_rows)
+        
+    return Collection(
+        attribute=attribute,
+        top_nodes=top_nodes,
+        normed_syn_to_node=MappingProxyType(normed_syn_to_node)
+    )

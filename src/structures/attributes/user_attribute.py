@@ -4,76 +4,29 @@ from dataclasses import dataclass, field
 import json
 from typing import ClassVar
 from database import queries
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 from database import typed
 from structures import attributes
-from structures.attributes import AttributeDataCache, AttributeValueTypeT
+from structures.attributes import AttributeDataCache, RawCollectionNodesT, SlotTypeT
 from structures.attributes import collection
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection
 
 
 @dataclass(frozen=True, kw_only=True)
-class UserAttribute[T: AttributeValueTypeT](BaseAttribute[T]):
-    STRUCTURE_NAME: ClassVar[str] = "user attribute"
-    ATTRIBUTE_TYPE_NAME: ClassVar[str] = "user"
-    TYPE_ID: ClassVar[int] = 2
+class UserAttribute[T: SlotTypeT](BaseAttribute[T]):
+    __structure_name__ = 'user attribute'
 
-    _cache: AttributeDataCache[T] = field(init=False, default_factory=AttributeDataCache)
-    
-    def get_aliases(self) -> frozenset[str]:
-        if self._cache.aliases is not None:
-            return self._cache.aliases
-        
-        h = queries.ArgHelper()
-        Tbl = TBL.UserAttributeAlias
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {Tbl.alias}
-                FROM {Tbl}
-                WHERE {Tbl.user_attribute_id} = {h|self.id}
-            """)
-
-            rows: typed.ManyTableRowT = cursor.fetchall()
-
-        self._cache.aliases = frozenset(row[Tbl.alias] for row in rows)
-        
-        return self._cache.aliases
-    
     def get_collection(self) -> Collection[T]:
-        if self._cache.collection is not None:
-            return self._cache.collection
-        
-        h = queries.ArgHelper()
-        TblNode = TBL.UserAttributeCollectionNode
-        TblNodeAlias = TBL.UserAttributeCollectionNodeAlias
+        if self._cache.collection is None:
+            self._cache.collection = attributes.get_collection_helper(self)
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT 
-                    n.*,
-                    COALESCE(
-                        JSON_ARRAYAGG(a.{TblNodeAlias.alias}),
-                        JSON_ARRAY()
-                    ) AS {TblNode._aliases}
-                FROM {TblNode} n
-                LEFT JOIN {TblNodeAlias} a
-                    ON a.{TblNodeAlias.user_attribute_collection_node_id} = n.{TblNode.id}
-                WHERE {TblNode.user_attribute_id} = {h|self.id}
-                GROUP BY n.{TblNode.id}
-            """, h.steal())
-
-            result: typed.ManyTableRowT = cursor.fetchall()
-
-        self._cache.collection = Collection.create([
-            collection.CollectionNodeRaw(
-                id=row[TblNode.id],
-                value=row[TblNode.value],
-                aliases=json.loads(row[TblNode._aliases]),
-                sort_value=row[TblNode.sort_value],
-                root_id=row[TblNode.root_id]
-            )
-            for row in result
-        ], self)
         return self._cache.collection
+    
+    def set_collection(self, top_raw_nodes: RawCollectionNodesT[T]) -> Collection[T]:
+        with self.locked:
+            if self._cache.collection is None:
+                self._cache.collection = attributes.set_collection_helper(top_raw_nodes, self)
+            
+            return self._cache.collection

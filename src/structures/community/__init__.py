@@ -19,7 +19,7 @@ from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
 from utils import text
 from database import queries, typed as typed
-from database.typed import SingleTableRowT, Tables as TBL
+from database.typed import SingleTableRowT, Tables as Tables
 from typing import Optional as Opt
 import structures.list as list_package
 from discordtools import messaging as msg
@@ -57,14 +57,14 @@ class Community(BaseStructure):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.Server.id}
-                FROM {TBL.Server}
-                WHERE {TBL.Server.community_id} = {h|self.id}
+                SELECT {Tables.Server.id}
+                FROM {Tables.Server}
+                WHERE {Tables.Server.community_id} = {h|self.id}
             """, h.steal())
 
             result: typed.ManyTableRowT = cursor.fetchall()
 
-        self._cache.server_ids = frozenset(row[TBL.Server.id] for row in result)
+        self._cache.server_ids = frozenset(row[Tables.Server.id] for row in result)
 
         return self._cache.server_ids
         
@@ -84,9 +84,9 @@ class Community(BaseStructure):
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO {TBL.List} (
-                        {TBL.List.community_id},
-                        {TBL.List.name}
+                    INSERT INTO {Tables.List} (
+                        {Tables.List.community_id},
+                        {Tables.List.name}
                     ) 
                     VALUES (
                         {h|self.id},
@@ -128,10 +128,10 @@ class Community(BaseStructure):
 
         with self.locked, queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                DELETE FROM {TBL.List}
+                DELETE FROM {Tables.List}
                 WHERE 
-                    {TBL.List.community_id} = {h|self.id}
-                    AND {TBL.List.id} = {h|list_id}
+                    {Tables.List.community_id} = {h|self.id}
+                    AND {Tables.List.id} = {h|list_id}
             """, h.steal())
 
             return cursor.rowcount > 0
@@ -143,9 +143,9 @@ class Community(BaseStructure):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.List}
+                FROM {Tables.List}
                 WHERE 
-                    {TBL.List.community_id} = {h|self.id}
+                    {Tables.List.community_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
@@ -156,8 +156,8 @@ class Community(BaseStructure):
     def _list_data_to_obj(self, data: typed.SingleTableRowT) -> List:
         return List(
             community=self,
-            id=data[TBL.List.id],
-            name=data[TBL.List.name]
+            id=data[Tables.List.id],
+            name=data[Tables.List.name]
         )
     
     def get_lists(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[List]:
@@ -167,12 +167,12 @@ class Community(BaseStructure):
         ]
 
     def get_list_by_id(self, id: int) -> List | None:
-        data = self._fetch_from_list_table(lambda h: f"{TBL.List.id} = {h|id}")
+        data = self._fetch_from_list_table(lambda h: f"{Tables.List.id} = {h|id}")
         return self._list_data_to_obj(data[0]) if data else None
     
     def get_list_by_name(self, name: str) -> List | None:
         name = text.norm(name)
-        data = self._fetch_from_list_table(lambda h: f"{TBL.List.name} = {h|name}")
+        data = self._fetch_from_list_table(lambda h: f"{Tables.List.name} = {h|name}")
         return self._list_data_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
@@ -187,9 +187,9 @@ class Community(BaseStructure):
         with queries.connected() as (conn, cursor):
             try:
                 cursor.execute(f"""
-                    UPDATE {TBL.Community} 
-                    SET {TBL.Community.default_selected_list_id} = {h|list_id}
-                    WHERE {TBL.Community.id} = {h|self.id}
+                    UPDATE {Tables.Community} 
+                    SET {Tables.Community.default_selected_list_id} = {h|list_id}
+                    WHERE {Tables.Community.id} = {h|self.id}
                 """, h.steal())
             except mariadb.IntegrityError as e:
                 # list_id doesn't exist
@@ -216,11 +216,11 @@ class Community(BaseStructure):
                 # User doesn't exist yet
                 if community_user is None:
                     cursor.execute(f"""
-                        INSERT INTO {TBL.CommunityUser} (
-                            {TBL.CommunityUser.community_id},
-                            {TBL.CommunityUser.user_id},
-                            {TBL.CommunityUser.power},
-                            {TBL.CommunityUser.selected_list_id}
+                        INSERT INTO {Tables.CommunityUser} (
+                            {Tables.CommunityUser.community_id},
+                            {Tables.CommunityUser.user_id},
+                            {Tables.CommunityUser.power},
+                            {Tables.CommunityUser.selected_list_id}
                         )
                         VALUES (
                             {h|self.id},
@@ -236,13 +236,13 @@ class Community(BaseStructure):
 
                     if community_rank != community_user or selected_list_id != selected_list_id:
                         cursor.execute(f"""
-                            UPDATE {TBL.CommunityUser}
+                            UPDATE {Tables.CommunityUser}
                             SET 
-                                {TBL.CommunityUser.power} = {h|community_rank.power}
-                                {TBL.CommunityUser.selected_list_id} = {h|(None if selected_list_id is None else selected_list_id)}
+                                {Tables.CommunityUser.power} = {h|community_rank.power}
+                                {Tables.CommunityUser.selected_list_id} = {h|(None if selected_list_id is None else selected_list_id)}
                             WHERE 
-                                {TBL.CommunityUser.community_id} = {h|self.id}
-                                AND {TBL.CommunityUser.user_id} = {h|jumpedia_user.id}
+                                {Tables.CommunityUser.community_id} = {h|self.id}
+                                AND {Tables.CommunityUser.user_id} = {h|jumpedia_user.id}
                         """, h.steal()) 
 
                 return CommunityUser(
@@ -259,10 +259,10 @@ class Community(BaseStructure):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.CommunityUser}
+                FROM {Tables.CommunityUser}
                 WHERE 
-                    {TBL.CommunityUser.community_id} = {h|self.id}
-                    AND {TBL.CommunityUser.user_id} = {h|jumpedia_user.id}
+                    {Tables.CommunityUser.community_id} = {h|self.id}
+                    AND {Tables.CommunityUser.user_id} = {h|jumpedia_user.id}
             """)
 
             result: SingleTableRowT | None = cursor.fetchone()
@@ -273,6 +273,6 @@ class Community(BaseStructure):
         return CommunityUser(
             community=self,
             jumpedia_user=jumpedia_user,
-            community_rank=CommunityRank.get(result[TBL.CommunityUser.power]),
-            selected_list_id=result[TBL.CommunityUser.selected_list_id]
+            community_rank=CommunityRank.get(result[Tables.CommunityUser.power]),
+            selected_list_id=result[Tables.CommunityUser.selected_list_id]
         )

@@ -6,7 +6,7 @@ from adapters._jumpedia import JumpediaAdapter
 from errors.feedback import feedbacks
 from database import queries
 from discord_structures import modals, predicates
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 from discordtools import messaging
 from ranks import CommunityRank, JumpediaRank, ServerRank
 

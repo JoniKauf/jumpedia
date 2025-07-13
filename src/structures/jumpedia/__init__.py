@@ -15,7 +15,7 @@ from structures.task import Task
 from structures.user import JumpediaUser
 from utils import metautils, text
 from database import queries, typed as typed
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 from dataclasses import dataclass, field
 from discordtools import messaging as msg, users
 from structures import list as list_
@@ -64,340 +64,348 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         with queries.connected() as (conn, cursor):
             try:
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.Community} (
-                        {TBL.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.Community.name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
-                        {TBL.Community.default_selected_list_id} INT DEFAULT NULL
+                    CREATE TABLE {Tables.Community} (
+                        {Tables.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.Community.name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
+                        {Tables.Community.default_selected_list_id} INT DEFAULT NULL
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.Server} (
-                        {TBL.Server.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {TBL.Server.community_id} INT NOT NULL,
+                    CREATE TABLE {Tables.Server} (
+                        {Tables.Server.id} BIGINT UNSIGNED PRIMARY KEY,
+                        {Tables.Server.community_id} INT NOT NULL,
 
-                        FOREIGN KEY ({TBL.Server.community_id}) 
-                            REFERENCES {TBL.Community}({TBL.Community.id}) 
+                        FOREIGN KEY ({Tables.Server.community_id}) 
+                            REFERENCES {Tables.Community}({Tables.Community.id}) 
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.List} (
-                        {TBL.List.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.List.community_id} INT NOT NULL,
-                        {TBL.List.name} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
+                    CREATE TABLE {Tables.List} (
+                        {Tables.List.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.List.community_id} INT NOT NULL,
+                        {Tables.List.name} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.List.community_id})
-                            REFERENCES {TBL.Community}({TBL.Community.id})
+                        FOREIGN KEY ({Tables.List.community_id})
+                            REFERENCES {Tables.Community}({Tables.Community.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.List.community_id}, {TBL.List.name})
+                        UNIQUE ({Tables.List.community_id}, {Tables.List.name})
                     )
                 """)
 
                 # Add foreign key to community, otherwise we would have circular dependency
                 cursor.execute(f"""
-                    ALTER TABLE {TBL.Community}
+                    ALTER TABLE {Tables.Community}
                     ADD CONSTRAINT fk_community_default_list
-                    FOREIGN KEY ({TBL.Community.default_selected_list_id})
-                        REFERENCES {TBL.List}({TBL.List.id})
+                    FOREIGN KEY ({Tables.Community.default_selected_list_id})
+                        REFERENCES {Tables.List}({Tables.List.id})
                         ON DELETE SET NULL
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.JumpediaUser} (
-                        {TBL.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {TBL.JumpediaUser.name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
-                        {TBL.JumpediaUser.power} INT NOT NULL
+                    CREATE TABLE {Tables.JumpediaUser} (
+                        {Tables.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
+                        {Tables.JumpediaUser.name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
+                        {Tables.JumpediaUser.power} INT NOT NULL
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.CommunityUser} (
-                        {TBL.CommunityUser.community_id} INT NOT NULL,
-                        {TBL.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
-                        {TBL.CommunityUser.power} INT NOT NULL,
-                        {TBL.CommunityUser.selected_list_id} INT,
+                    CREATE TABLE {Tables.CommunityUser} (
+                        {Tables.CommunityUser.community_id} INT NOT NULL,
+                        {Tables.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
+                        {Tables.CommunityUser.power} INT NOT NULL,
+                        {Tables.CommunityUser.selected_list_id} INT,
 
-                        PRIMARY KEY ({TBL.CommunityUser.community_id}, {TBL.CommunityUser.user_id}),
+                        PRIMARY KEY ({Tables.CommunityUser.community_id}, {Tables.CommunityUser.user_id}),
 
-                        FOREIGN KEY ({TBL.CommunityUser.community_id})
-                            REFERENCES {TBL.Community}({TBL.Community.id})
+                        FOREIGN KEY ({Tables.CommunityUser.community_id})
+                            REFERENCES {Tables.Community}({Tables.Community.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.CommunityUser.user_id})
-                            REFERENCES {TBL.JumpediaUser}({TBL.JumpediaUser.id})
+                        FOREIGN KEY ({Tables.CommunityUser.user_id})
+                            REFERENCES {Tables.JumpediaUser}({Tables.JumpediaUser.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.CommunityUser.selected_list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.CommunityUser.selected_list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE SET NULL
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.StaticAttribute} (
-                        {TBL.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.StaticAttribute.list_id} INT NOT NULL,
-                        {TBL.StaticAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {TBL.StaticAttribute.value_type} INT NOT NULL,
-                        {TBL.StaticAttribute.position} INT NOT NULL,
-                        {TBL.StaticAttribute.min_slots} INT NOT NULL,
-                        {TBL.StaticAttribute.max_slots} INT NOT NULL,
-                        {TBL.StaticAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
+                    CREATE TABLE {Tables.StaticAttribute} (
+                        {Tables.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.StaticAttribute.list_id} INT NOT NULL,
+                        {Tables.StaticAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {Tables.StaticAttribute.slot_type} INT NOT NULL,
+                        {Tables.StaticAttribute.position} INT NOT NULL,
+                        {Tables.StaticAttribute.min_slots} INT NOT NULL,
+                        {Tables.StaticAttribute.max_slots} INT NOT NULL,
+                        {Tables.StaticAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
-                        FOREIGN KEY ({TBL.StaticAttribute.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.StaticAttribute.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.StaticAttribute.list_id}, {TBL.StaticAttribute.name}),
-                        UNIQUE ({TBL.StaticAttribute.list_id}, {TBL.StaticAttribute.position})
+                        UNIQUE ({Tables.StaticAttribute.list_id}, {Tables.StaticAttribute.name}),
+                        UNIQUE ({Tables.StaticAttribute.list_id}, {Tables.StaticAttribute.position})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.StaticAttributeAlias} (
-                        {TBL.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.StaticAttributeAlias.static_attribute_id} INT NOT NULL,
-                        {TBL.StaticAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.StaticAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                    CREATE TABLE {Tables.StaticAttributeAlias} (
+                        {Tables.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.StaticAttributeAlias.static_attribute_id} INT NOT NULL,
+                        {Tables.StaticAttributeAlias.list_id} INT NOT NULL,
+                        {Tables.StaticAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.StaticAttributeAlias.static_attribute_id})
-                            REFERENCES {TBL.StaticAttribute}({TBL.StaticAttribute.id})
+                        FOREIGN KEY ({Tables.StaticAttributeAlias.static_attribute_id})
+                            REFERENCES {Tables.StaticAttribute}({Tables.StaticAttribute.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.StaticAttributeAlias.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.StaticAttributeAlias.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.StaticAttributeAlias.list_id}, {TBL.StaticAttributeAlias.alias})
+                        UNIQUE ({Tables.StaticAttributeAlias.list_id}, {Tables.StaticAttributeAlias.alias})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAttribute} (
-                        {TBL.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAttribute.list_id} INT NOT NULL,
-                        {TBL.TaskAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {TBL.TaskAttribute.value_type} INT NOT NULL,
-                        {TBL.TaskAttribute.position} INT NOT NULL,
-                        {TBL.TaskAttribute.min_slots} INT NOT NULL,
-                        {TBL.TaskAttribute.max_slots} INT NOT NULL,
-                        {TBL.TaskAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
+                    CREATE TABLE {Tables.TaskAttribute} (
+                        {Tables.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.TaskAttribute.list_id} INT NOT NULL,
+                        {Tables.TaskAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {Tables.TaskAttribute.slot_type} INT NOT NULL,
+                        {Tables.TaskAttribute.position} INT NOT NULL,
+                        {Tables.TaskAttribute.min_slots} INT NOT NULL,
+                        {Tables.TaskAttribute.max_slots} INT NOT NULL,
+                        {Tables.TaskAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAttribute.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.TaskAttribute.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.TaskAttribute.list_id}, {TBL.TaskAttribute.name}),
-                        UNIQUE ({TBL.TaskAttribute.list_id}, {TBL.TaskAttribute.position})
+                        UNIQUE ({Tables.TaskAttribute.list_id}, {Tables.TaskAttribute.name}),
+                        UNIQUE ({Tables.TaskAttribute.list_id}, {Tables.TaskAttribute.position})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAttributeAlias} (
-                        {TBL.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAttributeAlias.task_attribute_id} INT NOT NULL,
-                        {TBL.TaskAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.TaskAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                    CREATE TABLE {Tables.TaskAttributeAlias} (
+                        {Tables.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.TaskAttributeAlias.task_attribute_id} INT NOT NULL,
+                        {Tables.TaskAttributeAlias.list_id} INT NOT NULL,
+                        {Tables.TaskAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAttributeAlias.task_attribute_id})
-                            REFERENCES {TBL.TaskAttribute}({TBL.TaskAttribute.id})
+                        FOREIGN KEY ({Tables.TaskAttributeAlias.task_attribute_id})
+                            REFERENCES {Tables.TaskAttribute}({Tables.TaskAttribute.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.TaskAttributeAlias.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.TaskAttributeAlias.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.TaskAttributeAlias.list_id}, {TBL.TaskAttributeAlias.alias})
+                        UNIQUE ({Tables.TaskAttributeAlias.list_id}, {Tables.TaskAttributeAlias.alias})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAttributeCollectionNode} (
-                        {TBL.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAttributeCollectionNode.parent_id} INT,
-                        {TBL.TaskAttributeCollectionNode.task_attribute_id} INT NOT NULL,
-                        {TBL.TaskAttributeCollectionNode.value} BLOB NOT NULL,
-                        {TBL.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
+                    CREATE TABLE {Tables.TaskAttributeCollectionNode} (
+                        {Tables.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.TaskAttributeCollectionNode.parent_id} INT,
+                        {Tables.TaskAttributeCollectionNode.task_attribute_id} INT NOT NULL,
+                        {Tables.TaskAttributeCollectionNode.value} BLOB NOT NULL,
+                        {Tables.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAttributeCollectionNode.parent_id})
-                            REFERENCES {TBL.TaskAttributeCollectionNode}({TBL.TaskAttributeCollectionNode.id})
+                        FOREIGN KEY ({Tables.TaskAttributeCollectionNode.parent_id})
+                            REFERENCES {Tables.TaskAttributeCollectionNode}({Tables.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.TaskAttributeCollectionNode.task_attribute_id})
-                            REFERENCES {TBL.TaskAttribute}({TBL.TaskAttribute.id})
+                        FOREIGN KEY ({Tables.TaskAttributeCollectionNode.task_attribute_id})
+                            REFERENCES {Tables.TaskAttribute}({Tables.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAttributeCollectionNodeAlias} (
-                        {TBL.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id} INT NOT NULL,
-                        {TBL.TaskAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
+                    CREATE TABLE {Tables.TaskAttributeCollectionNodeAlias} (
+                        {Tables.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.TaskAttributeCollectionNodeAlias.task_attribute_id} INT NOT NULL,
+                        {Tables.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id} INT NOT NULL,
+                        {Tables.TaskAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id})
-                            REFERENCES {TBL.TaskAttributeCollectionNode}({TBL.TaskAttributeCollectionNode.id})
+                        FOREIGN KEY ({Tables.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id})
+                            REFERENCES {Tables.TaskAttributeCollectionNode}({Tables.TaskAttributeCollectionNode.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({Tables.TaskAttributeCollectionNodeAlias.task_attribute_id})
+                            REFERENCES {Tables.TaskAttribute}({Tables.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
 
                 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.UserAttribute} (
-                        {TBL.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.UserAttribute.list_id} INT NOT NULL,
-                        {TBL.UserAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {TBL.UserAttribute.position} INT NOT NULL,
-                        {TBL.UserAttribute.value_type} INT NOT NULL,
-                        {TBL.UserAttribute.min_slots} INT NOT NULL,
-                        {TBL.UserAttribute.max_slots} INT NOT NULL,
-                        {TBL.UserAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
+                    CREATE TABLE {Tables.UserAttribute} (
+                        {Tables.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.UserAttribute.list_id} INT NOT NULL,
+                        {Tables.UserAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {Tables.UserAttribute.position} INT NOT NULL,
+                        {Tables.UserAttribute.slot_type} INT NOT NULL,
+                        {Tables.UserAttribute.min_slots} INT NOT NULL,
+                        {Tables.UserAttribute.max_slots} INT NOT NULL,
+                        {Tables.UserAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
-                        FOREIGN KEY ({TBL.UserAttribute.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.UserAttribute.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.UserAttribute.list_id}, {TBL.UserAttribute.name}),
-                        UNIQUE ({TBL.UserAttribute.list_id}, {TBL.UserAttribute.position})
+                        UNIQUE ({Tables.UserAttribute.list_id}, {Tables.UserAttribute.name}),
+                        UNIQUE ({Tables.UserAttribute.list_id}, {Tables.UserAttribute.position})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.UserAttributeAlias} (
-                        {TBL.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.UserAttributeAlias.user_attribute_id} INT NOT NULL,
-                        {TBL.UserAttributeAlias.list_id} INT NOT NULL,
-                        {TBL.UserAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                    CREATE TABLE {Tables.UserAttributeAlias} (
+                        {Tables.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.UserAttributeAlias.user_attribute_id} INT NOT NULL,
+                        {Tables.UserAttributeAlias.list_id} INT NOT NULL,
+                        {Tables.UserAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.UserAttributeAlias.user_attribute_id})
-                            REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
+                        FOREIGN KEY ({Tables.UserAttributeAlias.user_attribute_id})
+                            REFERENCES {Tables.UserAttribute}({Tables.UserAttribute.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.UserAttributeAlias.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.UserAttributeAlias.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.UserAttributeAlias.list_id}, {TBL.UserAttributeAlias.alias})
+                        UNIQUE ({Tables.UserAttributeAlias.list_id}, {Tables.UserAttributeAlias.alias})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.UserAttributeCollectionNode} (
-                        {TBL.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.UserAttributeCollectionNode.root_id} INT,
-                        {TBL.UserAttributeCollectionNode.user_attribute_id} INT NOT NULL,
-                        {TBL.UserAttributeCollectionNode.value} BLOB NOT NULL,
-                        {TBL.UserAttributeCollectionNode.sort_value} INT NOT NULL,
+                    CREATE TABLE {Tables.UserAttributeCollectionNode} (
+                        {Tables.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.UserAttributeCollectionNode.parent_id} INT,
+                        {Tables.UserAttributeCollectionNode.user_attribute_id} INT NOT NULL,
+                        {Tables.UserAttributeCollectionNode.value} BLOB NOT NULL,
+                        {Tables.UserAttributeCollectionNode.sort_value} INT NOT NULL,
 
-                        FOREIGN KEY ({TBL.UserAttributeCollectionNode.root_id})
-                            REFERENCES {TBL.UserAttributeCollectionNode}({TBL.UserAttributeCollectionNode.id})
+                        FOREIGN KEY ({Tables.UserAttributeCollectionNode.parent_id})
+                            REFERENCES {Tables.UserAttributeCollectionNode}({Tables.UserAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.UserAttributeCollectionNode.user_attribute_id})
-                            REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
+                        FOREIGN KEY ({Tables.UserAttributeCollectionNode.user_attribute_id})
+                            REFERENCES {Tables.UserAttribute}({Tables.UserAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.UserAttributeCollectionNodeAlias} (
-                        {TBL.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id} INT NOT NULL,
-                        {TBL.UserAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
+                    CREATE TABLE {Tables.UserAttributeCollectionNodeAlias} (
+                        {Tables.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.UserAttributeCollectionNodeAlias.user_attribute_id} INT NOT NULL,
+                        {Tables.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id} INT NOT NULL,
+                        {Tables.UserAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
 
-                        FOREIGN KEY ({TBL.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id})
-                            REFERENCES {TBL.UserAttributeCollectionNode}({TBL.UserAttributeCollectionNode.id})
+                        FOREIGN KEY ({Tables.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id})
+                            REFERENCES {Tables.UserAttributeCollectionNode}({Tables.UserAttributeCollectionNode.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({Tables.UserAttributeCollectionNodeAlias.user_attribute_id})
+                            REFERENCES {Tables.UserAttribute}({Tables.UserAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.Task} (
-                        {TBL.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.Task.list_id} INT NOT NULL,
-                        {TBL.Task.name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                    CREATE TABLE {Tables.Task} (
+                        {Tables.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.Task.list_id} INT NOT NULL,
+                        {Tables.Task.name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.Task.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.Task.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.Task.list_id}, {TBL.Task.name})
+                        UNIQUE ({Tables.Task.list_id}, {Tables.Task.name})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAlias} (
-                        {TBL.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {TBL.TaskAlias.task_id} INT NOT NULL,
-                        {TBL.TaskAlias.list_id} INT NOT NULL,
-                        {TBL.TaskAlias.alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                    CREATE TABLE {Tables.TaskAlias} (
+                        {Tables.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {Tables.TaskAlias.task_id} INT NOT NULL,
+                        {Tables.TaskAlias.list_id} INT NOT NULL,
+                        {Tables.TaskAlias.alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({TBL.TaskAlias.task_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                        FOREIGN KEY ({Tables.TaskAlias.task_id})
+                            REFERENCES {Tables.Task}({Tables.Task.id})
                             ON DELETE CASCADE,
 
-                        FOREIGN KEY ({TBL.TaskAlias.list_id})
-                            REFERENCES {TBL.List}({TBL.List.id})
+                        FOREIGN KEY ({Tables.TaskAlias.list_id})
+                            REFERENCES {Tables.List}({Tables.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({TBL.TaskAlias.list_id}, {TBL.TaskAlias.alias})
+                        UNIQUE ({Tables.TaskAlias.list_id}, {Tables.TaskAlias.alias})
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.StaticAttributeTaskValue} (
-                        {TBL.StaticAttributeTaskValue.task_id} INT NOT NULL,
-                        {TBL.StaticAttributeTaskValue.static_attribute_id} INT NOT NULL,
-                        {TBL.StaticAttributeTaskValue.value} BLOB NOT NULL,
+                    CREATE TABLE {Tables.StaticAttributeTaskValue} (
+                        {Tables.StaticAttributeTaskValue.task_id} INT NOT NULL,
+                        {Tables.StaticAttributeTaskValue.static_attribute_id} INT NOT NULL,
+                        {Tables.StaticAttributeTaskValue.value} BLOB NOT NULL,
 
-                        PRIMARY KEY ({TBL.StaticAttributeTaskValue.task_id}, {TBL.StaticAttributeTaskValue.static_attribute_id}),
+                        PRIMARY KEY ({Tables.StaticAttributeTaskValue.task_id}, {Tables.StaticAttributeTaskValue.static_attribute_id}),
 
-                        FOREIGN KEY ({TBL.StaticAttributeTaskValue.task_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                        FOREIGN KEY ({Tables.StaticAttributeTaskValue.task_id})
+                            REFERENCES {Tables.Task}({Tables.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.StaticAttributeTaskValue.static_attribute_id})
-                            REFERENCES {TBL.StaticAttribute}({TBL.StaticAttribute.id})
+                        FOREIGN KEY ({Tables.StaticAttributeTaskValue.static_attribute_id})
+                            REFERENCES {Tables.StaticAttribute}({Tables.StaticAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
                 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.TaskAttributeTaskValue} (
-                        {TBL.TaskAttributeTaskValue.task_id} INT NOT NULL,
-                        {TBL.TaskAttributeTaskValue.task_attribute_id} INT NOT NULL,
-                        {TBL.TaskAttributeTaskValue.value} BLOB NOT NULL,
+                    CREATE TABLE {Tables.TaskAttributeTaskValue} (
+                        {Tables.TaskAttributeTaskValue.task_id} INT NOT NULL,
+                        {Tables.TaskAttributeTaskValue.task_attribute_id} INT NOT NULL,
+                        {Tables.TaskAttributeTaskValue.value} BLOB NOT NULL,
 
                         PRIMARY KEY (
-                            {TBL.TaskAttributeTaskValue.task_id}, 
-                            {TBL.TaskAttributeTaskValue.task_attribute_id}
+                            {Tables.TaskAttributeTaskValue.task_id}, 
+                            {Tables.TaskAttributeTaskValue.task_attribute_id}
                         ),
 
-                        FOREIGN KEY ({TBL.TaskAttributeTaskValue.task_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                        FOREIGN KEY ({Tables.TaskAttributeTaskValue.task_id})
+                            REFERENCES {Tables.Task}({Tables.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.TaskAttributeTaskValue.task_attribute_id})
-                            REFERENCES {TBL.TaskAttribute}({TBL.TaskAttribute.id})
+                        FOREIGN KEY ({Tables.TaskAttributeTaskValue.task_attribute_id})
+                            REFERENCES {Tables.TaskAttribute}({Tables.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
 
                 cursor.execute(f"""
-                    CREATE TABLE {TBL.UserAttributeTaskValue} (
-                        {TBL.UserAttributeTaskValue.task_id} INT NOT NULL,
-                        {TBL.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
-                        {TBL.UserAttributeTaskValue.user_attribute_id} INT NOT NULL,
-                        {TBL.UserAttributeTaskValue.value} BLOB NOT NULL,
+                    CREATE TABLE {Tables.UserAttributeTaskValue} (
+                        {Tables.UserAttributeTaskValue.task_id} INT NOT NULL,
+                        {Tables.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
+                        {Tables.UserAttributeTaskValue.user_attribute_id} INT NOT NULL,
+                        {Tables.UserAttributeTaskValue.value} BLOB NOT NULL,
 
                         PRIMARY KEY (
-                            {TBL.UserAttributeTaskValue.task_id}, 
-                            {TBL.UserAttributeTaskValue.user_id}, 
-                            {TBL.UserAttributeTaskValue.user_attribute_id}
+                            {Tables.UserAttributeTaskValue.task_id}, 
+                            {Tables.UserAttributeTaskValue.user_id}, 
+                            {Tables.UserAttributeTaskValue.user_attribute_id}
                         ),
 
-                        FOREIGN KEY ({TBL.UserAttributeTaskValue.task_id})
-                            REFERENCES {TBL.Task}({TBL.Task.id})
+                        FOREIGN KEY ({Tables.UserAttributeTaskValue.task_id})
+                            REFERENCES {Tables.Task}({Tables.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.UserAttributeTaskValue.user_attribute_id})
-                            REFERENCES {TBL.UserAttribute}({TBL.UserAttribute.id})
+                        FOREIGN KEY ({Tables.UserAttributeTaskValue.user_attribute_id})
+                            REFERENCES {Tables.UserAttribute}({Tables.UserAttribute.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({TBL.UserAttributeTaskValue.user_id})
-                            REFERENCES {TBL.JumpediaUser}({TBL.JumpediaUser.id})
+                        FOREIGN KEY ({Tables.UserAttributeTaskValue.user_id})
+                            REFERENCES {Tables.JumpediaUser}({Tables.JumpediaUser.id})
                             ON DELETE CASCADE
                     )
                 """)
@@ -430,8 +438,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO {TBL.Community} (
-                        {TBL.Community.name},
+                    INSERT INTO {Tables.Community} (
+                        {Tables.Community.name},
                     )
                     VALUES (
                         {h|name}
@@ -441,9 +449,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 community_id: int = cursor.lastrowid  # type: ignore
 
                 cursor.execute(f"""
-                    INSERT INTO {TBL.Server} (
-                        {TBL.Server.id}, 
-                        {TBL.Server.community_id}
+                    INSERT INTO {Tables.Server} (
+                        {Tables.Server.id}, 
+                        {Tables.Server.community_id}
                     )
                     VALUES (
                         {h|server_id},
@@ -487,8 +495,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
         with self.locked, community.locked, queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                DELETE FROM {TBL.Community}
-                WHERE {TBL.Community.id} = {h|community.id}
+                DELETE FROM {Tables.Community}
+                WHERE {Tables.Community.id} = {h|community.id}
             """, h.steal())
 
             return cursor.rowcount > 0
@@ -499,7 +507,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.Community}
+                FROM {Tables.Community}
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
@@ -510,9 +518,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     def _community_data_to_obj(self, data: typed.SingleTableRowT) -> 'Community':
         return Community(
             jumpedia=self,
-            id=data[TBL.Community.id],
-            name=data[TBL.Community.name],
-            default_selected_list_id=data[TBL.Community.default_selected_list_id]
+            id=data[Tables.Community.id],
+            name=data[Tables.Community.name],
+            default_selected_list_id=data[Tables.Community.default_selected_list_id]
         )
     
     def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Community]:
@@ -522,11 +530,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         ]
         
     def get_community_by_id(self, id: int) -> 'Community | None':
-        data = self._fetch_from_community_table(lambda h: f"{TBL.Community.id} = {h|id}")
+        data = self._fetch_from_community_table(lambda h: f"{Tables.Community.id} = {h|id}")
         return self._community_data_to_obj(data[0]) if data else None
     
     def get_community_by_name(self, name: str) -> 'Community | None':
-        data = self._fetch_from_community_table(lambda h: f"{TBL.Community.name} = {h|name}")
+        data = self._fetch_from_community_table(lambda h: f"{Tables.Community.name} = {h|name}")
         return self._community_data_to_obj(data[0]) if data else None
     
     def get_community_by_server_id(self, server_id: int) -> 'Community | None':
@@ -534,9 +542,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.Server.community_id}
-                FROM {TBL.Server}
-                WHERE {TBL.Server.id} = {h|server_id}
+                SELECT {Tables.Server.community_id}
+                FROM {Tables.Server}
+                WHERE {Tables.Server.id} = {h|server_id}
             """, h.steal())
 
             result: typed.SingleTableRowT | None = cursor.fetchone()
@@ -544,7 +552,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         if result is None:
             return None
 
-        return self.get_community_by_id(result[TBL.Server.community_id])
+        return self.get_community_by_id(result[Tables.Server.community_id])
     
 
     # --- Jumpedia Users ---
@@ -565,10 +573,10 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             with queries.connected() as (conn, cursor):
                 if user is None:
                     cursor.execute(f"""
-                        INSERT INTO {TBL.JumpediaUser} (
-                            {TBL.JumpediaUser.id},
-                            {TBL.JumpediaUser.power},
-                            {TBL.JumpediaUser.name}
+                        INSERT INTO {Tables.JumpediaUser} (
+                            {Tables.JumpediaUser.id},
+                            {Tables.JumpediaUser.power},
+                            {Tables.JumpediaUser.name}
                         )
                         VALUES (
                             {h|id},
@@ -583,12 +591,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
                     if name != user.name or jumpedia_rank != user.jumpedia_rank:
                         cursor.execute(f"""
-                            UPDATE {TBL.JumpediaUser} 
+                            UPDATE {Tables.JumpediaUser} 
                             SET 
-                                {TBL.JumpediaUser.name} = {h|name}
-                                {TBL.JumpediaUser.power} = {h|jumpedia_rank.power}
+                                {Tables.JumpediaUser.name} = {h|name}
+                                {Tables.JumpediaUser.power} = {h|jumpedia_rank.power}
                             WHERE 
-                                {TBL.JumpediaUser.id} = {h|user.id}
+                                {Tables.JumpediaUser.id} = {h|user.id}
                         """, h.steal())
                         
                 return JumpediaUser(
@@ -604,7 +612,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.JumpediaUser}
+                FROM {Tables.JumpediaUser}
                 {f"WHERE {where(h)}" if where is not None else ""}
             """, h.steal())
 
@@ -615,9 +623,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     def _user_data_to_obj(self, data: typed.SingleTableRowT) -> JumpediaUser:
         return JumpediaUser(
             jumpedia=self,
-            name=data[TBL.JumpediaUser.name],
-            id=data[TBL.JumpediaUser.id],
-            jumpedia_rank=JumpediaRank.get(data[TBL.JumpediaUser.power])
+            name=data[Tables.JumpediaUser.name],
+            id=data[Tables.JumpediaUser.id],
+            jumpedia_rank=JumpediaRank.get(data[Tables.JumpediaUser.power])
         )
     
     def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[JumpediaUser]:
@@ -627,7 +635,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         ]
 
     def get_user_by_id(self, id: int) -> JumpediaUser | None:
-        data = self._fetch_from_user_table(lambda h: f"{TBL.JumpediaUser.id} = {h|id}")
+        data = self._fetch_from_user_table(lambda h: f"{Tables.JumpediaUser.id} = {h|id}")
         return self._user_data_to_obj(data[0]) if data else None
 
     def add_community_to_server(self, community_id: int, server_id: int) -> 'Community':
@@ -657,9 +665,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO {TBL.Server} (
-                        {TBL.Server.id},
-                        {TBL.Server.community_id}
+                    INSERT INTO {Tables.Server} (
+                        {Tables.Server.id},
+                        {Tables.Server.community_id}
                     )
                     VALUES (
                         {h|server_id},
@@ -676,9 +684,9 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    DELETE FROM {TBL.Server}
+                    DELETE FROM {Tables.Server}
                     WHERE 
-                        {TBL.Server.id} = {h|server_id}
+                        {Tables.Server.id} = {h|server_id}
                 """, h.steal())
 
                 if cursor.rowcount < 1:

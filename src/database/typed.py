@@ -1,4 +1,4 @@
-from typing import Any as _Any
+from typing import Any as _Any, TypedDict
 
 class ColumnName(str):
     # When used in f-strings, so mostly queries
@@ -26,9 +26,6 @@ class TableMeta(type):
 
 
 DATABASE_NAME: str = 'jumpedia'
-
-type SingleTableRowT = dict[str, _Any]
-type ManyTableRowT = list[SingleTableRowT]
 
 class Tables:
     # --- Meta ---
@@ -69,7 +66,7 @@ class Tables:
         id: ColumnName
         list_id: ColumnName
         name: ColumnName
-        value_type: ColumnName
+        slot_type: ColumnName
         position: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
@@ -90,7 +87,7 @@ class Tables:
         id: ColumnName
         list_id: ColumnName
         name: ColumnName
-        value_type: ColumnName
+        slot_type: ColumnName
         position: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
@@ -111,14 +108,15 @@ class Tables:
         value: ColumnName
         sort_value: ColumnName
 
-        _aliases: ColumnName
         _attribute_id: ColumnName = ColumnName('task_attribute_id')
 
     class TaskAttributeCollectionNodeAlias(metaclass=TableMeta):
         id: ColumnName
+        task_attribute_id: ColumnName
         task_attribute_collection_node_id: ColumnName
         alias: ColumnName
 
+        _attribute_id: ColumnName = ColumnName('task_attribute_id')
         _attribute_collection_node_id: ColumnName = ColumnName('task_attribute_collection_node_id')
 
 
@@ -129,7 +127,7 @@ class Tables:
         list_id: ColumnName
         name: ColumnName
         position: ColumnName
-        value_type: ColumnName
+        slot_type: ColumnName
         min_slots: ColumnName
         max_slots: ColumnName
         uniqueness: ColumnName
@@ -144,19 +142,20 @@ class Tables:
 
     class UserAttributeCollectionNode(metaclass=TableMeta):
         id: ColumnName
-        root_id: ColumnName
+        parent_id: ColumnName
         user_attribute_id: ColumnName
         value: ColumnName
         sort_value: ColumnName
 
-        _aliases: ColumnName
         _attribute_id: ColumnName = ColumnName('user_attribute_id')
 
     class UserAttributeCollectionNodeAlias(metaclass=TableMeta):
         id: ColumnName
+        user_attribute_id: ColumnName
         user_attribute_collection_node_id: ColumnName
         alias: ColumnName
 
+        _attribute_id: ColumnName = ColumnName('user_attribute_id')
         _attribute_collection_node_id: ColumnName = ColumnName('user_attribute_collection_node_id')
 
 

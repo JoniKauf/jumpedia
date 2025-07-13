@@ -4,8 +4,9 @@ from dataclasses import dataclass, field
 import enum
 import datetime as dt
 import json
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict, Union
-from database import queries
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Iterable, Literal, Never, NotRequired, Optional, Self, TypedDict, Union, assert_never
+from database import dbutils, queries
 import re
 from decimal import Decimal
 import decimal
@@ -13,20 +14,23 @@ from discordtools import messaging as msg
 from errors.feedback import FeedbackError, feedbacks
 import errors
 from structures import attributes
-from structures.attributes import AttributeValueType, AttributeValueTypeT, Uniqueness
+from structures.attributes import AnyAttributeT, AttributeDataCache, AttributeValueParseTypesT, RawCollectionNode, RawCollectionNodesT, Uniqueness
+from structures.attributes import collection as coll
+from structures.attributes import slot_type
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
+from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
-from utils import parsetools, text
+from utils import numbers, parsetools, text
 from database import typed as typed
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 
 if TYPE_CHECKING:
     from structures.list import List
 
-_DATE_ALTERNATIVE_DELIMITERS_PATTERN = re.compile(r'[/.]')
+        
 
 @dataclass(frozen=True, kw_only=True)
-class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
+class BaseAttribute[T: SlotTypeT](BaseStructure):
     __structure_name__ = "base attribute"
 
     # --- CONSTANTS ---
@@ -35,17 +39,18 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     list: 'List'
     id: int 
     name: str
-    value_type: AttributeValueType[T]
+    slot_type: SlotType[T]
     position: int
     min_slots: int
     max_slots: int
     uniqueness: Uniqueness
 
     value_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
-        max_depth=attributes.COLLECTION_MAX_DEPTH,
+        max_depth=coll.MAX_DEPTH,
         strict_type=attributes.ATTRIBUTE_VALUE_PARSE_TYPES
     )
     
+    _cache: AttributeDataCache[T] = field(init=False, default_factory=AttributeDataCache)
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -70,144 +75,34 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
     def get_syns(self) -> set[str]:
         return {self.name} | self.get_aliases()
     
-    def has_collection(self) -> bool:
-        return bool(self.get_collection().top_nodes)
+    def get_aliases(self) -> frozenset[str]:
+        assert isinstance(self, attributes.ANY_ATTRIBUTE)
+
+        if self._cache.aliases is not None:
+            return self._cache.aliases
+        
+        TblAlias = dbutils.get_attribute_alias_table(type(self))
+
+        h = queries.ArgHelper()
+
+        with queries.connected() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT {TblAlias.alias}
+                FROM {TblAlias}
+                WHERE {TblAlias._attribute_id} = {h|self.id}
+            """)
+
+            rows: queries.ManyRowsT = cursor.fetchall()
+        
+        self._cache.aliases = frozenset(row[TblAlias.alias] for row in rows)
+
+        return self._cache.aliases
     
-    @abstractmethod
-    def get_aliases(self) -> set[str]:
-        pass
-
-    @abstractmethod
-    def _create_collection(self) -> None:
-        pass
-
     @abstractmethod
     def get_collection(self) -> Collection[T]:
         pass
-    
-    @classmethod
-    def validate_number_valid(cls, number: int | float | Decimal) -> None:
-        MIN, MAX = attributes.NUMBER_MIN, attributes.NUMBER_MAX
 
-        if not (MIN <= number <= MAX):
-            raise FeedbackError(
-                "Number Out Of Valid Range",
-                f"The number {msg.shorten_and_code(str(number))} is too small or big!",
-                additional=f"It must be a value between {msg.code(str(MIN))} and {msg.code(str(MAX))}."
-            )
-        
-    @staticmethod
-    def _feedback_invalid_value_for_value_type(s: str, value_type: AttributeValueType, additional_start: str) -> FeedbackError:
-        if value_type.literal_to_str_possible:
-            additional_modal_verb = "must also be"
-        else:
-            additional_modal_verb = "can optionally also be"
-
-        raise FeedbackError(
-            "Invalid Value For Required Type",
-            f"The value {msg.shorten_and_code(s)} is not valid for attribute's value type {msg.code(value_type.name)}!",
-            additional=f"{additional_start}\nThey {additional_modal_verb} wrapped in \"quotation marks\"."
-        )
-    
-    @classmethod
-    def slot_from_str(cls, s: str, value_type: AttributeValueType) -> T:
-        value_type_type = value_type.type
-        old_s, s = s, text.sanitize(s)
-
-        if not s:
-            raise feedbacks.temp(f"empty or only whitespace values like {msg.code(old_s)} are not allowed")
-        
-        if issubclass(value_type_type, bool):
-            s = s.lower()
-
-            if s == "false":
-                return False  # type: ignore
-            if s == "true":
-                return True  # type: ignore
-            
-            raise cls._feedback_invalid_value_for_value_type(s, value_type, f"The only valid values are {msg.code('true')} or {msg.code('false')}.")
-
-        elif issubclass(value_type_type, int):
-            try:
-                result = int(s)
-            except Exception:
-                raise cls._feedback_invalid_value_for_value_type(
-                    s, 
-                    value_type, 
-                    f"These are some examples of valid values:\n" + 
-                    '\n'.join(f"- {msg.code_many(("0", "3", "238283283", "-13"))}")
-                )
-            
-            cls.validate_number_valid(result)
-
-            return result  # type: ignore
-    
-        elif issubclass(value_type_type, Decimal):
-            try:
-                result = Decimal(s)
-                result = result.quantize(Decimal(f"1E-{attributes.DECIMAL_DEC_PART_MAX_LEN}"))
-            except Exception:
-                raise cls._feedback_invalid_value_for_value_type(
-                    s,
-                    value_type,
-                    f"These are some examples of valid values:\n" + 
-                    '\n'.join(f"- {msg.code_many(("0.01", "3", "3.1415926", "-30.7", "148234290329.2382"))}")
-                )
-            
-            cls.validate_number_valid(result)
-
-            return result  # type: ignore
-            
-        elif issubclass(value_type_type, (dt.time, dt.date, dt.datetime)):
-            # If a date is in the type
-            if issubclass(value_type_type, (dt.date, dt.datetime)):
-                s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, "-", s)
-            
-            try:
-                result = value_type_type.fromisoformat(s)
-            except Exception:
-                raise cls._feedback_invalid_value_for_value_type(
-                    s,
-                    value_type,
-                    "Todo"
-                )
-                
-            if isinstance(result, (dt.time, dt.datetime)):
-                if result.tzinfo is None:
-                    result = result.replace(tzinfo=dt.timezone.utc)
-                
-                if isinstance(result, dt.time):
-                    datetime = dt.datetime.combine(dt.date.today(), result, result.tzinfo)
-                    return datetime.astimezone(dt.timezone.utc).time()  # type: ignore
-                
-                return result.astimezone(dt.timezone.utc)  # type: ignore
-
-        if issubclass(value_type_type, dt.timedelta):
-            try:
-                return parsetools.parse_timedelta(s)  # type: ignore
-            except ValueError:
-                raise cls._feedback_invalid_value_for_value_type(
-                    s,
-                    value_type,
-                    "Todo"
-                )
-
-        if issubclass(value_type_type, str):
-            MIN, MAX = attributes.STR_MIN_LEN, attributes.STR_MAX_LEN
-
-            if not (MIN <= len(s) <= MAX):
-                raise cls._feedback_invalid_value_for_value_type(
-                    s,
-                    value_type,
-                    "Todo"
-                )
-            
-            return s  # type: ignore
-
-        raise errors.ImpossibleError("Invalid AttributeValueType", value_type.type)
-    
-
-    def value_from_loaded(self, loaded: attributes.AttributeValueParseTypesT) -> builtins.list[T]:
+    def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
         if not isinstance(loaded, list):
             loaded = [loaded]
 
@@ -217,23 +112,23 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         result_values: list[T] = []
         
         for slot in loaded:
-            if not isinstance(slot, self.value_type.type):
+            if not isinstance(slot, self.slot_type.type):
                 raise feedbacks.temp(f"not list, str or value type '{loaded}'")
             
-            if not self.value_type.literal_to_str_possible:
-                raise feedbacks.temp(f"value type '{self.value_type}' is not valid")
+            if not self.slot_type.literal_to_str_possible:
+                raise feedbacks.temp(f"value type '{self.slot_type}' is not valid")
             
-            parsed_value = self.__class__.slot_from_str(str(slot), self.value_type)
+            parsed_value = self.slot_type.slot_from_str(str(slot))
 
             result_values.append(parsed_value)
         
-        values = self._collection_conversion_if_needed(result_values)
+        values = self._convert_to_collection(result_values)
 
         normed_to_val: dict[T, T] = {}
         unique_slots: bool = self.uniqueness >= Uniqueness.PER_VALUE
 
         for v in values:
-            normed_v = self.value_type.norm(v)
+            normed_v = self.slot_type.norm(v)
             other_v = normed_to_val.get(normed_v, None)
 
             if other_v is None:
@@ -246,8 +141,8 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
             if other_v != v:
                 raise feedbacks.temp(f"All values that are equal case insensitively must be exactly equal. {other_v} != {v}")
         
-        return values
-    
+        return values  
+
     def value_from_str(self, s: str) -> Any:
         return self.value_from_str(self.__class__.general_from_str(
             s, 
@@ -280,33 +175,35 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
         
         raise TypeError("Invalid")
 
-    def _collection_conversion_if_needed(self, elems: builtins.list[T]) -> builtins.list[T]:
-        if not self.has_collection():
-            return elems
+    def _convert_to_collection(self, value: builtins.list[T]) -> builtins.list[T]:
+        collection = self.get_collection()
+
+        if not collection.is_empty:
+            return value
         
         result: list[T] = []
-
-        for elem in elems:
-            node = self.get_collection().lookup_node(elem, None)
+        
+        for slot in value:
+            node = collection.lookup_node(slot, None)
             
             if node is None:
-                raise feedbacks.temp("Not part of the collection", elem)
+                raise feedbacks.temp("Not part of the collection", slot)
 
             result.append(node.value)
 
         return result
 
     @classmethod
-    def _sort_key_singular(cls, value: T, sign: Literal[+1, -1], value_type: AttributeValueType[T]) -> int:
-        vt: type[T] = value_type.type
+    def _sort_key_singular(cls, value: T, sign: Literal[+1, -1], slot_type: SlotType[T]) -> int:
+        st: type[T] = slot_type.type
 
-        if issubclass(vt, bool):
+        if issubclass(st, bool):
             return int(value + 1) * sign  # type: ignore
             
-        if issubclass(vt, (int, Decimal)):
+        if issubclass(st, (int, Decimal)):
             return value * sign  # type: ignore
 
-        if issubclass(vt, dt.time):
+        if issubclass(st, dt.time):
             return (
                 value.microsecond +           # type: ignore
                 value.second *   1_000_000 +  # type: ignore
@@ -314,35 +211,39 @@ class BaseAttribute[T: AttributeValueTypeT](BaseStructure):
                 value.hour * 3_600_000_000    # type: ignore
             ) * sign
         
-        if issubclass(vt, dt.datetime):
+        if issubclass(st, dt.datetime):
             return value.timestamp() * sign  # type: ignore
          
-        if issubclass(vt, dt.date):
+        if issubclass(st, dt.date):
             return value.timetuple().tm_yday * sign  # type: ignore
         
-        if issubclass(vt, dt.timedelta):
+        if issubclass(st, dt.timedelta):
             return value.total_seconds() * sign  # type: ignore
         
         raise TypeError()
         
-    def sort_key(self, s: str, sign: Literal[+1, -1]) -> tuple[int, ...] | Any:
-        values = self.value_from_str(s)
+    def sort_key(self, v: builtins.list[T], sign: Literal[+1, -1]) -> tuple[int, ...]:        
+        if not v:
+            return (attributes.SORT_KEY_NONE_NUMBER + 1) * sign,
         
-        if not values:
-            return (attributes.SORT_KEY_NONE_NUMBER + 1) * sign
+        collection = self.get_collection()
+
+        if collection.is_empty:
+            return tuple(
+                self._sort_key_singular(value, sign, self.slot_type) 
+                for value in v
+            )
+
+        return tuple((
+                coll_item.sort_value
+                if (coll_item := collection.lookup_node(slot, None)) is not None
+                else attributes.SORT_KEY_NONE_NUMBER
+            ) * sign
+            for slot in v
+        )
+
+    def is_valid_value(self, value: builtins.list) -> bool:
+        if not isinstance(value, list):
+            return False
         
-        if self.has_collection():
-            try:
-                return tuple((
-                    coll_item.sort_value
-                    if (coll_item := self.get_collection().lookup_node(v, None)) is not None
-                    else attributes.SORT_KEY_NONE_NUMBER
-                ) * sign
-                for v in values)
-            except KeyError as e:
-                raise RuntimeError(
-                    f"Sort value for elem '{e.args[0]}' not found, which " +
-                    f"should not happen."
-                )
-        
-        return tuple(self._sort_key_singular(value, sign, self.value_type) for value in values)
+        return all(self.slot_type.is_valid_slot(slot) for slot in value)

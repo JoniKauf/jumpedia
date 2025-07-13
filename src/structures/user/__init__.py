@@ -16,7 +16,7 @@ from ranks.server_rank import ServerRank
 from structures.base_structure import BaseStructure
 from structures.community import Community
 from structures.jumpedia import Jumpedia
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 from database.typed import SingleTableRowT
 from structures.list import List
 from structures.user.jumpedia_user import JumpediaUser

@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Final, I
 
 from database import queries 
 from errors.feedback import feedbacks
+from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
-from structures.attributes import AnyAttributeT, AttributeValueType, AttributeValueTypeT, Uniqueness, UniquenessExtended
+from structures.attributes import AnyAttributeT, RawCollectionNodesT, Uniqueness, UniquenessExtended
 from structures.attributes import collection
 from structures.attributes.base_attribute import BaseAttribute
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
@@ -22,7 +23,7 @@ from structures.task import Task
 from utils import metautils, parsetools, text
 from structures import attributes, task
 from database import typed as typed
-from database.typed import Tables as TBL
+from database.typed import Tables as Tables
 import structures.list as list_package
 
 
@@ -36,20 +37,6 @@ MIN_NAME_LENGTH: Final[int] = 2
 MAX_NAME_LENGTH: Final[int] = 64
 MAX_ATTRIBUTES: Final[int] = 3
 MAX_TASKS: Final[int] = 1
-
-
-class UserCollectionNodeT(TypedDict, total=True):
-    value: str
-    aliases: list[str]
-    sort_value: int
-    nodes: NotRequired[list['UserCollectionNodeT']]
-    
-type UserCollectionNodesT = list[UserCollectionNodeT]
-
-
-
-
-
 
 
 # --- Collection Types --- #
@@ -66,113 +53,6 @@ class List(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id, *self.community.identity)
-
-    # --- Handle User Collection ---
-
-    def handle_user_collection(
-        self,
-        bad_collection: str, 
-        attribute: TaskAttribute | UserAttribute,
-    ) -> None:
-        user_collection: UserCollectionNodesT = parsetools.json_loads_safe(
-            bad_collection, 
-            attributes.COLLECTION_MAX_DEPTH
-        )
-        
-        if not isinstance(user_collection, list):
-            raise feedbacks.temp("Not a collection")
-        
-        if not user_collection:
-            return
-        
-        unique_flattened = self._recursively_parse_validate_flatten_user_collection(user_collection, attribute.value_type)
-
-        self._insert_collection_into_db(unique_flattened, attribute)
-
-    def _recursively_parse_validate_flatten_user_collection[T: AttributeValueTypeT](
-        self,
-        user_collection_tree: UserCollectionNodesT, 
-        value_type: AttributeValueType[T]
-    ) -> CollectionNodesT[T]:
-        flattened: CollectionNodesT[T] = []
-        seen: set[T] = set()
-
-        def recursive(tree: UserCollectionNodesT) -> CollectionNodesT[T]:
-            result: CollectionNodesT[T] = []
-
-            for node in tree:
-                value, aliases, sort_value = self._extract_data_from_collection_item(node, value_type)
-
-                for syn in (value, *aliases):
-                    normed = collection.normalize_collection_value(syn)
-
-                    if normed in seen:
-                        raise feedbacks.temp(f"The value or alias `{normed}` appeared more than once in the collection.")
-                    
-                    seen.add(normed)
-
-                nodes = node.get('nodes', [])
-
-                if not isinstance(nodes, list):
-                    raise feedbacks.temp("Not a sub tree")
-                
-                node = CollectionNode(
-                    value,
-                    aliases,
-                    sort_value,
-                    recursive(nodes)
-                )
-
-                for child_nodes in node.children:
-                    child_nodes._post_set_root(node)
-
-                result.append(node)
-                flattened.append(node)
-
-            return result
-        # end recursive
-
-        recursive(user_collection_tree)
-
-        return flattened
-
-
-    def _extract_data_from_collection_item[T: AttributeValueTypeT](
-        self,
-        item: UserCollectionNodeT,
-        value_type: AttributeValueType[T]
-    ) -> tuple[T, set[T], int]:
-        try:
-            sort_value: int = int(item['sort_value'])
-        except KeyError as e:
-            raise feedbacks.temp(f"Missing {e.args[0]}")
-        except ValueError as e:
-            raise feedbacks.temp("Not an int", item['sort_value'])
-            
-        BaseAttribute.validate_number_valid(sort_value)
-
-        try:
-            bad_value = item['value']
-        except KeyError as e:
-            raise feedbacks.temp(f"Missing {e.args[0]}")
-        
-        try:
-            bad_aliases = item.get('aliases', [])
-
-            if not isinstance(bad_aliases, list):
-                raise TypeError()
-        except TypeError:
-            raise feedbacks.temp(f"Not a list of aliases")
-        
-        value: T = BaseAttribute.slot_from_str(bad_value, value_type)
-
-        bad_aliases = set(bad_aliases)
-        aliases: set[T] = {BaseAttribute.slot_from_str(alias, value_type) for alias in bad_aliases}
-
-        return (value, aliases, sort_value)
-
-    
-    
 
     # --- All Attributes ---
 
@@ -271,11 +151,11 @@ class List(BaseStructure):
 
     # --- Static Attribute ---
 
-    def create_static_attribute[T: AttributeValueTypeT](
+    def create_static_attribute[T: SlotTypeT](
         self,
         name: str,
         aliases: frozenset[str],
-        value_type: AttributeValueType[T],
+        value_type: SlotType[T],
         min_slots: int,
         max_slots: int,
         uniqueness: UniquenessExtended
@@ -287,14 +167,14 @@ class List(BaseStructure):
             position = self._validate_attribute_attributes(name, aliases, max_slots, min_slots)
 
             h = queries.ArgHelper()
-            Tbl = TBL.StaticAttribute
+            Tbl = Tables.StaticAttribute
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO {Tbl} (
                         {Tbl.list_id},
                         {Tbl.name},
-                        {Tbl.value_type},
+                        {Tbl.slot_type},
                         {Tbl.position},
                         {Tbl.min_slots},
                         {Tbl.max_slots},
@@ -313,7 +193,7 @@ class List(BaseStructure):
 
                 attribute_id: int = cursor.lastrowid  # type: ignore
 
-                SAAT = TBL.StaticAttributeAlias
+                SAAT = Tables.StaticAttributeAlias
 
                 if aliases:
                     cursor.execute(f"""
@@ -330,7 +210,7 @@ class List(BaseStructure):
                     list=self,
                     id=attribute_id,
                     name=name,
-                    value_type=value_type,
+                    slot_type=value_type,
                     position=position,
                     min_slots=0,
                     max_slots=max_slots,
@@ -342,30 +222,30 @@ class List(BaseStructure):
     def delete_static_attribute(self) -> Never:
         raise feedbacks.temp("Static attribute cannot be deleted!")
 
-    def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
+    def _fetch_static_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> queries.ManyRowsT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.StaticAttribute}
+                FROM {Tables.StaticAttribute}
                 WHERE 
-                    {TBL.StaticAttribute.list_id} = {h|self.id}
+                    {Tables.StaticAttribute.list_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+            result: queries.ManyRowsT = cursor.fetchall()
 
         return result
     
-    def _static_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> StaticAttribute:
-        SAT = TBL.StaticAttribute
+    def _static_attribute_data_to_obj(self, data: queries.OneRowT) -> StaticAttribute:
+        SAT = Tables.StaticAttribute
 
         return StaticAttribute(
             list=self,
             id=data[SAT.id],
             name=data[SAT.name],
-            value_type=AttributeValueType.get_by_id(data[SAT.value_type]),
+            slot_type=SlotType.get_by_id(data[SAT.slot_type]),
             position=data[SAT.position],
             min_slots=data[SAT.min_slots],
             max_slots=data[SAT.max_slots],
@@ -379,16 +259,16 @@ class List(BaseStructure):
         ]
 
     def get_static_attribute_by_id(self, id: int) -> StaticAttribute | None:
-        data = self._fetch_static_attributes_from_table(lambda h: f"{TBL.StaticAttribute.id} = {h|id}")
+        data = self._fetch_static_attributes_from_table(lambda h: f"{Tables.StaticAttribute.id} = {h|id}")
         return self._static_attribute_data_to_obj(data[0]) if data else None
     
     def get_static_attribute_by_name(self, name: str) -> StaticAttribute | None:
-        data = self._fetch_static_attributes_from_table(lambda h: f"{TBL.StaticAttribute.name} = {h|name}")
+        data = self._fetch_static_attributes_from_table(lambda h: f"{Tables.StaticAttribute.name} = {h|name}")
         return self._static_attribute_data_to_obj(data[0]) if data else None
 
     def get_static_attribute_by_alias(self, alias: str) -> StaticAttribute | None:
         h = queries.ArgHelper()
-        SAAT = TBL.StaticAttributeAlias
+        SAAT = Tables.StaticAttributeAlias
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
@@ -399,7 +279,7 @@ class List(BaseStructure):
                     AND {SAAT.alias} = {h|alias}
             """, h.steal())
 
-            result: typed.SingleTableRowT | None = cursor.fetchone()
+            result: queries.OneRowT | None = cursor.fetchone()
 
         if result is None:
             return None
@@ -421,15 +301,16 @@ class List(BaseStructure):
         alias_attribute = self.get_static_attribute_by_name(task.STATIC_ALIASES_ATTRIBUTE_NAME)
         assert alias_attribute is not None
         return alias_attribute
+    
 
     # --- Task Attributes ---
     
-    def create_task_attribute[T: AttributeValueTypeT](
+    def create_task_attribute[T: SlotTypeT](
         self,
         name: str,
         aliases: frozenset[str],
-        value_type: AttributeValueType[T],
-        bad_collection: str,
+        value_type: SlotType[T],
+        top_raw_nodes: RawCollectionNodesT[T],
         max_slots: int,
         uniqueness: UniquenessExtended
     ) -> TaskAttribute[T]:
@@ -439,14 +320,14 @@ class List(BaseStructure):
             index = self._validate_attribute_attributes(name, aliases, max_slots, MIN_SLOTS)
             
             h = queries.ArgHelper()
-            SAT = TBL.TaskAttribute
+            SAT = Tables.TaskAttribute
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
                     INSERT INTO {SAT} (
                         {SAT.list_id},
                         {SAT.name},
-                        {SAT.value_type},
+                        {SAT.slot_type},
                         {SAT.position},
                         {SAT.min_slots},
                         {SAT.max_slots},
@@ -465,7 +346,7 @@ class List(BaseStructure):
 
                 attribute_id: int = cursor.lastrowid  # type: ignore
 
-                TAAT = TBL.TaskAttributeAlias
+                TAAT = Tables.TaskAttributeAlias
 
                 if aliases:
                     cursor.execute(f"""
@@ -478,49 +359,49 @@ class List(BaseStructure):
                             {','.join(f"({h|attribute_id}, {h|self.id}, {h|alias})" for alias in aliases)}
                     """, h.steal())
 
-                obj = TaskAttribute(
+                attribute = TaskAttribute(
                     list=self,
                     id=attribute_id,
                     name=name,
-                    value_type=value_type,
+                    slot_type=value_type,
                     position=index,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     uniqueness=uniqueness
                 )
 
-                self.handle_user_collection(bad_collection, obj)
+                attribute.set_collection(top_raw_nodes)
 
-                return obj
+                return attribute
     
     def delete_task_attribute(self, bad_name: str) -> None:
         self._generic_delete_attribute(TaskAttribute, bad_name)
             
-    def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
+    def _fetch_task_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> queries.ManyRowsT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.TaskAttribute}
+                FROM {Tables.TaskAttribute}
                 WHERE 
-                    {TBL.TaskAttribute.list_id} = {h|self.id}
+                    {Tables.TaskAttribute.list_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+            result: queries.ManyRowsT = cursor.fetchall()
 
         return result
     
-    def _task_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> TaskAttribute:
-        Tbl = TBL.TaskAttribute
+    def _task_attribute_data_to_obj(self, data: queries.OneRowT) -> TaskAttribute:
+        Tbl = Tables.TaskAttribute
 
         return TaskAttribute(
             list=self,
             id=data[Tbl.id],
             name=data[Tbl.name],
             position=data[Tbl.position],
-            value_type=AttributeValueType.get_by_id(data[Tbl.value_type]),
+            slot_type=SlotType.get_by_id(data[Tbl.slot_type]),
             min_slots=data[Tbl.min_slots],
             max_slots=data[Tbl.max_slots],
             uniqueness=data[Tbl.uniqueness],
@@ -533,11 +414,11 @@ class List(BaseStructure):
         ]
 
     def get_task_attribute_by_id(self, id: int) -> TaskAttribute | None:
-        data = self._fetch_task_attributes_from_table(lambda h: f"{TBL.TaskAttribute.id} = {h|id}")
+        data = self._fetch_task_attributes_from_table(lambda h: f"{Tables.TaskAttribute.id} = {h|id}")
         return self._task_attribute_data_to_obj(data[0]) if data else None
     
     def get_task_attribute_by_name(self, name: str) -> TaskAttribute | None:
-        data = self._fetch_task_attributes_from_table(lambda h: f"{TBL.TaskAttribute.name} = {h|name}")
+        data = self._fetch_task_attributes_from_table(lambda h: f"{Tables.TaskAttribute.name} = {h|name}")
         return self._task_attribute_data_to_obj(data[0]) if data else None
     
     def get_task_attribute_by_alias(self, alias: str) -> TaskAttribute | None:
@@ -545,19 +426,19 @@ class List(BaseStructure):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.TaskAttributeAlias.task_attribute_id}
-                FROM {TBL.TaskAttributeAlias}
+                SELECT {Tables.TaskAttributeAlias.task_attribute_id}
+                FROM {Tables.TaskAttributeAlias}
                 WHERE
-                    {TBL.TaskAttributeAlias.list_id} = {h|self.id}
-                    AND {TBL.TaskAttributeAlias.alias} = {h|alias}
+                    {Tables.TaskAttributeAlias.list_id} = {h|self.id}
+                    AND {Tables.TaskAttributeAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: typed.SingleTableRowT | None = cursor.fetchone()
+            result: queries.OneRowT | None = cursor.fetchone()
 
         if result is None:
             return None
         
-        return self.get_task_attribute_by_id(result[TBL.TaskAttributeAlias.task_attribute_id])
+        return self.get_task_attribute_by_id(result[Tables.TaskAttributeAlias.task_attribute_id])
 
     def get_task_attribute_by_syn(self, syn: str) -> TaskAttribute | None:
         return (
@@ -568,12 +449,12 @@ class List(BaseStructure):
 
     # --- User Attributes ---
 
-    def create_user_attribute[T: AttributeValueTypeT](
+    def create_user_attribute[T: SlotTypeT](
         self,
         name: str,
         aliases: frozenset[str],
-        value_type: AttributeValueType[T],
-        collection: Collection[T],
+        value_type: SlotType[T],
+        top_raw_nodes: RawCollectionNodesT[T],
         max_slots: int,
         uniqueness: Uniqueness
     ) -> UserAttribute[T]:
@@ -584,13 +465,13 @@ class List(BaseStructure):
             h = queries.ArgHelper()
 
             with queries.connected() as (conn, cursor):
-                Tbl = TBL.UserAttribute
+                Tbl = Tables.UserAttribute
 
                 cursor.execute(f"""
                     INSERT INTO {Tbl} (
                         {Tbl.list_id},
                         {Tbl.name},
-                        {Tbl.value_type},
+                        {Tbl.slot_type},
                         {Tbl.position},
                         {Tbl.min_slots},
                         {Tbl.max_slots},
@@ -610,7 +491,7 @@ class List(BaseStructure):
                 attribute_id: int = cursor.lastrowid  # type: ignore
 
                 if aliases:
-                    Tbl = TBL.UserAttributeAlias
+                    Tbl = Tables.UserAttributeAlias
 
                     cursor.execute(f"""
                         INSERT INTO {Tbl} (
@@ -627,58 +508,45 @@ class List(BaseStructure):
                     list=self,
                     id=attribute_id,
                     name=name,
-                    value_type=value_type,
+                    slot_type=value_type,
                     position=position,
                     min_slots=MIN_SLOTS,
                     max_slots=max_slots,
                     uniqueness=uniqueness
                 )
 
-                all_nodes = collection.all_nodes
-
-                if all_nodes:
-                    Tbl = TBL.UserAttributeCollectionNode
-
-                    cursor.execute(f"""
-                        INSERT INTO {Tbl} (
-                            {Tbl.user_attribute_id},
-                            {Tbl.value},
-                            {Tbl.sort_value},
-                            {Tbl.root_id}
-                        ) VALUES (
-                            {','.join(f"({h|user_attribute.id}, {h|node.id}, )" for node in all_nodes)}
-                        )
-                    """, h.steal())
+                user_attribute.set_collection(top_raw_nodes)
+                
                 return user_attribute
     
     def delete_user_attribute(self, bad_name: str) -> None:
         self._generic_delete_attribute(UserAttribute, bad_name)
 
-    def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
+    def _fetch_user_attributes_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> queries.ManyRowsT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.UserAttribute}
+                FROM {Tables.UserAttribute}
                 WHERE 
-                    {TBL.UserAttribute.list_id} = {h|self.id}
+                    {Tables.UserAttribute.list_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+            result: queries.ManyRowsT = cursor.fetchall()
 
         return result
     
-    def _user_attribute_data_to_obj(self, data: typed.SingleTableRowT) -> UserAttribute:
-        UAT = TBL.UserAttribute
+    def _user_attribute_data_to_obj(self, data: queries.OneRowT) -> UserAttribute:
+        UAT = Tables.UserAttribute
 
         return UserAttribute(
             list=self,
             id=data[UAT.id],
             name=data[UAT.name],
             position=data[UAT.position],
-            value_type=AttributeValueType.get_by_id(data[UAT.value_type]),
+            slot_type=SlotType.get_by_id(data[UAT.slot_type]),
             min_slots=data[UAT.min_slots],
             max_slots=data[UAT.max_slots],
             uniqueness=data[UAT.uniqueness]
@@ -691,11 +559,11 @@ class List(BaseStructure):
         ]
 
     def get_user_attribute_by_id(self, id: int) -> UserAttribute | None:
-        data = self._fetch_user_attributes_from_table(lambda h: f"{TBL.UserAttribute.id} = {h|id}")
+        data = self._fetch_user_attributes_from_table(lambda h: f"{Tables.UserAttribute.id} = {h|id}")
         return self._user_attribute_data_to_obj(data[0]) if data else None
     
     def get_user_attribute_by_name(self, name: str) -> UserAttribute | None:
-        data = self._fetch_user_attributes_from_table(lambda h: f"{TBL.UserAttribute.name} = {h|name}")
+        data = self._fetch_user_attributes_from_table(lambda h: f"{Tables.UserAttribute.name} = {h|name}")
         return self._user_attribute_data_to_obj(data[0]) if data else None
     
     def get_user_attribute_by_alias(self, alias: str) -> UserAttribute | None:
@@ -703,19 +571,19 @@ class List(BaseStructure):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.UserAttributeAlias.user_attribute_id}
-                FROM {TBL.UserAttributeAlias}
+                SELECT {Tables.UserAttributeAlias.user_attribute_id}
+                FROM {Tables.UserAttributeAlias}
                 WHERE
-                    {TBL.UserAttributeAlias.list_id} = {h|self.id}
-                    AND {TBL.UserAttributeAlias.alias} = {h|alias}
+                    {Tables.UserAttributeAlias.list_id} = {h|self.id}
+                    AND {Tables.UserAttributeAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: typed.SingleTableRowT | None = cursor.fetchone()
+            result: queries.OneRowT | None = cursor.fetchone()
         
         if result is None:
             return None
         
-        return self.get_user_attribute_by_id(result[TBL.UserAttributeAlias.user_attribute_id])
+        return self.get_user_attribute_by_id(result[Tables.UserAttributeAlias.user_attribute_id])
 
     def get_user_attribute_by_syn(self, syn: str) -> UserAttribute | None:
         return (
@@ -730,7 +598,7 @@ class List(BaseStructure):
         self, 
         name: str, 
         aliases: frozenset[str], 
-        attribute_value_mapping: dict[TaskAttribute, list[AttributeValueTypeT]]
+        attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]]
     ) -> Task:
         with self.locked:
             if len(self.get_tasks()) >= list_package.MAX_TASKS:
@@ -748,9 +616,9 @@ class List(BaseStructure):
 
             with queries.connected() as (conn, cursor):
                 cursor.execute(f"""
-                    INSERT INTO {TBL.Task} (
-                        {TBL.Task.list_id},
-                        {TBL.Task.name}
+                    INSERT INTO {Tables.Task} (
+                        {Tables.Task.list_id},
+                        {Tables.Task.name}
                     )
                     VALUES (
                         {h|self.id},
@@ -762,17 +630,17 @@ class List(BaseStructure):
                 
                 if aliases:
                     cursor.execute(f"""
-                        INSERT INTO {TBL.TaskAlias} (
-                            {TBL.TaskAlias.task_id},
-                            {TBL.TaskAlias.list_id},
-                            {TBL.TaskAlias.alias}
+                        INSERT INTO {Tables.TaskAlias} (
+                            {Tables.TaskAlias.task_id},
+                            {Tables.TaskAlias.list_id},
+                            {Tables.TaskAlias.alias}
                         ) 
                         VALUES 
                             {','.join(f"({h|task_id}, {h|self.id}, {h|alias})" for alias in aliases)}        
                     """, h.steal())
 
                 if attribute_value_mapping:
-                    Tbl = TBL.TaskAttributeTaskValue
+                    Tbl = Tables.TaskAttributeTaskValue
                     
                     cursor.execute(f"""
                         INSERT INTO {Tbl} (
@@ -795,35 +663,35 @@ class List(BaseStructure):
             h = queries.ArgHelper()
 
             cursor.execute(f"""
-                DELETE FROM {TBL.Task}
+                DELETE FROM {Tables.Task}
                 WHERE 
-                    {TBL.Task.list_id} = {h|self.id}
-                    AND {TBL.Task.id} = {h|id}
+                    {Tables.Task.list_id} = {h|self.id}
+                    AND {Tables.Task.id} = {h|id}
             """, h.steal())
 
             return cursor.rowcount > 0
         
-    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
+    def _fetch_tasks_from_table(self, where: Callable[[queries.ArgHelper], str] | None) -> queries.ManyRowsT:
         h = queries.ArgHelper()
         
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
                 SELECT *
-                FROM {TBL.Task}
+                FROM {Tables.Task}
                 WHERE 
-                    {TBL.Task.list_id} = {h|self.id}
+                    {Tables.Task.list_id} = {h|self.id}
                     {f"AND {where(h)}" if where is not None else ""}
             """, h.steal())
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+            result: queries.ManyRowsT = cursor.fetchall()
 
         return result
     
-    def _task_data_to_obj(self, data: typed.SingleTableRowT) -> Task:
+    def _task_data_to_obj(self, data: queries.OneRowT) -> Task:
         return Task(
             list=self,
-            id=data[TBL.Task.id],
-            name=data[TBL.Task.name]
+            id=data[Tables.Task.id],
+            name=data[Tables.Task.name]
         )
     
     def get_tasks(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Task]:
@@ -833,11 +701,11 @@ class List(BaseStructure):
         ]
 
     def get_task_by_id(self, id: int) -> Task | None:
-        data = self._fetch_tasks_from_table(lambda h: f"{TBL.Task.id} = {h|id}")
+        data = self._fetch_tasks_from_table(lambda h: f"{Tables.Task.id} = {h|id}")
         return self._task_data_to_obj(data[0]) if data else None
     
     def get_task_by_name(self, name: str) -> Task | None:
-        data = self._fetch_tasks_from_table(lambda h: f"{TBL.Task.name} = {h|name}")
+        data = self._fetch_tasks_from_table(lambda h: f"{Tables.Task.name} = {h|name}")
         return self._task_data_to_obj(data[0]) if data else None
 
     def get_task_by_alias(self, alias: str) -> Task | None:
@@ -845,19 +713,19 @@ class List(BaseStructure):
 
         with queries.connected() as (conn, cursor):
             cursor.execute(f"""
-                SELECT {TBL.TaskAlias.task_id}
-                FROM {TBL.TaskAlias}
+                SELECT {Tables.TaskAlias.task_id}
+                FROM {Tables.TaskAlias}
                 WHERE 
-                    {TBL.TaskAlias.list_id} = {h|self.id}
-                    AND {TBL.TaskAlias.alias} = {h|alias}
+                    {Tables.TaskAlias.list_id} = {h|self.id}
+                    AND {Tables.TaskAlias.alias} = {h|alias}
             """, h.steal())
 
-            result: typed.SingleTableRowT | None = cursor.fetchone()
+            result: queries.OneRowT | None = cursor.fetchone()
 
         if result is None:
             return None
         
-        return self.get_task_by_id(result[TBL.TaskAlias.task_id])
+        return self.get_task_by_id(result[Tables.TaskAlias.task_id])
     
     def get_task_by_syn(self, syn: str) -> Task | None:
         return (
