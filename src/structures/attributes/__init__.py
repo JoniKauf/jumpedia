@@ -213,7 +213,7 @@ def set_collection_helper[T: SlotTypeT](
         for node in nodes:
             cursor.execute(f"""
                 INSERT INTO {TblNodes} (
-                    {TblNodes._attribute_id},
+                    {TblNodes.attribute_id},
                     {TblNodes.value},
                     {TblNodes.sort_value},
                     {TblNodes.parent_id}
@@ -231,8 +231,8 @@ def set_collection_helper[T: SlotTypeT](
             if node.aliases:
                 cursor.execute(f"""
                     INSERT INTO {TblAliases} (
-                        {TblAliases._attribute_id},
-                        {TblAliases._attribute_collection_node_id},
+                        {TblAliases.attribute_id},
+                        {TblAliases.attribute_collection_node_id},
                         {TblAliases.alias}
                     )
                     VALUES 
@@ -262,29 +262,29 @@ def set_collection_helper[T: SlotTypeT](
 def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> Collection[T]:
     h = queries.ArgHelper()
 
-    TblNode = dbutils.get_attribute_collection_node_table(type(attribute))
+    TblNode = dbutils.get_attribute_collection_node_extra_aliases_table(type(attribute))
     TblNodeAlias = dbutils.get_attribute_collection_node_alias_table(type(attribute))
 
     with queries.connected() as (conn, cursor):
         cursor.execute(f"""
             SELECT *
             FROM {TblNode}
-            WHERE {TblNode._attribute_id} = {h|attribute.id}
+            WHERE {TblNode.attribute_id} = {h|attribute.id}
         """, h.steal())
 
         result = Rows(cursor.fetchall(), TblNode)
 
         cursor.execute(f"""
             SELECT 
-                {TblNodeAlias._attribute_collection_node_id},
+                {TblNodeAlias.attribute_collection_node_id},
                 {TblNodeAlias.alias}
             FROM
                 {TblNodeAlias}
             WHERE
-                {TblNodeAlias._attribute_id} = {h|attribute.id}
+                {TblNodeAlias.attribute_id} = {h|attribute.id}
         """, h.steal())
 
-        aliases_result = cursor.fetchall()
+        aliases_result = Rows(cursor.fetchall(), TblNodeAlias)
 
     row_id_to_row = {row.id: row for row in result}
     row_id_to_child_row_ids: dict[int, list[int]] = {}
@@ -303,10 +303,8 @@ def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> C
         row.aliases = []
 
     for alias_row in aliases_result:
-        row = row_id_to_row[alias_row[TblNodeAlias._attribute_collection_node_id]]
-        alias = pickle.loads(alias_row[TblNodeAlias.alias])
-
-        row[ALIASES_KEY].append(alias)
+        row = row_id_to_row[alias_row.attribute_collection_node_id]
+        row.aliases.append(pickle.loads(alias_row.alias))
 
     del TblNodeAlias
 
@@ -315,7 +313,7 @@ def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> C
     def recursively_create_children(parent: CollectionNode[T] | None, row: queries.OneRowT) -> CollectionNode[T]:
         node = CollectionNode(
             value=row[TblNode.value],
-            aliases=frozenset(row[ALIASES_KEY]),
+            aliases=frozenset(row.aliases),
             sort_value=row[TblNode.sort_value],
             children=frozenset(),
             parent=parent,

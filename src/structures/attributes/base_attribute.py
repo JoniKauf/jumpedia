@@ -89,7 +89,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             cursor.execute(f"""
                 SELECT {TblAlias.alias}
                 FROM {TblAlias}
-                WHERE {TblAlias._attribute_id} = {h|self.id}
+                WHERE {TblAlias.attribute_id} = {h|self.id}
             """)
 
             rows: queries.ManyRowsT = cursor.fetchall()

@@ -1,8 +1,9 @@
 import enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, assert_never
 from database import layout
 from structures.attributes import AnyAttributeT, CollectionAttributeT
+from structures.attributes.slot_type import SlotTypeT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
@@ -51,3 +52,11 @@ def get_attribute_collection_node_alias_table(attribute_type: type[CollectionAtt
     result = _ATTRIBUTE_COLLECTION_NODE_ALIAS_TABLE[_ATTRIBUTE_IDX.index(attribute_type)]
     assert result is not None
     return result
+
+def get_attribute_collection_node_extra_aliases_table[T: SlotTypeT](attribute_type: type[CollectionAttributeT[T]]):
+    if issubclass(attribute_type, TaskAttribute):
+        return layout.TaskAttributeCollectionNode_ExtraAliases
+    if issubclass(attribute_type, UserAttribute):
+        return layout.UserAttributeCollectionNode_ExtraAliases
+    
+    assert_never(attribute_type)

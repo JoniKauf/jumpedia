@@ -1,4 +1,5 @@
-from database.static import BaseRow, Cell, FakeCell, cell_body
+from database.static import BaseRow, Cell, CellAlias, cell_body
+from structures.attributes.slot_type import SlotTypeT
 
 class Community(BaseRow):
     @Cell
@@ -61,9 +62,9 @@ class CommunityUser(BaseRow):
 
 
 
-# --- Static Attribute ---
+# --- Generic Attribute ---
 
-class StaticAttribute(BaseRow):
+class GenericAttribute(BaseRow):
     @Cell
     def id(self_or_cls) -> int: cell_body()
 
@@ -89,12 +90,12 @@ class StaticAttribute(BaseRow):
     def uniqueness(self_or_cls) -> int: cell_body()
 
 
-class StaticAttributeAlias(BaseRow):
+class GenericAttributeAlias(BaseRow):
     @Cell
     def id(self_or_cls) -> int: cell_body()
 
     @Cell
-    def static_attribute_id(self_or_cls) -> int: cell_body()
+    def attribute_id(self_or_cls) -> int: cell_body()
 
     @Cell
     def list_id(self_or_cls) -> int: cell_body()
@@ -103,194 +104,94 @@ class StaticAttributeAlias(BaseRow):
     def alias(self_or_cls) -> str: cell_body()
 
 
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.static_attribute_id
+class GenericAttributeCollectionNode(BaseRow):
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def parent_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+    @Cell
+    def sort_value(self_or_cls) -> int: cell_body()
+
+
+class GenericAttributeCollectionNode_ExtraAliases[T: SlotTypeT](GenericAttributeCollectionNode):
+    @Cell
+    def aliases(self_or_cls) -> list[T]: cell_body()
+
+
+class GenericAttributeCollectionNodeAlias(BaseRow):
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def attribute_collection_node_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> bytes: cell_body()
+
+
+# --- Static Attribute ---
+
+class StaticAttribute(GenericAttribute):
+    pass
+
+
+class StaticAttributeAlias(GenericAttributeAlias):
+    pass
+
 
 
 # --- Task Attribute ---
 
-class TaskAttribute(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def list_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def name(self_or_cls) -> str: cell_body()
-
-    @Cell
-    def slot_type(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def position(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def min_slots(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def max_slots(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def uniqueness(self_or_cls) -> int: cell_body()
+class TaskAttribute(GenericAttribute):
+    pass
 
 
-class TaskAttributeAlias(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def task_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def list_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def alias(self_or_cls) -> str: cell_body()
+class TaskAttributeAlias(GenericAttributeAlias):
+    pass
 
 
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.task_attribute_id
+class TaskAttributeCollectionNode(GenericAttributeCollectionNode):
+    pass
 
-class TaskAttributeCollectionNode(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def parent_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def task_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def value(self_or_cls) -> bytes: cell_body()
-
-    @Cell
-    def sort_value(self_or_cls) -> int: cell_body()
-
-
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.task_attribute_id
-
-class TaskAttributeCollectionNodeAlias(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def task_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def task_attribute_collection_node_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def alias(self_or_cls) -> bytes: cell_body()
-
-
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.task_attribute_id
     
-    @FakeCell
-    def _attribute_collection_node_id(self_or_cls) -> int:
-        return self_or_cls.task_attribute_collection_node_id
+class TaskAttributeCollectionNode_ExtraAliases[T: SlotTypeT](GenericAttributeCollectionNode_ExtraAliases[T]):
+    pass
+
+class TaskAttributeCollectionNodeAlias(GenericAttributeCollectionNodeAlias):
+    pass
 
 
 # --- User Attribute ---
 
-class UserAttribute(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def list_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def name(self_or_cls) -> str: cell_body()
-
-    @Cell
-    def position(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def slot_type(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def min_slots(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def max_slots(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def uniqueness(self_or_cls) -> int: cell_body()
+class UserAttribute(GenericAttribute):
+    pass
 
 
-class UserAttributeAlias(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def user_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def list_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def alias(self_or_cls) -> str: cell_body()
+class UserAttributeAlias(GenericAttributeAlias):
+    pass
 
 
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.user_attribute_id
-    
-
-class UserAttributeCollectionNode(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def parent_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def user_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def value(self_or_cls) -> bytes: cell_body()
-
-    @Cell
-    def sort_value(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def aliases(self_or_cls) -> frozenset:
-        
-
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.user_attribute_id
+class UserAttributeCollectionNode(GenericAttributeCollectionNode):
+    pass
 
 
-class UserAttributeCollectionNodeAlias(BaseRow):
-    @Cell
-    def id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def user_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def user_attribute_collection_node_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def alias(self_or_cls) -> bytes: cell_body()
+class UserAttributeCollectionNode_ExtraAliases[T: SlotTypeT](GenericAttributeCollectionNode_ExtraAliases[T]):
+    pass
 
 
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.user_attribute_id
-    
-    @FakeCell
-    def _attribute_collection_node_id(self_or_cls) -> int:
-        return self_or_cls.user_attribute_collection_node_id
+class UserAttributeCollectionNodeAlias(GenericAttributeCollectionNodeAlias):
+    pass
 
 
 # --- Task ---
@@ -320,51 +221,24 @@ class TaskAlias(BaseRow):
     def alias(self_or_cls) -> str: cell_body()
 
 
-class StaticAttributeTaskValue(BaseRow):
+
+class GenericAttributeTaskValue(BaseRow):
     @Cell
     def task_id(self_or_cls) -> int: cell_body()
 
     @Cell
-    def static_attribute_id(self_or_cls) -> int: cell_body()
+    def attribute_id(self_or_cls) -> int: cell_body()
 
     @Cell
     def value(self_or_cls) -> bytes: cell_body()
 
 
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.static_attribute_id
+class StaticAttributeTaskValue(GenericAttributeTaskValue):
+    pass
 
+class TaskAttributeTaskValue(GenericAttributeTaskValue):
+    pass
 
-class TaskAttributeTaskValue(BaseRow):
-    @Cell
-    def task_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def task_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def value(self_or_cls) -> bytes: cell_body()
-
-
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.task_attribute_id
-
-class UserAttributeTaskValue(BaseRow):
-    @Cell
-    def task_id(self_or_cls) -> int: cell_body()
-
+class UserAttributeTaskValue(GenericAttributeTaskValue):
     @Cell
     def user_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def user_attribute_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def value(self_or_cls) -> bytes: cell_body()
-
-
-    @FakeCell
-    def _attribute_id(self_or_cls) -> int:
-        return self_or_cls.user_attribute_id

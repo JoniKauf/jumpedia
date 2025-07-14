@@ -158,11 +158,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.StaticAttributeAlias} (
                         {layout.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {layout.StaticAttributeAlias.static_attribute_id} INT NOT NULL,
+                        {layout.StaticAttributeAlias.attribute_id} INT NOT NULL,
                         {layout.StaticAttributeAlias.list_id} INT NOT NULL,
                         {layout.StaticAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({layout.StaticAttributeAlias.static_attribute_id})
+                        FOREIGN KEY ({layout.StaticAttributeAlias.attribute_id})
                             REFERENCES {layout.StaticAttribute}({layout.StaticAttribute.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({layout.StaticAttributeAlias.list_id})
@@ -196,11 +196,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.TaskAttributeAlias} (
                         {layout.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {layout.TaskAttributeAlias.task_attribute_id} INT NOT NULL,
+                        {layout.TaskAttributeAlias.attribute_id} INT NOT NULL,
                         {layout.TaskAttributeAlias.list_id} INT NOT NULL,
                         {layout.TaskAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({layout.TaskAttributeAlias.task_attribute_id})
+                        FOREIGN KEY ({layout.TaskAttributeAlias.attribute_id})
                             REFERENCES {layout.TaskAttribute}({layout.TaskAttribute.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({layout.TaskAttributeAlias.list_id})
@@ -215,14 +215,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {layout.TaskAttributeCollectionNode} (
                         {layout.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {layout.TaskAttributeCollectionNode.parent_id} INT,
-                        {layout.TaskAttributeCollectionNode.task_attribute_id} INT NOT NULL,
+                        {layout.TaskAttributeCollectionNode.attribute_id} INT NOT NULL,
                         {layout.TaskAttributeCollectionNode.value} BLOB NOT NULL,
                         {layout.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({layout.TaskAttributeCollectionNode.parent_id})
                             REFERENCES {layout.TaskAttributeCollectionNode}({layout.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.TaskAttributeCollectionNode.task_attribute_id})
+                        FOREIGN KEY ({layout.TaskAttributeCollectionNode.attribute_id})
                             REFERENCES {layout.TaskAttribute}({layout.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -231,14 +231,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.TaskAttributeCollectionNodeAlias} (
                         {layout.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {layout.TaskAttributeCollectionNodeAlias.task_attribute_id} INT NOT NULL,
-                        {layout.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id} INT NOT NULL,
+                        {layout.TaskAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
+                        {layout.TaskAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
                         {layout.TaskAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
 
-                        FOREIGN KEY ({layout.TaskAttributeCollectionNodeAlias.task_attribute_collection_node_id})
+                        FOREIGN KEY ({layout.TaskAttributeCollectionNodeAlias.attribute_collection_node_id})
                             REFERENCES {layout.TaskAttributeCollectionNode}({layout.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.TaskAttributeCollectionNodeAlias.task_attribute_id})
+                        FOREIGN KEY ({layout.TaskAttributeCollectionNodeAlias.attribute_id})
                             REFERENCES {layout.TaskAttribute}({layout.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -268,11 +268,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.UserAttributeAlias} (
                         {layout.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {layout.UserAttributeAlias.user_attribute_id} INT NOT NULL,
+                        {layout.UserAttributeAlias.attribute_id} INT NOT NULL,
                         {layout.UserAttributeAlias.list_id} INT NOT NULL,
                         {layout.UserAttributeAlias.alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({layout.UserAttributeAlias.user_attribute_id})
+                        FOREIGN KEY ({layout.UserAttributeAlias.attribute_id})
                             REFERENCES {layout.UserAttribute}({layout.UserAttribute.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({layout.UserAttributeAlias.list_id})
@@ -287,14 +287,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {layout.UserAttributeCollectionNode} (
                         {layout.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {layout.UserAttributeCollectionNode.parent_id} INT,
-                        {layout.UserAttributeCollectionNode.user_attribute_id} INT NOT NULL,
+                        {layout.UserAttributeCollectionNode.attribute_id} INT NOT NULL,
                         {layout.UserAttributeCollectionNode.value} BLOB NOT NULL,
                         {layout.UserAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({layout.UserAttributeCollectionNode.parent_id})
                             REFERENCES {layout.UserAttributeCollectionNode}({layout.UserAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.UserAttributeCollectionNode.user_attribute_id})
+                        FOREIGN KEY ({layout.UserAttributeCollectionNode.attribute_id})
                             REFERENCES {layout.UserAttribute}({layout.UserAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -303,14 +303,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.UserAttributeCollectionNodeAlias} (
                         {layout.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {layout.UserAttributeCollectionNodeAlias.user_attribute_id} INT NOT NULL,
-                        {layout.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id} INT NOT NULL,
+                        {layout.UserAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
+                        {layout.UserAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
                         {layout.UserAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
 
-                        FOREIGN KEY ({layout.UserAttributeCollectionNodeAlias.user_attribute_collection_node_id})
+                        FOREIGN KEY ({layout.UserAttributeCollectionNodeAlias.attribute_collection_node_id})
                             REFERENCES {layout.UserAttributeCollectionNode}({layout.UserAttributeCollectionNode.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.UserAttributeCollectionNodeAlias.user_attribute_id})
+                        FOREIGN KEY ({layout.UserAttributeCollectionNodeAlias.attribute_id})
                             REFERENCES {layout.UserAttribute}({layout.UserAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -352,15 +352,15 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.StaticAttributeTaskValue} (
                         {layout.StaticAttributeTaskValue.task_id} INT NOT NULL,
-                        {layout.StaticAttributeTaskValue.static_attribute_id} INT NOT NULL,
+                        {layout.StaticAttributeTaskValue.attribute_id} INT NOT NULL,
                         {layout.StaticAttributeTaskValue.value} BLOB NOT NULL,
 
-                        PRIMARY KEY ({layout.StaticAttributeTaskValue.task_id}, {layout.StaticAttributeTaskValue.static_attribute_id}),
+                        PRIMARY KEY ({layout.StaticAttributeTaskValue.task_id}, {layout.StaticAttributeTaskValue.attribute_id}),
 
                         FOREIGN KEY ({layout.StaticAttributeTaskValue.task_id})
                             REFERENCES {layout.Task}({layout.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.StaticAttributeTaskValue.static_attribute_id})
+                        FOREIGN KEY ({layout.StaticAttributeTaskValue.attribute_id})
                             REFERENCES {layout.StaticAttribute}({layout.StaticAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -369,18 +369,18 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 cursor.execute(f"""
                     CREATE TABLE {layout.TaskAttributeTaskValue} (
                         {layout.TaskAttributeTaskValue.task_id} INT NOT NULL,
-                        {layout.TaskAttributeTaskValue.task_attribute_id} INT NOT NULL,
+                        {layout.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                         {layout.TaskAttributeTaskValue.value} BLOB NOT NULL,
 
                         PRIMARY KEY (
                             {layout.TaskAttributeTaskValue.task_id}, 
-                            {layout.TaskAttributeTaskValue.task_attribute_id}
+                            {layout.TaskAttributeTaskValue.attribute_id}
                         ),
 
                         FOREIGN KEY ({layout.TaskAttributeTaskValue.task_id})
                             REFERENCES {layout.Task}({layout.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.TaskAttributeTaskValue.task_attribute_id})
+                        FOREIGN KEY ({layout.TaskAttributeTaskValue.attribute_id})
                             REFERENCES {layout.TaskAttribute}({layout.TaskAttribute.id})
                             ON DELETE CASCADE
                     )
@@ -390,19 +390,19 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {layout.UserAttributeTaskValue} (
                         {layout.UserAttributeTaskValue.task_id} INT NOT NULL,
                         {layout.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
-                        {layout.UserAttributeTaskValue.user_attribute_id} INT NOT NULL,
+                        {layout.UserAttributeTaskValue.attribute_id} INT NOT NULL,
                         {layout.UserAttributeTaskValue.value} BLOB NOT NULL,
 
                         PRIMARY KEY (
                             {layout.UserAttributeTaskValue.task_id}, 
                             {layout.UserAttributeTaskValue.user_id}, 
-                            {layout.UserAttributeTaskValue.user_attribute_id}
+                            {layout.UserAttributeTaskValue.attribute_id}
                         ),
 
                         FOREIGN KEY ({layout.UserAttributeTaskValue.task_id})
                             REFERENCES {layout.Task}({layout.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({layout.UserAttributeTaskValue.user_attribute_id})
+                        FOREIGN KEY ({layout.UserAttributeTaskValue.attribute_id})
                             REFERENCES {layout.UserAttribute}({layout.UserAttribute.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({layout.UserAttributeTaskValue.user_id})
