@@ -1,14 +1,12 @@
 from contextlib import contextmanager
-import functools
-import json
-import pickle
+from dataclasses import dataclass
+import enum
+from functools import wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Final, Hashable, Iterator
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Final, Hashable, Iterator, Protocol, Sequence, assert_never, final, overload
 
-import mariadb.connections
 import mariadb.cursors
 
-from discordtools import feedbackerrors as fbe
 from database import secret
 import mariadb
 
@@ -83,10 +81,6 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[t
                 _connections.pop(hashable)
                 conn.close()
 
-type OneRowT = dict[str, Any]
-type OneRowOptionalT = OneRowT | None
-
-type ManyRowsT[T: OneRowT = OneRowT] = list[T]
 
 class ArgHelper:
     """Helper to make inserting parameters into a query easier and more
@@ -127,24 +121,123 @@ def collate_equal(a: str, b: str) -> bool:
     
         return cursor.fetchone()[_KEY]
 
-# def collapse_rows[T: Hashable](
-#     rows: list[dict[str, T | Hashable]], 
-#     collapse_columns: str, 
-#     keep: Callable[[str, Hashable], bool] = lambda col, v: v is not None,
-#     collapsed_column_in_data: bool = False
-# ) -> dict[T, dict[str, BetterSet[Hashable]]]:
-#     result: dict[T, dict[str, BetterSet[Hashable]]] = {}
 
-#     for row in rows:
-#         entry = result.setdefault(row[collapse_columns], {})  # type: ignore
 
-#         for col, value in row.items():
-#             entry[col] = BetterSet()
-            
-#             if keep(col, value):
-#                 entry[col].add(value)
+class KeyCheck(enum.Enum):
+    NONE = enum.auto()
+    FIRST = enum.auto()
+    ALL = enum.auto()
 
-#             if not collapsed_column_in_data:
-#                 entry.pop(collapse_columns)
+
+@dataclass(frozen=True)
+class Column:
+    name: str
+    
+    def __str__(self) -> str:
+        return f'`{self.name}`'
+
+
+_ANNOTATIONS = '__annotations'
+
+class BaseRowMeta(type):
+    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type:
+        annotations = namespace.get('__annotations__', {})
+        namespace.update({k: Column(k) for k in annotations})
+        namespace[_ANNOTATIONS] = frozenset(annotations)
+
+        return super().__new__(cls, name, bases, namespace)
+    
+    def __str__(self) -> str:
+        return f"`{self.__name__}`"
         
-#     return result
+class BaseRow(metaclass=BaseRowMeta):
+    @classmethod
+    def _get_annotations(cls) -> frozenset[str]:
+        return getattr(cls, _ANNOTATIONS)
+    
+    def __init__(self, row: dict[str, Any], key_check: bool = True) -> None:
+        if self.__class__ == BaseRow:
+            raise RuntimeError
+
+        if key_check and self.__class__._get_annotations() != frozenset(row):
+            raise ValueError
+        
+        self.__dict__ = row
+
+
+@final
+class Rows[T: BaseRow]:
+    def __init__(self, rows_data: Sequence[dict[str, Any]], row_type: type[T], key_check: KeyCheck = KeyCheck.FIRST) -> None:
+        self.row_type = row_type 
+
+        if not rows_data:
+            self.rows = ()
+            return
+        
+        if key_check is not KeyCheck.NONE:
+            annotations = row_type._get_annotations()
+
+            if key_check is KeyCheck.FIRST:
+                if frozenset(rows_data[0]) != annotations:
+                    raise ValueError
+                
+            elif key_check == KeyCheck.ALL:
+                if not all(frozenset(row) == annotations for row in rows_data):
+                    raise ValueError
+                
+            else:
+                assert_never(key_check)
+
+        self.rows = tuple(map(lambda row_data: row_type(row_data, False), rows_data))
+
+    def __iter__(self) -> Iterator[T]:
+        yield from self.rows
+
+
+class Cell[TOwner: Any, TValue: Any]:
+    def __init__(self, wrapped: Callable[[TOwner], TValue] | Callable[[type[TOwner]], Column]):
+        self.__wrapped__ = wrapped
+    
+    def __set_name__(self, owner: type[TOwner], name: str):
+        self.column = Column(name)
+
+    @overload
+    def __get__(self, instance: TOwner, owner: type[TOwner]) -> TValue:
+        pass
+    
+    @overload
+    def __get__(self, instance: None, owner: type[TOwner]) -> Column:
+        pass
+
+    def __get__(self, instance: TOwner | None, owner: type[TOwner]) -> TValue | Column:
+        if instance is None:
+            return self.column
+        
+        return self.__wrapped__(instance)
+
+class CellAlias[TOwner: Any, TValue: Any]:
+    def __init__(self, wrapped: Callable[[TOwner], TValue] | Callable[[type[TOwner]], Column]):
+        self.__wrapped__ = wrapped
+
+    @overload
+    def __get__(self, instance: TOwner, owner: type[TOwner]) -> TValue:
+        pass
+    
+    @overload
+    def __get__(self, instance: None, owner: type[TOwner]) -> Column:
+        pass
+
+    def __get__(self, instance: TOwner | None, owner: type[TOwner]) -> TValue | Column:
+        if instance is None:
+            return self.__wrapped__(owner)  # type: ignore
+        
+        return self.__wrapped__(instance)
+
+class Human:
+    @Cell
+    def name(obj) -> str:
+        return 
+    
+    @CellAlias
+    def age(obj) -> int:
+        return 

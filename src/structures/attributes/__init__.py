@@ -10,7 +10,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, NamedTuple, Protocol, Self, TypeAliasType, TypedDict, Union, overload
 import typing
 
-from database import dbutils, queries
+from database import dbutils, layout, queries
 import errors
 from errors.feedback import feedbacks
 from structures.attributes import slot_type
@@ -18,7 +18,6 @@ from structures.attributes import collection
 from structures.attributes.slot_type import LiteralToStrPossibleT, SlotTypeT
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from utils import numbers, text
-from database.typed import Tables
 if TYPE_CHECKING:
     from structures.attributes.static_attribute import StaticAttribute
     from structures.attributes.task_attribute import TaskAttribute
@@ -273,7 +272,7 @@ def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> C
             WHERE {TblNode._attribute_id} = {h|attribute.id}
         """, h.steal())
 
-        result: queries.ManyRowsT = cursor.fetchall()
+        result = queries.Rows(cursor.fetchall(), TblNode)
 
         cursor.execute(f"""
             SELECT 

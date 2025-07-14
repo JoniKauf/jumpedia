@@ -1,19 +1,18 @@
 import enum
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
-from database import typed as typed
-from database.typed import Tables as Tables, TableMeta
+from database import layout
 from structures.attributes import AnyAttributeT, CollectionAttributeT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
 
 _ATTRIBUTE_TABLES: Final = (
-    _ATTRIBUTE_TABLE := (Tables.StaticAttribute, Tables.TaskAttribute, Tables.UserAttribute),
-    _ATTRIBUTE_ALIAS_TABLE := (Tables.StaticAttributeAlias, Tables.TaskAttributeAlias, Tables.UserAttributeAlias),
-    _ATTRIBUTE_COLLECTION_NODE_TABLE := (None, Tables.TaskAttributeCollectionNode, Tables.UserAttributeCollectionNode),
-    _ATTRIBUTE_COLLECTION_NODE_ALIAS_TABLE := (None, Tables.TaskAttributeCollectionNodeAlias, Tables.UserAttributeCollectionNodeAlias),
-    _ATTRIBUTE_TASK_VALUE_TABLE := (Tables.StaticAttributeTaskValue, Tables.TaskAttributeTaskValue, Tables.UserAttributeTaskValue)
+    _ATTRIBUTE_TABLE := (layout.StaticAttribute, layout.TaskAttribute, layout.UserAttribute),
+    _ATTRIBUTE_ALIAS_TABLE := (layout.StaticAttributeAlias, layout.TaskAttributeAlias, layout.UserAttributeAlias),
+    _ATTRIBUTE_COLLECTION_NODE_TABLE := (None, layout.TaskAttributeCollectionNode, layout.UserAttributeCollectionNode),
+    _ATTRIBUTE_COLLECTION_NODE_ALIAS_TABLE := (None, layout.TaskAttributeCollectionNodeAlias, layout.UserAttributeCollectionNodeAlias),
+    _ATTRIBUTE_TASK_VALUE_TABLE := (layout.StaticAttributeTaskValue, layout.TaskAttributeTaskValue, layout.UserAttributeTaskValue)
 )
 
 _ATTRIBUTE_IDX = (StaticAttribute, TaskAttribute, UserAttribute)
