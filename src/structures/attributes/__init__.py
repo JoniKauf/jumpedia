@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Nam
 import typing
 
 from database import dbutils, layout, queries
+from database.static import Rows
 import errors
 from errors.feedback import feedbacks
 from structures.attributes import slot_type
@@ -260,7 +261,6 @@ def set_collection_helper[T: SlotTypeT](
 
 def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> Collection[T]:
     h = queries.ArgHelper()
-    ALIASES_KEY: str = 'aliases'
 
     TblNode = dbutils.get_attribute_collection_node_table(type(attribute))
     TblNodeAlias = dbutils.get_attribute_collection_node_alias_table(type(attribute))
@@ -272,7 +272,7 @@ def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> C
             WHERE {TblNode._attribute_id} = {h|attribute.id}
         """, h.steal())
 
-        result = queries.Rows(cursor.fetchall(), TblNode)
+        result = Rows(cursor.fetchall(), TblNode)
 
         cursor.execute(f"""
             SELECT 
@@ -284,23 +284,23 @@ def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> C
                 {TblNodeAlias._attribute_id} = {h|attribute.id}
         """, h.steal())
 
-        aliases_result: queries.ManyRowsT = cursor.fetchall()
+        aliases_result = cursor.fetchall()
 
-    row_id_to_row: dict[int, queries.OneRowT] = {row[TblNode.id]: row for row in result}
+    row_id_to_row = {row.id: row for row in result}
     row_id_to_child_row_ids: dict[int, list[int]] = {}
 
-    top_rows: queries.ManyRowsT = []
+    top_rows: list = []
     
     for row in result:
         row_id_to_child_row_ids \
-            .setdefault(row[TblNode.parent_id], []) \
-            .append(row[TblNode.id])
+            .setdefault(row.parent_id, []) \
+            .append(row.id)
         
-        if row[TblNode.parent_id] is None:
+        if row.parent_id is None:
             top_rows.append(row)
     
-        row[TblNode.value] = pickle.loads(row[TblNode.value])
-        row[ALIASES_KEY] = []
+        row.value = pickle.loads(row.value)
+        row.aliases = []
 
     for alias_row in aliases_result:
         row = row_id_to_row[alias_row[TblNodeAlias._attribute_collection_node_id]]

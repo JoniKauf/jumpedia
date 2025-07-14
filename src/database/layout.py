@@ -1,191 +1,370 @@
-from typing import ClassVar
-from database.queries import BaseRow, CellAlias
-
-
-
+from database.static import BaseRow, Cell, FakeCell, cell_body
 
 class Community(BaseRow):
-    id: int
-    name: str
-    default_selected_list_id: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
+    @Cell
+    def default_selected_list_id(self_or_cls) -> int: cell_body()
+
+
 
 
 class Server(BaseRow):
-    id: int
-    community_id: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def community_id(self_or_cls) -> int: cell_body()
+
 
 
 # --- Per Community ---
 
 class List(BaseRow):
-    id: int
-    community_id: int
-    name: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def community_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
 
 class JumpediaUser(BaseRow):
-    id: int
-    name: str
-    power: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
+    @Cell
+    def power(self_or_cls) -> int: cell_body()
+
 
 class CommunityUser(BaseRow):
-    community_id: int
-    user_id: int
-    power: int
-    selected_list_id: int
+    @Cell
+    def community_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def user_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def power(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def selected_list_id(self_or_cls) -> int: cell_body()
+
 
 
 # --- Static Attribute ---
 
 class StaticAttribute(BaseRow):
-    id: int
-    list_id: int
-    name: str
-    slot_type: int
-    position: int
-    min_slots: int
-    max_slots: int
-    uniqueness: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
+    @Cell
+    def slot_type(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def position(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def min_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def max_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def uniqueness(self_or_cls) -> int: cell_body()
+
 
 class StaticAttributeAlias(BaseRow):
-    id: int
-    static_attribute_id: int
-    list_id: int
-    alias: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @CellAlias()
+    @Cell
+    def static_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> str: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.static_attribute_id
 
 
 # --- Task Attribute ---
 
 class TaskAttribute(BaseRow):
-    id: int
-    list_id: int
-    name: str
-    slot_type: int
-    position: int
-    min_slots: int
-    max_slots: int
-    uniqueness: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
+    @Cell
+    def slot_type(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def position(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def min_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def max_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def uniqueness(self_or_cls) -> int: cell_body()
+
 
 class TaskAttributeAlias(BaseRow):
-    id: int
-    task_attribute_id: int
-    list_id: int
-    alias: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.task_attribute_id
+    @Cell
+    def task_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> str: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.task_attribute_id
 
 class TaskAttributeCollectionNode(BaseRow):
-    id: int
-    parent_id: int
-    task_attribute_id: int
-    value: bytes
-    sort_value: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.task_attribute_id
+    @Cell
+    def parent_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def task_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+    @Cell
+    def sort_value(self_or_cls) -> int: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.task_attribute_id
 
 class TaskAttributeCollectionNodeAlias(BaseRow):
-    id: int
-    task_attribute_id: int
-    task_attribute_collection_node_id: int
-    alias: bytes
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.task_attribute_id
+    @Cell
+    def task_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def task_attribute_collection_node_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> bytes: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.task_attribute_id
     
-    @property
-    def _attribute_collection_node_id(self) -> int:
-        return self.task_attribute_collection_node_id
+    @FakeCell
+    def _attribute_collection_node_id(self_or_cls) -> int:
+        return self_or_cls.task_attribute_collection_node_id
 
 
 # --- User Attribute ---
 
 class UserAttribute(BaseRow):
-    id: int
-    list_id: int
-    name: str
-    position: int
-    slot_type: int
-    min_slots: int
-    max_slots: int
-    uniqueness: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
+    @Cell
+    def position(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def slot_type(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def min_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def max_slots(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def uniqueness(self_or_cls) -> int: cell_body()
+
 
 class UserAttributeAlias(BaseRow):
-    id: int
-    user_attribute_id: int
-    list_id: int
-    alias: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.user_attribute_id
+    @Cell
+    def user_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> str: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.user_attribute_id
     
 
 class UserAttributeCollectionNode(BaseRow):
-    id: int
-    parent_id: int
-    user_attribute_id: int
-    value: bytes
-    sort_value: int
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def parent_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def user_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+    @Cell
+    def sort_value(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def aliases(self_or_cls) -> frozenset:
+        
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.user_attribute_id
+
 
 class UserAttributeCollectionNodeAlias(BaseRow):
-    id: int
-    user_attribute_id: int
-    user_attribute_collection_node_id: int
-    alias: bytes
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.user_attribute_id
+    @Cell
+    def user_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def user_attribute_collection_node_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> bytes: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.user_attribute_id
     
-    @property
-    def _attribute_collection_node_id(self) -> int:
-        return self.user_attribute_collection_node_id
+    @FakeCell
+    def _attribute_collection_node_id(self_or_cls) -> int:
+        return self_or_cls.user_attribute_collection_node_id
 
 
 # --- Task ---
 
 class Task(BaseRow):
-    id: int
-    list_id: int
-    name: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def name(self_or_cls) -> str: cell_body()
+
 
 class TaskAlias(BaseRow):
-    id: int
-    task_id: int
-    list_id: int
-    alias: str
+    @Cell
+    def id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def task_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def list_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def alias(self_or_cls) -> str: cell_body()
+
 
 class StaticAttributeTaskValue(BaseRow):
-    task_id: int
-    static_attribute_id: int
-    value: bytes
+    @Cell
+    def task_id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.static_attribute_id
+    @Cell
+    def static_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.static_attribute_id
 
 
 class TaskAttributeTaskValue(BaseRow):
-    task_id: int
-    task_attribute_id: int
-    value: bytes
+    @Cell
+    def task_id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.task_attribute_id
+    @Cell
+    def task_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.task_attribute_id
 
 class UserAttributeTaskValue(BaseRow):
-    task_id: int
-    user_id: int
-    user_attribute_id: int
-    value: bytes
+    @Cell
+    def task_id(self_or_cls) -> int: cell_body()
 
-    @property
-    def _attribute_id(self) -> int:
-        return self.user_attribute_id
+    @Cell
+    def user_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def user_attribute_id(self_or_cls) -> int: cell_body()
+
+    @Cell
+    def value(self_or_cls) -> bytes: cell_body()
+
+
+    @FakeCell
+    def _attribute_id(self_or_cls) -> int:
+        return self_or_cls.user_attribute_id
