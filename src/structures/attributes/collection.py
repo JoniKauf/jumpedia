@@ -4,11 +4,9 @@ from dataclasses import dataclass, field
 import json
 import pickle
 from types import MappingProxyType
-from typing import Any, Final, Iterable, Self, Sequence, overload
-from structures.attributes import AnyAttributeT, CollectionAttributeT
-from database import typed
-from database.typed import Tables as Tables
-from structures.attributes.base_attribute import BaseAttribute
+from typing import Any, ClassVar, Final, Iterable, Protocol, Self, Sequence, overload
+from structures.attributes import AnyAttributeT, AttributeTables, BaseAttribute
+from database import layout
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.base_structure import BaseStructure
@@ -17,6 +15,7 @@ from database import dbutils
 
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
+from utils.functools2 import classproperty
 
 
 # Collection
@@ -90,3 +89,19 @@ class Collection[T: SlotTypeT](BaseStructure):
             return self.normed_syn_to_node[syn]
         
         return self.normed_syn_to_node.get(syn, default)
+    
+
+@dataclass(frozen=True)
+class AttributeTablesWithCollection(AttributeTables):
+    attribute_collection_node: type[layout.BaseAttributeCollectionNode]
+    attribute_collection_node_alias: type[layout.BaseAttributeCollectionNodeAlias]
+
+
+class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
+    tables: ClassVar[AttributeTablesWithCollection]
+
+    def __post_init__(self) -> None:
+        if self.__class__ == BaseCollectionAttribute:
+            raise RuntimeError
+        
+        return super().__post_init__()

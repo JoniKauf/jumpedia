@@ -4,24 +4,33 @@ import json
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from database import queries
+from database import layout, queries
 from database.typed import Tables as Tables
 from database import typed
 from errors.feedback import feedbacks
 from structures import attributes
 from structures.attributes import AttributeDataCache, SlotTypeT, RawCollectionNode, RawCollectionNodesT, UniquenessExtended
-from structures.attributes.base_attribute import BaseAttribute
-from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
+from structures.attributes import BaseAttribute
+from structures.attributes.collection import AttributeTablesWithCollection, BaseCollectionAttribute, Collection, CollectionNode, CollectionNodesT
 from structures.attributes import collection
 from utils import parsetools
+from utils.functools2 import classproperty
 
 
 @dataclass(frozen=True, kw_only=True)
-class TaskAttribute[T: SlotTypeT](BaseAttribute[T]):
+class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
     __structure_name__ = 'task attribute'
-
+    tables = AttributeTablesWithCollection(
+        layout.TaskAttribute,
+        layout.TaskAttributeAlias,
+        layout.TaskAttributeTaskValue,
+        layout.TaskAttributeCollectionNode,
+        layout.TaskAttributeCollectionNodeAlias
+    )
+    
     uniqueness: UniquenessExtended
 
+    
     def get_collection(self) -> Collection[T]:
         if self._cache.collection is None:
             self._cache.collection = attributes.get_collection_helper(self)

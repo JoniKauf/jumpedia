@@ -22,3 +22,15 @@ def optimized_no_arg_method_cache[T1: CacheProtocol, T2](func: Callable[[T1], T2
         return self._cache.setdefault(func.__name__, func(self))
 
     return wrapper
+
+
+class classproperty[TOwner: Any, TValue: Any]:
+    def __init__(self, wrapped: Callable[[type[TOwner]], TValue]) -> None:
+        self.__wrapped__ = wrapped
+
+    def __get__(self, instance: None, owner: type[TOwner]) -> TValue:
+        return self.__wrapped__(owner)
+    
+    
+
+test.test
