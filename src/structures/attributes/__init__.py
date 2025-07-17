@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Lit
 import typing
 
 from database import dbutils, layout, queries
-from database.static import Rows
+from database.static import BaseRow, Cell, Rows, cell_body
 from discordtools import messaging
 import errors
 from errors.feedback import feedbacks
@@ -138,214 +138,31 @@ ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
 
 
 
-def set_collection_helper[T: SlotTypeT](
-    top_raw_nodes: RawCollectionNodesT[T], 
-    attribute: BaseCollectionAttribute
-) -> 'Collection[T]':
-    if not top_raw_nodes:
-        return Collection(
-            attribute=attribute,
-            top_nodes=frozenset(),
-            normed_syn_to_node=MappingProxyType({})
-        )
-    
-    normed_to_node: dict[T, CollectionNode[T]] = {}
-    node_count: int = 0
-
-    def recursively_create_children(parent: None | CollectionNode[T], raw_node: RawCollectionNode[T], depth: int) -> CollectionNode[T]:
-        if depth > collection.MAX_DEPTH:
-            raise feedbacks.temp("Max collection depth exceeded")
-
-        nonlocal node_count
-        node_count += 1
-
-        if node_count > collection.MAX_ELEMS:
-            raise feedbacks.temp("Max amount of collection elems surpassed!")
-        
-        if not numbers.is_int32(raw_node.sort_value):
-            raise feedbacks.temp("Sort value out of range")
-        
-        normed_value: T = attribute.slot_type.norm(raw_node.value)
-        aliases: set[T] = set(map(attribute.slot_type.norm, raw_node.aliases))
-
-        if normed_value in aliases:
-            aliases.remove(normed_value)
-        
-        node = CollectionNode(
-            value=raw_node.value,
-            aliases=frozenset(aliases),
-            sort_value=raw_node.sort_value,
-            children=frozenset(),
-            parent=parent,
-            slot_type=attribute.slot_type
-        )
-
-        depth += 1
-        
-        node._post_set_children(frozenset(
-            recursively_create_children(node, child, depth) 
-            for child in 
-            raw_node.children
-        ))
-
-        for normed_syn in (normed_value, *node.aliases):
-            if normed_syn in normed_to_node:
-                raise feedbacks.temp("Same syn appeared twice")
-            
-            normed_to_node[normed_syn] = node
-        
-        return node
-    
-    top_nodes = frozenset(recursively_create_children(None, raw_node, 1) for raw_node in top_raw_nodes)
-
-    TblNodes = dbutils.get_attribute_collection_node_table(type(attribute))
-    TblAliases = dbutils.get_attribute_collection_node_alias_table(type(attribute))
-    
-    def recursively_insert_children(parent_id: int | None, nodes: CollectionNodesT[T]) -> None:
-        if not nodes:
-            return
-        
-        for node in nodes:
-            cursor.execute(f"""
-                INSERT INTO {TblNodes} (
-                    {TblNodes.attribute_id},
-                    {TblNodes.value},
-                    {TblNodes.sort_value},
-                    {TblNodes.parent_id}
-                ) 
-                VALUES (
-                    {h|attribute.id},
-                    {h|pickle.dumps(node.value)},
-                    {h|node.sort_value},
-                    {h|parent_id}
-                )
-            """, h.steal())
-
-            node_id: int = cursor.lastrowid  # type: ignore
-
-            if node.aliases:
-                cursor.execute(f"""
-                    INSERT INTO {TblAliases} (
-                        {TblAliases.attribute_id},
-                        {TblAliases.attribute_collection_node_id},
-                        {TblAliases.alias}
-                    )
-                    VALUES 
-                        {','.join(f"""(
-                            {h|attribute.id},
-                            {h|node_id},
-                            {h|pickle.dumps(alias)}
-                        )""" for alias in node.aliases)}
-                """, h.steal())
-
-            recursively_insert_children(node_id, node.children)
-
-    h = queries.ArgHelper()
-
-    with queries.connected() as (_, cursor), attribute.locked:
-        # We go from top nodes down the tree so we can be sure
-        # the parent_id is already inserted and the foreign key
-        # check succeeds
-        recursively_insert_children(None, top_nodes)
-
-    return Collection(
-        attribute=attribute,
-        top_nodes=top_nodes,
-        normed_syn_to_node=MappingProxyType(normed_to_node)
-    )
-
-def get_collection_helper[T: SlotTypeT](attribute: CollectionAttributeT[T]) -> Collection[T]:
-    h = queries.ArgHelper()
-
-    TblNode = dbutils.get_attribute_collection_node_extra_aliases_table(type(attribute))
-    TblNodeAlias = dbutils.get_attribute_collection_node_alias_table(type(attribute))
-
-    with queries.connected() as (conn, cursor):
-        cursor.execute(f"""
-            SELECT *
-            FROM {TblNode}
-            WHERE {TblNode.attribute_id} = {h|attribute.id}
-        """, h.steal())
-
-        result = Rows(cursor.fetchall(), TblNode)
-
-        cursor.execute(f"""
-            SELECT 
-                {TblNodeAlias.attribute_collection_node_id},
-                {TblNodeAlias.alias}
-            FROM
-                {TblNodeAlias}
-            WHERE
-                {TblNodeAlias.attribute_id} = {h|attribute.id}
-        """, h.steal())
-
-        aliases_result = Rows(cursor.fetchall(), TblNodeAlias)
-
-    row_id_to_row = {row.id: row for row in result}
-    row_id_to_child_row_ids: dict[int, list[int]] = {}
-
-    top_rows: list = []
-    
-    for row in result:
-        row_id_to_child_row_ids \
-            .setdefault(row.parent_id, []) \
-            .append(row.id)
-        
-        if row.parent_id is None:
-            top_rows.append(row)
-    
-        row.value = pickle.loads(row.value)
-        row.aliases = []
-
-    for alias_row in aliases_result:
-        row = row_id_to_row[alias_row.attribute_collection_node_id]
-        row.aliases.append(pickle.loads(alias_row.alias))
-
-    del TblNodeAlias
-
-    normed_syn_to_node: dict[T, CollectionNode[T]] = {}
-
-    def recursively_create_children(parent: CollectionNode[T] | None, row: queries.OneRowT) -> CollectionNode[T]:
-        node = CollectionNode(
-            value=row[TblNode.value],
-            aliases=frozenset(row.aliases),
-            sort_value=row[TblNode.sort_value],
-            children=frozenset(),
-            parent=parent,
-            slot_type=attribute.slot_type
-        )
-
-        children_ids = row_id_to_child_row_ids.get(row[TblNode.id], [])
-
-        if children_ids:
-            node._post_set_children(frozenset(
-                recursively_create_children(node, row_id_to_row[child_id])
-                for child_id in children_ids
-            ))
-
-        for syn in (node.value, *node.aliases):
-            normed_syn_to_node[attribute.slot_type.norm(syn)] = node
-
-        return node
-
-    top_nodes = frozenset(recursively_create_children(None, row) for row in top_rows)
-        
-    return Collection(
-        attribute=attribute,
-        top_nodes=top_nodes,
-        normed_syn_to_node=MappingProxyType(normed_syn_to_node)
-    )
-
 @dataclass(frozen=True)
-class AttributeTables:
-    attribute: type[layout.BaseAttribute]
-    attribute_alias: type[layout.BaseAttributeAlias]
-    attribute_task_value: type[layout.BaseAttributeTaskValue]
+class AttributeTables[T1: layout.BaseAttribute, T2: layout.BaseAttributeAlias, T3: layout.BaseAttributeTaskValue]:
+    attribute: type[T1]
+    attribute_alias: type[T2]
+    attribute_task_value: type[T3]
+
+class AliasOnlyRow(BaseRow):
+    @Cell
+    def alias(self_or_cls) -> str: cell_body()
+
 
 @dataclass(frozen=True, kw_only=True)
-class BaseAttribute[T: SlotTypeT](BaseStructure):
+class BaseAttribute[
+    T: SlotTypeT, 
+    T1: layout.BaseAttribute, 
+    T2: layout.BaseAttributeAlias, 
+    T3: layout.BaseAttributeTaskValue
+](BaseStructure):
     __structure_name__ = "base attribute"
-    tables: ClassVar[AttributeTables]
+
+    # To avoid https://github.com/python/typing/discussions/1424
+    @staticmethod
+    @abstractmethod
+    def tables() -> AttributeTables[T1, T2, T3]:
+        pass
 
     # --- CONSTANTS ---
     TYPE_ID: ClassVar[int]
@@ -395,7 +212,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         if self._cache.aliases is not None:
             return self._cache.aliases
         
-        TblAlias = dbutils.get_attribute_alias_table(type(self))
+        TblAlias = self.__class__.tables().attribute_alias
 
         h = queries.ArgHelper()
 
@@ -406,15 +223,18 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
                 WHERE {TblAlias.attribute_id} = {h|self.id}
             """)
 
-            rows: queries.ManyRowsT = cursor.fetchall()
+            rows = Rows(cursor.fetchall(), AliasOnlyRow)
         
-        self._cache.aliases = frozenset(row[TblAlias.alias] for row in rows)
+        self._cache.aliases = frozenset(row.alias for row in rows)
 
         return self._cache.aliases
     
-    @abstractmethod
     def get_collection(self) -> Collection[T]:
-        pass
+        return Collection(
+            attribute=self,
+            top_nodes=frozenset(),
+            normed_syn_to_node=MappingProxyType({})
+        )
 
     def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
         if not isinstance(loaded, list):

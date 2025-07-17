@@ -18,15 +18,25 @@ from utils.functools2 import classproperty
 
 
 @dataclass(frozen=True, kw_only=True)
-class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
+class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[
+    T,
+    layout.TaskAttribute,
+    layout.TaskAttributeAlias,
+    layout.TaskAttributeTaskValue,
+    layout.TaskAttributeCollectionNode,
+    layout.TaskAttributeCollectionNodeAlias
+]):
     __structure_name__ = 'task attribute'
-    tables = AttributeTablesWithCollection(
-        layout.TaskAttribute,
-        layout.TaskAttributeAlias,
-        layout.TaskAttributeTaskValue,
-        layout.TaskAttributeCollectionNode,
-        layout.TaskAttributeCollectionNodeAlias
-    )
+    
+    @staticmethod
+    def tables():
+        return AttributeTablesWithCollection(
+            layout.TaskAttribute,
+            layout.TaskAttributeAlias,
+            layout.TaskAttributeTaskValue,
+            layout.TaskAttributeCollectionNode,
+            layout.TaskAttributeCollectionNodeAlias
+        )
     
     uniqueness: UniquenessExtended
 

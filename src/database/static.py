@@ -1,8 +1,9 @@
 
 
 
+from abc import abstractmethod
 import enum
-from typing import Any, Callable, Iterator, Never, Sequence, final, overload
+from typing import Any, Callable, Iterator, MutableMapping, Never, Sequence, final, overload
 
 class Column:
     def __init__(self, name: str) -> None:
@@ -26,8 +27,8 @@ class BaseRow(metaclass=BaseRowMeta):
 
 
 @final
-class Rows[T: BaseRow]:
-    def __init__(self, rows_data: Sequence[dict[str, Any]], row_type: type[T]) -> None:
+class Rows[T1: BaseRow]:
+    def __init__(self, rows_data: Sequence[dict[str, Any]], row_type: type[T1]) -> None:
         self.row_type = row_type 
 
         if not rows_data:
@@ -36,7 +37,7 @@ class Rows[T: BaseRow]:
 
         self.rows = tuple(map(lambda row_data: row_type(row_data), rows_data))
 
-    def __iter__(self) -> Iterator[T]:
+    def __iter__(self) -> Iterator[T1]:
         yield from self.rows
 
 

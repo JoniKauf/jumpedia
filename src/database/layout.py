@@ -4,6 +4,20 @@ from structures.attributes.slot_type import SlotTypeT
 
 # --- Bases ---
 
+class Snippets:
+    """Whole tables split up into tables so they can be reused for specific queries.
+    
+    For example, if one would fetch all rows from a table with just the
+    `id` row, then here would be a class with just the `id` cell that would
+    later be combined into the class that includes all columns of the table.
+    """
+    class SnippetBaseAttributeCollectionNode(BaseRow):
+        @Cell
+        def attribute_collection_node_id(self_or_cls) -> int: cell_body()
+
+        @Cell
+        def alias(self_or_cls) -> bytes: cell_body()
+    
 
 class BaseAttribute(BaseRow):
     @Cell
@@ -62,18 +76,18 @@ class BaseAttributeCollectionNode(BaseRow):
     def sort_value(self_or_cls) -> int: cell_body()
 
 
-class BaseAttributeCollectionNodeAlias(BaseRow):
+
+
+
+
+class BaseAttributeCollectionNodeAlias(Snippets.SnippetBaseAttributeCollectionNode):
     @Cell
     def id(self_or_cls) -> int: cell_body()
 
     @Cell
     def attribute_id(self_or_cls) -> int: cell_body()
 
-    @Cell
-    def attribute_collection_node_id(self_or_cls) -> int: cell_body()
-
-    @Cell
-    def alias(self_or_cls) -> bytes: cell_body()
+    
 
 
 class BaseAttributeTaskValue(BaseRow):

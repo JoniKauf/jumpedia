@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 import json
 from typing import ClassVar
 from database import layout, queries
-from database.typed import Tables as Tables
-from database import typed
 from structures import attributes
 from structures.attributes import AttributeDataCache, RawCollectionNodesT, SlotTypeT
 from structures.attributes import collection
@@ -14,15 +12,25 @@ from structures.attributes.collection import AttributeTablesWithCollection, Base
 
 
 @dataclass(frozen=True, kw_only=True)
-class UserAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
+class UserAttribute[T: SlotTypeT](BaseCollectionAttribute[
+    T, 
+    layout.UserAttribute,
+    layout.UserAttributeAlias,
+    layout.UserAttributeTaskValue,
+    layout.UserAttributeCollectionNode,
+    layout.UserAttributeCollectionNodeAlias
+]):
     __structure_name__: ClassVar = 'user attribute'
-    tables = AttributeTablesWithCollection(
-        layout.UserAttribute,
-        layout.UserAttributeAlias,
-        layout.UserAttributeTaskValue,
-        layout.UserAttributeCollectionNode,
-        layout.UserAttributeCollectionNodeAlias
-    )
+    
+    @staticmethod
+    def tables():
+        return AttributeTablesWithCollection(
+            layout.UserAttribute,
+            layout.UserAttributeAlias,
+            layout.UserAttributeTaskValue,
+            layout.UserAttributeCollectionNode,
+            layout.UserAttributeCollectionNodeAlias
+        )
 
     def get_collection(self) -> Collection[T]:
         if self._cache.collection is None:
