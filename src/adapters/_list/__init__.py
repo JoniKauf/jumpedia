@@ -12,6 +12,7 @@ from adapters._community import CommunityAdapter
 from adapters._task import TaskAdapter
 from errors.feedback import FeedbackError, feedbacks
 from structures import attributes, task
+from structures.attributes import collection
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.user_attribute import UserAttribute
 from structures.task import Task
@@ -87,7 +88,7 @@ ALIAS_PARSER: parsetools.SafeJsonParser[list[str]] = parsetools.SafeJsonParser(
 )
 
 ATTRIBUTE_VALUE_MAPPING_PARSER: parsetools.SafeJsonParser[dict[str, attributes.AttributeValueParseTypesT]] = parsetools.SafeJsonParser(
-    max_depth=attributes.COLLECTION_MAX_DEPTH,
+    max_depth=collection.MAX_DEPTH,
     strict_type={str: attributes.ATTRIBUTE_VALUE_PARSE_TYPES}
 )
 

@@ -1,55 +1,19 @@
 
-from dataclasses import dataclass, field
-import json
-from types import MappingProxyType
-from typing import ClassVar, Self
-
-from database import layout, queries
-from database.typed import Tables as Tables
+from dataclasses import dataclass
 from database import typed
-from errors.feedback import feedbacks
-from structures import attributes
-from structures.attributes import AttributeDataCache, SlotTypeT, RawCollectionNode, RawCollectionNodesT, UniquenessExtended
-from structures.attributes import BaseAttribute
-from structures.attributes.collection import AttributeTablesWithCollection, BaseCollectionAttribute, Collection, CollectionNode, CollectionNodesT
-from structures.attributes import collection
-from utils import parsetools
-from utils.functools2 import classproperty
+from structures.attributes import SlotTypeT, UniquenessExtended
+from structures.attributes.collection import CollectionAttributeTables, BaseCollectionAttribute
 
 
 @dataclass(frozen=True, kw_only=True)
-class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[
-    T,
-    layout.TaskAttribute,
-    layout.TaskAttributeAlias,
-    layout.TaskAttributeTaskValue,
-    layout.TaskAttributeCollectionNode,
-    layout.TaskAttributeCollectionNodeAlias
-]):
+class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
     __structure_name__ = 'task attribute'
-    
-    @staticmethod
-    def tables():
-        return AttributeTablesWithCollection(
-            layout.TaskAttribute,
-            layout.TaskAttributeAlias,
-            layout.TaskAttributeTaskValue,
-            layout.TaskAttributeCollectionNode,
-            layout.TaskAttributeCollectionNodeAlias
-        )
+    tables = CollectionAttributeTables(
+        typed.TaskAttribute,
+        typed.TaskAttributeAlias,
+        typed.TaskAttributeTaskValue,
+        typed.TaskAttributeCollectionNode,
+        typed.TaskAttributeCollectionNodeAlias
+    )
     
     uniqueness: UniquenessExtended
-
-    
-    def get_collection(self) -> Collection[T]:
-        if self._cache.collection is None:
-            self._cache.collection = attributes.get_collection_helper(self)
-
-        return self._cache.collection
-    
-    def set_collection(self, top_raw_nodes: RawCollectionNodesT[T]) -> Collection[T]:
-        with self.locked:
-            if self._cache.collection is None:
-                self._cache.collection = attributes.set_collection_helper(top_raw_nodes, self)
-            
-            return self._cache.collection

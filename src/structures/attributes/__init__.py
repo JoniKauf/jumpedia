@@ -12,8 +12,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Literal, NamedTuple, Protocol, Self, TypeAliasType, TypedDict, Union, overload
 import typing
 
-from database import dbutils, layout, queries
-from database.static import BaseRow, Cell, Rows, cell_body
+from database import queries, typed
+from database.simple_orm import BaseRow, Cell, Rows, cell_body
 from discordtools import messaging
 import errors
 from errors.feedback import feedbacks
@@ -107,9 +107,25 @@ UniquenessExtendedEnum = enum.Enum(
 )
 
 @dataclass
-class AttributeDataCache[T: SlotTypeT]():
-    aliases: frozenset[str] | None = None
-    collection: Collection[T] | None = None
+class AttributeDataCache[T: SlotTypeT]:
+    _aliases: frozenset[str] | None = None
+    _collection: Collection[T] | None = None
+
+    @property
+    def aliases(self) -> frozenset[str] | None:
+        return self._aliases
+    
+    @aliases.setter
+    def aliases(self, value: frozenset[str]) -> None:
+        self._aliases = value
+
+    @property
+    def collection(self) -> Collection[T] | None:
+        return self._collection
+    
+    @collection.setter
+    def collection(self, value: Collection[T]) -> None:
+        self._collection = value
 
 
 type RawCollectionNodesT[T: SlotTypeT] = frozenset[RawCollectionNode[T]]
@@ -139,30 +155,16 @@ ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
 
 
 @dataclass(frozen=True)
-class AttributeTables[T1: layout.BaseAttribute, T2: layout.BaseAttributeAlias, T3: layout.BaseAttributeTaskValue]:
-    attribute: type[T1]
-    attribute_alias: type[T2]
-    attribute_task_value: type[T3]
-
-class AliasOnlyRow(BaseRow):
-    @Cell
-    def alias(self_or_cls) -> str: cell_body()
+class AttributeTables[T1: typed.BaseAttribute, T2: typed.BaseAttributeAlias, T3: typed.BaseAttributeTaskValue]:
+    attribute: type[typed.BaseAttribute]
+    attribute_alias: type[typed.BaseAttributeAlias]
+    attribute_task_value: type[typed.BaseAttributeTaskValue]
 
 
 @dataclass(frozen=True, kw_only=True)
-class BaseAttribute[
-    T: SlotTypeT, 
-    T1: layout.BaseAttribute, 
-    T2: layout.BaseAttributeAlias, 
-    T3: layout.BaseAttributeTaskValue
-](BaseStructure):
+class BaseAttribute[T: SlotTypeT](BaseStructure):
     __structure_name__ = "base attribute"
-
-    # To avoid https://github.com/python/typing/discussions/1424
-    @staticmethod
-    @abstractmethod
-    def tables() -> AttributeTables[T1, T2, T3]:
-        pass
+    tables: ClassVar[AttributeTables]
 
     # --- CONSTANTS ---
     TYPE_ID: ClassVar[int]
@@ -212,22 +214,20 @@ class BaseAttribute[
         if self._cache.aliases is not None:
             return self._cache.aliases
         
-        TblAlias = self.__class__.tables().attribute_alias
+        TblAlias = self.__class__.tables.attribute_alias
 
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {TblAlias.alias}
+        with queries.connected() as c:
+            c.execute(lambda h: f"""
+                SELECT {+typed._Blocks.BaseAttributeAlias_Alias}
                 FROM {TblAlias}
                 WHERE {TblAlias.attribute_id} = {h|self.id}
             """)
 
-            rows = Rows(cursor.fetchall(), AliasOnlyRow)
+            rows = c.fetchall(typed._Blocks.BaseAttributeAlias_Alias)
         
-        self._cache.aliases = frozenset(row.alias for row in rows)
+        self._cache.aliases = aliases = frozenset(row.alias for row in rows)
 
-        return self._cache.aliases
+        return aliases
     
     def get_collection(self) -> Collection[T]:
         return Collection(
