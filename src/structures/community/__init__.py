@@ -1,32 +1,27 @@
-from contextlib import _GeneratorContextManager
 from dataclasses import dataclass, field
-from functools import cached_property
-from threading import RLock
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
-import discord as dc
 import mariadb
-import mariadb.constants
 from mariadb.constants import ERR
+from database.simple_orm import Arg, Rows
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from structures import attributes, task
+from structures.attributes.slot_type import SlotType
 from structures.base_structure import BaseStructure
-from structures.attributes import AttributeValueType, Uniqueness, UniquenessExtended
-from structures.attributes.static_attribute import StaticAttribute
+from structures.attributes import Uniqueness
 from structures.list import List
 from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
 from utils import text
-from database import queries, typed as typed
-from database.typed import SingleTableRowT, Tables as Tables
-from typing import Optional as Opt
-import structures.list as list_package
-from discordtools import messaging as msg
+from database import queries, typed
 
 if TYPE_CHECKING:
     from structures.jumpedia import Jumpedia
  
+
+ListTbl = typed.List
+CommunityTbl = typed.Community
+CommunityUserTbl = typed.CommunityUser
 
 @dataclass
 class CommunityDataCache:
@@ -53,18 +48,18 @@ class Community(BaseStructure):
         if self._cache.server_ids is not None:
             return self._cache.server_ids
         
-        h = queries.ArgHelper()
+        ServerTbl = typed.Server
+        
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT {ServerTbl.id}
+                FROM {ServerTbl}
+                WHERE {ServerTbl.community_id} = {arg(self.id)}
+            """)
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {Tables.Server.id}
-                FROM {Tables.Server}
-                WHERE {Tables.Server.community_id} = {h|self.id}
-            """, h.steal())
+            result = c.fetchall(ServerTbl)
 
-            result: typed.ManyTableRowT = cursor.fetchall()
-
-        self._cache.server_ids = frozenset(row[Tables.Server.id] for row in result)
+        self._cache.server_ids = frozenset(row.id for row in result)
 
         return self._cache.server_ids
         
@@ -80,100 +75,95 @@ class Community(BaseStructure):
             if (count := len(self.get_lists())) >= Community.MAX_LISTS:
                 raise feedbacks.temp("Limit of lists reached", count)
             
-            h = queries.ArgHelper()
-
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
-                    INSERT INTO {Tables.List} (
-                        {Tables.List.community_id},
-                        {Tables.List.name}
+            with queries.connected() as c:
+                c.execute(lambda arg: f"""
+                    INSERT INTO {ListTbl} (
+                        {ListTbl.community_id},
+                        {ListTbl.name}
                     ) 
                     VALUES (
-                        {h|self.id},
-                        {h|name}
+                        {arg(self.id)},
+                        {arg(name)}
                     )
-                """, h.steal())
+                """)
                 
-                id: int = cursor.lastrowid  # type: ignore
+                list_id = c.last_generated_id
 
                 list = List(
                     community=self,
-                    id=id,
+                    id=list_id,
                     name=name
                 )
 
                 list.create_static_attribute(
                     task.STATIC_NAME_ATTRIBUTE_NAME,
-                    (),
-                    AttributeValueType.get_by_type(str),
+                    frozenset(),
+                    SlotType.get_by_type(str),
                     1,
                     1,
-                    UniquenessExtended.PER_LIST,
+                    Uniqueness.PER_LIST,
                 )
 
                 list.create_static_attribute(
                     task.STATIC_ALIASES_ATTRIBUTE_NAME,
-                    (),
-                    AttributeValueType.get_by_type(str),
+                    frozenset(),
+                    SlotType.get_by_type(str),
                     1,
                     attributes.MAX_SLOTS,
-                    UniquenessExtended.PER_LIST
+                    Uniqueness.PER_LIST
                 )
 
             return list
             
             
     def delete_list(self, list_id: int) -> bool:
-        h = queries.ArgHelper()
-
-        with self.locked, queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                DELETE FROM {Tables.List}
-                WHERE 
-                    {Tables.List.community_id} = {h|self.id}
-                    AND {Tables.List.id} = {h|list_id}
-            """, h.steal())
-
-            return cursor.rowcount > 0
-
-
-    def _fetch_from_list_table(self, where: Callable[[queries.ArgHelper], str] | None) -> typed.ManyTableRowT:
-        h = queries.ArgHelper()
         
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT *
-                FROM {Tables.List}
-                WHERE 
-                    {Tables.List.community_id} = {h|self.id}
-                    {f"AND {where(h)}" if where is not None else ""}
-            """, h.steal())
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+        with self.locked, queries.connected() as c:
+            c.execute(lambda arg: f"""
+                DELETE FROM {ListTbl}
+                WHERE 
+                    {ListTbl.community_id} = {arg(self.id)}
+                    AND {ListTbl.id} = {arg(list_id)}
+            """)
+
+            return c.affected_row_count > 0
+
+
+    def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT *
+                FROM {ListTbl}
+                WHERE 
+                    {ListTbl.community_id} = {arg(self.id)}
+                    {f"AND {where(arg)}" if where is not None else ""}
+            """)
+
+            result = c.fetchall(ListTbl)
 
         return result
     
-    def _list_data_to_obj(self, data: typed.SingleTableRowT) -> List:
+    def _list_row_to_obj(self, row: ListTbl) -> List:
         return List(
             community=self,
-            id=data[Tables.List.id],
-            name=data[Tables.List.name]
+            id=row.id,
+            name=row.name
         )
     
-    def get_lists(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[List]:
+    def get_lists(self, where: Callable[[Arg], str] | None = None) -> list[List]:
         return [
-            self._list_data_to_obj(data) 
+            self._list_row_to_obj(data) 
             for data in self._fetch_from_list_table(where)
         ]
 
     def get_list_by_id(self, id: int) -> List | None:
-        data = self._fetch_from_list_table(lambda h: f"{Tables.List.id} = {h|id}")
-        return self._list_data_to_obj(data[0]) if data else None
+        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")
+        return self._list_row_to_obj(data[0]) if data else None
     
     def get_list_by_name(self, name: str) -> List | None:
-        name = text.norm(name)
-        data = self._fetch_from_list_table(lambda h: f"{Tables.List.name} = {h|name}")
-        return self._list_data_to_obj(data[0]) if data else None
+        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(name)}")
+        return self._list_row_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
         if self.default_selected_list_id is None:
@@ -182,23 +172,14 @@ class Community(BaseStructure):
         return self.get_list_by_id(self.default_selected_list_id)
     
     def set_default_selected_list(self, list_id: int | None) -> bool:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            try:
-                cursor.execute(f"""
-                    UPDATE {Tables.Community} 
-                    SET {Tables.Community.default_selected_list_id} = {h|list_id}
-                    WHERE {Tables.Community.id} = {h|self.id}
-                """, h.steal())
-            except mariadb.IntegrityError as e:
-                # list_id doesn't exist
-                if e.errno == ERR.ER_NO_REFERENCED_ROW_2:
-                    return False
-                
-                raise e
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                UPDATE {CommunityTbl} 
+                SET {CommunityTbl.default_selected_list_id} = {arg(list_id)}
+                WHERE {CommunityTbl.id} = {arg(self.id)}
+            """)
             
-            return True
+            return c.affected_row_count > 0 
                 
     def get_or_create_community_user(
         self, 
@@ -208,42 +189,41 @@ class Community(BaseStructure):
         override_community_rank_if_user_exists: bool,
         override_selected_list_if_user_exists: bool
     ) -> CommunityUser:
-        h = queries.ArgHelper()
         with self.locked:
             community_user = self.get_community_user(jumpedia_user)
             
-            with queries.connected() as (conn, cursor):
+            with queries.connected() as c:
                 # User doesn't exist yet
                 if community_user is None:
-                    cursor.execute(f"""
-                        INSERT INTO {Tables.CommunityUser} (
-                            {Tables.CommunityUser.community_id},
-                            {Tables.CommunityUser.user_id},
-                            {Tables.CommunityUser.power},
-                            {Tables.CommunityUser.selected_list_id}
+                    c.execute(lambda arg: f"""
+                        INSERT INTO {CommunityUserTbl} (
+                            {CommunityUserTbl.community_id},
+                            {CommunityUserTbl.user_id},
+                            {CommunityUserTbl.power},
+                            {CommunityUserTbl.selected_list_id}
                         )
                         VALUES (
-                            {h|self.id},
-                            {h|jumpedia_user.id},
-                            {h|community_rank.power},
-                            {h|(None if selected_list_id is None else selected_list_id)}
+                            {arg(self.id)},
+                            {arg(jumpedia_user.id)},
+                            {arg(community_rank.power)},
+                            {arg(selected_list_id)}
                         )
-                    """, h.steal())
+                    """)
 
                 else:
                     community_rank = community_rank if override_community_rank_if_user_exists else community_user.community_rank
                     selected_list_id = selected_list_id if override_selected_list_if_user_exists else community_user.selected_list_id
 
                     if community_rank != community_user or selected_list_id != selected_list_id:
-                        cursor.execute(f"""
-                            UPDATE {Tables.CommunityUser}
+                        c.execute(lambda arg: f"""
+                            UPDATE {CommunityUserTbl}
                             SET 
-                                {Tables.CommunityUser.power} = {h|community_rank.power}
-                                {Tables.CommunityUser.selected_list_id} = {h|(None if selected_list_id is None else selected_list_id)}
+                                {CommunityUserTbl.power} = {arg(community_rank.power)}
+                                {CommunityUserTbl.selected_list_id} = {arg((None if selected_list_id is None else selected_list_id))}
                             WHERE 
-                                {Tables.CommunityUser.community_id} = {h|self.id}
-                                AND {Tables.CommunityUser.user_id} = {h|jumpedia_user.id}
-                        """, h.steal()) 
+                                {CommunityUserTbl.community_id} = {arg(self.id)}
+                                AND {CommunityUserTbl.user_id} = {arg(jumpedia_user.id)}
+                        """) 
 
                 return CommunityUser(
                     community=self,
@@ -254,18 +234,16 @@ class Community(BaseStructure):
 
     
     def get_community_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
                 SELECT *
-                FROM {Tables.CommunityUser}
+                FROM {CommunityUserTbl}
                 WHERE 
-                    {Tables.CommunityUser.community_id} = {h|self.id}
-                    AND {Tables.CommunityUser.user_id} = {h|jumpedia_user.id}
+                    {CommunityUserTbl.community_id} = {arg(self.id)}
+                    AND {CommunityUserTbl.user_id} = {arg(jumpedia_user.id)}
             """)
 
-            result: SingleTableRowT | None = cursor.fetchone()
+            result = c.fetchone(CommunityUserTbl)
 
         if result is None:
             return None
@@ -273,6 +251,6 @@ class Community(BaseStructure):
         return CommunityUser(
             community=self,
             jumpedia_user=jumpedia_user,
-            community_rank=CommunityRank.get(result[Tables.CommunityUser.power]),
-            selected_list_id=result[Tables.CommunityUser.selected_list_id]
+            community_rank=CommunityRank.get(result.power),
+            selected_list_id=result.selected_list_id
         )

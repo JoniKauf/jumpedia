@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 import pickle
 from types import MappingProxyType
 from typing import Any, ClassVar, Final, Iterable, Protocol, Self, Sequence, overload
-from database.simple_orm import BaseRow, Rows
 from errors.feedback import feedbacks
 from structures.attributes import AnyAttributeT, AttributeTables, BaseAttribute, RawCollectionNode, RawCollectionNodesT
 from database import queries, typed
@@ -88,9 +87,8 @@ class Collection[T: SlotTypeT](BaseStructure):
 
 @dataclass(frozen=True)
 class CollectionAttributeTables(AttributeTables):
-    attribute_collection_node: type[typed.BaseAttributeCollectionNode]
-    attribute_collection_node_alias: type[typed.BaseAttributeCollectionNodeAlias]
-
+    attribute_collection_node: type[typed.BaseCollectionAttributeCollectionNode]
+    attribute_collection_node_alias: type[typed.BaseCollectionAttributeCollectionNodeAlias]
 
 class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
     tables: ClassVar[CollectionAttributeTables]
@@ -105,38 +103,35 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
         if self._cache.collection is not None:
             return self._cache.collection
         
-        h = queries.ArgHelper()
-
         TblNode = self.__class__.tables.attribute_collection_node
         TblNodeAlias = self.__class__.tables.attribute_collection_node_alias
 
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
                 SELECT *
                 FROM {TblNode}
-                WHERE {TblNode.attribute_id} = {h|self.id}
-            """, h.steal())
+                WHERE {TblNode.attribute_id} = {arg(self.id)}
+            """)
 
-            result = Rows(cursor.fetchall(), TblNode)
+            result = c.fetchall(TblNode)
 
-            cursor.execute(f"""
+            c.execute(lambda arg: f"""
                 SELECT 
-                    {TblNodeAlias.attribute_collection_node_id},
                     {TblNodeAlias.alias}
                 FROM
                     {TblNodeAlias}
                 WHERE
-                    {TblNodeAlias.attribute_id} = {h|self.id}
-            """, h.steal())
+                    {TblNodeAlias.attribute_id} = {arg(self.id)}
+            """)
 
-            aliases_result = Rows(cursor.fetchall(), typed.SnippetBaseAttributeCollectionNode)
+            aliases_result = c.fetchall(TblNodeAlias)
 
         del TblNodeAlias
 
         row_id_to_row = {row.id: row for row in result}
         row_id_to_child_row_ids: dict[int, list[int]] = {}
 
-        top_rows: list[typed.BaseAttributeCollectionNode] = []
+        top_rows: list[typed.BaseCollectionAttributeCollectionNode] = []
         row_id_to_aliases: dict[int, list[str]] = {}
 
         for row in result:
@@ -155,7 +150,7 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
 
         normed_syn_to_node: dict[T, CollectionNode[T]] = {}
 
-        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseAttributeCollectionNode) -> CollectionNode[T]:
+        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseCollectionAttributeCollectionNode) -> CollectionNode[T]:
             node = CollectionNode(
                 value=pickle.loads(row.value),
                 aliases=frozenset(row_id_to_aliases[row.id]),
@@ -187,7 +182,7 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
         )
 
 
-    def set_collection_helper(
+    def set_collection(
         self,
         top_raw_nodes: RawCollectionNodesT[T], 
     ) -> 'Collection[T]':
@@ -256,7 +251,7 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
                     return
                 
                 for node in nodes:
-                    cursor.execute(f"""
+                    c.execute(lambda arg: f"""
                         INSERT INTO {TblNodes} (
                             {TblNodes.attribute_id},
                             {TblNodes.value},
@@ -264,17 +259,17 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
                             {TblNodes.parent_id}
                         ) 
                         VALUES (
-                            {h|self.id},
-                            {h|pickle.dumps(node.value)},
-                            {h|node.sort_value},
-                            {h|parent_id}
+                            {arg(self.id)},
+                            {arg(pickle.dumps(node.value))},
+                            {arg(node.sort_value)},
+                            {arg(parent_id)}
                         )
-                    """, h.steal())
+                    """)
 
-                    node_id: int = cursor.lastrowid  # type: ignore
+                    node_id = c.last_generated_id
 
                     if node.aliases:
-                        cursor.execute(f"""
+                        c.execute(lambda arg: f"""
                             INSERT INTO {TblAliases} (
                                 {TblAliases.attribute_id},
                                 {TblAliases.attribute_collection_node_id},
@@ -282,17 +277,15 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
                             )
                             VALUES 
                                 {','.join(f"""(
-                                    {h|self.id},
-                                    {h|node_id},
-                                    {h|pickle.dumps(alias)}
+                                    {arg(self.id)},
+                                    {arg(node_id)},
+                                    {arg(pickle.dumps(alias))}
                                 )""" for alias in node.aliases)}
-                        """, h.steal())
+                        """)
 
                     recursively_insert_children(node_id, node.children)
 
-            h = queries.ArgHelper()
-
-            with queries.connected() as (_, cursor), self.locked:
+            with queries.connected() as c, self.locked:
                 # We go from top nodes down the tree so we can be sure
                 # the parent_id is already inserted and the foreign key
                 # check succeeds

@@ -1,18 +1,15 @@
 
 import time
 from typing import TYPE_CHECKING, Any, Callable, Final, Self, TypedDict
-import logging
 import discord as dc
 
-from database.simple_orm import Rows
+from database.simple_orm import Arg, BaseModel, Rows, column
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure, attributes, task, user
 from structures import community
 from structures.community import Community
-from structures.list import List
-from structures.task import Task
 from structures.user import JumpediaUser
 from utils import metautils, text
 from database import queries, typed
@@ -20,9 +17,7 @@ from dataclasses import dataclass, field
 from discordtools import messaging as msg, users
 from structures import list as list_
 
-LOGGER = logging.getLogger(__name__)
 DATABASE_NAME: str = 'jumpedia'
-
 
 class NotInServerError(ValueError):
     pass
@@ -40,40 +35,43 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return (self.id,)
 
     def _init(self) -> None:
-        with queries.connected(no_db=True) as (conn, cursor):
-            cursor.execute(f"""
-                SELECT SCHEMA_NAME
-                FROM INFORMATION_SCHEMA.SCHEMATA
-                WHERE SCHEMA_NAME = '{self.database_name}';
+        class PartSchemaTbl(BaseModel, table_name=None):
+            @column(str)
+            def SCHEMA_NAME(self): pass
+
+        with queries.connected(no_db=True) as c:
+            c.execute(lambda _: f"""
+                SELECT {PartSchemaTbl.SCHEMA_NAME}
+                FROM INFORMATION_SCHEMA.{PartSchemaTbl}
+                WHERE {PartSchemaTbl.SCHEMA_NAME} = '{self.database_name}';
             """)
 
-            exists = cursor.fetchone() is not None
+            exists = c.fetchone(PartSchemaTbl) is not None
 
             if exists:
-                LOGGER.info("Jumpedia database already exists, not creating new")
                 return
 
-            LOGGER.warning("Jumpedia database does NOT exist, creating new in 5 seconds")
+            print("Jumpedia database does NOT exist, creating new in 5 seconds!")
 
             time.sleep(5)
 
-            cursor.execute(f"""
+            c.execute(lambda _: f"""
                 CREATE DATABASE `{self.database_name}`
                     CHARACTER SET = utf8mb4
                     COLLATE = utf8mb4_unicode_ci
                 """)
                 
-        with queries.connected() as (conn, cursor):
+        with queries.connected() as c:
             try:
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.Community} (
                         {typed.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.Community.__table_name__} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
+                        {typed.Community.name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
                         {typed.Community.default_selected_list_id} INT DEFAULT NULL
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.Server} (
                         {typed.Server.id} BIGINT UNSIGNED PRIMARY KEY,
                         {typed.Server.community_id} INT NOT NULL,
@@ -84,22 +82,22 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.List} (
                         {typed.List.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.List.community_id} INT NOT NULL,
-                        {typed.List.__table_name__} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
+                        {typed.List.name} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
 
                         FOREIGN KEY ({typed.List.community_id})
                             REFERENCES {typed.Community}({typed.Community.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({typed.List.community_id}, {typed.List.__table_name__})
+                        UNIQUE ({typed.List.community_id}, {typed.List.name})
                     )
                 """)
 
                 # Add foreign key to community, otherwise we would have circular dependency
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     ALTER TABLE {typed.Community}
                     ADD CONSTRAINT fk_community_default_list
                     FOREIGN KEY ({typed.Community.default_selected_list_id})
@@ -107,15 +105,15 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         ON DELETE SET NULL
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.JumpediaUser} (
                         {typed.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
-                        {typed.JumpediaUser.__table_name__} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
+                        {typed.JumpediaUser.name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
                         {typed.JumpediaUser.power} INT NOT NULL
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.CommunityUser} (
                         {typed.CommunityUser.community_id} INT NOT NULL,
                         {typed.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
@@ -136,11 +134,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.StaticAttribute} (
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
-                        {typed.StaticAttribute.__table_name__} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.StaticAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.StaticAttribute.slot_type} INT NOT NULL,
                         {typed.StaticAttribute.position} INT NOT NULL,
                         {typed.StaticAttribute.min_slots} INT NOT NULL,
@@ -151,12 +149,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.__table_name__}),
+                        UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.name}),
                         UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.position})
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.StaticAttributeAlias} (
                         {typed.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttributeAlias.attribute_id} INT NOT NULL,
@@ -174,11 +172,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttribute} (
                         {typed.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttribute.list_id} INT NOT NULL,
-                        {typed.TaskAttribute.__table_name__} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.TaskAttribute.slot_type} INT NOT NULL,
                         {typed.TaskAttribute.position} INT NOT NULL,
                         {typed.TaskAttribute.min_slots} INT NOT NULL,
@@ -189,12 +187,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.__table_name__}),
+                        UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.name}),
                         UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.position})
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttributeAlias} (
                         {typed.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeAlias.attribute_id} INT NOT NULL,
@@ -212,7 +210,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttributeCollectionNode} (
                         {typed.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionNode.parent_id} INT,
@@ -229,7 +227,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttributeCollectionNodeAlias} (
                         {typed.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
@@ -246,11 +244,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
 
                 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.UserAttribute} (
                         {typed.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttribute.list_id} INT NOT NULL,
-                        {typed.UserAttribute.__table_name__} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.UserAttribute.name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.UserAttribute.position} INT NOT NULL,
                         {typed.UserAttribute.slot_type} INT NOT NULL,
                         {typed.UserAttribute.min_slots} INT NOT NULL,
@@ -261,12 +259,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.__table_name__}),
+                        UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.name}),
                         UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.position})
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.UserAttributeAlias} (
                         {typed.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeAlias.attribute_id} INT NOT NULL,
@@ -284,7 +282,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.UserAttributeCollectionNode} (
                         {typed.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionNode.parent_id} INT,
@@ -301,7 +299,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.UserAttributeCollectionNodeAlias} (
                         {typed.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
@@ -317,21 +315,21 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.Task} (
                         {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Task.list_id} INT NOT NULL,
-                        {typed.Task.__table_name__} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                        {typed.Task.name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.Task.list_id})
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
-                        UNIQUE ({typed.Task.list_id}, {typed.Task.__table_name__})
+                        UNIQUE ({typed.Task.list_id}, {typed.Task.name})
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAlias} (
                         {typed.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAlias.task_id} INT NOT NULL,
@@ -350,7 +348,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.StaticAttributeTaskValue} (
                         {typed.StaticAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.StaticAttributeTaskValue.attribute_id} INT NOT NULL,
@@ -367,7 +365,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
                 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttributeTaskValue} (
                         {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
@@ -387,7 +385,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                cursor.execute(f"""
+                c.execute(lambda _: f"""
                     CREATE TABLE {typed.UserAttributeTaskValue} (
                         {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
@@ -413,13 +411,13 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
             except Exception as e:
                 try:
-                    cursor.execute(f"""
+                    c.execute(lambda _: f"""
                         DROP DATABASE `{self.database_name}`
                     """)
                 finally:
                     raise e
             
-        LOGGER.info("Jumpedia database successfully created!")
+        print("Jumpedia database successfully created!")
     
 
     # --- Communities ---
@@ -436,30 +434,28 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             if community_ is not None:
                 raise feedbacks.temp("Community with that name exists")
 
-            h = queries.ArgHelper()
-            
-            with queries.connected() as (conn, cursor):
-                cursor.execute(f"""
+            with queries.connected() as c:
+                c.execute(lambda arg: f"""
                     INSERT INTO {typed.Community} (
-                        {typed.Community.__table_name__},
+                        {typed.Community.name},
                     )
                     VALUES (
-                        {h|name}
+                        {arg(name)}
                     )
-                """, h.steal())
+                """)
 
                 community_id: int = cursor.lastrowid  # type: ignore
 
-                cursor.execute(f"""
+                c.execute(lambda arg: f"""
                     INSERT INTO {typed.Server} (
                         {typed.Server.id}, 
                         {typed.Server.community_id}
                     )
                     VALUES (
-                        {h|server_id},
-                        {h|community_id}
+                        {arg(server_id)},
+                        {arg(community_id)}
                     )
-                """, h.steal())
+                """)
                 
                 community_ = Community(
                     jumpedia=self,
@@ -493,27 +489,23 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 return community_
     
     def delete_community(self, community: Community) -> bool:
-        h = queries.ArgHelper()
-
-        with self.locked, community.locked, queries.connected() as (conn, cursor):
-            cursor.execute(f"""
+        with self.locked, community.locked, queries.connected() as c:
+            c.execute(lambda arg: f"""
                 DELETE FROM {typed.Community}
-                WHERE {typed.Community.id} = {h|community.id}
-            """, h.steal())
+                WHERE {typed.Community.id} = {arg(community.id)}
+            """)
 
-            return cursor.rowcount > 0
+            return c.affected_row_count > 0
     
-    def _fetch_from_community_table(self, where: Callable[[queries.ArgHelper], str] | None) -> Rows[typed.Community]:
-        h = queries.ArgHelper()
-        
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
+    def _fetch_from_community_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Community]:
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
                 SELECT *
                 FROM {typed.Community}
-                {f"WHERE {where(h)}" if where is not None else ""}
-            """, h.steal())
+                {f"WHERE {where(arg)}" if where is not None else ""}
+            """)
 
-            result = Rows(cursor.fetchall(), typed.Community)
+            result = c.fetchall(typed.Community)
 
         return result
     
@@ -521,35 +513,33 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return Community(
             jumpedia=self,
             id=row.id,
-            name=row.__table_name__,
+            name=row.name,
             default_selected_list_id=row.default_selected_list_id
         )
     
-    def get_communities(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[Community]:
+    def get_communities(self, where: Callable[[Arg], str] | None = None) -> list[Community]:
         return [
             self._community_row_to_obj(data) 
             for data in self._fetch_from_community_table(where)
         ]
         
     def get_community_by_id(self, id: int) -> Community | None:
-        data = self._fetch_from_community_table(lambda h: f"{typed.Community.id} = {h|id}")
+        data = self._fetch_from_community_table(lambda arg: f"{typed.Community.id} = {arg(id)}")
         return self._community_row_to_obj(data[0]) if data else None
     
     def get_community_by_name(self, name: str) -> Community | None:
-        data = self._fetch_from_community_table(lambda h: f"{typed.Community.__table_name__} = {h|name}")
+        data = self._fetch_from_community_table(lambda arg: f"{typed.Community.name} = {arg(name)}")
         return self._community_row_to_obj(data[0]) if data else None
     
     def get_community_by_server_id(self, server_id: int) -> Community | None:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {+typed._Blocks.Server_CommunityId}
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT {typed.Server.community_id}
                 FROM {typed.Server}
-                WHERE {typed.Server.id} = {h|server_id}
-            """, h.steal())
+                WHERE {typed.Server.id} = {arg(server_id)}
+            """)
 
-            result: typed._Blocks.Server_CommunityId | None = cursor.fetchone()
+            result = c.fetchone(typed.Server)
 
         if result is None:
             return None
@@ -567,39 +557,37 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         override_name_if_user_exists: bool,
         override_jumpedia_rank_if_user_exists: bool
     ) -> JumpediaUser:
-        h = queries.ArgHelper()
-
         with self.locked:
             user = self.get_user_by_id(id)
 
-            with queries.connected() as (conn, cursor):
+            with queries.connected() as c:
                 if user is None:
-                    cursor.execute(f"""
+                    c.execute(lambda arg: f"""
                         INSERT INTO {typed.JumpediaUser} (
                             {typed.JumpediaUser.id},
                             {typed.JumpediaUser.power},
-                            {typed.JumpediaUser.__table_name__}
+                            {typed.JumpediaUser.name}
                         )
                         VALUES (
-                            {h|id},
-                            {h|jumpedia_rank.power},
-                            {h|name}
+                            {arg(id)},
+                            {arg(jumpedia_rank.power)},
+                            {arg(name)}
                         )
-                    """, h.steal())
+                    """)
 
                 else:
                     jumpedia_rank = jumpedia_rank if override_jumpedia_rank_if_user_exists else user.jumpedia_rank
                     name = name if override_name_if_user_exists else user.name
 
                     if name != user.name or jumpedia_rank != user.jumpedia_rank:
-                        cursor.execute(f"""
+                        c.execute(lambda arg: f"""
                             UPDATE {typed.JumpediaUser} 
                             SET 
-                                {typed.JumpediaUser.__table_name__} = {h|name}
-                                {typed.JumpediaUser.power} = {h|jumpedia_rank.power}
+                                {typed.JumpediaUser.name} = {arg(name)}
+                                {typed.JumpediaUser.power} = {arg(jumpedia_rank.power)}
                             WHERE 
-                                {typed.JumpediaUser.id} = {h|user.id}
-                        """, h.steal())
+                                {typed.JumpediaUser.id} = {arg(user.id)}
+                        """)
                         
                 return JumpediaUser(
                     jumpedia=self,
@@ -608,36 +596,34 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     name=name
                 )
 
-    def _fetch_from_user_table(self, where: Callable[[queries.ArgHelper], str] | None) -> Rows[typed.JumpediaUser]:
-        h = queries.ArgHelper()
-        
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {+typed.JumpediaUser}
+    def _fetch_from_user_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.JumpediaUser]:
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT *
                 FROM {typed.JumpediaUser}
-                {f"WHERE {where(h)}" if where is not None else ""}
-            """, h.steal())
+                {f"WHERE {where(arg)}" if where is not None else ""}
+            """)
 
-            result = Rows(cursor.fetchall(), typed.JumpediaUser)
+            result = c.fetchall(typed.JumpediaUser)
 
         return result
     
     def _user_row_to_obj(self, row: typed.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
             jumpedia=self,
-            name=row.__table_name__,
+            name=row.name,
             id=row.id,
             jumpedia_rank=JumpediaRank.get(row.power)
         )
     
-    def get_users(self, where: Callable[[queries.ArgHelper], str] | None = None) -> list[JumpediaUser]:
+    def get_users(self, where: Callable[[Arg], str] | None = None) -> list[JumpediaUser]:
         return [
             self._user_row_to_obj(data) 
             for data in self._fetch_from_user_table(where)
         ]
 
     def get_user_by_id(self, id: int) -> JumpediaUser | None:
-        data = self._fetch_from_user_table(lambda h: f"{typed.JumpediaUser.id} = {h|id}")
+        data = self._fetch_from_user_table(lambda arg: f"{typed.JumpediaUser.id} = {arg(id)}")
         return self._user_row_to_obj(data[0]) if data else None
 
     def add_community_to_server(self, community_id: int, server_id: int) -> Community:
@@ -663,50 +649,42 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     ]
                 )     
             
-            h = queries.ArgHelper()
-
-            with queries.connected() as (_, cursor):
-                cursor.execute(f"""
+            with queries.connected() as c:
+                c.execute(lambda arg: f"""
                     INSERT INTO {typed.Server} (
                         {typed.Server.id},
                         {typed.Server.community_id}
                     )
                     VALUES (
-                        {h|server_id},
-                        {h|community_id}
+                        {arg(server_id)},
+                        {arg(community_id)}
                     )
-                """, h.steal())
+                """)
 
             # Community must now be connected
             community = self.get_community_by_server_id(server_id)
             assert community is not None
             return community
 
-    def remove_community_from_server(self, server_id: int) -> Community:
-        h = queries.ArgHelper()
-
-        with self.locked, queries.connected() as (_, cursor):
-            cursor.execute(f"""
-                SELECT {+typed._Blocks.Server_CommunityId}
+    def remove_community_from_server(self, server_id: int) -> Community | None:
+        with self.locked, queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT {typed.Server.community_id}
                 FROM {typed.Server}
-                WHERE
-                    {typed.Server.id} = {h|server_id}
-            """, h.steal())
+                WHERE {typed.Server.id} = {arg(server_id)}
+            """)
 
-            result = cursor.fetchone()
-            community_id = ()
-            cursor.execute(f"""
+            result = c.fetchone(typed.Server)
+
+            if result is None:
+                return None
+            
+            c.execute(lambda arg: f"""
                 DELETE FROM {typed.Server}
-                WHERE 
-                    {typed.Server.id} = {h|server_id}
-            """, h.steal())
+                WHERE {typed.Server.id} = {arg(server_id)}
+            """)
 
-            if cursor.rowcount < 1:
-                raise NotInServerError
-
-            community_id: int = cursor.lastrowid
-        # Community must exist
-        return self.get_community_by_id()  # type: ignore  
+        return self.get_community_by_id(result.community_id)  
         
     
 

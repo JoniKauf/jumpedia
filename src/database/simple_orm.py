@@ -1,132 +1,162 @@
+from typing import Any, Callable, ClassVar, Generator, Mapping, Self, Sequence, final, overload
 
-
-
-from typing import Any, Callable, Iterable, Iterator, Never, Self, Sequence, final, get_args, get_type_hints, overload
 from utils import text
 
-class AUTO_SNAKE: pass
+def quoted(s: str) -> str:
+    return f'`{s}`'
 
-class Column:
-    def __init__(self, name: str) -> None:
-        self.name = name
-    
-    def __str__(self) -> str:
-        return f'`{self.name}`'
+class Column[TOwner: BaseModel, TValue: Any]:
+    def __init__(self, type: type[TValue], func: Callable[[TOwner], Any]) -> None:
+        self._name: str = ''
+        self._type = type
+        self._func = func
+        self._aliases: set[str] = set()
 
-
-class BaseRowMeta(type):
-    __columns__: list[Column]
-    __table_name__: str | None
-
-    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], *, table_name: str | type[AUTO_SNAKE] | None) -> type:
-        namespace['__columns__'] = []
-
-        if table_name is AUTO_SNAKE:
-            table_name = text.pascal_to_snake(name)
-        
-        namespace['__table_name__'] = table_name
-
-        return super().__new__(cls, name, bases, namespace)
-
-    def __str__(cls) -> str:
-        if cls.__table_name__ is None:
-            raise NotImplementedError("Not stringifiable because no table_name given")
-        
-        return f"`{cls.__table_name__}`"
-    
-    def __pos__(cls) -> str:
-        return ','.join(str(col) for col in cls.__columns__)
-    
-        
-class BaseRow(metaclass=BaseRowMeta, table_name=None):
-    def __init__(self, row: dict[str, Any]) -> None:
-        if self.__class__ == BaseRow:
-            raise RuntimeError
-        
-        self.__mapping__ = row
-
-    @overload
-    @classmethod
-    def get_optional(cls, row: None) -> None:
-        pass
-
-    @overload
-    @classmethod
-    def get_optional(cls, row: dict[str, Any]) -> Self:
-        pass
-
-    @classmethod
-    def get_optional(cls, row: dict[str, Any] | None) -> None | Self:
-        if row is None:
-            return None
-        
-        return cls(row)
-
-@final
-class Rows[T1: BaseRow]:
-    def __init__(self, rows_data: Iterable[dict[str, Any]], row_type: type[T1]) -> None:
-        self.row_type = row_type 
-
-        if not rows_data:
-            self.rows = ()
-            return
-
-        self.rows = tuple(map(lambda row_data: row_type(row_data), rows_data))
-
-    def __iter__(self) -> Iterator[T1]:
-        yield from self.rows
-
-    def __len__(self) -> int:
-        return len(self.rows)
-    
-    def __getitem__(self, index: int) -> T1:
-        return self.rows[index]
-
-
-class Cell[TRow: BaseRow, TValue: Any]:
-    def __init__(self, wrapped: Callable[[TRow], TValue] | Callable[[type[TRow]], TValue]) -> None:
-        self.__wrapped__ = wrapped
-    
-    def __set_name__(self, owner: type[TRow], name: str) -> None:
-        self.name = name
-        self.column = Column(name)
-        owner.__columns__.append(self.column)
-
-    @overload
-    def __get__(self, instance: TRow, owner: type[TRow]) -> TValue:
-        pass
-    
-    @overload
-    def __get__(self, instance: None, owner: type[TRow]) -> Column:
-        pass
-
-    def __get__(self, instance: TRow | None, owner: type[TRow]) -> TValue | Column:
-        if instance is None:
-            return self.column
-        
-        return instance.__mapping__[self.name] 
-    
-    def __set__(self, instance: TRow, value: TValue) -> None:
-        instance.__mapping__[self.name] = value
-
-class CellAlias[TOwner: BaseRow, TValue: Any]:
-    def __init__(self, wrapped: Callable[[TOwner], TValue] | Callable[[type[TOwner]], Column]):
-        self.__wrapped__ = wrapped
+    def __set_name__(self, owner: type[TOwner], name: str) -> None:
+        if not self._name:
+            self._name = name
+            owner.__columns__[name] = self
+        else:
+            self._aliases.add(name)
 
     @overload
     def __get__(self, instance: TOwner, owner: type[TOwner]) -> TValue:
         pass
-    
+
     @overload
-    def __get__(self, instance: None, owner: type[TOwner]) -> Column:
+    def __get__(self, instance: None, owner: type[TOwner]) -> Self:
+        pass
+    
+    def __get__(self, instance: TOwner | None, owner: type[TOwner]):
+        if instance is None:
+            return self
+        
+        return instance.__columns_data__[self._name]
+    
+    def __hash__(self) -> int:
+        return hash((self._type, self._name))
+    
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, self.__class__):
+            return self._type == value._type and self._name == value._name
+        
+        return NotImplemented
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.__dict__!r})"
+    
+    def __str__(self) -> str:
+        return quoted(self._name)
+    
+    def qual(self, model: type[TOwner]) -> str:
+        return f"{model}.{self}"
+    
+    
+def column[TValue: Any](type: type[TValue]):
+    def wrapper[TOwner: BaseModel](func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
+        return Column(type, func)
+    
+    return wrapper
+
+def column_alias[TOwner: BaseModel, TValue: Any](column: Column[TOwner, TValue]):
+    def wrapper(func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
+        return column
+    
+    return wrapper
+
+@final
+class SNAKE: pass
+
+class BaseModelMeta(type):
+    __table_name__: str | None
+
+    @classmethod
+    def __prepare__(cls, name: str, bases: tuple[type, ...], table_name: str | type[SNAKE] | None):
+        return {'__columns__': {}}
+    
+    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], *, table_name: str | type[SNAKE] | None) -> type:
+        if table_name is SNAKE:
+            table_name = text.pascal_to_snake(name)
+
+        namespace['__table_name__'] = table_name
+        return super().__new__(cls, name, bases, namespace)
+    
+    def __str__(self) -> str:
+        if self.__table_name__ is None:
+            raise RuntimeError()
+        
+        return quoted(self.__table_name__)
+    
+
+class BaseModel(metaclass=BaseModelMeta, table_name=None):
+    __columns__: ClassVar[dict[str, Column[Self, Any]]]
+
+    def __init__(self, columns_data: Mapping[str, Any], /, *, key_check: bool = True) -> None:
+        if key_check:
+            self._key_check(columns_data)
+        
+        self._key_checked = key_check
+        self.__columns_data__ = dict(columns_data)
+
+    @classmethod
+    def _key_check(cls, columns_mapping: Mapping[str, Any]) -> None:
+        if columns_mapping.keys() != cls.__columns__.keys():
+            raise ValueError
+
+    @overload
+    @classmethod
+    def opt(cls, columns_mapping: Mapping[str, Any], *, key_check: bool = True) -> Self:
         pass
 
-    def __get__(self, instance: TOwner | None, owner: type[TOwner]) -> TValue | Column:
-        return self.__wrapped__(instance or owner)  # type: ignore
+    @overload
+    @classmethod
+    def opt(cls, columns_mapping: None, *, key_check: bool = True) -> None:
+        pass
 
 
-def cell_body() -> Never:
-    raise RuntimeError(
-        "This function should not be called, "
-        "because it should only be the body of a Cell!"
-    )
+    @classmethod
+    def opt(cls, columns_mapping: Mapping[str, Any] | None, *, key_check: bool = False) -> Self | None:
+        if columns_mapping is None:
+            return None
+        
+        return cls(columns_mapping, key_check=key_check)
+    
+    def __init_subclass__(cls) -> None:
+        if cls.__new__ != BaseModel.__new__ or cls.__init__ != BaseModel.__init__:
+            raise RuntimeError
+
+    def __repr__(self) -> str:
+        cls_name = self.__class__.__name__
+        args = str(self._key_checked)
+        kwargs = ''.join(f", {k!r}={v!r}" for k, v in self.__columns_data__)
+        
+        return f"{cls_name}({args}{kwargs})"
+
+class Rows[T: BaseModel]:
+    def __init__(self, rows: Sequence[Mapping[str, Any]], model: type[T]) -> None:
+        self._rows = tuple(model(row, key_check=False) for row in rows)
+
+    
+    def __iter__(self) -> Generator[T, None, None]:
+        yield from self._rows 
+
+    def __getitem__(self, idx: int) -> T:
+        return self._rows[idx]
+
+class Arg:
+    placeholder: ClassVar[str] = '?'
+
+    def __init__(self) -> None:
+        self._args: list[Any] = []
+
+    def __call__(self, o: Any) -> str:
+        self.add(o)
+        return self.__class__.placeholder
+
+    def add(self, o: Any):
+        self._args.append(o)
+
+    def steal(self) -> tuple[Any, ...]:
+        args = tuple(self._args)
+        self._args.clear()
+        return args

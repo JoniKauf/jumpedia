@@ -43,4 +43,4 @@ class CommunityUser(BaseStructure):
         if result is None:
             return None
         
-        return self.community._list_data_to_obj(result)
+        return self.community._list_row_to_obj(result)

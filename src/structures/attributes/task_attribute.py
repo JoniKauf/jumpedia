@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass
 from database import typed
-from structures.attributes import SlotTypeT, UniquenessExtended
+from structures.attributes import SlotTypeT, Uniqueness
 from structures.attributes.collection import CollectionAttributeTables, BaseCollectionAttribute
 
 
@@ -15,5 +15,3 @@ class TaskAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
         typed.TaskAttributeCollectionNode,
         typed.TaskAttributeCollectionNodeAlias
     )
-    
-    uniqueness: UniquenessExtended

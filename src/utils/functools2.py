@@ -31,6 +31,3 @@ class classproperty[TOwner: Any, TValue: Any]:
     def __get__(self, instance: None, owner: type[TOwner]) -> TValue:
         return self.__wrapped__(owner)
     
-    
-
-test.test

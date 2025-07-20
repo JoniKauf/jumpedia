@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from database import typed
-from structures.attributes import AttributeTables, SlotTypeT, UniquenessExtended
+from structures.attributes import AttributeTables, SlotTypeT, Uniqueness
 from structures.attributes import BaseAttribute
 
 @dataclass(frozen=True, kw_only=True)
@@ -12,6 +12,3 @@ class StaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         typed.StaticAttributeAlias,
         typed.StaticAttributeTaskValue
     )
-
-    uniqueness: UniquenessExtended
-    

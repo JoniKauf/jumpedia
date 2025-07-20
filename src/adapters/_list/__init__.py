@@ -57,7 +57,7 @@ def _require_task_with_syn(syn: str, list: List) -> Task:
     return task
 
 def _require_attribute_with_syn(syn: str, list: List) -> attributes.AnyAttributeT:
-    attribute = list.get_attribute_by_syn(syn)
+    attribute = list.get_any_attribute_by_syn(syn)
 
     if attribute is None:
         raise feedbacks.temp(f"Attribute with name or alias `{syn}` not found!")
@@ -159,7 +159,7 @@ class ListAdapter(BaseAdapter):
     def get_attributes(self) -> list[_attributes.AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
-            for attr in self._list.get_attributes()
+            for attr in self._list.get_all_attributes()
         ]
     
     def get_attribute(self, syn: str) -> _attributes.AnyAttributeAdapterT:

@@ -9,11 +9,10 @@ import functools
 import json
 import pickle
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Generator, Literal, NamedTuple, Protocol, Self, TypeAliasType, TypedDict, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, Self, final
 import typing
 
 from database import queries, typed
-from database.simple_orm import BaseRow, Cell, Rows, cell_body
 from discordtools import messaging
 import errors
 from errors.feedback import feedbacks
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
 type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
 ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
 
+@final
 @functools.total_ordering
 class Uniqueness:
     _value_mapping: dict[int, Self] = {}
@@ -56,11 +56,7 @@ class Uniqueness:
     def _init_cls(cls):
         cls.NONE = cls('none', 0)
         cls.PER_VALUE = cls('per_value', 1)
-
-        for subcls in cls.__subclasses__():
-            subcls._value_mapping = cls._value_mapping.copy()
-            subcls._name_mapping = cls._name_mapping.copy()
-            subcls._init_cls()
+        cls.PER_LIST = cls('per_list', 2)
     
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Uniqueness) and self.value == other.value:
@@ -84,26 +80,11 @@ class Uniqueness:
     @classmethod
     def get_by_name(cls, name: str) -> Self:
         return cls._name_mapping[name]
-    
-
-@functools.total_ordering
-class UniquenessExtended(Uniqueness):
-    @classmethod
-    def _init_cls(cls):
-        cls._value_mapping = cls._value_mapping.copy()
-        cls._name_mapping = cls._name_mapping.copy()
-
-        cls.PER_LIST = cls('per_list', 2)
 
 Uniqueness._init_cls()
 
-
 UniquenessEnum: enum.Enum = enum.Enum(
     'UniquenessEnum', [(obj.name, obj) for obj in Uniqueness._value_mapping.values()]
-)
-
-UniquenessExtendedEnum = enum.Enum(
-    'UniquenessEnum', [(obj.name, obj) for obj in UniquenessExtended._value_mapping.values()]
 )
 
 @dataclass
@@ -217,13 +198,13 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         TblAlias = self.__class__.tables.attribute_alias
 
         with queries.connected() as c:
-            c.execute(lambda h: f"""
-                SELECT {+typed._Blocks.BaseAttributeAlias_Alias}
+            c.execute(lambda arg: f"""
+                SELECT {TblAlias.alias}
                 FROM {TblAlias}
-                WHERE {TblAlias.attribute_id} = {h|self.id}
+                WHERE {TblAlias.attribute_id} = {arg(self.id)}
             """)
 
-            rows = c.fetchall(typed._Blocks.BaseAttributeAlias_Alias)
+            rows = c.fetchall(TblAlias)
         
         self._cache.aliases = aliases = frozenset(row.alias for row in rows)
 
