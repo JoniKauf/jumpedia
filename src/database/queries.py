@@ -39,7 +39,12 @@ class CursorWrapper:
         return self._cursor.execute(statement(arg), arg.steal())
     
     def fetchone[T: BaseModel](self, model: type[T]) -> T | None:
-        return model.opt(self._cursor.fetchone())
+        row: dict[str, Any] | None = self._cursor.fetchone()
+
+        if row is None:
+            return None
+        
+        return model(row)
     
     def fetchmany[T: BaseModel](self, size: int, model: type[T]) -> Rows[T]:
         return Rows(self._cursor.fetchmany(size), model)

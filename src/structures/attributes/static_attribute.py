@@ -9,6 +9,7 @@ class StaticAttribute[T: SlotTypeT](BaseAttribute[T]):
     __structure_name__ = "static attribute"
     tables = AttributeTables(
         typed.StaticAttribute,
-        typed.StaticAttributeAlias,
-        typed.StaticAttributeTaskValue
+        typed.StaticAttributeAlias
     )
+    allow_min_slots_on_creation = True
+    deletable = False

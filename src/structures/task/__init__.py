@@ -29,20 +29,18 @@ class Task(BaseStructure):
 
     @property
     def aliases(self) -> frozenset[str]:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
-                SELECT {Tables.TaskAlias.alias}
-                FROM {Tables.TaskAlias}
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT {typed.TaskAlias.alias}
+                FROM {typed.TaskAlias}
                 WHERE 
-                    {Tables.TaskAlias.list_id} = {h|self.list.id}
-                    AND {Tables.TaskAlias.task_id} = {h|self.id}
+                    {typed.TaskAlias.list_id} = {arg(self.list.id)}
+                    AND {typed.TaskAlias.task_id} = {arg(self.id)}
             """)
 
-            result: typed.ManyTableRowT = cursor.fetchall()
+            rows = c.fetchall(typed.TaskAlias)
 
-        return frozenset(row[Tables.TaskAlias.alias] for row in result)
+        return frozenset(row.alias for row in rows)
 
     @property
     def identity(self) -> tuple[int, ...]:

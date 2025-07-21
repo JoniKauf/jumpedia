@@ -136,19 +136,24 @@ ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
 
 
 @dataclass(frozen=True)
-class AttributeTables[T1: typed.BaseAttribute, T2: typed.BaseAttributeAlias, T3: typed.BaseAttributeTaskValue]:
+class AttributeTables:
     attribute: type[typed.BaseAttribute]
     attribute_alias: type[typed.BaseAttributeAlias]
-    attribute_task_value: type[typed.BaseAttributeTaskValue]
 
+
+@dataclass(frozen=True)
+class NonStaticAttributeTables(AttributeTables):
+    attribute_collection_node: type[typed.BaseCollectionAttributeCollectionNode]
+    attribute_collection_node_alias: type[typed.BaseCollectionAttributeCollectionNodeAlias]
+    attribute_task_value: type[typed.BaseAttributeTaskValue]
+    
 
 @dataclass(frozen=True, kw_only=True)
 class BaseAttribute[T: SlotTypeT](BaseStructure):
     __structure_name__ = "base attribute"
     tables: ClassVar[AttributeTables]
-
-    # --- CONSTANTS ---
-    TYPE_ID: ClassVar[int]
+    allow_min_slots_on_creation: ClassVar[bool] = False
+    deletable: ClassVar[bool] = True
 
     list: 'List'
     id: int 
@@ -168,7 +173,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.__class__.TYPE_ID, self.id) + self.list.identity
+        return (ANY_ATTRIBUTE.index(self.__class__), self.id) + self.list.identity
     
     @property
     def required(self) -> bool:

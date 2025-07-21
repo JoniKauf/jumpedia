@@ -40,7 +40,6 @@ class Community(BaseStructure):
     jumpedia: 'Jumpedia'
     id: int
     name: str
-    default_selected_list_id: int | None
 
     _cache: CommunityDataCache = field(init=False, default_factory=CommunityDataCache)
 
@@ -166,10 +165,20 @@ class Community(BaseStructure):
         return self._list_row_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
-        if self.default_selected_list_id is None:
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT {typed.Community.default_selected_list_id}
+                FROM {typed.Community}
+                WHERE 
+                    {typed.Community.id} = {arg(self.id)}
+            """)
+
+            row = c.fetchone(typed.Community)
+
+        if row is None or row.default_selected_list_id is None:
             return None
-        
-        return self.get_list_by_id(self.default_selected_list_id)
+
+        return self.get_list_by_id(row.default_selected_list_id)
     
     def set_default_selected_list(self, list_id: int | None) -> bool:
         with queries.connected() as c:

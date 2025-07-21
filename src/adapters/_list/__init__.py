@@ -159,7 +159,7 @@ class ListAdapter(BaseAdapter):
     def get_attributes(self) -> list[_attributes.AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
-            for attr in self._list.get_all_attributes()
+            for attr in self._list.get_all_attributes_flat()
         ]
     
     def get_attribute(self, syn: str) -> _attributes.AnyAttributeAdapterT:

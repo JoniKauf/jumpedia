@@ -6,7 +6,7 @@ import pickle
 from types import MappingProxyType
 from typing import Any, ClassVar, Final, Iterable, Protocol, Self, Sequence, overload
 from errors.feedback import feedbacks
-from structures.attributes import AnyAttributeT, AttributeTables, BaseAttribute, RawCollectionNode, RawCollectionNodesT
+from structures.attributes import AnyAttributeT, AttributeTables, BaseAttribute, NonStaticAttributeTables, RawCollectionNode, RawCollectionNodesT
 from database import queries, typed
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
@@ -83,15 +83,9 @@ class Collection[T: SlotTypeT](BaseStructure):
             return self.normed_syn_to_node[syn]
         
         return self.normed_syn_to_node.get(syn, default)
-    
-
-@dataclass(frozen=True)
-class CollectionAttributeTables(AttributeTables):
-    attribute_collection_node: type[typed.BaseCollectionAttributeCollectionNode]
-    attribute_collection_node_alias: type[typed.BaseCollectionAttributeCollectionNodeAlias]
 
 class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
-    tables: ClassVar[CollectionAttributeTables]
+    tables: ClassVar[NonStaticAttributeTables]
 
     def __post_init__(self) -> None:
         super().__post_init__()

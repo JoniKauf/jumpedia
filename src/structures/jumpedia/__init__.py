@@ -460,7 +460,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 community_ = Community(
                     jumpedia=self,
                     id=community_id,
-                    default_selected_list_id=None,
                     name=name
                 )  
 
@@ -481,8 +480,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 community_ = Community(
                     jumpedia=self,
                     id=community_id,
-                    name=name,
-                    default_selected_list_id=None
+                    name=name
                 )
 
                 # Rollback if anything goes wrong up to this point
@@ -513,8 +511,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return Community(
             jumpedia=self,
             id=row.id,
-            name=row.name,
-            default_selected_list_id=row.default_selected_list_id
+            name=row.name
         )
     
     def get_communities(self, where: Callable[[Arg], str] | None = None) -> list[Community]:
@@ -685,8 +682,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             """)
 
         return self.get_community_by_id(result.community_id)  
-        
     
 
-
+# I get horny thinking about what is about to happen
 Jumpedia()._init()

@@ -4,18 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar
 from database import typed
 from structures.attributes import SlotTypeT, Uniqueness
-from structures.attributes.collection import BaseCollectionAttribute, CollectionAttributeTables
+from structures.attributes.collection import BaseCollectionAttribute, NonStaticAttributeTables
 
 
 @dataclass(frozen=True, kw_only=True)
 class UserAttribute[T: SlotTypeT](BaseCollectionAttribute[T]):
     __structure_name__: ClassVar = 'user attribute'
-    tables = CollectionAttributeTables(
+    tables = NonStaticAttributeTables(
         typed.UserAttribute,
         typed.UserAttributeAlias,
-        typed.UserAttributeTaskValue,
         typed.UserAttributeCollectionNode,
-        typed.UserAttributeCollectionNodeAlias
+        typed.UserAttributeCollectionNodeAlias,
+        typed.UserAttributeTaskValue
     )
 
     def __post_init__(self) -> None:

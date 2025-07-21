@@ -1,3 +1,5 @@
+from types import NoneType
+from typing import Union, overload
 from database.simple_orm import SNAKE, BaseModel, column
 
 class Community(BaseModel, table_name=SNAKE):
@@ -5,9 +7,8 @@ class Community(BaseModel, table_name=SNAKE):
     def id(self): pass
     @column(str)
     def name(self): pass
-    @column(int)
+    @column((int, NoneType))
     def default_selected_list_id(self): pass
-
 
 class Server(BaseModel, table_name=SNAKE):
     @column(int)
@@ -164,9 +165,6 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     def list_id(self): pass
     @column(str)
     def alias(self): pass
-
-class StaticAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
-    pass
 
 class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
     pass

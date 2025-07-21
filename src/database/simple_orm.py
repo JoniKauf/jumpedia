@@ -1,4 +1,5 @@
-from typing import Any, Callable, ClassVar, Generator, Mapping, Self, Sequence, final, overload
+from typing import AbstractSet, Any, Callable, ClassVar, Generator, Mapping, Self, Sequence, final, overload
+from typing_extensions import TypeForm
 
 from utils import text
 
@@ -6,7 +7,15 @@ def quoted(s: str) -> str:
     return f'`{s}`'
 
 class Column[TOwner: BaseModel, TValue: Any]:
+    @overload
     def __init__(self, type: type[TValue], func: Callable[[TOwner], Any]) -> None:
+        pass
+
+    @overload
+    def __init__(self, type: tuple[type[TValue], ...], func: Callable[[TOwner], Any]) -> None:
+        pass
+    
+    def __init__(self, type: type[TValue] | tuple[type[TValue], ...], func: Callable[[TOwner], Any]) -> None:
         self._name: str = ''
         self._type = type
         self._func = func
@@ -51,9 +60,20 @@ class Column[TOwner: BaseModel, TValue: Any]:
     def qual(self, model: type[TOwner]) -> str:
         return f"{model}.{self}"
     
-    
-def column[TValue: Any](type: type[TValue]):
-    def wrapper[TOwner: BaseModel](func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
+
+type _ColumnReturnT[TOwner: BaseModel, TValue: Any] = Callable[[Callable[[TOwner], Any]], Column[TOwner, TValue]]
+
+
+@overload
+def column[TOwner: BaseModel, TValue: Any](type: type[TValue]) -> _ColumnReturnT[TOwner, TValue]:
+    pass
+
+@overload
+def column[TOwner: BaseModel, TValue: Any](type: tuple[type[TValue], ...]) -> _ColumnReturnT[TOwner, TValue]:
+    pass
+
+def column[TOwner: BaseModel, TValue: Any](type: type[TValue] | tuple[type[TValue], ...]) -> _ColumnReturnT[TOwner, TValue]:
+    def wrapper(func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
         return Column(type, func)
     
     return wrapper
@@ -103,23 +123,12 @@ class BaseModel(metaclass=BaseModelMeta, table_name=None):
         if columns_mapping.keys() != cls.__columns__.keys():
             raise ValueError
 
-    @overload
     @classmethod
-    def opt(cls, columns_mapping: Mapping[str, Any], *, key_check: bool = True) -> Self:
-        pass
-
-    @overload
-    @classmethod
-    def opt(cls, columns_mapping: None, *, key_check: bool = True) -> None:
-        pass
-
-
-    @classmethod
-    def opt(cls, columns_mapping: Mapping[str, Any] | None, *, key_check: bool = False) -> Self | None:
-        if columns_mapping is None:
-            return None
-        
-        return cls(columns_mapping, key_check=key_check)
+    def all_columns_except(cls, except_: AbstractSet[Column[Self, Any]]) -> str:
+        return ','.join(
+            str(c) for c in cls.__columns__.values()
+            if c not in except_
+        )
     
     def __init_subclass__(cls) -> None:
         if cls.__new__ != BaseModel.__new__ or cls.__init__ != BaseModel.__init__:
