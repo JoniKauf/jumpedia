@@ -8,13 +8,12 @@ from database import queries
 from structures.base_structure import BaseStructure
 from utils import text
 from database import typed as typed
-from database.typed import Tables as Tables
 
 if TYPE_CHECKING:
     from structures.list import List
 
-STATIC_NAME_ATTRIBUTE_NAME: Final[str] = 'name'
-STATIC_ALIASES_ATTRIBUTE_NAME: Final[str] = 'aliases'
+DEFAULT_STATIC_NAME_ATTRIBUTE_NAME: Final[str] = 'name'
+DEFAULT_STATIC_ALIASES_ATTRIBUTE_NAME: Final[str] = 'aliases'
 
 MIN_SYN_LEN: Final[int] = 1
 MAX_SYN_LEN: Final[int] = 128
@@ -45,10 +44,6 @@ class Task(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
-
-    @property
-    def parent(self) -> List:
-        return self.list
 
         
     

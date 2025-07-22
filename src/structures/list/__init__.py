@@ -6,14 +6,14 @@ from functools import cached_property
 import itertools
 import json
 from multiprocessing.util import Finalize
-from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Final, Iterable, Literal, Mapping, Never, NotRequired, Self, TypedDict
+from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Final, Iterable, Literal, Mapping, Never, NotRequired, Self, TypedDict, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, BaseAttribute, RawCollectionNodesT, Uniqueness, Uniqueness
+from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, RawCollectionNodesT, Uniqueness, Uniqueness
 from structures.attributes import collection
 from structures.attributes.collection import BaseCollectionAttribute, Collection, CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
@@ -172,6 +172,33 @@ class List(BaseStructure):
             if attr is not None:
                 return attr
 
+    @overload
+    def create_attribute[T: StaticAttribute, TSlot: SlotTypeT](
+        self, 
+        type: type[T],
+        name: str,
+        aliases: frozenset[str],
+        value_type: SlotType[TSlot],
+        max_slots: int,
+        uniqueness: Uniqueness,
+        *,
+        min_slots: int
+    ) -> T:
+        pass
+
+    @overload
+    def create_attribute[T: TaskAttribute | UserAttribute, TSlot: SlotTypeT](
+        self, 
+        type: type[T],
+        name: str,
+        aliases: frozenset[str],
+        value_type: SlotType[TSlot],
+        max_slots: int,
+        uniqueness: Uniqueness,
+        *,
+        top_raw_nodes: RawCollectionNodesT[TSlot]
+    ) -> T:
+        pass
 
     def create_attribute[T: BaseAttribute, TSlot: SlotTypeT](
         self, 
@@ -181,6 +208,7 @@ class List(BaseStructure):
         value_type: SlotType[TSlot],
         max_slots: int,
         uniqueness: Uniqueness,
+        *,
         min_slots: int = 0,
         top_raw_nodes: RawCollectionNodesT[TSlot] = frozenset()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
@@ -267,7 +295,7 @@ class List(BaseStructure):
                     if not isinstance(attribute, BaseCollectionAttribute):
                         raise feedbacks.temp("Not CollectionAttribute")
                     
-                    attribute._cache.collection = attribute.set_collection(top_raw_nodes)
+                    attribute.set_collection(top_raw_nodes)
                     
                 return attribute
 
@@ -285,11 +313,81 @@ class List(BaseStructure):
 
     # --- Tasks ---
 
+    def _raw_attribute_value_mapping_to_non_raw(
+        self, 
+        raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
+    ) -> dict[TaskAttribute, list[SlotTypeT]]:
+        id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
+            
+        # Check if all required attributess are given
+        for attr in id_to_attr.values():
+            if attr.required and attr.id not in raw_attribute_value_mapping:
+                raise feedbacks.temp(f"Attribute {attr} is required (min >= 1 slots) but it received no values")
+        
+        if not raw_attribute_value_mapping:
+            return {}
+        
+        attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]] = {}
+        
+        # Convert ids to attributes and validate value
+        for attr_id, v in raw_attribute_value_mapping.items():
+            if attr_id not in id_to_attr:
+                raise feedbacks.temp("Attribute id not found")
+            
+            attr = id_to_attr[attr_id]
+            v = attr.value_from_loaded(v)
+
+            attribute_value_mapping[attr] = v
+        
+        # Check if slot is unique per entire list
+        unique_per_list_attrs = {
+            attr for attr in attribute_value_mapping
+            if attr.uniqueness >= Uniqueness.PER_LIST
+        }
+
+        if unique_per_list_attrs:
+            TaskValueTbl = typed.TaskAttributeTaskValue
+
+            with queries.connected() as c:
+                c.execute(lambda arg: f"""
+                    SELECT 
+                        {TaskValueTbl.value},
+                        {TaskValueTbl.attribute_id}
+                    FROM {TaskValueTbl}
+                    WHERE 
+                        {TaskValueTbl.attribute_id} in (
+                            {','.join(arg(attr.id) for attr in unique_per_list_attrs)}
+                        )
+                """)
+
+                rows = c.fetchall(TaskValueTbl)
+
+            attr_id_to_all_slots: dict[int, set[SlotTypeT]] = {
+                attr.id: set() for attr in unique_per_list_attrs
+            }
+
+            #dont forget to norm
+            for row in rows:
+                slots: list[SlotTypeT] = pickle.loads(row.value)
+                attr_id = row.attribute_id
+
+                attr_id_to_all_slots[attr_id].update(slots)
+
+            for attr in unique_per_list_attrs:
+                for 
+                
+
+                
+
+
+        return attribute_value_mapping
+    
+
     def create_task(
         self, 
         name: str, 
         aliases: frozenset[str], 
-        attribute_value_mapping: Mapping[TaskAttribute, list[SlotTypeT]]
+        raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> Task:
         with self.locked:
             if len(self.get_tasks()) >= list_package.MAX_TASKS:
@@ -298,10 +396,8 @@ class List(BaseStructure):
             for syn in (name, *aliases):
                 if self.get_task_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Task with name or alias {syn} already exists")
-                
-            for attr in self.get_attributes(TaskAttribute):
-                if attr.required and attr not in attribute_value_mapping:
-                    raise feedbacks.temp(f"Attribute {attr} is required (min >= 1 slots) but it received no values")
+            
+            attribute_value_mapping = self._raw_attribute_value_mapping_to_non_raw(raw_attribute_value_mapping)
                 
             with queries.connected() as c:
                 c.execute(lambda arg: f"""
@@ -365,6 +461,10 @@ class List(BaseStructure):
             """)
 
             return c.affected_row_count > 0
+        
+    def edit_task(self, id: int, name: str | None = None, aliases: frozenset[str] | None = None, raw_attribute_value_mapping):
+        with self.locked:
+            
         
     def _fetch_tasks_from_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Task]:
         with queries.connected() as c:

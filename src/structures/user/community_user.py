@@ -2,7 +2,6 @@
 
 
 from dataclasses import dataclass
-from database.typed import Tables as Tables
 from database import typed
 from database import queries
 from ranks.community_rank import CommunityRank
@@ -27,20 +26,18 @@ class CommunityUser(BaseStructure):
         return (self.community.id, *self.jumpedia_user.identity)
     
     def get_selected_list(self) -> List | None:
-        h = queries.ArgHelper()
-
-        with queries.connected() as (conn, cursor):
-            cursor.execute(f"""
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
                 SELECT *
-                FROM {Tables.List}
+                FROM {typed.List}
                 WHERE 
-                    {Tables.List.community_id} = {h|self.community.id}
-                    AND {Tables.List.id} = {h|self.selected_list_id}
-            """, h.steal())
+                    {typed.List.community_id} = {arg(self.community.id)}
+                    AND {typed.List.id} = {arg(self.selected_list_id)}
+            """)
 
-            result: typed.SingleTableRowT | None = cursor.fetchone()
+            row = c.fetchone(typed.List)
 
-        if result is None:
+        if row is None:
             return None
         
-        return self.community._list_row_to_obj(result)
+        return self.community._list_row_to_obj(row)

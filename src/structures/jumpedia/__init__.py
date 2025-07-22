@@ -347,23 +347,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         UNIQUE ({typed.TaskAlias.list_id}, {typed.TaskAlias.alias})
                     )
                 """)
-
-                c.execute(lambda _: f"""
-                    CREATE TABLE {typed.StaticAttributeTaskValue} (
-                        {typed.StaticAttributeTaskValue.task_id} INT NOT NULL,
-                        {typed.StaticAttributeTaskValue.attribute_id} INT NOT NULL,
-                        {typed.StaticAttributeTaskValue.value} BLOB NOT NULL,
-
-                        PRIMARY KEY ({typed.StaticAttributeTaskValue.task_id}, {typed.StaticAttributeTaskValue.attribute_id}),
-
-                        FOREIGN KEY ({typed.StaticAttributeTaskValue.task_id})
-                            REFERENCES {typed.Task}({typed.Task.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.StaticAttributeTaskValue.attribute_id})
-                            REFERENCES {typed.StaticAttribute}({typed.StaticAttribute.id})
-                            ON DELETE CASCADE
-                    )
-                """)
                 
                 c.execute(lambda _: f"""
                     CREATE TABLE {typed.TaskAttributeTaskValue} (
@@ -437,14 +420,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             with queries.connected() as c:
                 c.execute(lambda arg: f"""
                     INSERT INTO {typed.Community} (
-                        {typed.Community.name},
+                        {typed.Community.name}
                     )
                     VALUES (
                         {arg(name)}
                     )
                 """)
 
-                community_id: int = cursor.lastrowid  # type: ignore
+                community_id = c.last_generated_id
 
                 c.execute(lambda arg: f"""
                     INSERT INTO {typed.Server} (
@@ -477,14 +460,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     True
                 )
 
-                community_ = Community(
+                return Community(
                     jumpedia=self,
                     id=community_id,
                     name=name
                 )
-
-                # Rollback if anything goes wrong up to this point
-                return community_
     
     def delete_community(self, community: Community) -> bool:
         with self.locked, community.locked, queries.connected() as c:
@@ -514,11 +494,11 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             name=row.name
         )
     
-    def get_communities(self, where: Callable[[Arg], str] | None = None) -> list[Community]:
-        return [
+    def get_communities(self, where: Callable[[Arg], str] | None = None) -> set[Community]:
+        return {
             self._community_row_to_obj(data) 
             for data in self._fetch_from_community_table(where)
-        ]
+        }
         
     def get_community_by_id(self, id: int) -> Community | None:
         data = self._fetch_from_community_table(lambda arg: f"{typed.Community.id} = {arg(id)}")

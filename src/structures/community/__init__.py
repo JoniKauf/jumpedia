@@ -7,6 +7,7 @@ from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from structures import attributes, task
 from structures.attributes.slot_type import SlotType
+from structures.attributes.static_attribute import StaticAttribute
 from structures.base_structure import BaseStructure
 from structures.attributes import Uniqueness
 from structures.list import List
@@ -94,36 +95,36 @@ class Community(BaseStructure):
                     name=name
                 )
 
-                list.create_static_attribute(
-                    task.STATIC_NAME_ATTRIBUTE_NAME,
+                list.create_attribute(
+                    StaticAttribute,
+                    task.DEFAULT_STATIC_NAME_ATTRIBUTE_NAME,
                     frozenset(),
                     SlotType.get_by_type(str),
-                    1,
                     1,
                     Uniqueness.PER_LIST,
+                    min_slots=1
                 )
 
-                list.create_static_attribute(
-                    task.STATIC_ALIASES_ATTRIBUTE_NAME,
+                list.create_attribute(
+                    StaticAttribute,
+                    task.DEFAULT_STATIC_ALIASES_ATTRIBUTE_NAME,
                     frozenset(),
                     SlotType.get_by_type(str),
                     1,
-                    attributes.MAX_SLOTS,
-                    Uniqueness.PER_LIST
+                    Uniqueness.PER_LIST,
+                    min_slots=attributes.MAX_SLOTS
                 )
 
             return list
             
             
-    def delete_list(self, list_id: int) -> bool:
-        
-
+    def delete_list(self, id: int) -> bool:
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: f"""
                 DELETE FROM {ListTbl}
                 WHERE 
                     {ListTbl.community_id} = {arg(self.id)}
-                    AND {ListTbl.id} = {arg(list_id)}
+                    AND {ListTbl.id} = {arg(id)}
             """)
 
             return c.affected_row_count > 0
@@ -234,12 +235,12 @@ class Community(BaseStructure):
                                 AND {CommunityUserTbl.user_id} = {arg(jumpedia_user.id)}
                         """) 
 
-                return CommunityUser(
-                    community=self,
-                    jumpedia_user=jumpedia_user,
-                    community_rank=community_rank,
-                    selected_list_id=selected_list_id
-                )
+            return CommunityUser(
+                community=self,
+                jumpedia_user=jumpedia_user,
+                community_rank=community_rank,
+                selected_list_id=selected_list_id
+            )
 
     
     def get_community_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:

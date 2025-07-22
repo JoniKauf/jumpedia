@@ -110,7 +110,7 @@ class SlotType[T: SlotTypeT]:
     
     @functools.lru_cache(maxsize=1024, typed=True)
     def norm(self, value: T) -> T:
-        if type(value) == self.type:
+        if type(value) != self.type:
             raise ValueError
         
         if issubclass(self.type, str):
@@ -193,28 +193,6 @@ class SlotType[T: SlotTypeT]:
 
         assert_never(self.type)
 
-
-    def is_valid_slot(self, slot: object) -> bool:
-        if not type(slot) == self.type:
-            return False
-        
-        if isinstance(slot, bool | dt.date | dt.timedelta):
-            return True
-        
-        if isinstance(slot, int | Decimal):
-            return is_valid_number(slot)
-        
-        if isinstance(slot, dt.time | dt.datetime):
-            if slot.tzinfo is None:
-                return False
-            
-            return slot.utcoffset() == dt.timedelta(0)
-        
-        if isinstance(slot, str):
-            return is_valid_str(slot)
-        
-        assert_never(slot)
-    
 
 SlotType(1, 'boolean', bool)
 SlotType(2, 'integer', int)

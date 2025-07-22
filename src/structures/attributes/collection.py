@@ -94,9 +94,6 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
             raise RuntimeError
     
     def get_collection(self) -> Collection[T]:
-        if self._cache.collection is not None:
-            return self._cache.collection
-        
         TblNode = self.__class__.tables.attribute_collection_node
         TblNodeAlias = self.__class__.tables.attribute_collection_node_alias
 
@@ -285,10 +282,8 @@ class BaseCollectionAttribute[T: SlotTypeT](BaseAttribute[T]):
                 # check succeeds
                 recursively_insert_children(None, top_nodes)
 
-            self._cache.collection = collection = Collection(
+            return Collection(
                 attribute=self,
                 top_nodes=top_nodes,
                 normed_syn_to_node=MappingProxyType(normed_to_node)
             )
-
-            return collection

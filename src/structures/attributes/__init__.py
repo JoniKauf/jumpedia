@@ -87,27 +87,6 @@ UniquenessEnum: enum.Enum = enum.Enum(
     'UniquenessEnum', [(obj.name, obj) for obj in Uniqueness._value_mapping.values()]
 )
 
-@dataclass
-class AttributeDataCache[T: SlotTypeT]:
-    _aliases: frozenset[str] | None = None
-    _collection: Collection[T] | None = None
-
-    @property
-    def aliases(self) -> frozenset[str] | None:
-        return self._aliases
-    
-    @aliases.setter
-    def aliases(self, value: frozenset[str]) -> None:
-        self._aliases = value
-
-    @property
-    def collection(self) -> Collection[T] | None:
-        return self._collection
-    
-    @collection.setter
-    def collection(self, value: Collection[T]) -> None:
-        self._collection = value
-
 
 type RawCollectionNodesT[T: SlotTypeT] = frozenset[RawCollectionNode[T]]
 
@@ -168,8 +147,6 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         max_depth=collection.MAX_DEPTH,
         strict_type=ATTRIBUTE_VALUE_PARSE_TYPES
     )
-    
-    _cache: AttributeDataCache[T] = field(init=False, default_factory=AttributeDataCache)
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -195,11 +172,6 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         return {self.name} | self.get_aliases()
     
     def get_aliases(self) -> frozenset[str]:
-        assert isinstance(self, ANY_ATTRIBUTE)
-
-        if self._cache.aliases is not None:
-            return self._cache.aliases
-        
         TblAlias = self.__class__.tables.attribute_alias
 
         with queries.connected() as c:
@@ -211,9 +183,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
             rows = c.fetchall(TblAlias)
         
-        self._cache.aliases = aliases = frozenset(row.alias for row in rows)
-
-        return aliases
+        return frozenset(row.alias for row in rows)
     
     def get_collection(self) -> Collection[T]:
         return Collection(
@@ -242,8 +212,9 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
             result_values.append(parsed_value)
         
-        values = self._convert_to_collection(result_values)
+        values = self._convert_slots_to_collection_slots(result_values)
 
+        # Validate uniqueness
         normed_to_val: dict[T, T] = {}
         unique_slots: bool = self.uniqueness >= Uniqueness.PER_VALUE
 
@@ -295,7 +266,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         
         raise TypeError("Invalid")
 
-    def _convert_to_collection(self, value: builtins.list[T]) -> builtins.list[T]:
+    def _convert_slots_to_collection_slots(self, value: builtins.list[T]) -> builtins.list[T]:
         collection = self.get_collection()
 
         if not collection.is_empty:
@@ -361,9 +332,3 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             ) * sign
             for slot in v
         )
-
-    def is_valid_value(self, value: builtins.list) -> bool:
-        if not isinstance(value, list):
-            return False
-        
-        return all(self.slot_type.is_valid_slot(slot) for slot in value)
