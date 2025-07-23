@@ -101,7 +101,7 @@ class Community(BaseStructure):
                     frozenset(),
                     SlotType.get_by_type(str),
                     1,
-                    Uniqueness.PER_LIST,
+                    Uniqueness.PER_ATTRIBUTE,
                     min_slots=1
                 )
 
@@ -111,7 +111,7 @@ class Community(BaseStructure):
                     frozenset(),
                     SlotType.get_by_type(str),
                     1,
-                    Uniqueness.PER_LIST,
+                    Uniqueness.PER_ATTRIBUTE,
                     min_slots=attributes.MAX_SLOTS
                 )
 

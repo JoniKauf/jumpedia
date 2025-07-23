@@ -118,7 +118,7 @@ class SlotType[T: SlotTypeT]:
         
         return value
 
-    def slot_from_str(self, s: str) -> T:
+    def from_raw_str(self, s: str) -> T:
         old_s, s = s, text.sanitize(s)
         
         if not s:
@@ -191,6 +191,35 @@ class SlotType[T: SlotTypeT]:
             
             return s  # type: ignore
 
+        assert_never(self.type)
+
+    
+    def to_str(self, o: T) -> str:
+        if isinstance(o, str):
+            return o
+    
+        if isinstance(o, bool | int | Decimal):
+            return str(o)
+    
+        if isinstance(o, dt.time | dt.date | dt.datetime):
+            return o.isoformat()
+    
+        if isinstance(o, dt.timedelta):
+            return str(round(o.total_seconds(), 4))
+    
+        assert_never(o)
+ 
+ 
+    def from_clean_str(self, s: str) -> T:
+        if issubclass(self.type, str | bool | int | Decimal):
+            return self.type(s)
+    
+        if issubclass(self.type, dt.time | dt.date | dt.datetime):
+            return self.type.fromisoformat(s)
+    
+        if issubclass(self.type, dt.timedelta):
+            return self.type(seconds=round(float(s), 4))
+        
         assert_never(self.type)
 
 

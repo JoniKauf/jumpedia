@@ -13,9 +13,8 @@ from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, RawCollectionNodesT, Uniqueness, Uniqueness
-from structures.attributes import collection
-from structures.attributes.collection import BaseCollectionAttribute, Collection, CollectionNode, CollectionNodesT
+from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, RawCollectionNodesT, Uniqueness, Uniqueness, BaseNonStaticAttribute
+from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
@@ -86,7 +85,7 @@ class List(BaseStructure):
             position=row.position,
             min_slots=row.min_slots,
             max_slots=row.max_slots,
-            uniqueness=Uniqueness.get_by_value(row.uniqueness)
+            uniqueness=Uniqueness.get(row.uniqueness)
         )
     
     def get_attributes[T: BaseAttribute](self, type: type[T]) -> set[T]:
@@ -292,7 +291,7 @@ class List(BaseStructure):
                 )
 
                 if top_raw_nodes:
-                    if not isinstance(attribute, BaseCollectionAttribute):
+                    if not isinstance(attribute, BaseNonStaticAttribute):
                         raise feedbacks.temp("Not CollectionAttribute")
                     
                     attribute.set_collection(top_raw_nodes)
@@ -342,11 +341,11 @@ class List(BaseStructure):
         # Check if slot is unique per entire list
         unique_per_list_attrs = {
             attr for attr in attribute_value_mapping
-            if attr.uniqueness >= Uniqueness.PER_LIST
+            if attr.uniqueness >= Uniqueness.PER_ATTRIBUTE
         }
 
         if unique_per_list_attrs:
-            TaskValueTbl = typed.TaskAttributeTaskValue
+            TaskValueTbl = typed.TaskAttributeTaskValueNotUnique
 
             with queries.connected() as c:
                 c.execute(lambda arg: f"""

@@ -104,8 +104,10 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
     def task_id(self): pass
     @column(int)
     def attribute_id(self): pass
+    @column(int)
+    def index(self): pass
     @column(bytes)
-    def value(self): pass
+    def slot(self): pass
 
 
 # --- Static Attribute ---
@@ -166,9 +168,24 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     @column(str)
     def alias(self): pass
 
-class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
+class TaskAttributeTaskValueNotUnique(BaseAttributeTaskValue, table_name=SNAKE):
     pass
 
-class UserAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
+class TaskAttributeTaskValueUniquePerValue(BaseAttributeTaskValue, table_name=SNAKE):
+    pass
+
+class TaskAttributeTaskValueUniquePerAttribute(BaseAttributeTaskValue, table_name=SNAKE):
+    pass
+
+class BaseUserAttributeTaskValue(BaseAttributeTaskValue, table_name=None):
     @column(int)
     def user_id(self): pass
+
+class UserAttributeTaskValueNotUnique(BaseUserAttributeTaskValue, table_name=SNAKE):
+    pass
+
+class UserAttributeTaskValueUniquePerValue(BaseUserAttributeTaskValue, table_name=SNAKE):
+    pass
+
+class UserAttributeTaskValueUniquePerAttribute(BaseUserAttributeTaskValue, table_name=SNAKE):
+    pass

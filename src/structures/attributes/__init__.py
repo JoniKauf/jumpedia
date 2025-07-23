@@ -9,7 +9,7 @@ import functools
 import json
 import pickle
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, Self, final
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, Self, final, overload
 import typing
 
 from database import queries, typed
@@ -19,7 +19,7 @@ from errors.feedback import feedbacks
 from structures.attributes import slot_type
 from structures.attributes import collection
 from structures.attributes.slot_type import LiteralToStrPossibleT, SlotType, SlotTypeT
-from structures.attributes.collection import BaseCollectionAttribute, Collection, CollectionNode, CollectionNodesT
+from structures.attributes.collection import MAX_DEPTH, MAX_ELEMS, Collection, CollectionNode, CollectionNodesT
 from structures.base_structure import BaseStructure
 from structures.list import List
 from utils import numbers, parsetools, text
@@ -33,59 +33,15 @@ if TYPE_CHECKING:
 type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
 ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
 
-@final
-@functools.total_ordering
-class Uniqueness:
-    _value_mapping: dict[int, Self] = {}
-    _name_mapping: dict[str, Self] = {}
-
-    def __init__(self, name: str, value: int) -> None:
-        self.name = name
-        self.value = value
-
-        if self.value in self.__class__._value_mapping:
-            raise RuntimeError
-        
-        if self.name in self.__class__._name_mapping:
-            raise RuntimeError
-        
-        self.__class__._value_mapping[value] = self
-        self.__class__._name_mapping[name] = self
+class Uniqueness(enum.IntEnum):
+    NONE = 0
+    PER_VALUE = 1
+    PER_ATTRIBUTE = 2
 
     @classmethod
-    def _init_cls(cls):
-        cls.NONE = cls('none', 0)
-        cls.PER_VALUE = cls('per_value', 1)
-        cls.PER_LIST = cls('per_list', 2)
-    
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Uniqueness) and self.value == other.value:
-            return True
-        
-        return NotImplemented
-    
-    def __lt__(self, other: Any):
-        if isinstance(other, Uniqueness):
-            return self.value < other.value
-        
-        return NotImplemented
-    
-    def __bool__(self) -> bool:
-        return bool(self.value)
-    
-    @classmethod
-    def get_by_value(cls, value: int) -> Self:
-        return cls._value_mapping[value]
-    
-    @classmethod
-    def get_by_name(cls, name: str) -> Self:
-        return cls._name_mapping[name]
+    def get(cls, v: int) -> 'Uniqueness': 
+        return tuple(Uniqueness._member_map_.values())[v]  # type: ignore
 
-Uniqueness._init_cls()
-
-UniquenessEnum: enum.Enum = enum.Enum(
-    'UniquenessEnum', [(obj.name, obj) for obj in Uniqueness._value_mapping.values()]
-)
 
 
 type RawCollectionNodesT[T: SlotTypeT] = frozenset[RawCollectionNode[T]]
@@ -121,11 +77,22 @@ class AttributeTables:
 
 
 @dataclass(frozen=True)
-class NonStaticAttributeTables(AttributeTables):
+class BaseNonStaticAttributeTables(AttributeTables):
     attribute_collection_node: type[typed.BaseCollectionAttributeCollectionNode]
     attribute_collection_node_alias: type[typed.BaseCollectionAttributeCollectionNodeAlias]
-    attribute_task_value: type[typed.BaseAttributeTaskValue]
+    attribute_task_value: tuple[
+        type[typed.BaseAttributeTaskValue], 
+        type[typed.BaseAttributeTaskValue], 
+        type[typed.BaseAttributeTaskValue]
+    ]
     
+    def get_attribute_task_value_table(self, uniqueness: Uniqueness):
+        return self.attribute_task_value[uniqueness.value]
+    
+    def __post_init__(self) -> None:
+        if self.__class__ == BaseNonStaticAttributeTables:
+            raise RuntimeError
+        
 
 @dataclass(frozen=True, kw_only=True)
 class BaseAttribute[T: SlotTypeT](BaseStructure):
@@ -208,7 +175,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             if not self.slot_type.literal_to_str_possible:
                 raise feedbacks.temp(f"value type '{self.slot_type}' is not valid")
             
-            parsed_value = self.slot_type.slot_from_str(str(slot))
+            parsed_value = self.slot_type.from_raw_str(str(slot))
 
             result_values.append(parsed_value)
         
@@ -332,3 +299,208 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             ) * sign
             for slot in v
         )
+    
+
+class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
+    tables: ClassVar[BaseNonStaticAttributeTables]
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        if self.__class__ == BaseNonStaticAttribute:
+            raise RuntimeError
+    
+    def get_collection(self) -> Collection[T]:
+        TblNode = self.__class__.tables.attribute_collection_node
+        TblNodeAlias = self.__class__.tables.attribute_collection_node_alias
+
+        with queries.connected() as c:
+            c.execute(lambda arg: f"""
+                SELECT *
+                FROM {TblNode}
+                WHERE {TblNode.attribute_id} = {arg(self.id)}
+            """)
+
+            result = c.fetchall(TblNode)
+
+            c.execute(lambda arg: f"""
+                SELECT 
+                    {TblNodeAlias.alias}
+                FROM
+                    {TblNodeAlias}
+                WHERE
+                    {TblNodeAlias.attribute_id} = {arg(self.id)}
+            """)
+
+            aliases_result = c.fetchall(TblNodeAlias)
+
+        del TblNodeAlias
+
+        row_id_to_row = {row.id: row for row in result}
+        row_id_to_child_row_ids: dict[int, list[int]] = {}
+
+        top_rows: list[typed.BaseCollectionAttributeCollectionNode] = []
+        row_id_to_aliases: dict[int, list[str]] = {}
+
+        for row in result:
+            row_id_to_child_row_ids \
+                .setdefault(row.parent_id, []) \
+                .append(row.id)
+            
+            if row.parent_id is None:
+                top_rows.append(row)
+        
+            row_id_to_aliases[row.id] = []
+
+        for alias_row in aliases_result:
+            row = row_id_to_row[alias_row.attribute_collection_node_id]
+            row_id_to_aliases[row.id].append(pickle.loads(alias_row.alias))
+
+        normed_syn_to_node: dict[T, CollectionNode[T]] = {}
+
+        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseCollectionAttributeCollectionNode) -> CollectionNode[T]:
+            node = CollectionNode(
+                value=pickle.loads(row.value),
+                aliases=frozenset(row_id_to_aliases[row.id]),
+                sort_value=row.sort_value,
+                children=frozenset(),
+                parent=parent,
+                slot_type=self.slot_type
+            )
+
+            children_ids = row_id_to_child_row_ids.get(row.id, [])
+
+            if children_ids:
+                node._post_set_children(frozenset(
+                    recursively_create_children(node, row_id_to_row[child_id])
+                    for child_id in children_ids
+                ))
+
+            for syn in (node.value, *node.aliases):
+                normed_syn_to_node[self.slot_type.norm(syn)] = node
+
+            return node
+
+        top_nodes = frozenset(recursively_create_children(None, row) for row in top_rows)
+            
+        return Collection(
+            attribute=self,
+            top_nodes=top_nodes,
+            normed_syn_to_node=MappingProxyType(normed_syn_to_node)
+        )
+
+
+    def set_collection(
+        self,
+        top_raw_nodes: RawCollectionNodesT[T], 
+    ) -> 'Collection[T]':
+        with self.locked:
+            if not top_raw_nodes:
+                return Collection(
+                    attribute=self,
+                    top_nodes=frozenset(),
+                    normed_syn_to_node=MappingProxyType({})
+                )
+            
+            normed_to_node: dict[T, CollectionNode[T]] = {}
+            node_count: int = 0
+
+            def recursively_create_children(parent: None | CollectionNode[T], raw_node: RawCollectionNode[T], depth: int) -> CollectionNode[T]:
+                if depth > MAX_DEPTH:
+                    raise feedbacks.temp("Max collection depth exceeded")
+
+                nonlocal node_count
+                node_count += 1
+
+                if node_count > MAX_ELEMS:
+                    raise feedbacks.temp("Max amount of collection elems surpassed!")
+                
+                if not numbers.is_int32(raw_node.sort_value):
+                    raise feedbacks.temp("Sort value out of range")
+                
+                normed_value: T = self.slot_type.norm(raw_node.value)
+                aliases: set[T] = set(map(self.slot_type.norm, raw_node.aliases))
+
+                if normed_value in aliases:
+                    aliases.remove(normed_value)
+                
+                node = CollectionNode(
+                    value=raw_node.value,
+                    aliases=frozenset(aliases),
+                    sort_value=raw_node.sort_value,
+                    children=frozenset(),
+                    parent=parent,
+                    slot_type=self.slot_type
+                )
+
+                depth += 1
+                
+                node._post_set_children(frozenset(
+                    recursively_create_children(node, child, depth) 
+                    for child in 
+                    raw_node.children
+                ))
+
+                for normed_syn in (normed_value, *node.aliases):
+                    if normed_syn in normed_to_node:
+                        raise feedbacks.temp("Same syn appeared twice")
+                    
+                    normed_to_node[normed_syn] = node
+                
+                return node
+            
+            top_nodes = frozenset(recursively_create_children(None, raw_node, 1) for raw_node in top_raw_nodes)
+
+            TblNodes = self.__class__.tables.attribute_collection_node
+            TblAliases = self.__class__.tables.attribute_collection_node_alias
+            
+            def recursively_insert_children(parent_id: int | None, nodes: CollectionNodesT[T]) -> None:
+                if not nodes:
+                    return
+                
+                for node in nodes:
+                    c.execute(lambda arg: f"""
+                        INSERT INTO {TblNodes} (
+                            {TblNodes.attribute_id},
+                            {TblNodes.value},
+                            {TblNodes.sort_value},
+                            {TblNodes.parent_id}
+                        ) 
+                        VALUES (
+                            {arg(self.id)},
+                            {arg(pickle.dumps(node.value))},
+                            {arg(node.sort_value)},
+                            {arg(parent_id)}
+                        )
+                    """)
+
+                    node_id = c.last_generated_id
+
+                    if node.aliases:
+                        c.execute(lambda arg: f"""
+                            INSERT INTO {TblAliases} (
+                                {TblAliases.attribute_id},
+                                {TblAliases.attribute_collection_node_id},
+                                {TblAliases.alias}
+                            )
+                            VALUES 
+                                {','.join(f"""(
+                                    {arg(self.id)},
+                                    {arg(node_id)},
+                                    {arg(pickle.dumps(alias))}
+                                )""" for alias in node.aliases)}
+                        """)
+
+                    recursively_insert_children(node_id, node.children)
+
+            with queries.connected() as c, self.locked:
+                # We go from top nodes down the tree so we can be sure
+                # the parent_id is already inserted and the foreign key
+                # check succeeds
+                recursively_insert_children(None, top_nodes)
+
+            return Collection(
+                attribute=self,
+                top_nodes=top_nodes,
+                normed_syn_to_node=MappingProxyType(normed_to_node)
+            )

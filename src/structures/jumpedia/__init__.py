@@ -9,6 +9,7 @@ from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure, attributes, task, user
 from structures import community
+from structures.attributes.slot_type import STR_MAX_LEN
 from structures.community import Community
 from structures.user import JumpediaUser
 from utils import metautils, text
@@ -348,46 +349,132 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
                 
+
+                AttributeTaskValue = typed.TaskAttributeTaskValueNotUnique
+
                 c.execute(lambda _: f"""
-                    CREATE TABLE {typed.TaskAttributeTaskValue} (
-                        {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
-                        {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
-                        {typed.TaskAttributeTaskValue.value} BLOB NOT NULL,
+                    CREATE TABLE {AttributeTaskValue} (
+                        {AttributeTaskValue.task_id} INT NOT NULL,
+                        {AttributeTaskValue.attribute_id} INT NOT NULL,
+                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
+                        {AttributeTaskValue.slot} BLOB NOT NULL,
 
                         PRIMARY KEY (
-                            {typed.TaskAttributeTaskValue.task_id}, 
-                            {typed.TaskAttributeTaskValue.attribute_id}
+                            {AttributeTaskValue.task_id}, 
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
                         ),
-
-                        FOREIGN KEY ({typed.TaskAttributeTaskValue.task_id})
+                        
+                        FOREIGN KEY ({AttributeTaskValue.task_id})
                             REFERENCES {typed.Task}({typed.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.TaskAttributeTaskValue.attribute_id})
+                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {AttributeTaskValue.task_id},
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
+                        )
                     )
                 """)
 
+
+                AttributeTaskValue = typed.TaskAttributeTaskValueUniquePerValue
+
                 c.execute(lambda _: f"""
-                    CREATE TABLE {typed.UserAttributeTaskValue} (
-                        {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
-                        {typed.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
-                        {typed.UserAttributeTaskValue.attribute_id} INT NOT NULL,
-                        {typed.UserAttributeTaskValue.value} BLOB NOT NULL,
+                    CREATE TABLE {AttributeTaskValue} (
+                        {AttributeTaskValue.task_id} INT NOT NULL,
+                        {AttributeTaskValue.attribute_id} INT NOT NULL,
+                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
+                        {AttributeTaskValue.slot} TEXT NOT NULL,
 
                         PRIMARY KEY (
-                            {typed.UserAttributeTaskValue.task_id}, 
-                            {typed.UserAttributeTaskValue.user_id}, 
-                            {typed.UserAttributeTaskValue.attribute_id}
+                            {AttributeTaskValue.task_id}, 
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
                         ),
 
-                        FOREIGN KEY ({typed.UserAttributeTaskValue.task_id})
+                        FOREIGN KEY ({AttributeTaskValue.task_id})
                             REFERENCES {typed.Task}({typed.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeTaskValue.attribute_id})
+                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
+                            REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {AttributeTaskValue.task_id},
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
+                        ),
+
+                        UNIQUE (
+                            {AttributeTaskValue.task_id}, 
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.slot}
+                        )
+                    )
+                """)
+
+
+                AttributeTaskValue = typed.TaskAttributeTaskValueUniquePerAttribute
+
+                c.execute(lambda _: f"""
+                    CREATE TABLE {AttributeTaskValue} (
+                        {AttributeTaskValue.task_id} INT NOT NULL,
+                        {AttributeTaskValue.attribute_id} INT NOT NULL,
+                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
+                        {AttributeTaskValue.slot} TEXT NOT NULL,
+
+                        PRIMARY KEY (
+                            {AttributeTaskValue.task_id}, 
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
+                        ),
+
+                        FOREIGN KEY ({AttributeTaskValue.task_id})
+                            REFERENCES {typed.Task}({typed.Task.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
+                            REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {AttributeTaskValue.task_id},
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.index}
+                        ),
+                        
+                        UNIQUE (
+                            {AttributeTaskValue.attribute_id},
+                            {AttributeTaskValue.slot}
+                        )
+                    )
+                """)
+                
+
+                # TODO
+                c.execute(lambda _: f"""
+                    CREATE TABLE {typed.UserAttributeTaskValueNotUnique} (
+                        {typed.UserAttributeTaskValueNotUnique.task_id} INT NOT NULL,
+                        {typed.UserAttributeTaskValueNotUnique.user_id} BIGINT UNSIGNED NOT NULL,
+                        {typed.UserAttributeTaskValueNotUnique.attribute_id} INT NOT NULL,
+                        {typed.UserAttributeTaskValueNotUnique.value} BLOB NOT NULL,
+
+                        PRIMARY KEY (
+                            {typed.UserAttributeTaskValueNotUnique.task_id}, 
+                            {typed.UserAttributeTaskValueNotUnique.user_id}, 
+                            {typed.UserAttributeTaskValueNotUnique.attribute_id}
+                        ),
+
+                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.task_id})
+                            REFERENCES {typed.Task}({typed.Task.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeTaskValue.user_id})
+                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.user_id})
                             REFERENCES {typed.JumpediaUser}({typed.JumpediaUser.id})
                             ON DELETE CASCADE
                     )
