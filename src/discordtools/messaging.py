@@ -62,34 +62,3 @@ def layout(header: str, core: str, message_status: MessageStatus, *, additional:
         result.append(f"\n\n-# :{message_status.emoji}:  {message_status.name}")
 
     return ''.join(result)
-
-
-
-
-def code(o: Any) -> str:
-    return f"`{o}`"
-
-def code_many(objects: Iterable[Any]) -> Generator[str, None, None]:
-    return (code(elem) for elem in objects)
-
-def shorten_and_code(o: Any, max: int = 32, more: str = '...') -> str:
-    return text.shorten(code(o), max=max, more=more)
-
-def shorten_and_code_many(
-    objects: Sequence[Any], 
-    *,
-    max_elems: int = 8, 
-    max_s: int = 16,
-    more_elems: str = '...', 
-    more_s: str = '...'
-):
-    return code_many(text.shorten_many(
-        objects, 
-        max_elems=max_elems, 
-        max_s=max_s, 
-        more_elems=more_elems, 
-        more_s=more_s
-    ))
-
-def code_big(o: Any) -> str:
-    return f"```{o}```"

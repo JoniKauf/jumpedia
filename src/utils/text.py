@@ -1,7 +1,8 @@
 from enum import Enum
 import re
 import string
-from typing import Any, Callable, Container, Final, Generator, Iterable, Literal, Sequence
+from string.templatelib import Interpolation, Template
+from typing import Any, assert_never, Callable, Container, Final, Generator, Iterable, Literal, Sequence
 from collections.abc import Set
 
 from errors.feedback import feedbacks
@@ -120,3 +121,29 @@ def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16,
 
     yield more_elems
 
+
+
+# From https://peps.python.org/pep-0750/#example-implementing-f-strings-with-t-strings
+def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> object:
+    if conversion == "a":
+        return ascii(value)
+    elif conversion == "r":
+        return repr(value)
+    elif conversion == "s":
+        return str(value)
+    return value
+
+def t_to_f_string(template: Template) -> str:
+    parts = []
+    for item in template:
+        match item:
+            case str() as s:
+                parts.append(s)
+            case Interpolation(value, _, conversion, format_spec):
+                value = _convert(value, conversion)
+                value = format(value, format_spec)
+                parts.append(value)
+            case _:
+                assert_never(item)
+                
+    return "".join(parts)

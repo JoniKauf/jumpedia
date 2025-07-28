@@ -13,9 +13,5 @@ class TaskAttribute[T: SlotTypeT](BaseNonStaticAttribute[T]):
         typed.TaskAttributeAlias,
         typed.TaskAttributeCollectionNode,
         typed.TaskAttributeCollectionNodeAlias,
-        (
-            typed.TaskAttributeTaskValueNotUnique,
-            typed.TaskAttributeTaskValueUniquePerValue,
-            typed.TaskAttributeTaskValueUniquePerAttribute
-        )
+        typed.TaskAttributeTaskValue
     )

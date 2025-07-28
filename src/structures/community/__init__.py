@@ -51,7 +51,7 @@ class Community(BaseStructure):
         ServerTbl = typed.Server
         
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {ServerTbl.id}
                 FROM {ServerTbl}
                 WHERE {ServerTbl.community_id} = {arg(self.id)}
@@ -76,7 +76,7 @@ class Community(BaseStructure):
                 raise feedbacks.temp("Limit of lists reached", count)
             
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {ListTbl} (
                         {ListTbl.community_id},
                         {ListTbl.name}
@@ -120,7 +120,7 @@ class Community(BaseStructure):
             
     def delete_list(self, id: int) -> bool:
         with self.locked, queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 DELETE FROM {ListTbl}
                 WHERE 
                     {ListTbl.community_id} = {arg(self.id)}
@@ -132,7 +132,7 @@ class Community(BaseStructure):
 
     def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {ListTbl}
                 WHERE 
@@ -167,7 +167,7 @@ class Community(BaseStructure):
     
     def get_default_selected_list(self) -> List | None:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {typed.Community.default_selected_list_id}
                 FROM {typed.Community}
                 WHERE 
@@ -183,7 +183,7 @@ class Community(BaseStructure):
     
     def set_default_selected_list(self, list_id: int | None) -> bool:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 UPDATE {CommunityTbl} 
                 SET {CommunityTbl.default_selected_list_id} = {arg(list_id)}
                 WHERE {CommunityTbl.id} = {arg(self.id)}
@@ -205,7 +205,7 @@ class Community(BaseStructure):
             with queries.connected() as c:
                 # User doesn't exist yet
                 if community_user is None:
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {CommunityUserTbl} (
                             {CommunityUserTbl.community_id},
                             {CommunityUserTbl.user_id},
@@ -225,7 +225,7 @@ class Community(BaseStructure):
                     selected_list_id = selected_list_id if override_selected_list_if_user_exists else community_user.selected_list_id
 
                     if community_rank != community_user or selected_list_id != selected_list_id:
-                        c.execute(lambda arg: f"""
+                        c.execute(lambda arg: t"""
                             UPDATE {CommunityUserTbl}
                             SET 
                                 {CommunityUserTbl.power} = {arg(community_rank.power)}
@@ -245,7 +245,7 @@ class Community(BaseStructure):
     
     def get_community_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {CommunityUserTbl}
                 WHERE 

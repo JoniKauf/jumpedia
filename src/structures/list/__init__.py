@@ -62,7 +62,7 @@ class List(BaseStructure):
         where: Callable[[Arg], str] | None
     ) -> Rows[T]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {table_type}
                 WHERE 
@@ -84,8 +84,7 @@ class List(BaseStructure):
             slot_type=SlotType.get_by_id(row.slot_type),
             position=row.position,
             min_slots=row.min_slots,
-            max_slots=row.max_slots,
-            uniqueness=Uniqueness.get(row.uniqueness)
+            max_slots=row.max_slots
         )
     
     def get_attributes[T: BaseAttribute](self, type: type[T]) -> set[T]:
@@ -108,7 +107,7 @@ class List(BaseStructure):
         alias_table_type = type.tables.attribute_alias
 
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {alias_table_type.attribute_id}
                 FROM {alias_table_type}
                 WHERE 
@@ -239,7 +238,7 @@ class List(BaseStructure):
             AttributeTbl = type.tables.attribute
 
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {AttributeTbl} (
                         {AttributeTbl.list_id},
                         {AttributeTbl.name},
@@ -247,7 +246,6 @@ class List(BaseStructure):
                         {AttributeTbl.position},
                         {AttributeTbl.min_slots},
                         {AttributeTbl.max_slots},
-                        {AttributeTbl.uniqueness},
                     )
                     VALUES (
                         {arg(self.id)},
@@ -265,14 +263,14 @@ class List(BaseStructure):
                 if aliases:
                     AttributeAliasTbl = type.tables.attribute_alias
 
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {AttributeAliasTbl} (
                             {AttributeAliasTbl.attribute_id},
                             {AttributeAliasTbl.list_id},
                             {AttributeAliasTbl.alias}
                         ) 
                         VALUES 
-                            {','.join(f"""(
+                            {t','.join(t"""(
                                 {arg(attribute_id)}, 
                                 {arg(self.id)}, 
                                 {arg(alias)})""" 
@@ -302,7 +300,7 @@ class List(BaseStructure):
         AttributeTbl = type.tables.attribute
 
         with self.locked, queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 DELETE FROM {AttributeTbl}
                 WHERE {AttributeTbl.list_id} = {arg(self.id)}
                 AND {AttributeTbl.id} = {arg(attribute_id)}
@@ -345,10 +343,10 @@ class List(BaseStructure):
         }
 
         if unique_per_list_attrs:
-            TaskValueTbl = typed.TaskAttributeTaskValueNotUnique
+            TaskValueTbl = typed.TaskAttributeTaskValue
 
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     SELECT 
                         {TaskValueTbl.value},
                         {TaskValueTbl.attribute_id}
@@ -399,7 +397,7 @@ class List(BaseStructure):
             attribute_value_mapping = self._raw_attribute_value_mapping_to_non_raw(raw_attribute_value_mapping)
                 
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {typed.Task} (
                         {typed.Task.list_id},
                         {typed.Task.name}
@@ -413,14 +411,14 @@ class List(BaseStructure):
                 task_id = c.last_generated_id 
                 
                 if aliases:
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {typed.TaskAlias} (
                             {typed.TaskAlias.task_id},
                             {typed.TaskAlias.list_id},
                             {typed.TaskAlias.alias}
                         ) 
                         VALUES 
-                            {','.join(f"""(
+                            {','.join(t"""(
                                 {arg(task_id)}, 
                                 {arg(self.id)}, 
                                 {arg(alias)})
@@ -430,14 +428,14 @@ class List(BaseStructure):
                 if attribute_value_mapping:
                     TaskValueTbl = TaskAttribute.tables.attribute_task_value
                     
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {TaskValueTbl} (
                             {TaskValueTbl.task_id},
                             {TaskValueTbl.attribute_id},
                             {TaskValueTbl.value}
                         )
                         VALUES 
-                            {','.join(f"""(
+                            {','.join(t"""(
                                 {arg(task_id)}, 
                                 {arg(attr.id)}, 
                                 {arg(pickle.dumps(v))})
@@ -452,7 +450,7 @@ class List(BaseStructure):
         
     def delete_task(self, id: int) -> bool:
         with self.locked, queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 DELETE FROM {typed.Task}
                 WHERE 
                     {typed.Task.list_id} = {arg(self.id)}
@@ -467,7 +465,7 @@ class List(BaseStructure):
         
     def _fetch_tasks_from_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Task]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.Task}
                 WHERE 
@@ -502,7 +500,7 @@ class List(BaseStructure):
 
     def get_task_by_alias(self, alias: str) -> Task | None:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.task_id}
                 FROM {typed.TaskAlias}
                 WHERE 

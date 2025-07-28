@@ -9,12 +9,12 @@ import functools
 import json
 import pickle
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, Self, final, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, NamedTuple, Self, final, overload
 import typing
 
 from database import queries, typed
+from database.simple_orm import Arg, Rows
 from discordtools import messaging
-import errors
 from errors.feedback import feedbacks
 from structures.attributes import slot_type
 from structures.attributes import collection
@@ -78,16 +78,9 @@ class AttributeTables:
 
 @dataclass(frozen=True)
 class BaseNonStaticAttributeTables(AttributeTables):
-    attribute_collection_node: type[typed.BaseCollectionAttributeCollectionNode]
-    attribute_collection_node_alias: type[typed.BaseCollectionAttributeCollectionNodeAlias]
-    attribute_task_value: tuple[
-        type[typed.BaseAttributeTaskValue], 
-        type[typed.BaseAttributeTaskValue], 
-        type[typed.BaseAttributeTaskValue]
-    ]
-    
-    def get_attribute_task_value_table(self, uniqueness: Uniqueness):
-        return self.attribute_task_value[uniqueness.value]
+    attribute_collection_node: type[typed.BaseAttributeCollectionNode]
+    attribute_collection_node_alias: type[typed.BaseAttributeCollectionNodeAlias]
+    attribute_task_value: type[typed.BaseAttributeTaskValue]
     
     def __post_init__(self) -> None:
         if self.__class__ == BaseNonStaticAttributeTables:
@@ -108,7 +101,6 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
     position: int
     min_slots: int
     max_slots: int
-    uniqueness: Uniqueness
 
     value_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
         max_depth=collection.MAX_DEPTH,
@@ -142,7 +134,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         TblAlias = self.__class__.tables.attribute_alias
 
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {TblAlias.alias}
                 FROM {TblAlias}
                 WHERE {TblAlias.attribute_id} = {arg(self.id)}
@@ -155,8 +147,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
     def get_collection(self) -> Collection[T]:
         return Collection(
             attribute=self,
-            top_nodes=frozenset(),
-            normed_syn_to_node=MappingProxyType({})
+            top_nodes=frozenset()
         )
 
     def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
@@ -179,27 +170,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
             result_values.append(parsed_value)
         
-        values = self._convert_slots_to_collection_slots(result_values)
-
-        # Validate uniqueness
-        normed_to_val: dict[T, T] = {}
-        unique_slots: bool = self.uniqueness >= Uniqueness.PER_VALUE
-
-        for v in values:
-            normed_v = self.slot_type.norm(v)
-            other_v = normed_to_val.get(normed_v, None)
-
-            if other_v is None:
-                normed_to_val[normed_v] = v
-                continue
-            
-            if unique_slots:
-                raise feedbacks.temp(f"For the attribute {self.name} the slots must be unique. The value {v} appeared multiple times.")
-
-            if other_v != v:
-                raise feedbacks.temp(f"All values that are equal case insensitively must be exactly equal. {other_v} != {v}")
-        
-        return values  
+        return result_values
 
     def value_from_str(self, s: str) -> Any:
         return self.value_from_str(self.__class__.general_from_str(
@@ -216,7 +187,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         except RecursionError as e:
             raise feedbacks.temp(f"Max depth for json exceeded")
         except TypeError as e:
-            raise feedbacks.temp(f"object {messaging.code(e.args[0])} is not of type {messaging.code(e.args[1])}")
+            raise feedbacks.temp(f"object `{e.args[0]}` is not of type `{e.args[1]}`")
         except Exception:
             raise feedbacks.temp("Unknown json parse exception")
         
@@ -232,24 +203,6 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             return parsetools.unparse_timedelta(obj)
         
         raise TypeError("Invalid")
-
-    def _convert_slots_to_collection_slots(self, value: builtins.list[T]) -> builtins.list[T]:
-        collection = self.get_collection()
-
-        if not collection.is_empty:
-            return value
-        
-        result: list[T] = []
-        
-        for slot in value:
-            node = collection.lookup_node(slot, None)
-            
-            if node is None:
-                raise feedbacks.temp("Not part of the collection", slot)
-
-            result.append(node.value)
-
-        return result
 
     @classmethod
     def _sort_key_singular(cls, value: T, sign: Literal[+1, -1], slot_type: SlotType[T]) -> int:
@@ -300,6 +253,9 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             for slot in v
         )
     
+    @property
+    def has_collection(self) -> bool:
+        return False
 
 class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
     tables: ClassVar[BaseNonStaticAttributeTables]
@@ -310,12 +266,35 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         if self.__class__ == BaseNonStaticAttribute:
             raise RuntimeError
     
+
+    def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
+        value = super().value_from_loaded(loaded)
+
+        result: list[T] = []
+
+        if self.has
+    def _convert_slots_to_collection_slots(self, value: builtins.list[T]) -> builtins.list[T]:
+        if not isinstance(self, BaseCollectionAttribute)
+        
+        result: list[T] = []
+        
+        for slot in value:
+            node = self
+            
+            if node is None:
+                raise feedbacks.temp("Not part of the collection", slot)
+
+            result.append(node.value)
+
+        return result
+
+
     def get_collection(self) -> Collection[T]:
         TblNode = self.__class__.tables.attribute_collection_node
         TblNodeAlias = self.__class__.tables.attribute_collection_node_alias
 
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {TblNode}
                 WHERE {TblNode.attribute_id} = {arg(self.id)}
@@ -323,7 +302,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
             result = c.fetchall(TblNode)
 
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT 
                     {TblNodeAlias.alias}
                 FROM
@@ -339,7 +318,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         row_id_to_row = {row.id: row for row in result}
         row_id_to_child_row_ids: dict[int, list[int]] = {}
 
-        top_rows: list[typed.BaseCollectionAttributeCollectionNode] = []
+        top_rows: list[typed.BaseAttributeCollectionNode] = []
         row_id_to_aliases: dict[int, list[str]] = {}
 
         for row in result:
@@ -358,14 +337,13 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
         normed_syn_to_node: dict[T, CollectionNode[T]] = {}
 
-        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseCollectionAttributeCollectionNode) -> CollectionNode[T]:
+        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseAttributeCollectionNode) -> CollectionNode[T]:
             node = CollectionNode(
                 value=pickle.loads(row.value),
                 aliases=frozenset(row_id_to_aliases[row.id]),
                 sort_value=row.sort_value,
                 children=frozenset(),
-                parent=parent,
-                slot_type=self.slot_type
+                parent=parent
             )
 
             children_ids = row_id_to_child_row_ids.get(row.id, [])
@@ -386,9 +364,8 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         return Collection(
             attribute=self,
             top_nodes=top_nodes,
-            normed_syn_to_node=MappingProxyType(normed_syn_to_node)
+            all_nodes=MappingProxyType(normed_syn_to_node)
         )
-
 
     def set_collection(
         self,
@@ -399,7 +376,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                 return Collection(
                     attribute=self,
                     top_nodes=frozenset(),
-                    normed_syn_to_node=MappingProxyType({})
+                    all_nodes=MappingProxyType({})
                 )
             
             normed_to_node: dict[T, CollectionNode[T]] = {}
@@ -459,7 +436,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     return
                 
                 for node in nodes:
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {TblNodes} (
                             {TblNodes.attribute_id},
                             {TblNodes.value},
@@ -477,18 +454,18 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     node_id = c.last_generated_id
 
                     if node.aliases:
-                        c.execute(lambda arg: f"""
+                        count = len(node.aliases)
+
+                        c.executemany(lambda args: t"""
                             INSERT INTO {TblAliases} (
                                 {TblAliases.attribute_id},
                                 {TblAliases.attribute_collection_node_id},
                                 {TblAliases.alias}
                             )
                             VALUES 
-                                {','.join(f"""(
-                                    {arg(self.id)},
-                                    {arg(node_id)},
-                                    {arg(pickle.dumps(alias))}
-                                )""" for alias in node.aliases)}
+                                {args((self.id,) * count)},
+                                {args((node.id,) * count)},
+                                {args(node.aliases)}
                         """)
 
                     recursively_insert_children(node_id, node.children)
@@ -502,5 +479,77 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             return Collection(
                 attribute=self,
                 top_nodes=top_nodes,
-                normed_syn_to_node=MappingProxyType(normed_to_node)
+                all_nodes=MappingProxyType(normed_to_node)
             )
+
+    def _fetch_from_collection_node_table(
+        self, 
+        where: Callable[[Arg], str] | None
+    ) -> Rows[typed.BaseAttributeCollectionNode]:
+        with queries.connected() as c:
+            c.execute(lambda arg: t"""
+                SELECT *
+                FROM {typed.BaseAttributeCollectionNode}
+                WHERE 
+                    {typed.BaseAttributeCollectionNode.attribute_id} = {arg(self.id)}
+                    {f"AND {where(arg)}" if where is not None else ""}
+            """)
+
+            return c.fetchall(typed.BaseAttributeCollectionNode)
+    
+    def _detached_collection_node_row_to_obj(
+        self, 
+        row: typed.BaseAttributeCollectionNode, 
+        aliases: frozenset[T]
+    ) -> CollectionNode[T]:
+        return CollectionNode(
+            id=row.id,
+            value=self.slot_type.from_clean_str(row.value),
+            aliases=aliases,
+            sort_value=row.sort_value,
+            parent=None,
+            children=frozenset()
+        )
+    
+    def _fetch_from_collection_node_alias_table(
+        self,
+        where: Callable[[Arg], str] | None,
+    ) -> Rows[typed.BaseAttributeCollectionNodeAlias]:
+        with queries.connected() as c:
+            c.execute(lambda arg: t"""
+                SELECT *
+                FROM {typed.BaseAttributeCollectionNodeAlias}
+                WHERE 
+                    {typed.BaseAttributeCollectionNodeAlias.attribute_id} = {arg(self.id)}
+                    {f"AND {where(arg)}" if where is not None else ""}
+            """)
+
+            return c.fetchall(typed.BaseAttributeCollectionNodeAlias)
+
+    def get_detached_collection_node_by_syn(self, syn: T) -> CollectionNode[T] | None:
+        CollectionTbl = self.__class__.tables.attribute_collection_node
+        CollectionAliasTbl = self.__class__.tables.attribute_collection_node_alias
+
+        nodes = self._fetch_from_collection_node_table(lambda arg: f"{CollectionTbl.value} = {arg(syn)}")
+        
+        if nodes:
+            node = nodes[0]
+            aliases = self._fetch_from_collection_node_alias_table(lambda arg: f"{CollectionTbl.}")
+            c.execute(lambda arg: t"""
+                SELECT *
+                FROM {CollectionAliasTbl}
+
+            """)
+            if row is not None:
+                return CollectionNode(
+                    id=row.id,
+                    value=row.value,
+                    aliases=
+                )
+            
+    @property
+    def has_collection(self) -> bool:
+        ColletionTbl = self.__class__.tables.attribute_collection_node
+
+        with queries.connected() as c:
+            c.execute(lambda arg)

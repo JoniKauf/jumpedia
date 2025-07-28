@@ -15,15 +15,5 @@ class UserAttribute[T: SlotTypeT](BaseNonStaticAttribute[T]):
         typed.UserAttributeAlias,
         typed.UserAttributeCollectionNode,
         typed.UserAttributeCollectionNodeAlias,
-        (
-            typed.UserAttributeTaskValueNotUnique,
-            typed.UserAttributeTaskValueUniquePerValue,
-            typed.UserAttributeTaskValueUniquePerAttribute
-        )
+        typed.UserAttributeTaskValue
     )
-
-    def __post_init__(self) -> None:
-        if self.uniqueness >= Uniqueness.PER_ATTRIBUTE:
-            raise RuntimeError()
-        
-        return super().__post_init__()

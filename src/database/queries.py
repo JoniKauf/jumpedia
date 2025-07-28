@@ -1,10 +1,11 @@
 from contextlib import contextmanager
 from threading import RLock
-from typing import Any, Callable, Final, Hashable, Iterator, Mapping, Never, Protocol, Sequence, assert_never, final, overload
+from typing import Any, Callable, Final, Hashable, Iterator, Mapping, Never, Protocol, Sequence, Union, assert_never, final, get_args, overload
 from database import secret
 import mariadb
-
-from database.simple_orm import Arg, BaseModel, Rows, column
+from string.templatelib import Interpolation, Template
+from database.simple_orm import Arg, BaseModel, Column, Args, Rows, column
+from utils import text
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
 #     # mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
@@ -29,14 +30,41 @@ _lock = RLock()
 def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozenset[tuple[str, Hashable]]:
     return frozenset(connection_data.items())
 
+type InterpolationExecuteT = Interpolation[Arg.ArgPlaceholder | BaseModel | Column]
+INTERPOLATION_EXECUTE = get_args(InterpolationExecuteT.__value__)[0]
+
+type InterpolationExecuteManyT = Interpolation[Args.ArgsPlaceholder | BaseModel | Column]
+INTERPOLATION_EXECUTE_MANY = get_args(InterpolationExecuteManyT.__value__)[0]
 
 class CursorWrapper:
     def __init__(self, cursor: mariadb.Cursor) -> None:
         self._cursor = cursor
 
-    def execute(self, statement: Callable[[Arg], str]) -> Any:
+    def execute(
+        self, 
+        statement: Callable[[Arg], Template[*tuple[InterpolationExecuteT, ...]]]
+    ) -> None:
         arg = Arg()
-        return self._cursor.execute(statement(arg), arg.steal())
+        template = statement(arg)
+
+        for v in template.values:
+            if not isinstance(v, INTERPOLATION_EXECUTE):
+                raise TypeError()
+
+        self._cursor.execute(text.t_to_f_string(template), arg.steal())
+    
+    def executemany(
+        self, 
+        statement: Callable[[Args], Template[*tuple[InterpolationExecuteManyT, ...]]]
+    ) -> None:
+        args = Args()
+        template = statement(args)
+
+        for v in template.values:
+            if not isinstance(v, INTERPOLATION_EXECUTE_MANY):
+                raise TypeError()
+        
+        self._cursor.executemany(text.t_to_f_string(template), args.steal())
     
     def fetchone[T: BaseModel](self, model: type[T]) -> T | None:
         row: dict[str, Any] | None = self._cursor.fetchone()
@@ -103,18 +131,16 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[C
         raise e
     
     finally:
-        if conn is None:
-            return
-        
-        if commit_on_exit:
-            conn.commit()
-        
-        cursor.close()
-        
-        with _lock:
-            if close_conn:
-                _connections.pop(hashable)
-                conn.close()
+        if conn is not None: 
+            if commit_on_exit:
+                conn.commit()
+            
+            cursor.close()
+            
+            with _lock:
+                if close_conn:
+                    _connections.pop(hashable)
+                    conn.close()
     
 
 
@@ -124,7 +150,7 @@ class _Equal(BaseModel, table_name=None):
 
 def collate_equal(a: str, b: str) -> bool:
     with connected() as c:
-        c.execute(lambda arg: f"SELECT {arg(a)} = {arg(b)} COLLATE utf8mb4_general_ci AS {_Equal.eq}")
+        c.execute(lambda arg: t"SELECT {arg(a)} = {arg(b)} COLLATE utf8mb4_general_ci AS {_Equal.eq}")
     
         result = c.fetchone(_Equal)
 

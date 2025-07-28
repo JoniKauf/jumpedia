@@ -1,4 +1,4 @@
-from typing import AbstractSet, Any, Callable, ClassVar, Generator, Mapping, Self, Sequence, final, overload
+from typing import AbstractSet, Any, Callable, ClassVar, Generator, Iterable, Mapping, Self, Sequence, final, get_args, overload
 from typing_extensions import TypeForm
 
 from utils import text
@@ -144,7 +144,6 @@ class BaseModel(metaclass=BaseModelMeta, table_name=None):
 class Rows[T: BaseModel]:
     def __init__(self, rows: Sequence[Mapping[str, Any]], model: type[T]) -> None:
         self._rows = tuple(model(row, key_check=False) for row in rows)
-
     
     def __iter__(self) -> Generator[T, None, None]:
         yield from self._rows 
@@ -152,20 +151,60 @@ class Rows[T: BaseModel]:
     def __getitem__(self, idx: int) -> T:
         return self._rows[idx]
 
+
+PLACEHOLDER_STR = '?'
+
 class Arg:
-    placeholder: ClassVar[str] = '?'
+    class ArgPlaceholder: 
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def __str__(self) -> str:
+            return self.value  
 
     def __init__(self) -> None:
         self._args: list[Any] = []
-
-    def __call__(self, o: Any) -> str:
-        self.add(o)
-        return self.__class__.placeholder
-
-    def add(self, o: Any):
+    
+    def __call__(self, o: object) -> ArgPlaceholder:
+        return self.add(o)
+    
+    def add(self, o: object) -> ArgPlaceholder:
         self._args.append(o)
+        return self.__class__.ArgPlaceholder(PLACEHOLDER_STR)
 
-    def steal(self) -> tuple[Any, ...]:
+    def steal(self) -> tuple[object, ...]:
         args = tuple(self._args)
+        self._args.clear()
+        return args
+    
+
+    
+class Args:
+    class ArgsPlaceholder: 
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def __str__(self) -> str:
+            return self.value 
+        
+    def __init__(self) -> None:
+        self._args: list[Sequence[Any]] = []
+        
+    def __call__(self, os: Iterable[object]) -> ArgsPlaceholder:
+        return self.add(os)
+
+    def add(self, os: Iterable[object]) -> ArgsPlaceholder:
+        if not isinstance(os, tuple):
+            os_tup: Sequence[object] = tuple(os)
+
+        if self._args and len(os_tup) != len(self._args[0]):
+            raise ValueError
+        
+        self._args.append(os_tup)
+        
+        return self.__class__.ArgsPlaceholder(PLACEHOLDER_STR)
+    
+    def steal(self) -> tuple[Sequence[object], ...]:
+        args = tuple(zip(*self._args))
         self._args.clear()
         return args

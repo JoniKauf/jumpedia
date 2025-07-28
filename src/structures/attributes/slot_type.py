@@ -108,21 +108,11 @@ class SlotType[T: SlotTypeT]:
     def get_all(cls) -> list[Self]:
         return cls._slot_types.copy()
     
-    @functools.lru_cache(maxsize=1024, typed=True)
-    def norm(self, value: T) -> T:
-        if type(value) != self.type:
-            raise ValueError
-        
-        if issubclass(self.type, str):
-            return text.norm(value)  # type: ignore
-        
-        return value
-
     def from_raw_str(self, s: str) -> T:
         old_s, s = s, text.sanitize(s)
         
         if not s:
-            raise feedbacks.temp(f"empty or only whitespace values like {msg.code(old_s)} are not allowed")
+            raise feedbacks.temp(f"empty or only whitespace values like `{old_s}` are not allowed")
         
         if issubclass(self.type, bool):
             s = s.lower()
@@ -240,7 +230,6 @@ AttributeValueTypeEnum = enum.Enum(
 if SlotTypeT.__value__.__args__ != tuple(vt.value.type for vt in AttributeValueTypeEnum):  # type: ignore
     raise RuntimeError("Enum does not equal type!!")
 
-# Single point of truth is type so we can use type checking; data -> type doesn't work
 type LiteralToStrPossibleT = bool | int | str
 LITERAL_TO_STR_POSSIBLE = (bool, int, str)
 

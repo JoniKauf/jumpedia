@@ -1,7 +1,6 @@
 
 import time
-from typing import TYPE_CHECKING, Any, Callable, Final, Self, TypedDict
-import discord as dc
+from typing import TYPE_CHECKING, Any, Callable
 
 from database.simple_orm import Arg, BaseModel, Rows, column
 from errors.feedback import FeedbackError, feedbacks
@@ -9,10 +8,11 @@ from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure, attributes, task, user
 from structures import community
+from structures.attributes import slot_type
 from structures.attributes.slot_type import STR_MAX_LEN
 from structures.community import Community
 from structures.user import JumpediaUser
-from utils import metautils, text
+from utils import metautils
 from database import queries, typed
 from dataclasses import dataclass, field
 from discordtools import messaging as msg, users
@@ -41,7 +41,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             def SCHEMA_NAME(self): pass
 
         with queries.connected(no_db=True) as c:
-            c.execute(lambda _: f"""
+            c.execute(lambda _: t"""
                 SELECT {PartSchemaTbl.SCHEMA_NAME}
                 FROM INFORMATION_SCHEMA.{PartSchemaTbl}
                 WHERE {PartSchemaTbl.SCHEMA_NAME} = '{self.database_name}';
@@ -56,7 +56,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
             time.sleep(5)
 
-            c.execute(lambda _: f"""
+            c.execute(lambda _: t"""
                 CREATE DATABASE `{self.database_name}`
                     CHARACTER SET = utf8mb4
                     COLLATE = utf8mb4_unicode_ci
@@ -64,7 +64,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 
         with queries.connected() as c:
             try:
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.Community} (
                         {typed.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Community.name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
@@ -72,7 +72,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.Server} (
                         {typed.Server.id} BIGINT UNSIGNED PRIMARY KEY,
                         {typed.Server.community_id} INT NOT NULL,
@@ -83,7 +83,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.List} (
                         {typed.List.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.List.community_id} INT NOT NULL,
@@ -98,7 +98,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
 
                 # Add foreign key to community, otherwise we would have circular dependency
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     ALTER TABLE {typed.Community}
                     ADD CONSTRAINT fk_community_default_list
                     FOREIGN KEY ({typed.Community.default_selected_list_id})
@@ -106,7 +106,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         ON DELETE SET NULL
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.JumpediaUser} (
                         {typed.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
                         {typed.JumpediaUser.name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
@@ -114,7 +114,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.CommunityUser} (
                         {typed.CommunityUser.community_id} INT NOT NULL,
                         {typed.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
@@ -135,7 +135,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.StaticAttribute} (
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
@@ -144,7 +144,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.StaticAttribute.position} INT NOT NULL,
                         {typed.StaticAttribute.min_slots} INT NOT NULL,
                         {typed.StaticAttribute.max_slots} INT NOT NULL,
-                        {typed.StaticAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({typed.StaticAttribute.list_id})
                             REFERENCES {typed.List}({typed.List.id})
@@ -155,7 +154,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.StaticAttributeAlias} (
                         {typed.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttributeAlias.attribute_id} INT NOT NULL,
@@ -173,7 +172,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.TaskAttribute} (
                         {typed.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttribute.list_id} INT NOT NULL,
@@ -182,7 +181,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttribute.position} INT NOT NULL,
                         {typed.TaskAttribute.min_slots} INT NOT NULL,
                         {typed.TaskAttribute.max_slots} INT NOT NULL,
-                        {typed.TaskAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttribute.list_id})
                             REFERENCES {typed.List}({typed.List.id})
@@ -193,7 +191,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.TaskAttributeAlias} (
                         {typed.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeAlias.attribute_id} INT NOT NULL,
@@ -211,12 +209,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.TaskAttributeCollectionNode} (
                         {typed.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionNode.parent_id} INT,
                         {typed.TaskAttributeCollectionNode.attribute_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNode.value} BLOB NOT NULL,
+                        {typed.TaskAttributeCollectionNode.value} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
                         {typed.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeCollectionNode.parent_id})
@@ -224,28 +222,39 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
                         FOREIGN KEY ({typed.TaskAttributeCollectionNode.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {typed.TaskAttributeCollectionNode.attribute_id},
+                            {typed.TaskAttributeCollectionNode.parent_id},
+                            {typed.TaskAttributeCollectionNode.value}
+                        )
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.TaskAttributeCollectionNodeAlias} (
                         {typed.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
+                        {typed.TaskAttributeCollectionNodeAlias.alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeCollectionNodeAlias.attribute_collection_node_id})
                             REFERENCES {typed.TaskAttributeCollectionNode}({typed.TaskAttributeCollectionNode.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({typed.TaskAttributeCollectionNodeAlias.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {typed.TaskAttributeCollectionNodeAlias.attribute_id},
+                            {typed.TaskAttributeCollectionNodeAlias.alias}
+                        )
                     )
                 """)
 
                 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.UserAttribute} (
                         {typed.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttribute.list_id} INT NOT NULL,
@@ -254,7 +263,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttribute.slot_type} INT NOT NULL,
                         {typed.UserAttribute.min_slots} INT NOT NULL,
                         {typed.UserAttribute.max_slots} INT NOT NULL,
-                        {typed.UserAttribute.uniqueness} TINYINT UNSIGNED NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttribute.list_id})
                             REFERENCES {typed.List}({typed.List.id})
@@ -265,7 +273,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.UserAttributeAlias} (
                         {typed.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeAlias.attribute_id} INT NOT NULL,
@@ -283,12 +291,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.UserAttributeCollectionNode} (
                         {typed.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.UserAttributeCollectionNode.parent_id} INT,
                         {typed.UserAttributeCollectionNode.attribute_id} INT NOT NULL,
-                        {typed.UserAttributeCollectionNode.value} BLOB NOT NULL,
+                        {typed.UserAttributeCollectionNode.parent_id} INT,
+                        {typed.UserAttributeCollectionNode.value} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
                         {typed.UserAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeCollectionNode.parent_id})
@@ -296,27 +304,37 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
                         FOREIGN KEY ({typed.UserAttributeCollectionNode.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {typed.UserAttributeCollectionNode.attribute_id},
+                            {typed.UserAttributeCollectionNode.value}
+                        )
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.UserAttributeCollectionNodeAlias} (
                         {typed.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
                         {typed.UserAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
-                        {typed.UserAttributeCollectionNodeAlias.alias} BLOB NOT NULL,
+                        {typed.UserAttributeCollectionNodeAlias.alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeCollectionNodeAlias.attribute_collection_node_id})
                             REFERENCES {typed.UserAttributeCollectionNode}({typed.UserAttributeCollectionNode.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({typed.UserAttributeCollectionNodeAlias.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
-                            ON DELETE CASCADE
+                            ON DELETE CASCADE,
+
+                        UNIQUE (
+                            {typed.UserAttributeCollectionNodeAlias.attribute_id},
+                            {typed.UserAttributeCollectionNodeAlias.alias}
+                        )
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.Task} (
                         {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Task.list_id} INT NOT NULL,
@@ -330,7 +348,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                 """)
 
-                c.execute(lambda _: f"""
+                c.execute(lambda _: t"""
                     CREATE TABLE {typed.TaskAlias} (
                         {typed.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAlias.task_id} INT NOT NULL,
@@ -348,140 +366,58 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         UNIQUE ({typed.TaskAlias.list_id}, {typed.TaskAlias.alias})
                     )
                 """)
-                
 
-                AttributeTaskValue = typed.TaskAttributeTaskValueNotUnique
-
-                c.execute(lambda _: f"""
-                    CREATE TABLE {AttributeTaskValue} (
-                        {AttributeTaskValue.task_id} INT NOT NULL,
-                        {AttributeTaskValue.attribute_id} INT NOT NULL,
-                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {AttributeTaskValue.slot} BLOB NOT NULL,
+                c.execute(lambda _: t"""
+                    CREATE TABLE {typed.TaskAttributeTaskValue} (
+                        {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
+                        {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
+                        {typed.TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
+                        {typed.TaskAttributeTaskValue.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
-                            {AttributeTaskValue.task_id}, 
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
+                            {typed.TaskAttributeTaskValue.task_id}, 
+                            {typed.TaskAttributeTaskValue.attribute_id},
+                            {typed.TaskAttributeTaskValue.index}
                         ),
                         
-                        FOREIGN KEY ({AttributeTaskValue.task_id})
+                        FOREIGN KEY ({typed.TaskAttributeTaskValue.task_id})
                             REFERENCES {typed.Task}({typed.Task.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
+                        FOREIGN KEY ({typed.TaskAttributeTaskValue.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE,
-
-                        UNIQUE (
-                            {AttributeTaskValue.task_id},
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
-                        )
-                    )
-                """)
-
-
-                AttributeTaskValue = typed.TaskAttributeTaskValueUniquePerValue
-
-                c.execute(lambda _: f"""
-                    CREATE TABLE {AttributeTaskValue} (
-                        {AttributeTaskValue.task_id} INT NOT NULL,
-                        {AttributeTaskValue.attribute_id} INT NOT NULL,
-                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {AttributeTaskValue.slot} TEXT NOT NULL,
-
-                        PRIMARY KEY (
-                            {AttributeTaskValue.task_id}, 
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
-                        ),
-
-                        FOREIGN KEY ({AttributeTaskValue.task_id})
-                            REFERENCES {typed.Task}({typed.Task.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
-                            REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE,
-
-                        UNIQUE (
-                            {AttributeTaskValue.task_id},
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
-                        ),
-
-                        UNIQUE (
-                            {AttributeTaskValue.task_id}, 
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.slot}
-                        )
-                    )
-                """)
-
-
-                AttributeTaskValue = typed.TaskAttributeTaskValueUniquePerAttribute
-
-                c.execute(lambda _: f"""
-                    CREATE TABLE {AttributeTaskValue} (
-                        {AttributeTaskValue.task_id} INT NOT NULL,
-                        {AttributeTaskValue.attribute_id} INT NOT NULL,
-                        {AttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {AttributeTaskValue.slot} TEXT NOT NULL,
-
-                        PRIMARY KEY (
-                            {AttributeTaskValue.task_id}, 
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
-                        ),
-
-                        FOREIGN KEY ({AttributeTaskValue.task_id})
-                            REFERENCES {typed.Task}({typed.Task.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({AttributeTaskValue.attribute_id})
-                            REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
-                            ON DELETE CASCADE,
-
-                        UNIQUE (
-                            {AttributeTaskValue.task_id},
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.index}
-                        ),
-                        
-                        UNIQUE (
-                            {AttributeTaskValue.attribute_id},
-                            {AttributeTaskValue.slot}
-                        )
+                            ON DELETE CASCADE
                     )
                 """)
                 
-
-                # TODO
-                c.execute(lambda _: f"""
-                    CREATE TABLE {typed.UserAttributeTaskValueNotUnique} (
-                        {typed.UserAttributeTaskValueNotUnique.task_id} INT NOT NULL,
-                        {typed.UserAttributeTaskValueNotUnique.user_id} BIGINT UNSIGNED NOT NULL,
-                        {typed.UserAttributeTaskValueNotUnique.attribute_id} INT NOT NULL,
-                        {typed.UserAttributeTaskValueNotUnique.value} BLOB NOT NULL,
+                c.execute(lambda _: t"""
+                    CREATE TABLE {typed.UserAttributeTaskValue} (
+                        {typed.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
+                        {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
+                        {typed.UserAttributeTaskValue.attribute_id} INT NOT NULL,
+                        {typed.UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
+                        {typed.UserAttributeTaskValue.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
-                            {typed.UserAttributeTaskValueNotUnique.task_id}, 
-                            {typed.UserAttributeTaskValueNotUnique.user_id}, 
-                            {typed.UserAttributeTaskValueNotUnique.attribute_id}
+                            {typed.UserAttributeTaskValue.user_id},
+                            {typed.UserAttributeTaskValue.task_id}, 
+                            {typed.UserAttributeTaskValue.attribute_id},
+                            {typed.UserAttributeTaskValue.index}
                         ),
 
-                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.task_id})
-                            REFERENCES {typed.Task}({typed.Task.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.attribute_id})
-                            REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeTaskValueNotUnique.user_id})
+                        FOREIGN KEY ({typed.UserAttributeTaskValue.user_id})
                             REFERENCES {typed.JumpediaUser}({typed.JumpediaUser.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({typed.UserAttributeTaskValue.task_id})
+                            REFERENCES {typed.Task}({typed.Task.id})
+                            ON DELETE CASCADE,
+                        FOREIGN KEY ({typed.UserAttributeTaskValue.attribute_id})
+                            REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
                             ON DELETE CASCADE
                     )
                 """)
             except Exception as e:
                 try:
-                    c.execute(lambda _: f"""
+                    c.execute(lambda _: t"""
                         DROP DATABASE `{self.database_name}`
                     """)
                 finally:
@@ -505,7 +441,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 raise feedbacks.temp("Community with that name exists")
 
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {typed.Community} (
                         {typed.Community.name}
                     )
@@ -516,7 +452,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
                 community_id = c.last_generated_id
 
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {typed.Server} (
                         {typed.Server.id}, 
                         {typed.Server.community_id}
@@ -555,7 +491,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     
     def delete_community(self, community: Community) -> bool:
         with self.locked, community.locked, queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 DELETE FROM {typed.Community}
                 WHERE {typed.Community.id} = {arg(community.id)}
             """)
@@ -564,7 +500,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     
     def _fetch_from_community_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Community]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.Community}
                 {f"WHERE {where(arg)}" if where is not None else ""}
@@ -597,7 +533,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     
     def get_community_by_server_id(self, server_id: int) -> Community | None:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {typed.Server.community_id}
                 FROM {typed.Server}
                 WHERE {typed.Server.id} = {arg(server_id)}
@@ -626,7 +562,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
             with queries.connected() as c:
                 if user is None:
-                    c.execute(lambda arg: f"""
+                    c.execute(lambda arg: t"""
                         INSERT INTO {typed.JumpediaUser} (
                             {typed.JumpediaUser.id},
                             {typed.JumpediaUser.power},
@@ -644,7 +580,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     name = name if override_name_if_user_exists else user.name
 
                     if name != user.name or jumpedia_rank != user.jumpedia_rank:
-                        c.execute(lambda arg: f"""
+                        c.execute(lambda arg: t"""
                             UPDATE {typed.JumpediaUser} 
                             SET 
                                 {typed.JumpediaUser.name} = {arg(name)}
@@ -662,7 +598,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     def _fetch_from_user_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.JumpediaUser]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.JumpediaUser}
                 {f"WHERE {where(arg)}" if where is not None else ""}
@@ -714,7 +650,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 )     
             
             with queries.connected() as c:
-                c.execute(lambda arg: f"""
+                c.execute(lambda arg: t"""
                     INSERT INTO {typed.Server} (
                         {typed.Server.id},
                         {typed.Server.community_id}
@@ -732,7 +668,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
     def remove_community_from_server(self, server_id: int) -> Community | None:
         with self.locked, queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {typed.Server.community_id}
                 FROM {typed.Server}
                 WHERE {typed.Server.id} = {arg(server_id)}
@@ -743,7 +679,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             if result is None:
                 return None
             
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 DELETE FROM {typed.Server}
                 WHERE {typed.Server.id} = {arg(server_id)}
             """)

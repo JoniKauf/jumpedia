@@ -62,8 +62,6 @@ class BaseAttribute(BaseModel, table_name=None):
     def min_slots(self): pass
     @column(int)
     def max_slots(self): pass
-    @column(int)
-    def uniqueness(self): pass
 
 
 class BaseAttributeAlias(BaseModel, table_name=None):
@@ -77,26 +75,26 @@ class BaseAttributeAlias(BaseModel, table_name=None):
     def alias(self): pass
 
 
-class BaseCollectionAttributeCollectionNode(BaseModel, table_name=None):
+class BaseAttributeCollectionNode(BaseModel, table_name=None):
     @column(int)
     def id(self): pass
     @column(int)
     def parent_id(self): pass
     @column(int)
     def attribute_id(self): pass
-    @column(bytes)
+    @column(str)
     def value(self): pass
     @column(int)
     def sort_value(self): pass
 
-class BaseCollectionAttributeCollectionNodeAlias(BaseModel, table_name=None):
+class BaseAttributeCollectionNodeAlias(BaseModel, table_name=None):
     @column(int)
     def id(self): pass
     @column(int)
     def attribute_id(self): pass
     @column(int)
     def attribute_collection_node_id(self): pass
-    @column(bytes)
+    @column(str)
     def alias(self): pass
 
 class BaseAttributeTaskValue(BaseModel, table_name=None):
@@ -106,7 +104,7 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(int)
     def index(self): pass
-    @column(bytes)
+    @column(str)
     def slot(self): pass
 
 
@@ -126,10 +124,10 @@ class TaskAttribute(BaseAttribute, table_name=SNAKE):
 class TaskAttributeAlias(BaseAttributeAlias, table_name=SNAKE):
     pass
 
-class TaskAttributeCollectionNode(BaseCollectionAttributeCollectionNode, table_name=SNAKE):
+class TaskAttributeCollectionNode(BaseAttributeCollectionNode, table_name=SNAKE):
     pass
 
-class TaskAttributeCollectionNodeAlias(BaseCollectionAttributeCollectionNodeAlias, table_name=SNAKE):
+class TaskAttributeCollectionNodeAlias(BaseAttributeCollectionNodeAlias, table_name=SNAKE):
     pass
 
 
@@ -141,10 +139,10 @@ class UserAttribute(BaseAttribute, table_name=SNAKE):
 class UserAttributeAlias(BaseAttributeAlias, table_name=SNAKE):
     pass
 
-class UserAttributeCollectionNode(BaseCollectionAttributeCollectionNode, table_name=SNAKE):
+class UserAttributeCollectionNode(BaseAttributeCollectionNode, table_name=SNAKE):
     pass
 
-class UserAttributeCollectionNodeAlias(BaseCollectionAttributeCollectionNodeAlias, table_name=SNAKE):
+class UserAttributeCollectionNodeAlias(BaseAttributeCollectionNodeAlias, table_name=SNAKE):
     pass
 
 
@@ -168,24 +166,9 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     @column(str)
     def alias(self): pass
 
-class TaskAttributeTaskValueNotUnique(BaseAttributeTaskValue, table_name=SNAKE):
+class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
     pass
 
-class TaskAttributeTaskValueUniquePerValue(BaseAttributeTaskValue, table_name=SNAKE):
-    pass
-
-class TaskAttributeTaskValueUniquePerAttribute(BaseAttributeTaskValue, table_name=SNAKE):
-    pass
-
-class BaseUserAttributeTaskValue(BaseAttributeTaskValue, table_name=None):
+class UserAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
     @column(int)
     def user_id(self): pass
-
-class UserAttributeTaskValueNotUnique(BaseUserAttributeTaskValue, table_name=SNAKE):
-    pass
-
-class UserAttributeTaskValueUniquePerValue(BaseUserAttributeTaskValue, table_name=SNAKE):
-    pass
-
-class UserAttributeTaskValueUniquePerAttribute(BaseUserAttributeTaskValue, table_name=SNAKE):
-    pass
