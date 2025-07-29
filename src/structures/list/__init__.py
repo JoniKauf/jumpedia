@@ -262,19 +262,19 @@ class List(BaseStructure):
 
                 if aliases:
                     AttributeAliasTbl = type.tables.attribute_alias
+                    count = len(aliases)
 
-                    c.execute(lambda arg: t"""
+                    c.executemany(lambda args: t"""
                         INSERT INTO {AttributeAliasTbl} (
                             {AttributeAliasTbl.attribute_id},
                             {AttributeAliasTbl.list_id},
                             {AttributeAliasTbl.alias}
                         ) 
-                        VALUES 
-                            {t','.join(t"""(
-                                {arg(attribute_id)}, 
-                                {arg(self.id)}, 
-                                {arg(alias)})""" 
-                            for alias in aliases)}
+                        VALUES (
+                            {args(itertools.repeat(attribute_id, count))},
+                            {args(itertools.repeat(self.id, count))},
+                            {args(aliases)} 
+                        )
                     """)
 
                 attribute = type(
@@ -284,8 +284,7 @@ class List(BaseStructure):
                     slot_type=value_type,
                     position=index,
                     min_slots=min_slots,
-                    max_slots=max_slots,
-                    uniqueness=uniqueness
+                    max_slots=max_slots
                 )
 
                 if top_raw_nodes:
@@ -335,47 +334,6 @@ class List(BaseStructure):
             v = attr.value_from_loaded(v)
 
             attribute_value_mapping[attr] = v
-        
-        # Check if slot is unique per entire list
-        unique_per_list_attrs = {
-            attr for attr in attribute_value_mapping
-            if attr.uniqueness >= Uniqueness.PER_ATTRIBUTE
-        }
-
-        if unique_per_list_attrs:
-            TaskValueTbl = typed.TaskAttributeTaskValue
-
-            with queries.connected() as c:
-                c.execute(lambda arg: t"""
-                    SELECT 
-                        {TaskValueTbl.value},
-                        {TaskValueTbl.attribute_id}
-                    FROM {TaskValueTbl}
-                    WHERE 
-                        {TaskValueTbl.attribute_id} in (
-                            {','.join(arg(attr.id) for attr in unique_per_list_attrs)}
-                        )
-                """)
-
-                rows = c.fetchall(TaskValueTbl)
-
-            attr_id_to_all_slots: dict[int, set[SlotTypeT]] = {
-                attr.id: set() for attr in unique_per_list_attrs
-            }
-
-            #dont forget to norm
-            for row in rows:
-                slots: list[SlotTypeT] = pickle.loads(row.value)
-                attr_id = row.attribute_id
-
-                attr_id_to_all_slots[attr_id].update(slots)
-
-            for attr in unique_per_list_attrs:
-                for 
-                
-
-                
-
 
         return attribute_value_mapping
     
@@ -411,35 +369,48 @@ class List(BaseStructure):
                 task_id = c.last_generated_id 
                 
                 if aliases:
-                    c.execute(lambda arg: t"""
+                    count = len(aliases)
+
+                    c.executemany(lambda args: t"""
                         INSERT INTO {typed.TaskAlias} (
                             {typed.TaskAlias.task_id},
                             {typed.TaskAlias.list_id},
                             {typed.TaskAlias.alias}
                         ) 
-                        VALUES 
-                            {','.join(t"""(
-                                {arg(task_id)}, 
-                                {arg(self.id)}, 
-                                {arg(alias)})
-                            """ for alias in aliases)}        
+                        VALUES (
+                            {args(itertools.repeat(task_id, count))}, 
+                            {args(itertools.repeat(self.id, count))}, 
+                            {args(aliases)}
+                        )
                     """)
 
                 if attribute_value_mapping:
                     TaskValueTbl = TaskAttribute.tables.attribute_task_value
-                    
-                    c.execute(lambda arg: t"""
+
+                    # This is so clean I'm UwU-ing
+                    attribute_id_args: list[int] = []
+                    index_args: list[int] = []
+                    slot_args: list[SlotTypeT] = []
+
+                    for attr, v in attribute_value_mapping.items():
+                        for i, slot in enumerate(v):
+                            attribute_id_args.append(attr.id)
+                            index_args.append(i)
+                            slot_args.append(slot)
+
+                    c.executemany(lambda args: t"""
                         INSERT INTO {TaskValueTbl} (
                             {TaskValueTbl.task_id},
                             {TaskValueTbl.attribute_id},
-                            {TaskValueTbl.value}
+                            {TaskValueTbl.index},
+                            {TaskValueTbl.slot}
                         )
-                        VALUES 
-                            {','.join(t"""(
-                                {arg(task_id)}, 
-                                {arg(attr.id)}, 
-                                {arg(pickle.dumps(v))})
-                            """ for attr, v in attribute_value_mapping.items())}
+                        VALUES (
+                            {args(itertools.repeat(task_id, len(attribute_id_args)))},
+                            {args(attribute_id_args)},
+                            {args(index_args)},
+                            {args(slot_args)}
+                        )
                     """)
 
             return Task(
