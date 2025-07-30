@@ -29,7 +29,7 @@ class Task(BaseStructure):
     @property
     def aliases(self) -> frozenset[str]:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.alias}
                 FROM {typed.TaskAlias}
                 WHERE 

@@ -7,9 +7,8 @@ import decimal
 import enum
 import functools
 import json
-import pickle
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, NamedTuple, Self, final, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, NamedTuple, Self, assert_never, final, overload
 import typing
 
 from database import queries, typed
@@ -204,58 +203,37 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         
         raise TypeError("Invalid")
 
-    @classmethod
-    def _sort_key_singular(cls, value: T, sign: Literal[+1, -1], slot_type: SlotType[T]) -> int:
-        st: type[T] = slot_type.type
+    type ValueSortKeyT = tuple[SlotType.SortKeyT, *tuple[SlotType.SortKeyT, ...]]
 
-        if issubclass(st, bool):
-            return int(value + 1) * sign  # type: ignore
-            
-        if issubclass(st, (int, Decimal)):
-            return value * sign  # type: ignore
-
-        if issubclass(st, dt.time):
-            return (
-                value.microsecond +           # type: ignore
-                value.second *   1_000_000 +  # type: ignore
-                value.minute *  60_000_000 +  # type: ignore
-                value.hour * 3_600_000_000    # type: ignore
-            ) * sign
-        
-        if issubclass(st, dt.datetime):
-            return value.timestamp() * sign  # type: ignore
-         
-        if issubclass(st, dt.date):
-            return value.timetuple().tm_yday * sign  # type: ignore
-        
-        if issubclass(st, dt.timedelta):
-            return value.total_seconds() * sign  # type: ignore
-        
-        raise TypeError()
-        
-    def sort_key(self, v: builtins.list[T], sign: Literal[+1, -1]) -> tuple[int, ...]:        
+    def sort_key(self, v: builtins.list[T], sign: Literal[+1, -1]) -> tuple[ValueSortKeyT, *tuple[ValueSortKeyT, ...]]:        
         if not v:
-            return (SORT_KEY_NONE_NUMBER + 1) * sign,
+            return ((SORT_KEY_NONE_NUMBER * sign,),)
         
-        collection = self.get_collection()
+        if isinstance(self, BaseNonStaticAttribute):
+            collection = self.get_collection()
+            
+            if not collection.is_empty:
+                result: list[int] = []
 
-        if collection.is_empty:
-            return tuple(
-                self._sort_key_singular(value, sign, self.slot_type) 
-                for value in v
-            )
+                for slot in v:
+                    node = self.get_detached_collection_node_by_syn(slot)
 
-        return tuple((
-                coll_item.sort_value
-                if (coll_item := collection.lookup_node(slot, None)) is not None
-                else SORT_KEY_NONE_NUMBER
-            ) * sign
+                    if node is None:
+                        raise ValueError
+                    
+                    result.append(node.sort_value * sign)
+                
+                return (tuple(result),)  # type: ignore
+                
+        return tuple(
+            self.slot_type.sort_key(slot, sign)
             for slot in v
-        )
+        )  # type: ignore
     
     @property
     def has_collection(self) -> bool:
         return False
+
 
 class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
     tables: ClassVar[BaseNonStaticAttributeTables]
@@ -269,21 +247,18 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
     def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
         value = super().value_from_loaded(loaded)
-
-        result: list[T] = []
-
-        if self.has
-    def _convert_slots_to_collection_slots(self, value: builtins.list[T]) -> builtins.list[T]:
-        if not isinstance(self, BaseCollectionAttribute)
+        
+        if not self.has_collection:
+            return value
         
         result: list[T] = []
-        
+
         for slot in value:
-            node = self
-            
-            if node is None:
-                raise feedbacks.temp("Not part of the collection", slot)
+            node = self.get_detached_collection_node_by_syn(slot)
 
+            if node is None:
+                raise ValueError
+            
             result.append(node.value)
 
         return result
@@ -319,7 +294,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         row_id_to_child_row_ids: dict[int, list[int]] = {}
 
         top_rows: list[typed.BaseAttributeCollectionNode] = []
-        row_id_to_aliases: dict[int, list[str]] = {}
+        row_id_to_aliases: dict[int, list[T]] = {}
 
         for row in result:
             row_id_to_child_row_ids \
@@ -333,13 +308,12 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
         for alias_row in aliases_result:
             row = row_id_to_row[alias_row.attribute_collection_node_id]
-            row_id_to_aliases[row.id].append(pickle.loads(alias_row.alias))
-
-        normed_syn_to_node: dict[T, CollectionNode[T]] = {}
+            row_id_to_aliases[row.id].append(self.slot_type.from_clean_str(alias_row.alias))
 
         def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseAttributeCollectionNode) -> CollectionNode[T]:
             node = CollectionNode(
-                value=pickle.loads(row.value),
+                id=row.id,
+                value=self.slot_type.from_clean_str(row.value),
                 aliases=frozenset(row_id_to_aliases[row.id]),
                 sort_value=row.sort_value,
                 children=frozenset(),
@@ -354,17 +328,13 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     for child_id in children_ids
                 ))
 
-            for syn in (node.value, *node.aliases):
-                normed_syn_to_node[self.slot_type.norm(syn)] = node
-
             return node
 
         top_nodes = frozenset(recursively_create_children(None, row) for row in top_rows)
             
         return Collection(
             attribute=self,
-            top_nodes=top_nodes,
-            all_nodes=MappingProxyType(normed_syn_to_node)
+            top_nodes=top_nodes
         )
 
     def set_collection(
@@ -375,8 +345,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             if not top_raw_nodes:
                 return Collection(
                     attribute=self,
-                    top_nodes=frozenset(),
-                    all_nodes=MappingProxyType({})
+                    top_nodes=frozenset()
                 )
             
             normed_to_node: dict[T, CollectionNode[T]] = {}
@@ -402,12 +371,12 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     aliases.remove(normed_value)
                 
                 node = CollectionNode(
+                    id=0,
                     value=raw_node.value,
                     aliases=frozenset(aliases),
                     sort_value=raw_node.sort_value,
                     children=frozenset(),
-                    parent=parent,
-                    slot_type=self.slot_type
+                    parent=parent
                 )
 
                 depth += 1

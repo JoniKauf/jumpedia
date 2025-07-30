@@ -5,7 +5,7 @@ import decimal
 import enum
 import functools
 import re
-from typing import ClassVar, Final, Self, assert_never
+from typing import Any, ClassVar, Final, Literal, Self, assert_never
 import typing
 from discordtools import messaging as msg
 from errors.feedback import feedbacks
@@ -211,6 +211,49 @@ class SlotType[T: SlotTypeT]:
             return self.type(seconds=round(float(s), 4))
         
         assert_never(self.type)
+
+    type SortKeyT = int | float | Decimal
+
+    def sort_key(self, o: T, sign: Literal[+1, -1]) -> tuple[SortKeyT, *tuple[SortKeyT, ...]]:   
+        SAFE_DAYS_PER_YEAR = 367  # Safe minimum base amount of days per year we assume
+
+        if isinstance(o, bool):
+            return (int(o) * sign,)
+            
+        if isinstance(o, (int, Decimal)):
+            return (o * sign,)
+
+        if isinstance(o, (dt.time, dt.datetime)):
+            result = (
+                o.microsecond +
+                o.second *   1_000_000 +
+                o.minute *  60_000_000 +
+                o.hour * 3_600_000_000
+            ) * sign
+
+            if isinstance(o, dt.time):
+                return (result,)
+            
+            # This gets close to the value of None (2**63 - 1), but only to about 3% of it
+            return (result + (
+                o.day * 86_400_000_000 +
+                o.year * (86_400_000_000 * SAFE_DAYS_PER_YEAR)
+            ),)
+        
+        if isinstance(o, dt.date):
+            return ((o.year + (o.timetuple().tm_yday * SAFE_DAYS_PER_YEAR)) * sign,)
+        
+        if isinstance(o, dt.timedelta):
+            return (o.total_seconds() * sign,)
+        
+        if isinstance(o, str):
+            if not o:
+                return (0,)
+
+            # len(o) > 0
+            return tuple((ord(c) + 1) * sign for c in o.lower())  # type: ignore
+        
+        assert_never(o)
 
 
 SlotType(1, 'boolean', bool)

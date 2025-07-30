@@ -27,7 +27,7 @@ class CommunityUser(BaseStructure):
     
     def get_selected_list(self) -> List | None:
         with queries.connected() as c:
-            c.execute(lambda arg: f"""
+            c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.List}
                 WHERE 
