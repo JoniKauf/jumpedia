@@ -21,19 +21,18 @@ type CollectionNodesT[T: SlotTypeT] = frozenset[CollectionNode[T]]
 
 @dataclass(frozen=True)
 class CollectionNode[T: SlotTypeT]:
-    id: int
-    value: T
+    slot: T
     aliases: frozenset[T]
     sort_value: int
     parent: 'CollectionNode[T] | None'
     children: CollectionNodesT[T]
 
     def __hash__(self) -> int:
-        return hash(self.id)
+        return hash(self.sort_value)
     
     def __eq__(self, other: object) -> bool:
         if isinstance(other, type(self)):
-            return self.id == other.id
+            return self.sort_value == other.sort_value
 
         return NotImplemented
     
@@ -51,6 +50,7 @@ class CollectionNode[T: SlotTypeT]:
 class Collection[T: SlotTypeT](BaseStructure):
     attribute: BaseAttribute[T]
     top_nodes: CollectionNodesT[T]
+    normalized_to_node: MappingProxyType[T, CollectionNode[T]]
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -58,5 +58,13 @@ class Collection[T: SlotTypeT](BaseStructure):
 
     @property
     def is_empty(self) -> bool:
+        return bool(self)
+    
+    def __bool__(self) -> bool:
         return bool(self.top_nodes)
     
+    def get_node_by_syn[TDefault](self, syn: T, default: TDefault = None, /) -> CollectionNode[T] | TDefault:
+        return self.normalized_to_node.get(
+            self.attribute.slot_type.normalize(syn),
+            default
+        )

@@ -33,7 +33,7 @@ class BaseStructure(ABC):
         return self.__class__ == value.__class__ and self.identity == value.identity
 
     def __init_subclass__(cls) -> None:
-        structure_name = text.norm(cls.__structure_name__)
+        structure_name = text.norm_value(cls.__structure_name__)
 
         if structure_name in structures._cls_names:
             raise AssertionError("__structure_name__ used twice")

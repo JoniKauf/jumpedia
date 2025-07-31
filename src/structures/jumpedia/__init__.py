@@ -214,7 +214,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionNode.parent_id} INT,
                         {typed.TaskAttributeCollectionNode.attribute_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNode.value} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeCollectionNode.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
                         {typed.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeCollectionNode.parent_id})
@@ -227,7 +227,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         UNIQUE (
                             {typed.TaskAttributeCollectionNode.attribute_id},
                             {typed.TaskAttributeCollectionNode.parent_id},
-                            {typed.TaskAttributeCollectionNode.value}
+                            {typed.TaskAttributeCollectionNode.slot}
                         )
                     )
                 """)
@@ -296,7 +296,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionNode.attribute_id} INT NOT NULL,
                         {typed.UserAttributeCollectionNode.parent_id} INT,
-                        {typed.UserAttributeCollectionNode.value} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeCollectionNode.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
                         {typed.UserAttributeCollectionNode.sort_value} INT NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeCollectionNode.parent_id})
@@ -308,7 +308,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
                         UNIQUE (
                             {typed.UserAttributeCollectionNode.attribute_id},
-                            {typed.UserAttributeCollectionNode.value}
+                            {typed.UserAttributeCollectionNode.slot}
                         )
                     )
                 """)

@@ -27,7 +27,7 @@ def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> se
     result: set[str] = set()
 
     for alias in frozenset(aliases):
-        alias = norm(alias)
+        alias = norm_value(alias)
 
         if len(alias) > max_length:
             raise 
@@ -36,12 +36,6 @@ def fix_aliases(aliases: Iterable[str], max_length: int, max_aliases: int) -> se
         raise fbe.TemporaryFeedbackError(length, max_aliases)
     
     return result
-
-def norm(s: str, whitespace_repl: str = '_') -> str:
-    return NORMALIZE_FUNC(sanitize(s, whitespace_repl))
-
-def norm_syn(s: str) -> str:
-    return norm(s, ' ')
 
 def sanitize(s: str, whitespace_repl: str = ' ') -> str:
     s = fix_whitespace(s, whitespace_repl, True) 

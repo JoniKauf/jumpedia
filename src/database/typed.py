@@ -78,12 +78,12 @@ class BaseAttributeAlias(BaseModel, table_name=None):
 class BaseAttributeCollectionNode(BaseModel, table_name=None):
     @column(int)
     def id(self): pass
-    @column(int)
+    @column((int, NoneType))
     def parent_id(self): pass
     @column(int)
     def attribute_id(self): pass
     @column(str)
-    def value(self): pass
+    def slot(self): pass
     @column(int)
     def sort_value(self): pass
 
