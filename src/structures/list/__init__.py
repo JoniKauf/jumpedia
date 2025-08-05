@@ -348,7 +348,7 @@ class List(BaseStructure):
 
             if len(all_tasks) >= list_package.MAX_TASKS:
                 raise feedbacks.temp("Task limit reached")
-            
+
             for syn in (name, *aliases):
                 syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
 
@@ -371,6 +371,7 @@ class List(BaseStructure):
 
                 task_id = c.last_generated_id 
                 
+                # TODO: Handle error with case insensitive, equal aliases (probably) causing exception.
                 if aliases:
                     count = len(aliases)
 
@@ -441,19 +442,33 @@ class List(BaseStructure):
         raw_attribute_value_mapping: dict[int, str] | None = None
     ) -> None:
         with self.locked:
-            task = self.get_task_by_id(id)
+            task_ = self.get_task_by_id(id)
 
-            if task is None:
+            if task_ is None:
                 raise StructureNotFoundError(id)
             
             if name is None and aliases is None and raw_attribute_value_mapping is None:
                 return
             
-            for syn in (name, *aliases):
+            syns = []
+
+            if name:
+                syns.append(name)
+
+            if aliases:
+                syns.extend(aliases)
+
+            for syn in syns:
                 syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
 
-                if self.get_task_by_syn(syn) is not None:
+                found = self.get_task_by_syn(syn)
+
+                if found is not None and found != task_:
                     raise feedbacks.temp(f"Task with name or alias {syn} already exists")
+                
+            # TODO: Handle error with case insensitive, equal aliases (probably) causing exception.
+                
+            
             
             
             
