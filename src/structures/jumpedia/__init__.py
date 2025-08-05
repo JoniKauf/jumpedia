@@ -12,7 +12,7 @@ from structures.attributes import slot_type
 from structures.attributes.slot_type import STR_MAX_LEN
 from structures.community import Community
 from structures.user import JumpediaUser
-from utils import metautils
+from utils import functools2, metautils
 from database import queries, typed
 from dataclasses import dataclass, field
 from discordtools import messaging as msg, users
@@ -23,7 +23,7 @@ DATABASE_NAME: str = 'jumpedia'
 class NotInServerError(ValueError):
     pass
 
-class AbstractStructureAndSingleton(type(BaseStructure), metautils.Singleton):
+class AbstractStructureAndSingleton(type(BaseStructure), functools2.Singleton):
     pass
 
 @dataclass(frozen=True, kw_only=True)

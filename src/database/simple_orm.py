@@ -1,5 +1,4 @@
 from typing import AbstractSet, Any, Callable, ClassVar, Generator, Iterable, Mapping, Self, Sequence, final, get_args, overload
-from typing_extensions import TypeForm
 
 from utils import text
 

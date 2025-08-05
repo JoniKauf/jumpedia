@@ -18,13 +18,13 @@ from structures.attributes.collection import Collection, CollectionNode, Collect
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
+from structures.errors import StructureNotFoundError
 from structures.list import UserCollectionNodeT, UserCollectionNodesT
 from structures.task import Task
 from utils import metautils, parsetools, text
 from structures import attributes, task
 from database import typed
 import structures.list as list_package
-
 
 import pickle
 
@@ -185,7 +185,7 @@ class List(BaseStructure):
         pass
 
     @overload
-    def create_attribute[T: TaskAttribute | UserAttribute, TSlot: SlotTypeT](
+    def create_attribute[T: BaseNonStaticAttribute, TSlot: SlotTypeT](
         self, 
         type: type[T],
         name: str,
@@ -194,7 +194,7 @@ class List(BaseStructure):
         max_slots: int,
         uniqueness: Uniqueness,
         *,
-        top_raw_nodes: RawCollectionNodesT[TSlot]
+        top_raw_nodes: RawCollectionNodesT
     ) -> T:
         pass
 
@@ -208,7 +208,7 @@ class List(BaseStructure):
         uniqueness: Uniqueness,
         *,
         min_slots: int = 0,
-        top_raw_nodes: RawCollectionNodesT[TSlot] = frozenset()
+        top_raw_nodes: RawCollectionNodesT = frozenset()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         with self.locked:
             attrs = self.get_all_attributes_flat()
@@ -309,7 +309,7 @@ class List(BaseStructure):
 
     # --- Tasks ---
 
-    def _raw_attribute_value_mapping_to_non_raw(
+    def _cook_raw_attribute_value_mapping(
         self, 
         raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> dict[TaskAttribute, list[SlotTypeT]]:
@@ -337,7 +337,6 @@ class List(BaseStructure):
 
         return attribute_value_mapping
     
-
     def create_task(
         self, 
         name: str, 
@@ -345,14 +344,18 @@ class List(BaseStructure):
         raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> Task:
         with self.locked:
-            if len(self.get_tasks()) >= list_package.MAX_TASKS:
+            all_tasks = self.get_tasks()
+
+            if len(all_tasks) >= list_package.MAX_TASKS:
                 raise feedbacks.temp("Task limit reached")
             
             for syn in (name, *aliases):
+                syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
+
                 if self.get_task_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Task with name or alias {syn} already exists")
             
-            attribute_value_mapping = self._raw_attribute_value_mapping_to_non_raw(raw_attribute_value_mapping)
+            attribute_value_mapping = self._cook_raw_attribute_value_mapping(raw_attribute_value_mapping)
                 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
@@ -430,8 +433,29 @@ class List(BaseStructure):
 
             return c.affected_row_count > 0
         
-    def edit_task(self, id: int, name: str | None = None, aliases: frozenset[str] | None = None, raw_attribute_value_mapping):
+    def edit_task(
+        self, 
+        id: int, 
+        name: str | None = None, 
+        aliases: frozenset[str] | None = None, 
+        raw_attribute_value_mapping: dict[int, str] | None = None
+    ) -> None:
         with self.locked:
+            task = self.get_task_by_id(id)
+
+            if task is None:
+                raise StructureNotFoundError(id)
+            
+            if name is None and aliases is None and raw_attribute_value_mapping is None:
+                return
+            
+            for syn in (name, *aliases):
+                syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
+
+                if self.get_task_by_syn(syn) is not None:
+                    raise feedbacks.temp(f"Task with name or alias {syn} already exists")
+            
+            
             
         
     def _fetch_tasks_from_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Task]:

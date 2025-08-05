@@ -46,9 +46,22 @@ def valnitize(s: str, min_length: int, max_length: int) -> str:
     length = len(name)
 
     if not (min_length <= length <= max_length):
-        raise feedbacks.temp(f"Name must be between", min_length, "and", max_length, "characters long")
+        raise ValueError(s, length)
     
     return name
+
+def valnitize_many(s: Sequence[str], min_count: int, max_count: int, min_length: int, max_length: int) -> Generator[str, None, None]:
+    if isinstance(s, str):
+        raise ValueError
+    
+    count = len(s)
+
+    if not (min_count <= count <= max_count):
+        raise ValueError(s, count)
+    
+    for elem in s:
+        yield valnitize(elem, min_length, max_length)
+    
 
 # def validate_and_sanitize_aliases(bad_aliases: Iterable[str], max_length: int, max_count: int, forbidden: Iterable[str] = ()) -> set[str]:
 #     from discordtools import feedbackerrors as fbe
