@@ -102,7 +102,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
     max_slots: int
 
     value_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
-        max_depth=collection.MAX_DEPTH,
+        max_depth=1,
         strict_type=ATTRIBUTE_VALUE_PARSE_TYPES
     )
 
@@ -134,14 +134,14 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
         with queries.connected() as c:
             c.execute(lambda arg: t"""
-                SELECT {TblAlias.alias}
+                SELECT {TblAlias.real_alias}
                 FROM {TblAlias}
                 WHERE {TblAlias.attribute_id} = {arg(self.id)}
             """)
 
             rows = c.fetchall(TblAlias)
         
-        return frozenset(row.alias for row in rows)
+        return frozenset(row.real_alias for row in rows)
     
     def get_collection(self) -> Collection[T]:
         return Collection(
@@ -173,24 +173,8 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         return result_values
 
     def value_from_str(self, s: str) -> Any:
-        return self.value_from_str(self.__class__.general_from_str(
-            s, 
-            self.__class__.value_parser
-        ))
-
-    @classmethod
-    def general_from_str[T_: AttributeValueParseTypesT](cls, s: str, parser: parsetools.SafeJsonParser[T_]) -> T_:
-        try:
-            return parser.loads(s)
-        except json.JSONDecodeError as e:
-            raise feedbacks.temp(f"Not valid json at ...{e.msg[e.pos:e.pos + 10]}...")
-        except RecursionError as e:
-            raise feedbacks.temp(f"Max depth for json exceeded")
-        except TypeError as e:
-            raise feedbacks.temp(f"object `{e.args[0]}` is not of type `{e.args[1]}`")
-        except Exception:
-            raise feedbacks.temp("Unknown json parse exception")
-
+        return self.value_from_loaded(self.__class__.value_parser.loads(s))
+    
 
     type ValueSortKeyT = tuple[SlotType.SortKeyT, *tuple[SlotType.SortKeyT, ...]]
 
@@ -309,7 +293,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             )
 
             normed_to_node.update({
-                self.slot_type.normalize(syn): node
+                self.slot_type.norm(syn): node
                 for syn in 
                 (node.slot, *node.aliases)
             })
@@ -345,11 +329,6 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                 WHERE {TblNodes.attribute_id} = {arg(self.id)}
             """)
 
-            c.execute(lambda arg: t"""
-                DELETE FROM {TblAliases}
-                WHERE {TblAliases.attribute_id} = {arg(self.id)}
-            """)
-
             if not top_raw_nodes:
                 return Collection(
                     attribute=self,
@@ -357,7 +336,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     normalized_to_node=MappingProxyType({})
                 )
             
-            normalized_to_node: dict[T, CollectionNode[T]] = {}
+            norm_to_node: dict[T, CollectionNode[T]] = {}
             node_count: int = 0
 
             def recursively_create_children(parent: None | CollectionNode[T], raw_node: RawCollectionNode, depth: int) -> CollectionNode[T]:
@@ -377,34 +356,33 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     raise feedbacks.temp("Sort value out of range")
                 
                 # Get and check slot and aliases
-                slot: T = self.slot_type.from_raw_str(raw_node.slot)
+                real_slot = self.slot_type.from_raw_str(raw_node.slot)
+                norm_slot = self.slot_type.norm(real_slot)
+                norm_to_real_aliases: dict[T, T] = {}
 
-                aliases: set[T] = set(map(
-                    lambda a: self.slot_type.normalize(self.slot_type.from_raw_str(a)), 
-                    raw_node.aliases)
-                )
+                for raw_alias in raw_node.aliases:
+                    real_alias = self.slot_type.from_raw_str(raw_alias)
+                    norm_to_real_aliases[self.slot_type.norm(real_alias)] = real_alias
 
-                normed_slot = self.slot_type.normalize(slot)
+                # Remove alias if the name is in aliases
+                norm_to_real_aliases.pop(norm_slot, None)
 
-                if normed_slot in aliases:
-                    aliases.remove(normed_slot)
-
-                if len(aliases) > MAX_ALIAS_COUNT:
+                if len(norm_to_real_aliases) > MAX_ALIAS_COUNT:
                     raise feedbacks.temp("Too many aliases")
-            
+
                 node = CollectionNode(
-                    slot=slot,
-                    aliases=frozenset(aliases),
+                    slot=real_slot,
+                    aliases=frozenset(norm_to_real_aliases.values()),
                     sort_value=raw_node.sort_value,
                     children=frozenset(),
                     parent=parent
                 )
 
-                for normed_syn in (normed_slot, *node.aliases):
-                    if normed_syn in normalized_to_node:
+                for normed_syn in (norm_slot, *norm_to_real_aliases):
+                    if normed_syn in norm_to_node:
                         raise feedbacks.temp("Same syn appeared twice")
                     
-                    normalized_to_node[normed_syn] = node
+                    norm_to_node[normed_syn] = node
 
                 # Create and insert child nodes recursively
                 child_nodes = frozenset(
@@ -468,5 +446,5 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             return Collection(
                 attribute=self,
                 top_nodes=top_nodes,
-                normalized_to_node=MappingProxyType(normalized_to_node)
+                normalized_to_node=MappingProxyType(norm_to_node)
             )

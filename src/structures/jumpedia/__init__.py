@@ -143,7 +143,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
                         {typed.StaticAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.StaticAttribute.raw_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.StaticAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.StaticAttribute.slot_type} INT NOT NULL,
                         {typed.StaticAttribute.position} INT NOT NULL,
                         {typed.StaticAttribute.min_slots} INT NOT NULL,
@@ -154,7 +154,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.norm_name}),
-                        UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.raw_name}),
+                        UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.real_name}),
                         UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.position})
                     )
                 """)
@@ -165,7 +165,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.StaticAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.StaticAttributeAlias.list_id} INT NOT NULL,
                         {typed.StaticAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.StaticAttributeAlias.raw_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.StaticAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.StaticAttributeAlias.attribute_id})
                             REFERENCES {typed.StaticAttribute}({typed.StaticAttribute.id})
@@ -175,7 +175,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.StaticAttributeAlias.list_id}, {typed.StaticAttributeAlias.norm_alias}),
-                        UNIQUE ({typed.StaticAttributeAlias.list_id}, {typed.StaticAttributeAlias.raw_alias})
+                        UNIQUE ({typed.StaticAttributeAlias.list_id}, {typed.StaticAttributeAlias.real_alias})
                     )
                 """)
 
@@ -184,7 +184,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttribute.list_id} INT NOT NULL,
                         {typed.TaskAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAttribute.raw_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.TaskAttribute.slot_type} INT NOT NULL,
                         {typed.TaskAttribute.position} INT NOT NULL,
                         {typed.TaskAttribute.min_slots} INT NOT NULL,
@@ -195,7 +195,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.norm_name}),
-                        UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.raw_name}),
+                        UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.real_name}),
                         UNIQUE ({typed.TaskAttribute.list_id}, {typed.TaskAttribute.position})
                     )
                 """)
@@ -206,7 +206,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeAlias.list_id} INT NOT NULL,
                         {typed.TaskAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAttributeAlias.raw_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeAlias.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -216,7 +216,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.TaskAttributeAlias.list_id}, {typed.TaskAttributeAlias.norm_alias}),
-                        UNIQUE ({typed.TaskAttributeAlias.list_id}, {typed.TaskAttributeAlias.raw_alias})
+                        UNIQUE ({typed.TaskAttributeAlias.list_id}, {typed.TaskAttributeAlias.real_alias})
                     )
                 """)
 
@@ -270,7 +270,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttribute.list_id} INT NOT NULL,
                         {typed.UserAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.UserAttribute.raw_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.UserAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
                         {typed.UserAttribute.position} INT NOT NULL,
                         {typed.UserAttribute.slot_type} INT NOT NULL,
                         {typed.UserAttribute.min_slots} INT NOT NULL,
@@ -281,7 +281,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.norm_name}),
-                        UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.raw_name}),
+                        UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.real_name}),
                         UNIQUE ({typed.UserAttribute.list_id}, {typed.UserAttribute.position})
                     )
                 """)
@@ -292,7 +292,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.UserAttributeAlias.list_id} INT NOT NULL,
                         {typed.UserAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.UserAttributeAlias.raw_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.UserAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeAlias.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
@@ -302,7 +302,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.UserAttributeAlias.list_id}, {typed.UserAttributeAlias.norm_alias}),
-                        UNIQUE ({typed.UserAttributeAlias.list_id}, {typed.UserAttributeAlias.raw_alias})
+                        UNIQUE ({typed.UserAttributeAlias.list_id}, {typed.UserAttributeAlias.real_alias})
                     )
                 """)
 
@@ -354,14 +354,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Task.list_id} INT NOT NULL,
                         {typed.Task.norm_name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
-                        {typed.Task.raw_name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                        {typed.Task.real_name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.Task.list_id})
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.Task.list_id}, {typed.Task.norm_name}),
-                        UNIQUE ({typed.Task.list_id}, {typed.Task.raw_name})
+                        UNIQUE ({typed.Task.list_id}, {typed.Task.real_name})
                     )
                 """)
 
@@ -371,7 +371,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAlias.task_id} INT NOT NULL,
                         {typed.TaskAlias.list_id} INT NOT NULL,
                         {typed.TaskAlias.norm_alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAlias.raw_alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAlias.real_alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAlias.task_id})
                             REFERENCES {typed.Task}({typed.Task.id})
@@ -382,7 +382,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             ON DELETE CASCADE,
 
                         UNIQUE ({typed.TaskAlias.list_id}, {typed.TaskAlias.norm_alias}),
-                        UNIQUE ({typed.TaskAlias.list_id}, {typed.TaskAlias.raw_alias})
+                        UNIQUE ({typed.TaskAlias.list_id}, {typed.TaskAlias.real_alias})
                     )
                 """)
 

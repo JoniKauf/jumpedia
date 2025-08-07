@@ -61,7 +61,7 @@ class BaseAttribute(BaseModel, table_name=None):
     @column(str)
     def norm_name(self): pass
     @column(str)
-    def raw_name(self): pass
+    def real_name(self): pass
     @column(int)
     def slot_type(self): pass
     @column(int)
@@ -82,7 +82,7 @@ class BaseAttributeAlias(BaseModel, table_name=None):
     @column(str)
     def norm_alias(self): pass
     @column(str)
-    def raw_alias(self): pass
+    def real_aliass(self): pass
 
 
 class BaseAttributeCollectionNode(BaseModel, table_name=None):
@@ -93,8 +93,10 @@ class BaseAttributeCollectionNode(BaseModel, table_name=None):
     @column(int)
     def attribute_id(self): pass
     @column(str)
-    def slot(self): pass
+    def norm_slot(self): pass
     @column(str)
+    def real_slot(self): pass
+    @column(int)
     def sort_value(self): pass
 
 class BaseAttributeCollectionNodeAlias(BaseModel, table_name=None):
@@ -105,7 +107,9 @@ class BaseAttributeCollectionNodeAlias(BaseModel, table_name=None):
     @column(int)
     def attribute_collection_node_id(self): pass
     @column(str)
-    def alias(self): pass
+    def norm_alias(self): pass
+    @column(str)
+    def real_alias(self): pass
 
 class BaseAttributeTaskValue(BaseModel, table_name=None):
     @column(int)
@@ -166,7 +170,7 @@ class Task(BaseModel, table_name=SNAKE):
     @column(str)
     def norm_name(self): pass
     @column(str)
-    def raw_name(self): pass
+    def real_name(self): pass
 
 class TaskAlias(BaseModel, table_name=SNAKE):
     @column(int)
@@ -178,7 +182,7 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     @column(str)
     def norm_alias(self): pass
     @column(str)
-    def raw_alias(self): pass
+    def real_alias(self): pass
 
 class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
     pass

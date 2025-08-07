@@ -65,6 +65,6 @@ class Collection[T: SlotTypeT](BaseStructure):
     
     def get_node_by_syn[TDefault](self, syn: T, default: TDefault = None, /) -> CollectionNode[T] | TDefault:
         return self.normalized_to_node.get(
-            self.attribute.slot_type.normalize(syn),
+            self.attribute.slot_type.norm(syn),
             default
         )

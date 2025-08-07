@@ -255,9 +255,9 @@ class SlotType[T: SlotTypeT]:
         
         assert_never(o)
 
-    def normalize(self, o: T) -> T:
+    def norm(self, o: T) -> T:
         if isinstance(o, str):
-            return o.lower()  # type: ignore
+            return text.norm(o)  # type: ignore
         
         return o
 
