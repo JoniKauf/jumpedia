@@ -71,7 +71,7 @@ class JumpediaAdapter(BaseAdapter):
         community = CommunityAdapter(self._jumpedia.create_community(
             jumpedia_user=jumpedia_user,
             server_id=self.interaction.current_server.id,
-            name=_valnitize_community_name(name)
+            raw_name=_valnitize_community_name(name)
         ), self)
 
         if initial_list_name is not None:

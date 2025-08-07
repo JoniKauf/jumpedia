@@ -6,7 +6,9 @@ class Community(BaseModel, table_name=SNAKE):
     @column(int)
     def id(self): pass
     @column(str)
-    def name(self): pass
+    def norm_name(self): pass
+    @column(str)
+    def raw_name(self): pass
     @column((int, NoneType))
     def default_selected_list_id(self): pass
 
@@ -20,7 +22,9 @@ class JumpediaUser(BaseModel, table_name=SNAKE):
     @column(int)
     def id(self): pass
     @column(str)
-    def name(self): pass
+    def norm_name(self): pass
+    @column(str)
+    def raw_name(self): pass
     @column(int)
     def power(self): pass
 
@@ -32,7 +36,9 @@ class List(BaseModel, table_name=SNAKE):
     @column(int)
     def community_id(self): pass
     @column(str)
-    def name(self): pass
+    def norm_name(self): pass
+    @column(str)
+    def raw_name(self): pass
 
 class CommunityUser(BaseModel, table_name=SNAKE):
     @column(int)
@@ -53,7 +59,9 @@ class BaseAttribute(BaseModel, table_name=None):
     @column(int)
     def list_id(self): pass
     @column(str)
-    def name(self): pass
+    def norm_name(self): pass
+    @column(str)
+    def raw_name(self): pass
     @column(int)
     def slot_type(self): pass
     @column(int)
@@ -72,7 +80,9 @@ class BaseAttributeAlias(BaseModel, table_name=None):
     @column(int)
     def list_id(self): pass
     @column(str)
-    def alias(self): pass
+    def norm_alias(self): pass
+    @column(str)
+    def raw_alias(self): pass
 
 
 class BaseAttributeCollectionNode(BaseModel, table_name=None):
@@ -84,7 +94,7 @@ class BaseAttributeCollectionNode(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(str)
     def slot(self): pass
-    @column(int)
+    @column(str)
     def sort_value(self): pass
 
 class BaseAttributeCollectionNodeAlias(BaseModel, table_name=None):
@@ -154,7 +164,9 @@ class Task(BaseModel, table_name=SNAKE):
     @column(int)
     def list_id(self): pass
     @column(str)
-    def name(self): pass
+    def norm_name(self): pass
+    @column(str)
+    def raw_name(self): pass
 
 class TaskAlias(BaseModel, table_name=SNAKE):
     @column(int)
@@ -164,7 +176,9 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     @column(int)
     def list_id(self): pass
     @column(str)
-    def alias(self): pass
+    def norm_alias(self): pass
+    @column(str)
+    def raw_alias(self): pass
 
 class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):
     pass

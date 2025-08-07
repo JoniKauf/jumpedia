@@ -16,7 +16,8 @@ All structures must follow these idioms:
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import enum
-from typing import Callable, ClassVar
+import functools
+from typing import Any, Callable, ClassVar, ParamSpec
 
 from errors.feedback import FeedbackError
 from structures.base_structure import BaseStructure
