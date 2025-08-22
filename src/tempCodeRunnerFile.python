@@ -1,0 +1,38 @@
+
+
+from typing import Any, Literal, LiteralString, overload
+import inspect
+
+_EvalResult = Any  # Placeholder, should be the result of eval inferred by the type checker
+
+@overload
+def expr[T: LiteralString](e: T, /) -> T: ...
+
+@overload
+def expr[T: LiteralString](e: T, evaluate: Literal[False], /) -> T: ...
+
+@overload
+def expr[T: LiteralString](e: T, evaluate: Literal[True], /) -> tuple[T, _EvalResult]: ...
+
+def expr[T: LiteralString](e: T, evaluate: bool = False, /) -> T | tuple[T, _EvalResult]:
+    if not evaluate:
+        return e
+    
+    curr_frame = inspect.currentframe()
+    
+    if not curr_frame or not (outer := curr_frame.f_back):
+        raise LookupError("Could not find outer frame")
+    
+    return (e, eval(e, outer.f_globals, outer.f_locals))
+
+
+
+if __name__ == '__main__':
+    my_list: list[int] = [10, 20, 30]
+
+    ex1 = expr('my_list')
+    assert ex1 == 'my_list'
+
+    ex2 = expr('my_list[2]', True)
+    print(ex2)
+    assert ex2 == ('my_list[2]', 30)

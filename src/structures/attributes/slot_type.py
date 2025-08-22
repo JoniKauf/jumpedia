@@ -61,8 +61,18 @@ class SlotType[T: SlotTypeT]:
 
     _slot_types: ClassVar[list[Self]] = []
     _slot_type_id_lookup: ClassVar[dict[int, Self]] = {}
-    _slot_type_name_lookup: ClassVar[dict[str, Self]] = {}
     _slot_type_type_lookup: ClassVar[dict[str, Self]] = {}
+
+    @classmethod
+    def _init(cls):
+        cls.BOOL = SlotType(1, 'boolean (true/false)', bool)
+        cls.INT = SlotType(2, 'integer', int)
+        cls.DECIMAL = SlotType(3, 'decimal', Decimal)
+        cls.TIME = SlotType(4, 'time', dt.time)
+        cls.DATE = SlotType(5, 'date', dt.date)
+        cls.DATETIME = SlotType(6, 'date and time', dt.datetime)
+        cls.TIMEDELTA = SlotType(7, 'timespan', dt.timedelta)
+        cls.STRING = SlotType(8, 'text', str)
 
     def __post_init__(self):
         for elem in SlotType._slot_types:
@@ -71,7 +81,6 @@ class SlotType[T: SlotTypeT]:
             
         SlotType._slot_types.append(self)
         SlotType._slot_type_id_lookup[self.id] = self
-        SlotType._slot_type_name_lookup[self.name] = self
         SlotType._slot_type_type_lookup[self.type.__qualname__] = self
 
     def __hash__(self):
@@ -91,13 +100,6 @@ class SlotType[T: SlotTypeT]:
             raise LookupError(*e.args)
         
     @classmethod
-    def get_by_name(cls, name: str) -> Self:
-        try:
-            return cls._slot_type_name_lookup[name]
-        except KeyError as e:
-            raise LookupError(*e.args)
-        
-    @classmethod
     def get_by_type(cls, type: type_[T]) -> 'SlotType[T]':
         try:
             return cls._slot_type_type_lookup[type.__qualname__]
@@ -109,7 +111,7 @@ class SlotType[T: SlotTypeT]:
         return cls._slot_types.copy()
     
     def from_raw_str(self, s: str) -> T:
-        old_s, s = s, text.sanitize(s)
+        old_s, s = s, text.raw_to_real(s)
         
         if not s:
             raise feedbacks.temp(f"empty or only whitespace values like `{old_s}` are not allowed")
@@ -257,18 +259,12 @@ class SlotType[T: SlotTypeT]:
 
     def norm(self, o: T) -> T:
         if isinstance(o, str):
-            return text.norm(o)  # type: ignore
+            return text.raw_to_norm(o)  # type: ignore
         
         return o
 
-SlotType(1, 'boolean', bool)
-SlotType(2, 'integer', int)
-SlotType(3, 'decimal', Decimal)
-SlotType(4, 'time', dt.time)
-SlotType(5, 'date', dt.date)
-SlotType(6, 'date_and_time', dt.datetime)
-SlotType(7, 'timespan', dt.timedelta)
-SlotType(8, 'text_string', str)
+SlotType._init()
+
 
 AttributeValueTypeEnum = enum.Enum(
     'AttributeValueTypeEnum', [(avt.name, avt) for avt in SlotType._slot_types] + []

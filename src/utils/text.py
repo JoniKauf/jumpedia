@@ -18,20 +18,7 @@ def fix_whitespace(s: str, repl: str, strip: bool = True) -> str:
     return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
 
 def invalid_identifier_chars(s: str) -> set[str]:
-    return set(char for char in s if char not in IDENTIFIER_CHARS)
-
-def sanitize(s: str, whitespace_repl: str = ' ') -> str:
-    s = fix_whitespace(s, whitespace_repl, True) 
-    return ''.join(c for c in s if c.isprintable())
-
-def valnitize(s: str, min_length: int, max_length: int) -> str:
-    name = sanitize(s)
-    length = len(name)
-
-    if not (min_length <= length <= max_length):
-        raise ValueError(s, length)
-    
-    return name
+    return set(char for char in s if char not in IDENTIFIER_CHARS) 
 
 def valnitize_many(s: Sequence[str], min_count: int, max_count: int, min_length: int, max_length: int) -> Generator[str, None, None]:
     if isinstance(s, str):
@@ -43,7 +30,7 @@ def valnitize_many(s: Sequence[str], min_count: int, max_count: int, min_length:
         raise ValueError(s, count)
     
     for elem in s:
-        yield valnitize(elem, min_length, max_length)
+        yield raw_to_real_and_validate(elem, min_length, max_length)
 
 def human_join(objects: Sequence[Any], final_delimiter: str, delimiter: str = ", ") -> str:
     objects_str = tuple(map(str, objects))
@@ -68,20 +55,33 @@ def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16,
     yield more_elems
 
 
-def norm(s: str, /, *, already_sanitized: bool = False) -> str:
+def raw_to_real(raw: str, /) -> str:
+    raw = fix_whitespace(raw, ' ', True) 
+    return ''.join(c for c in raw if c.isprintable())
+
+def raw_to_norm(raw: str, /, *, already_sanitized: bool = False) -> str:
     if not already_sanitized:
-        s = sanitize(s)
+        raw = raw_to_real(raw)
 
-    s = s.lower()
+    raw = raw.lower()
 
-    return s
+    return raw
 
-def get_sanitized_and_normed(s: str, /) -> tuple[str, str]:
-    s = sanitize(s)
+def raw_to_real_and_norm(raw: str, /) -> tuple[str, str]:
+    raw = raw_to_real(raw)
 
-    return s, norm(s, already_sanitized=True)
+    return raw, raw_to_norm(raw, already_sanitized=True)
 
+def raws_to_unique_reals_and_norms(raws: Iterable[str], /) -> tuple[str[str], str[str]]:
+    resu
+def raw_to_real_and_validate(s: str, min_length: int, max_length: int) -> str:
+    name = raw_to_real(s)
+    length = len(name)
 
+    if not (min_length <= length <= max_length):
+        raise ValueError(s, length)
+    
+    return name
 
 
 

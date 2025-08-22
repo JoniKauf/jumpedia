@@ -57,7 +57,7 @@ def _require_task_with_syn(syn: str, list: List) -> Task:
     return task
 
 def _require_attribute_with_syn(syn: str, list: List) -> attributes.AnyAttributeT:
-    attribute = list.get_any_attribute_by_syn(syn)
+    attribute = list.get_any_attribute_by_norm_syn(syn)
 
     if attribute is None:
         raise feedbacks.temp(f"Attribute with name or alias `{syn}` not found!")
@@ -75,11 +75,11 @@ def _require_task_attribute_with_syn(syn: str, list: List) -> TaskAttribute:
 
 def _valnitize_task_syn(name: str) -> str:
     from utils import text
-    return text.valnitize(name, task.MAX_SYN_LEN, task.MAX_SYN_LEN)
+    return text.raw_to_real_and_validate(name, task.MAX_SYN_LEN, task.MAX_SYN_LEN)
 
 def _valnitize_attribute_syn(syn: str) -> str:
     from utils import text
-    return text.valnitize(syn, attributes.MIN_SYN_LEN, attributes.MAX_SYN_LEN)
+    return text.raw_to_real_and_validate(syn, attributes.MIN_SYN_LEN, attributes.MAX_SYN_LEN)
 
 
 ALIAS_PARSER: parsetools.SafeJsonParser[list[str]] = parsetools.SafeJsonParser(

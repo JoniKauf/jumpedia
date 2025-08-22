@@ -9,7 +9,7 @@ from structures import attributes, task
 from structures.attributes.slot_type import SlotType
 from structures.attributes.static_attribute import StaticAttribute
 from structures.base_structure import BaseStructure
-from structures.attributes import Uniqueness
+import structures.errors
 from structures.list import List
 from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
@@ -67,9 +67,12 @@ class Community(BaseStructure):
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.jumpedia.identity
     
-    def create_list(self, name: str) -> 'List':
+    def create_list(self, raw_name: str) -> 'List':
         with self.locked:
-            if self.get_list_by_name(name) is not None:
+            real_name, norm_name = text.raw_to_real_and_norm(raw_name)
+            del raw_name
+
+            if self.get_list_by_norm_name(norm_name) is not None:
                 raise feedbacks.temp("A list with that name already exists")
             
             if (count := len(self.get_lists())) >= Community.MAX_LISTS:
@@ -79,11 +82,13 @@ class Community(BaseStructure):
                 c.execute(lambda arg: t"""
                     INSERT INTO {ListTbl} (
                         {ListTbl.community_id},
-                        {ListTbl.name}
+                        {ListTbl.norm_name},
+                        {ListTbl.real_name}
                     ) 
                     VALUES (
                         {arg(self.id)},
-                        {arg(name)}
+                        {arg(norm_name)},
+                        {arg(real_name)}
                     )
                 """)
                 
@@ -92,7 +97,7 @@ class Community(BaseStructure):
                 list = List(
                     community=self,
                     id=list_id,
-                    name=name
+                    name=real_name
                 )
 
                 list.create_attribute(
@@ -101,7 +106,6 @@ class Community(BaseStructure):
                     frozenset(),
                     SlotType.get_by_type(str),
                     1,
-                    Uniqueness.PER_ATTRIBUTE,
                     min_slots=1
                 )
 
@@ -111,14 +115,12 @@ class Community(BaseStructure):
                     frozenset(),
                     SlotType.get_by_type(str),
                     1,
-                    Uniqueness.PER_ATTRIBUTE,
                     min_slots=attributes.MAX_SLOTS
                 )
 
             return list
             
-            
-    def delete_list(self, id: int) -> bool:
+    def delete_list(self, id: int) -> None:
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
                 DELETE FROM {ListTbl}
@@ -127,7 +129,8 @@ class Community(BaseStructure):
                     AND {ListTbl.id} = {arg(id)}
             """)
 
-            return c.affected_row_count > 0
+            if c.affected_row_count <= 0:
+                raise structures.errors.StructureNotFoundError
 
 
     def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
@@ -148,7 +151,7 @@ class Community(BaseStructure):
         return List(
             community=self,
             id=row.id,
-            name=row.name
+            name=row.real_name
         )
     
     def get_lists(self, where: Callable[[Arg], str] | None = None) -> list[List]:
@@ -161,8 +164,8 @@ class Community(BaseStructure):
         data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")
         return self._list_row_to_obj(data[0]) if data else None
     
-    def get_list_by_name(self, name: str) -> List | None:
-        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(name)}")
+    def get_list_by_norm_name(self, norm_name: str) -> List | None:
+        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.norm_name} = {arg(norm_name)}")
         return self._list_row_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
@@ -181,16 +184,14 @@ class Community(BaseStructure):
 
         return self.get_list_by_id(row.default_selected_list_id)
     
-    def set_default_selected_list(self, list_id: int | None) -> bool:
+    def set_default_selected_list(self, list_id: int | None) -> None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 UPDATE {CommunityTbl} 
                 SET {CommunityTbl.default_selected_list_id} = {arg(list_id)}
                 WHERE {CommunityTbl.id} = {arg(self.id)}
             """)
-            
-            return c.affected_row_count > 0 
-                
+
     def get_or_create_community_user(
         self, 
         jumpedia_user: JumpediaUser, 

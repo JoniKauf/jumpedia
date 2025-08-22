@@ -32,16 +32,6 @@ if TYPE_CHECKING:
 type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
 ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
 
-class Uniqueness(enum.IntEnum):
-    NONE = 0
-    PER_VALUE = 1
-    PER_ATTRIBUTE = 2
-
-    @classmethod
-    def get(cls, v: int) -> 'Uniqueness': 
-        return tuple(Uniqueness._member_map_.values())[v]  # type: ignore
-
-
 
 type RawCollectionNodesT = frozenset[RawCollectionNode]
 

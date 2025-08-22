@@ -13,7 +13,7 @@ from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures.base_structure import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, RawCollectionNodesT, Uniqueness, Uniqueness, BaseNonStaticAttribute
+from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionNodesT
 from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
@@ -80,7 +80,7 @@ class List(BaseStructure):
         return type(
             list=self,
             id=row.id,
-            name=row.name,
+            name=row.real_name,
             slot_type=SlotType.get_by_id(row.slot_type),
             position=row.position,
             min_slots=row.min_slots,
@@ -98,12 +98,12 @@ class List(BaseStructure):
         rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.id} = {arg(id)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
 
-    def get_attribute_by_name[T: BaseAttribute](self, type: type[T], name: str) -> T | None:
+    def get_attribute_by_norm_name[T: BaseAttribute](self, type: type[T], norm_name: str) -> T | None:
         table_type = type.tables.attribute
-        rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.name} = {arg(name)}")
+        rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.norm_name} = {arg(norm_name)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
     
-    def get_attribute_by_alias[T: BaseAttribute](self, type: type[T], alias: str) -> T | None:
+    def get_attribute_by_norm_alias[T: BaseAttribute](self, type: type[T], norm_alias: str) -> T | None:
         alias_table_type = type.tables.attribute_alias
 
         with queries.connected() as c:
@@ -112,7 +112,7 @@ class List(BaseStructure):
                 FROM {alias_table_type}
                 WHERE 
                     {alias_table_type.list_id} = {arg(self.id)}
-                    AND {alias_table_type.alias} = {arg(alias)}
+                    AND {alias_table_type.norm_alias} = {arg(norm_alias)}
             """)
 
             row = c.fetchone(alias_table_type)
@@ -122,10 +122,10 @@ class List(BaseStructure):
         
         return self.get_attribute_by_id(type, row.attribute_id)
     
-    def get_attribute_by_syn[T: BaseAttribute](self, type: type[T], syn: str) -> T | None:
+    def get_attribute_by_norm_syn[T: BaseAttribute](self, type: type[T], norm_syn: str) -> T | None:
         return (
-            self.get_attribute_by_name(type, syn)
-            or self.get_attribute_by_alias(type, syn)
+            self.get_attribute_by_norm_name(type, norm_syn)
+            or self.get_attribute_by_norm_alias(type, norm_syn)
         )
 
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
@@ -149,23 +149,23 @@ class List(BaseStructure):
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_name(self, name: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_norm_name(self, norm_name: str) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_name(type, name)
+            attr = self.get_attribute_by_norm_name(type, norm_name)
             
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_alias(self, alias: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_norm_alias(self, norm_alias: str) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_alias(type, alias)
+            attr = self.get_attribute_by_norm_alias(type, norm_alias)
             
             if attr is not None:
                 return attr
 
-    def get_any_attribute_by_syn(self, syn: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_norm_syn(self, norm_syn: str) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_syn(type, syn)
+            attr = self.get_attribute_by_norm_syn(type, norm_syn)
             
             if attr is not None:
                 return attr
@@ -174,11 +174,10 @@ class List(BaseStructure):
     def create_attribute[T: StaticAttribute, TSlot: SlotTypeT](
         self, 
         type: type[T],
-        name: str,
-        aliases: frozenset[str],
+        raw_name: str,
+        raw_aliases: frozenset[str],
         value_type: SlotType[TSlot],
         max_slots: int,
-        uniqueness: Uniqueness,
         *,
         min_slots: int
     ) -> T:
@@ -188,11 +187,10 @@ class List(BaseStructure):
     def create_attribute[T: BaseNonStaticAttribute, TSlot: SlotTypeT](
         self, 
         type: type[T],
-        name: str,
-        aliases: frozenset[str],
+        raw_name: str,
+        raw_aliases: frozenset[str],
         value_type: SlotType[TSlot],
         max_slots: int,
-        uniqueness: Uniqueness,
         *,
         top_raw_nodes: RawCollectionNodesT
     ) -> T:
@@ -201,26 +199,30 @@ class List(BaseStructure):
     def create_attribute[T: BaseAttribute, TSlot: SlotTypeT](
         self, 
         type: type[T],
-        name: str,
-        aliases: frozenset[str],
+        raw_name: str,
+        raw_aliases: frozenset[str],
         value_type: SlotType[TSlot],
         max_slots: int,
-        uniqueness: Uniqueness,
         *,
         min_slots: int = 0,
         top_raw_nodes: RawCollectionNodesT = frozenset()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
+        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
+        real_aliases, norm_aliases = zip(*map(text.raw_to_real_and_norm, raw_aliases))
+
+        del raw_name
+
         with self.locked:
             attrs = self.get_all_attributes_flat()
 
             if len(attrs) >= list_package.MAX_ATTRIBUTES:
                 raise feedbacks.temp("Max attributes reached")
             
-            for syn in (name, *aliases):
+            for syn in (norm_name, *raw_aliases):
                 if len(syn) > attributes.MAX_SYN_LEN:
                     raise feedbacks.temp("Max syn length exceeded")
                 
-                if self.get_any_attribute_by_syn(syn) is not None:
+                if self.get_any_attribute_by_norm_syn(syn) is not None:
                     raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
 
             if not (1 <= max_slots <= attributes.MAX_SLOTS):
@@ -241,7 +243,8 @@ class List(BaseStructure):
                 c.execute(lambda arg: t"""
                     INSERT INTO {AttributeTbl} (
                         {AttributeTbl.list_id},
-                        {AttributeTbl.name},
+                        {AttributeTbl.norm_name},
+                        {AttributeTbl.real_name},
                         {AttributeTbl.slot_type},
                         {AttributeTbl.position},
                         {AttributeTbl.min_slots},
@@ -249,7 +252,7 @@ class List(BaseStructure):
                     )
                     VALUES (
                         {arg(self.id)},
-                        {arg(name)},
+                        {arg(raw_name)},
                         {arg(value_type.id)},
                         {arg(index)},
                         {arg(min_slots)},
@@ -260,9 +263,9 @@ class List(BaseStructure):
 
                 attribute_id = c.last_generated_id
 
-                if aliases:
+                if raw_aliases:
                     AttributeAliasTbl = type.tables.attribute_alias
-                    count = len(aliases)
+                    count = len(raw_aliases)
 
                     c.executemany(lambda args: t"""
                         INSERT INTO {AttributeAliasTbl} (
@@ -273,14 +276,14 @@ class List(BaseStructure):
                         VALUES (
                             {args(itertools.repeat(attribute_id, count))},
                             {args(itertools.repeat(self.id, count))},
-                            {args(aliases)} 
+                            {args(raw_aliases)} 
                         )
                     """)
 
                 attribute = type(
                     list=self,
                     id=attribute_id,
-                    name=name,
+                    name=raw_name,
                     slot_type=value_type,
                     position=index,
                     min_slots=min_slots,
@@ -350,7 +353,7 @@ class List(BaseStructure):
                 raise feedbacks.temp("Task limit reached")
 
             for syn in (name, *aliases):
-                syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
+                syn = text.raw_to_real_and_validate(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
 
                 if self.get_task_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Task with name or alias {syn} already exists")
@@ -459,7 +462,7 @@ class List(BaseStructure):
                 syns.extend(aliases)
 
             for syn in syns:
-                syn = text.valnitize(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
+                syn = text.raw_to_real_and_validate(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
 
                 found = self.get_task_by_syn(syn)
 

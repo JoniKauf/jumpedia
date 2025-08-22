@@ -18,7 +18,7 @@ from structures.user.jumpedia_user import JumpediaUser
 
 
 def _require_list_with_name(name: str, community: Community) -> List:
-    list = community.get_list_by_name(name)
+    list = community.get_list_by_norm_name(name)
 
     if list is None:
         raise feedbacks.temp(f"List with the name `{name}` could not be found!")
@@ -28,7 +28,7 @@ def _require_list_with_name(name: str, community: Community) -> List:
 def _valnitize_list_name(name: str) -> str:
     from utils import text
 
-    return text.valnitize(
+    return text.raw_to_real_and_validate(
         name, 
         list_.MIN_NAME_LENGTH, 
         list_.MAX_NAME_LENGTH

@@ -31,7 +31,7 @@ def _require_community_with_name(name: str, jumpedia: Jumpedia) -> Community:
 def _valnitize_community_name(name: str) -> str:
     from utils import text
 
-    return text.valnitize(
+    return text.raw_to_real_and_validate(
         name, 
         community.MIN_NAME_LENGTH, 
         community.MAX_NAME_LENGTH
