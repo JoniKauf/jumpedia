@@ -666,7 +666,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
 
                 raise FeedbackError(
                     "Server Already Connected To A Community",
-                    f"This server is already connected to a different community called {msg.code(existing_community.name)}!",
+                    f"This server is already connected to a different community called `{existing_community.name}`!",
                     additional="A server can only be connected to one community at a time.",
                     paragraphs=[
                         f"If you want to change the community for this server, see the commands "

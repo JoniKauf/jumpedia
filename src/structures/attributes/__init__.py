@@ -240,7 +240,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
             c.execute(lambda arg: t"""
                 SELECT 
-                    {TblNodeAlias.alias}
+                    {TblNodeAlias.real_alias}
                 FROM
                     {TblNodeAlias}
                 WHERE
@@ -269,13 +269,13 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
         for alias_row in aliases_result:
             row = row_id_to_row[alias_row.attribute_collection_node_id]
-            row_id_to_aliases[row.id].append(self.slot_type.from_clean_str(alias_row.alias))
+            row_id_to_aliases[row.id].append(self.slot_type.from_clean_str(alias_row.real_alias))
 
         normed_to_node: dict[T, CollectionNode[T]] = {}
 
         def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseAttributeCollectionNode) -> CollectionNode[T]:
             node = CollectionNode(
-                slot=self.slot_type.from_clean_str(row.slot),
+                slot=self.slot_type.from_clean_str(row.real_slot),
                 aliases=frozenset(row_id_to_aliases[row.id]),
                 sort_value=row.sort_value,
                 children=frozenset(),
@@ -283,7 +283,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             )
 
             normed_to_node.update({
-                self.slot_type.norm(syn): node
+                syn: node
                 for syn in 
                 (node.slot, *node.aliases)
             })
@@ -391,18 +391,22 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             def recursively_insert_children(parent_id: int | None, nodes: CollectionNodesT[T]) -> None:
                 if not nodes:
                     return
-                
+
                 for node in nodes:
+                    slot = self.slot_type.to_str(node.slot)
+
                     c.execute(lambda arg: t"""
                         INSERT INTO {TblNodes} (
                             {TblNodes.attribute_id},
-                            {TblNodes.slot},
+                            {TblNodes.norm_slot},
+                            {TblNodes.real_slot},
                             {TblNodes.sort_value},
                             {TblNodes.parent_id}
                         ) 
                         VALUES (
                             {arg(self.id)},
-                            {arg(self.slot_type.to_str(node.slot))},
+                            {arg(text.real_to_norm(slot))},
+                            {arg(slot)},
                             {arg(node.sort_value)},
                             {arg(parent_id)}
                         )
@@ -412,17 +416,20 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
                     if node.aliases:
                         count = len(node.aliases)
+                        aliases = tuple(map(self.slot_type.to_str, node.aliases))
 
                         c.executemany(lambda args: t"""
                             INSERT INTO {TblAliases} (
                                 {TblAliases.attribute_id},
                                 {TblAliases.attribute_collection_node_id},
-                                {TblAliases.alias}
+                                {TblAliases.norm_alias}
+                                {TblAliases.real_alias},
                             )
                             VALUES (
                                 {args(itertools.repeat(self.id, count))},
                                 {args(itertools.repeat(node_id, count))},
-                                {args(map(self.slot_type.to_str, node.aliases))}
+                                {args(tuple(map(text.real_to_norm, aliases)))}
+                                {args(aliases)}
                             )    
                         """)
 

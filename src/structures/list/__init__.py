@@ -176,7 +176,7 @@ class List(BaseStructure):
         type: type[T],
         raw_name: str,
         raw_aliases: frozenset[str],
-        value_type: SlotType[TSlot],
+        slot_type: SlotType[TSlot],
         max_slots: int,
         *,
         min_slots: int
@@ -189,7 +189,7 @@ class List(BaseStructure):
         type: type[T],
         raw_name: str,
         raw_aliases: frozenset[str],
-        value_type: SlotType[TSlot],
+        slot_type: SlotType[TSlot],
         max_slots: int,
         *,
         top_raw_nodes: RawCollectionNodesT
@@ -201,15 +201,13 @@ class List(BaseStructure):
         type: type[T],
         raw_name: str,
         raw_aliases: frozenset[str],
-        value_type: SlotType[TSlot],
+        slot_type: SlotType[TSlot],
         max_slots: int,
         *,
         min_slots: int = 0,
         top_raw_nodes: RawCollectionNodesT = frozenset()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
-        syns = text.raws_to_unique_reals_and_norms(*(raw_name, *raw_aliases))
-        real_name, norm_name = syns[0]
-        aliases = syns[1:]
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(*(raw_name, *raw_aliases))
 
         del raw_name
         del raw_aliases
@@ -220,7 +218,7 @@ class List(BaseStructure):
             if len(attrs) >= list_package.MAX_ATTRIBUTES:
                 raise feedbacks.temp("Max attributes reached")
             
-            for syn in (norm_name, *tuple(zip(*aliases))[0]):
+            for syn in (norm_name, *norm_aliases):
                 if len(syn) > attributes.MAX_SYN_LEN:
                     raise feedbacks.temp("Max syn length exceeded")
                 
@@ -254,39 +252,41 @@ class List(BaseStructure):
                     )
                     VALUES (
                         {arg(self.id)},
-                        {arg(raw_name)},
-                        {arg(value_type.id)},
+                        {arg(norm_name)},
+                        {arg(real_name)},
+                        {arg(slot_type.id)},
                         {arg(index)},
                         {arg(min_slots)},
-                        {arg(max_slots)},
-                        {arg(uniqueness.value)},
+                        {arg(max_slots)}
                     )
                 """)
 
                 attribute_id = c.last_generated_id
 
-                if raw_aliases:
+                if norm_aliases:
                     AttributeAliasTbl = type.tables.attribute_alias
-                    count = len(raw_aliases)
+                    count = len(norm_aliases)
 
                     c.executemany(lambda args: t"""
                         INSERT INTO {AttributeAliasTbl} (
                             {AttributeAliasTbl.attribute_id},
                             {AttributeAliasTbl.list_id},
-                            {AttributeAliasTbl.alias}
+                            {AttributeAliasTbl.norm_alias},
+                            {AttributeAliasTbl.real_alias}
                         ) 
                         VALUES (
                             {args(itertools.repeat(attribute_id, count))},
                             {args(itertools.repeat(self.id, count))},
-                            {args(raw_aliases)} 
+                            {args(norm_aliases)},
+                            {args(real_aliases)} 
                         )
                     """)
 
                 attribute = type(
                     list=self,
                     id=attribute_id,
-                    name=raw_name,
-                    slot_type=value_type,
+                    name=real_name,
+                    slot_type=slot_type,
                     position=index,
                     min_slots=min_slots,
                     max_slots=max_slots
@@ -311,8 +311,6 @@ class List(BaseStructure):
             """)
 
             return c.affected_row_count > 0
-
-    # --- Tasks ---
 
     def _cook_raw_attribute_value_mapping(
         self, 
@@ -342,54 +340,58 @@ class List(BaseStructure):
 
         return attribute_value_mapping
     
+    # --- Tasks ---
+
     def create_task(
         self, 
-        name: str, 
-        aliases: frozenset[str], 
+        raw_name: str, 
+        raw_aliases: frozenset[str], 
         raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> Task:
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms((raw_name, *raw_aliases))
+        
+        del raw_name
+        del raw_aliases
+
         with self.locked:
             all_tasks = self.get_tasks()
 
             if len(all_tasks) >= list_package.MAX_TASKS:
                 raise feedbacks.temp("Task limit reached")
 
-            for syn in (name, *aliases):
-                syn = text.raw_to_real_and_validate(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
-
-                if self.get_task_by_syn(syn) is not None:
-                    raise feedbacks.temp(f"Task with name or alias {syn} already exists")
-            
             attribute_value_mapping = self._cook_raw_attribute_value_mapping(raw_attribute_value_mapping)
                 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
                     INSERT INTO {typed.Task} (
                         {typed.Task.list_id},
-                        {typed.Task.name}
+                        {typed.Task.norm_name},
+                        {typed.Task.real_name}
                     )
                     VALUES (
                         {arg(self.id)},
-                        {arg(name)}
+                        {arg(norm_name)},
+                        {arg(real_name)}
                     )
                 """)
 
                 task_id = c.last_generated_id 
                 
-                # TODO: Handle error with case insensitive, equal aliases (probably) causing exception.
-                if aliases:
-                    count = len(aliases)
+                if norm_aliases:
+                    count = len(norm_aliases)
 
                     c.executemany(lambda args: t"""
                         INSERT INTO {typed.TaskAlias} (
                             {typed.TaskAlias.task_id},
                             {typed.TaskAlias.list_id},
-                            {typed.TaskAlias.alias}
+                            {typed.TaskAlias.norm_alias},
+                            {typed.TaskAlias.real_alias},
                         ) 
                         VALUES (
                             {args(itertools.repeat(task_id, count))}, 
                             {args(itertools.repeat(self.id, count))}, 
-                            {args(aliases)}
+                            {args(norm_aliases)},
+                            {args(real_aliases)}
                         )
                     """)
 
@@ -425,7 +427,7 @@ class List(BaseStructure):
             return Task(
                 list=self,
                 id=task_id,
-                name=name
+                name=real_name
             )
         
     def delete_task(self, id: int) -> bool:
@@ -438,41 +440,40 @@ class List(BaseStructure):
             """)
 
             return c.affected_row_count > 0
+    
+    def _validate_task_syn(self, id: int, syn: str) -> Task:
+        task_ = self.get_task_by_id(id)
+
+        if task_ is None:
+            raise StructureNotFoundError(id)
         
+        if self.get_task_by_syn(syn) != task_:
+            return 
     def edit_task(
         self, 
         id: int, 
-        name: str | None = None, 
-        aliases: frozenset[str] | None = None, 
+        raw_name: str | None = None, 
+        raw_aliases: frozenset[str] | None = None, 
         raw_attribute_value_mapping: dict[int, str] | None = None
     ) -> None:
         with self.locked:
-            task_ = self.get_task_by_id(id)
-
-            if task_ is None:
-                raise StructureNotFoundError(id)
             
-            if name is None and aliases is None and raw_attribute_value_mapping is None:
+
+            
+            
+            if raw_name is None and raw_aliases is None and raw_attribute_value_mapping is None:
                 return
             
-            syns = []
+            syns: list[str] = []
 
-            if name:
-                syns.append(name)
+            if raw_name:
+                syns.append(raw_name)
 
-            if aliases:
-                syns.extend(aliases)
+            if raw_aliases:
+                syns.extend(raw_aliases)
 
-            for syn in syns:
-                syn = text.raw_to_real_and_validate(syn, task.MIN_SYN_LEN, task.MAX_SYN_LEN)
+            (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(syns)
 
-                found = self.get_task_by_syn(syn)
-
-                if found is not None and found != task_:
-                    raise feedbacks.temp(f"Task with name or alias {syn} already exists")
-                
-            # TODO: Handle error with case insensitive, equal aliases (probably) causing exception.
-                
             
             
             
@@ -496,7 +497,7 @@ class List(BaseStructure):
         return Task(
             list=self,
             id=row.id,
-            name=row.name
+            name=row.real_name
         )
     
     def get_tasks(self, where: Callable[[Arg], str] | None = None) -> set[Task]:
