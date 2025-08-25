@@ -207,10 +207,12 @@ class List(BaseStructure):
         min_slots: int = 0,
         top_raw_nodes: RawCollectionNodesT = frozenset()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
-        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-        real_aliases, norm_aliases = zip(*map(text.raw_to_real_and_norm, raw_aliases))
+        syns = text.raws_to_unique_reals_and_norms(*(raw_name, *raw_aliases))
+        real_name, norm_name = syns[0]
+        aliases = syns[1:]
 
         del raw_name
+        del raw_aliases
 
         with self.locked:
             attrs = self.get_all_attributes_flat()
@@ -218,7 +220,7 @@ class List(BaseStructure):
             if len(attrs) >= list_package.MAX_ATTRIBUTES:
                 raise feedbacks.temp("Max attributes reached")
             
-            for syn in (norm_name, *raw_aliases):
+            for syn in (norm_name, *tuple(zip(*aliases))[0]):
                 if len(syn) > attributes.MAX_SYN_LEN:
                     raise feedbacks.temp("Max syn length exceeded")
                 

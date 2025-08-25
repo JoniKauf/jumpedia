@@ -72,8 +72,20 @@ def raw_to_real_and_norm(raw: str, /) -> tuple[str, str]:
 
     return raw, raw_to_norm(raw, already_sanitized=True)
 
-def raws_to_unique_reals_and_norms(raws: Iterable[str], /) -> tuple[str[str], str[str]]:
-    resu
+def raws_to_unique_reals_and_norms(raws: Iterable[str], /, *, strict: bool = False) -> tuple[tuple[str, str], ...]:
+    norm_to_real: dict[str, str] = {}
+
+    for raw in raws:
+        real, norm = raw_to_real_and_norm(raw)
+
+        if norm in norm_to_real:
+            if strict and norm_to_real[norm] != real:
+                raise ValueError("normed equal strings are not equal when real")
+        else:
+            norm_to_real[norm] = real
+
+    return tuple(norm_to_real.items())
+
 def raw_to_real_and_validate(s: str, min_length: int, max_length: int) -> str:
     name = raw_to_real(s)
     length = len(name)
