@@ -85,27 +85,25 @@ class BaseAttributeAlias(BaseModel, table_name=None):
     def real_alias(self): pass
 
 
-class BaseAttributeCollectionNode(BaseModel, table_name=None):
+class BaseAttributeCollectionEntry(BaseModel, table_name=None):
     @column(int)
     def id(self): pass
-    @column((int, NoneType))
-    def parent_id(self): pass
     @column(int)
     def attribute_id(self): pass
+    @column(int)
+    def index(self): pass
     @column(str)
     def norm_slot(self): pass
     @column(str)
     def real_slot(self): pass
-    @column(int)
-    def sort_value(self): pass
 
-class BaseAttributeCollectionNodeAlias(BaseModel, table_name=None):
+class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
     @column(int)
     def id(self): pass
     @column(int)
-    def attribute_id(self): pass
+    def attribute_collection_entry_id(self): pass
     @column(int)
-    def attribute_collection_node_id(self): pass
+    def attribute_id(self): pass
     @column(str)
     def norm_alias(self): pass
     @column(str)
@@ -138,10 +136,10 @@ class TaskAttribute(BaseAttribute, table_name=SNAKE):
 class TaskAttributeAlias(BaseAttributeAlias, table_name=SNAKE):
     pass
 
-class TaskAttributeCollectionNode(BaseAttributeCollectionNode, table_name=SNAKE):
+class TaskAttributeCollectionSlot(BaseAttributeCollectionEntry, table_name=SNAKE):
     pass
 
-class TaskAttributeCollectionNodeAlias(BaseAttributeCollectionNodeAlias, table_name=SNAKE):
+class TaskAttributeCollectionSlotAlias(BaseAttributeCollectionEntryAlias, table_name=SNAKE):
     pass
 
 
@@ -153,10 +151,10 @@ class UserAttribute(BaseAttribute, table_name=SNAKE):
 class UserAttributeAlias(BaseAttributeAlias, table_name=SNAKE):
     pass
 
-class UserAttributeCollectionNode(BaseAttributeCollectionNode, table_name=SNAKE):
+class UserAttributeCollectionSlot(BaseAttributeCollectionEntry, table_name=SNAKE):
     pass
 
-class UserAttributeCollectionNodeAlias(BaseAttributeCollectionNodeAlias, table_name=SNAKE):
+class UserAttributeCollectionSlotAlias(BaseAttributeCollectionEntryAlias, table_name=SNAKE):
     pass
 
 

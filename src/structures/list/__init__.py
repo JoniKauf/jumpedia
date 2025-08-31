@@ -1,32 +1,23 @@
-from collections import defaultdict
-from contextlib import nullcontext
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from functools import cached_property
+from dataclasses import dataclass
 import itertools
-import json
-from multiprocessing.util import Finalize
-from typing import TYPE_CHECKING, AbstractSet, Any, Callable, ClassVar, Final, Iterable, Literal, Mapping, Never, NotRequired, Self, TypedDict, overload
+from typing import TYPE_CHECKING, Callable, ClassVar, Final, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures.attributes.slot_type import SlotType, SlotTypeT
-from structures.base_structure import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionNodesT
-from structures.attributes.collection import Collection, CollectionNode, CollectionNodesT
+from structures import BaseStructure
+from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
 from structures.errors import StructureNotFoundError
-from structures.list import UserCollectionNodeT, UserCollectionNodesT
 from structures.task import Task
-from utils import metautils, parsetools, text
-from structures import attributes, task
+from utils import text
+from structures import attributes
 from database import typed
 import structures.list as list_package
 
-import pickle
 
 if TYPE_CHECKING:
     from structures.community import Community
@@ -192,7 +183,7 @@ class List(BaseStructure):
         slot_type: SlotType[TSlot],
         max_slots: int,
         *,
-        top_raw_nodes: RawCollectionNodesT
+        raw_collection: RawCollectionT[T]
     ) -> T:
         pass
 
@@ -205,7 +196,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int = 0,
-        top_raw_nodes: RawCollectionNodesT = frozenset()
+        raw_collection: RawCollectionT[T] = []
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(*(raw_name, *raw_aliases))
 
@@ -292,11 +283,11 @@ class List(BaseStructure):
                     max_slots=max_slots
                 )
 
-                if top_raw_nodes:
+                if raw_collection:
                     if not isinstance(attribute, BaseNonStaticAttribute):
                         raise feedbacks.temp("Not CollectionAttribute")
                     
-                    attribute.set_collection(top_raw_nodes)
+                    attribute.set_collection(raw_collection)
                     
                 return attribute
 

@@ -1,6 +1,6 @@
 
 import time
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Callable
 
 from database.simple_orm import Arg, BaseModel, Rows, column
 from errors.feedback import FeedbackError, feedbacks
@@ -9,13 +9,12 @@ from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure, attributes, task, user
 from structures import community
 from structures.attributes import slot_type
-from structures.attributes.slot_type import STR_MAX_LEN
 from structures.community import Community
 from structures.user import JumpediaUser
-from utils import functools2, metautils, text
+from utils import functools2, text
 from database import queries, typed
 from dataclasses import dataclass, field
-from discordtools import messaging as msg, users
+from discordtools import messaging as msg
 from structures import list as list_
 import structures.errors
 
@@ -217,47 +216,46 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
 
                 c.execute(lambda _: t"""
-                    CREATE TABLE {typed.TaskAttributeCollectionNode} (
-                        {typed.TaskAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.TaskAttributeCollectionNode.parent_id} INT,
-                        {typed.TaskAttributeCollectionNode.attribute_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNode.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.TaskAttributeCollectionNode.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.TaskAttributeCollectionNode.sort_value} INT NOT NULL,
+                    CREATE TABLE {typed.TaskAttributeCollectionSlot} (
+                        {typed.TaskAttributeCollectionSlot.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {typed.TaskAttributeCollectionSlot.attribute_id} INT NOT NULL,
+                        {typed.TaskAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
+                        {typed.TaskAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeCollectionSlot.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({typed.TaskAttributeCollectionNode.parent_id})
-                            REFERENCES {typed.TaskAttributeCollectionNode}({typed.TaskAttributeCollectionNode.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.TaskAttributeCollectionNode.attribute_id})
+                        FOREIGN KEY ({typed.TaskAttributeCollectionSlot.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
                             ON DELETE CASCADE,
 
                         UNIQUE (
-                            {typed.TaskAttributeCollectionNode.attribute_id},
-                            {typed.TaskAttributeCollectionNode.parent_id},
-                            {typed.TaskAttributeCollectionNode.norm_slot}
+                            {typed.TaskAttributeCollectionSlot.attribute_id},
+                            {typed.TaskAttributeCollectionSlot.norm_slot},
+                        ),
+                        UNIQUE (
+                            {typed.TaskAttributeCollectionSlot.attribute_id},
+                            {typed.TaskAttributeCollectionSlot.index}
                         )
                     )
                 """)
 
                 c.execute(lambda _: t"""
-                    CREATE TABLE {typed.TaskAttributeCollectionNodeAlias} (
-                        {typed.TaskAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.TaskAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
-                        {typed.TaskAttributeCollectionNodeAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.TaskAttributeCollectionNodeAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    CREATE TABLE {typed.TaskAttributeCollectionSlotAlias} (
+                        {typed.TaskAttributeCollectionSlotAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {typed.TaskAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
+                        {typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
+                        {typed.TaskAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeCollectionSlotAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({typed.TaskAttributeCollectionNodeAlias.attribute_collection_node_id})
-                            REFERENCES {typed.TaskAttributeCollectionNode}({typed.TaskAttributeCollectionNode.id})
+                        FOREIGN KEY ({typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id})
+                            REFERENCES {typed.TaskAttributeCollectionSlot}({typed.TaskAttributeCollectionSlot.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.TaskAttributeCollectionNodeAlias.attribute_id})
+                        FOREIGN KEY ({typed.TaskAttributeCollectionSlotAlias.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
                             ON DELETE CASCADE,
 
                         UNIQUE (
-                            {typed.TaskAttributeCollectionNodeAlias.attribute_id},
-                            {typed.TaskAttributeCollectionNodeAlias.norm_alias}
+                            {typed.TaskAttributeCollectionSlotAlias.attribute_id},
+                            {typed.TaskAttributeCollectionSlotAlias.norm_alias}
                         )
                     )
                 """)
@@ -303,46 +301,46 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 """)
 
                 c.execute(lambda _: t"""
-                    CREATE TABLE {typed.UserAttributeCollectionNode} (
-                        {typed.UserAttributeCollectionNode.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.UserAttributeCollectionNode.attribute_id} INT NOT NULL,
-                        {typed.UserAttributeCollectionNode.parent_id} INT,
-                        {typed.UserAttributeCollectionNode.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,,
-                        {typed.UserAttributeCollectionNode.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.UserAttributeCollectionNode.sort_value} INT NOT NULL,
+                    CREATE TABLE {typed.UserAttributeCollectionSlot} (
+                        {typed.UserAttributeCollectionSlot.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {typed.UserAttributeCollectionSlot.attribute_id} INT NOT NULL,
+                        {typed.UserAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
+                        {typed.UserAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeCollectionSlot.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({typed.UserAttributeCollectionNode.parent_id})
-                            REFERENCES {typed.UserAttributeCollectionNode}({typed.UserAttributeCollectionNode.id})
-                            ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeCollectionNode.attribute_id})
-                            REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
+                        FOREIGN KEY ({typed.UserAttributeCollectionSlot.attribute_id})
+                            REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
                             ON DELETE CASCADE,
 
                         UNIQUE (
-                            {typed.UserAttributeCollectionNode.attribute_id},
-                            {typed.UserAttributeCollectionNode.norm_slot}
+                            {typed.UserAttributeCollectionSlot.attribute_id},
+                            {typed.UserAttributeCollectionSlot.norm_slot},
+                        ),
+                        UNIQUE (
+                            {typed.UserAttributeCollectionSlot.attribute_id},
+                            {typed.UserAttributeCollectionSlot.index}
                         )
                     )
                 """)
 
                 c.execute(lambda _: t"""
-                    CREATE TABLE {typed.UserAttributeCollectionNodeAlias} (
-                        {typed.UserAttributeCollectionNodeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.UserAttributeCollectionNodeAlias.attribute_id} INT NOT NULL,
-                        {typed.UserAttributeCollectionNodeAlias.attribute_collection_node_id} INT NOT NULL,
-                        {typed.UserAttributeCollectionNodeAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.UserAttributeCollectionNodeAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    CREATE TABLE {typed.UserAttributeCollectionSlotAlias} (
+                        {typed.UserAttributeCollectionSlotAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
+                        {typed.UserAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
+                        {typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
+                        {typed.UserAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeCollectionSlotAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
-                        FOREIGN KEY ({typed.UserAttributeCollectionNodeAlias.attribute_collection_node_id})
-                            REFERENCES {typed.UserAttributeCollectionNode}({typed.UserAttributeCollectionNode.id})
+                        FOREIGN KEY ({typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id})
+                            REFERENCES {typed.UserAttributeCollectionSlot}({typed.UserAttributeCollectionSlot.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.UserAttributeCollectionNodeAlias.attribute_id})
+                        FOREIGN KEY ({typed.UserAttributeCollectionSlotAlias.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
                             ON DELETE CASCADE,
 
                         UNIQUE (
-                            {typed.UserAttributeCollectionNodeAlias.attribute_id},
-                            {typed.UserAttributeCollectionNodeAlias.norm_alias}
+                            {typed.UserAttributeCollectionSlotAlias.attribute_id},
+                            {typed.UserAttributeCollectionSlotAlias.norm_alias}
                         )
                     )
                 """)

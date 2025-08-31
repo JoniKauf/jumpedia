@@ -1,0 +1,7 @@
+# High Priority
+
+
+
+
+# Medium
+- Add custom data for CollectionEntry that can be used in filtering

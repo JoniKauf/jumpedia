@@ -6,7 +6,7 @@ from database import typed
 from database import queries
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 from structures.community import Community
 from structures.list import List
 from structures.user.jumpedia_user import JumpediaUser

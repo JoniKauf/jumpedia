@@ -14,7 +14,7 @@ from utils import parsetools, text
 
 type SlotTypeT = (
     bool | int | Decimal | 
-    dt.time | dt.date | dt.datetime | dt.timedelta | 
+    # dt.time | dt.date | dt.datetime | dt.timedelta | 
     str
 )
 
@@ -52,7 +52,7 @@ def is_valid_str(v: object) -> bool:
 @dataclass
 class SlotType[T: SlotTypeT]:
     id: int
-    name: str
+    display_name: str
     type: type[T]
 
     @property
@@ -68,15 +68,15 @@ class SlotType[T: SlotTypeT]:
         cls.BOOL = SlotType(1, 'boolean (true/false)', bool)
         cls.INT = SlotType(2, 'integer', int)
         cls.DECIMAL = SlotType(3, 'decimal', Decimal)
-        cls.TIME = SlotType(4, 'time', dt.time)
-        cls.DATE = SlotType(5, 'date', dt.date)
-        cls.DATETIME = SlotType(6, 'date and time', dt.datetime)
-        cls.TIMEDELTA = SlotType(7, 'timespan', dt.timedelta)
+        # cls.TIME = SlotType(4, 'time', dt.time)
+        # cls.DATE = SlotType(5, 'date', dt.date)
+        # cls.DATETIME = SlotType(6, 'date and time', dt.datetime)
+        # cls.TIMEDELTA = SlotType(7, 'timespan', dt.timedelta)
         cls.STRING = SlotType(8, 'text', str)
 
     def __post_init__(self):
         for elem in SlotType._slot_types:
-            if self.name == elem.name or self.id == elem.id or self.type == elem.type:
+            if self.display_name == elem.display_name or self.id == elem.id or self.type == elem.type:
                 raise AssertionError()
             
         SlotType._slot_types.append(self)
@@ -84,13 +84,13 @@ class SlotType[T: SlotTypeT]:
         SlotType._slot_type_type_lookup[self.type.__qualname__] = self
 
     def __hash__(self):
-        return hash((self.id, self.name))
+        return hash((self.id, self.display_name))
     
     def __str__(self) -> str:
-        return self.name
+        return self.display_name
     
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(id={self.id!r}, name={self.name!r}, type={self.type!r}, literal_to_str_possible={self.literal_to_str_possible!r})'
+        return f'{self.__class__.__name__}(id={self.id!r}, name={self.display_name!r}, type={self.type!r}, literal_to_str_possible={self.literal_to_str_possible!r})'
     
     @classmethod
     def get_by_id(cls, id: int) -> Self:
@@ -149,33 +149,33 @@ class SlotType[T: SlotTypeT]:
             
             return n  # type: ignore
             
-        elif issubclass(self.type, (dt.time, dt.date, dt.datetime)):
-            # If a date is in the type
-            s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, '-', s)
+        # elif issubclass(self.type, (dt.time, dt.date, dt.datetime)):
+        #     # If a date is in the type
+        #     s = re.sub(_DATE_ALTERNATIVE_DELIMITERS_PATTERN, '-', s)
             
-            try:
-                dt.date.fromisoformat
-                timed = self.type.fromisoformat(s)
-            except Exception:
-                raise feedbacks.temp("Invalid format for time/date/datetime")
+        #     try:
+        #         dt.date.fromisoformat
+        #         timed = self.type.fromisoformat(s)
+        #     except Exception:
+        #         raise feedbacks.temp("Invalid format for time/date/datetime")
                 
-            if not isinstance(timed, (dt.time, dt.datetime)):
-                return timed
+        #     if not isinstance(timed, (dt.time, dt.datetime)):
+        #         return timed
                 
-            if timed.tzinfo is None:
-                timed = timed.replace(tzinfo=dt.timezone.utc)
+        #     if timed.tzinfo is None:
+        #         timed = timed.replace(tzinfo=dt.timezone.utc)
             
-            if isinstance(timed, dt.time):
-                datetime = dt.datetime.combine(dt.date.today(), timed, timed.tzinfo)
-                return datetime.astimezone(dt.timezone.utc).time()  # type: ignore
+        #     if isinstance(timed, dt.time):
+        #         datetime = dt.datetime.combine(dt.date.today(), timed, timed.tzinfo)
+        #         return datetime.astimezone(dt.timezone.utc).time()  # type: ignore
             
-            return timed.astimezone(dt.timezone.utc)
+        #     return timed.astimezone(dt.timezone.utc)
 
-        if issubclass(self.type, dt.timedelta):
-            try:
-                return parsetools.parse_timedelta(s)  # type: ignore
-            except ValueError:
-                raise feedbacks.temp("Invalid timedelta format")
+        # if issubclass(self.type, dt.timedelta):
+        #     try:
+        #         return parsetools.parse_timedelta(s)  # type: ignore
+        #     except ValueError:
+        #         raise feedbacks.temp("Invalid timedelta format")
 
         if issubclass(self.type, str):
             if not is_valid_str(s):
@@ -225,28 +225,28 @@ class SlotType[T: SlotTypeT]:
         if isinstance(o, (int, Decimal)):
             return (o * sign,)
 
-        if isinstance(o, (dt.time, dt.datetime)):
-            result = (
-                o.microsecond +
-                o.second *   1_000_000 +
-                o.minute *  60_000_000 +
-                o.hour * 3_600_000_000
-            ) * sign
+        # if isinstance(o, (dt.time, dt.datetime)):
+        #     result = (
+        #         o.microsecond +
+        #         o.second *   1_000_000 +
+        #         o.minute *  60_000_000 +
+        #         o.hour * 3_600_000_000
+        #     ) * sign
 
-            if isinstance(o, dt.time):
-                return (result,)
+        #     if isinstance(o, dt.time):
+        #         return (result,)
             
-            # This gets close to the value of None (2**63 - 1), but only to about 3% of it
-            return (result + (
-                o.day * 86_400_000_000 +
-                o.year * (86_400_000_000 * SAFE_DAYS_PER_YEAR)
-            ),)
+        #     # This gets close to the value of None (2**63 - 1), but only to about 3% of it
+        #     return (result + (
+        #         o.day * 86_400_000_000 +
+        #         o.year * (86_400_000_000 * SAFE_DAYS_PER_YEAR)
+        #     ),)
         
-        if isinstance(o, dt.date):
-            return ((o.year + (o.timetuple().tm_yday * SAFE_DAYS_PER_YEAR)) * sign,)
+        # if isinstance(o, dt.date):
+        #     return ((o.year + (o.timetuple().tm_yday * SAFE_DAYS_PER_YEAR)) * sign,)
         
-        if isinstance(o, dt.timedelta):
-            return (o.total_seconds() * sign,)
+        # if isinstance(o, dt.timedelta):
+        #     return (o.total_seconds() * sign,)
         
         if isinstance(o, str):
             if not o:
@@ -267,7 +267,7 @@ SlotType._init()
 
 
 AttributeValueTypeEnum = enum.Enum(
-    'AttributeValueTypeEnum', [(avt.name, avt) for avt in SlotType._slot_types] + []
+    'AttributeValueTypeEnum', [(avt.display_name, avt) for avt in SlotType._slot_types] + []
 )
 
 # Validate integrity

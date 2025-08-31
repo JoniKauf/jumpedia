@@ -1,8 +1,0 @@
-import sys
-import unicodedata
-
-for i in range(1000):
-    c = chr(i)
-
-    if not c.isprintable():
-        print(c, i, unicodedata.name(c, None))

@@ -1,25 +1,17 @@
-from abc import abstractmethod
 import builtins
-from dataclasses import dataclass, field
-import datetime as dt
-from decimal import Decimal
-import decimal
-import enum
+from collections import defaultdict
+from dataclasses import dataclass
 import itertools
-import json
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal, NamedTuple, Self, assert_never, final, overload
-import typing
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, TypedDict
 
 from database import queries, typed
-from database.simple_orm import Arg, Rows
-from discordtools import messaging
 from errors.feedback import feedbacks
 from structures.attributes import slot_type
 from structures.attributes import collection
 from structures.attributes.slot_type import LiteralToStrPossibleT, SlotType, SlotTypeT
-from structures.attributes.collection import MAX_DEPTH, MAX_ELEMS, Collection, CollectionNode, CollectionNodesT
-from structures.base_structure import BaseStructure
+from structures.attributes.collection import MAX_ENTRIES, Collection, CollectionEntry
+from structures import BaseStructure
 from structures.list import List
 from utils import numbers, parsetools, text
 if TYPE_CHECKING:
@@ -33,13 +25,13 @@ type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserA
 ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
 
 
-type RawCollectionNodesT = frozenset[RawCollectionNode]
-
-class RawCollectionNode(NamedTuple):
+class RawCollectionEntry(TypedDict):
     slot: str
-    aliases: frozenset[str]
-    sort_value: int
-    children: RawCollectionNodesT
+    aliases: list[str]
+
+type RawCollectionT[T] = list[RawCollectionEntry]
+
+    
 
 # General
 MIN_SYN_LEN: Final[int] = 1
@@ -58,27 +50,21 @@ ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
 # Just make sure it stays consistent when changing one
 
 
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AttributeTables:
     attribute: type[typed.BaseAttribute]
     attribute_alias: type[typed.BaseAttributeAlias]
 
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BaseNonStaticAttributeTables(AttributeTables):
-    attribute_collection_node: type[typed.BaseAttributeCollectionNode]
-    attribute_collection_node_alias: type[typed.BaseAttributeCollectionNodeAlias]
+    attribute_collection_entry: type[typed.BaseAttributeCollectionEntry]
+    attribute_collection_entry_alias: type[typed.BaseAttributeCollectionEntryAlias]
     attribute_task_value: type[typed.BaseAttributeTaskValue]
-    
-    def __post_init__(self) -> None:
-        if self.__class__ == BaseNonStaticAttributeTables:
-            raise RuntimeError
-        
 
-@dataclass(frozen=True, kw_only=True)
+
 class BaseAttribute[T: SlotTypeT](BaseStructure):
     __structure_name__ = "base attribute"
+
     tables: ClassVar[AttributeTables]
     allow_min_slots_on_creation: ClassVar[bool] = False
     deletable: ClassVar[bool] = True
@@ -134,11 +120,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         return frozenset(row.real_alias for row in rows)
     
     def get_collection(self) -> Collection[T]:
-        return Collection(
-            attribute=self,
-            top_nodes=frozenset(),
-            normalized_to_node=MappingProxyType({})
-        )
+        return Collection(attribute=self, entries=())
 
     def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
         if not isinstance(loaded, list):
@@ -175,16 +157,16 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         if isinstance(self, BaseNonStaticAttribute):
             collection = self.get_collection()
             
-            if not collection.is_empty:
+            if collection:
                 result: list[int] = []
 
                 for slot in v:
-                    node = collection.get_node_by_syn(slot)
+                    node = collection.get_entry_by_syn(slot)
 
                     if node is None:
                         raise ValueError
                     
-                    result.append(node.sort_value * sign)
+                    result.append(node.collection_index * sign)
                 
                 return (tuple(result),)  # type: ignore
                 
@@ -209,239 +191,175 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         
         collection = self.get_collection()
 
-        if collection.is_empty:
+        if not collection:
             return value
         
         result: list[T] = []
 
         for slot in value:
-            node = collection.get_node_by_syn(slot)
+            node = collection.get_entry_by_syn(slot)
 
             if node is None:
                 raise feedbacks.temp("Collection node not found")
             
-            result.append(node.slot)
+            result.append(node.value)
 
         return result
 
 
     def get_collection(self) -> Collection[T]:
-        TblNode = self.__class__.tables.attribute_collection_node
-        TblNodeAlias = self.__class__.tables.attribute_collection_node_alias
+        TblEntry = self.__class__.tables.attribute_collection_entry
+        TblAlias = self.__class__.tables.attribute_collection_entry_alias
 
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
-                FROM {TblNode}
-                WHERE {TblNode.attribute_id} = {arg(self.id)}
+                FROM {TblEntry}
+                WHERE {TblEntry.attribute_id} = {arg(self.id)}
             """)
 
-            result = c.fetchall(TblNode)
+            entry_rows = c.fetchall(TblEntry)
 
+            if not entry_rows:
+                return Collection(attribute=self, entries=())
+            
             c.execute(lambda arg: t"""
                 SELECT 
-                    {TblNodeAlias.real_alias}
+                    {TblAlias.attribute_collection_entry_id},
+                    {TblAlias.real_alias}
                 FROM
-                    {TblNodeAlias}
+                    {TblAlias}
                 WHERE
-                    {TblNodeAlias.attribute_id} = {arg(self.id)}
+                    {TblAlias.attribute_id} = {arg(self.id)}
+                ORDER
             """)
 
-            aliases_result = c.fetchall(TblNodeAlias)
+            alias_rows = c.fetchall(TblAlias)
 
-        del TblNodeAlias
-
-        row_id_to_row = {row.id: row for row in result}
-        row_id_to_child_row_ids: dict[int | None, list[int]] = {}
-
-        top_rows: list[typed.BaseAttributeCollectionNode] = []
-        row_id_to_aliases: dict[int, list[T]] = {}
-
-        for row in result:
-            row_id_to_child_row_ids \
-                .setdefault(row.parent_id, []) \
-                .append(row.id)
-            
-            if row.parent_id is None:
-                top_rows.append(row)
+        entry_id_to_aliases: defaultdict[int, set[T]] = defaultdict(set)
         
-            row_id_to_aliases[row.id] = []
+        for alias_row in alias_rows:
+            alias = self.slot_type.from_clean_str(alias_row.real_alias)
+            entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
+        
+        entries: tuple[CollectionEntry[T], ...] = tuple(
+            CollectionEntry(
+                id=entry_row.id,
+                value=self.slot_type.from_clean_str(entry_row.real_slot),
+                collection_index=entry_row.index,
+                aliases=frozenset(entry_id_to_aliases[entry_row.id])
+            ) 
+            for entry_row in entry_rows
+        )
 
-        for alias_row in aliases_result:
-            row = row_id_to_row[alias_row.attribute_collection_node_id]
-            row_id_to_aliases[row.id].append(self.slot_type.from_clean_str(alias_row.real_alias))
-
-        normed_to_node: dict[T, CollectionNode[T]] = {}
-
-        def recursively_create_children(parent: CollectionNode[T] | None, row: typed.BaseAttributeCollectionNode) -> CollectionNode[T]:
-            node = CollectionNode(
-                slot=self.slot_type.from_clean_str(row.real_slot),
-                aliases=frozenset(row_id_to_aliases[row.id]),
-                sort_value=row.sort_value,
-                children=frozenset(),
-                parent=parent
-            )
-
-            normed_to_node.update({
-                syn: node
-                for syn in 
-                (node.slot, *node.aliases)
-            })
-
-            children_ids = row_id_to_child_row_ids.get(row.id, [])
-
-            if children_ids:
-                node._post_set_children(frozenset(
-                    recursively_create_children(node, row_id_to_row[child_id])
-                    for child_id in children_ids
-                ))
-
-            return node
-
-        top_nodes = frozenset(recursively_create_children(None, row) for row in top_rows)
-            
         return Collection(
             attribute=self,
-            top_nodes=top_nodes,
-            normalized_to_node=MappingProxyType(normed_to_node)
+            entries=entries
         )
     
     def set_collection(
         self,
-        top_raw_nodes: RawCollectionNodesT, 
+        raw_collection: RawCollectionT[T], 
     ) -> 'Collection[T]':
-        TblNodes = self.__class__.tables.attribute_collection_node
-        TblAliases = self.__class__.tables.attribute_collection_node_alias
+        count = len(raw_collection)
+
+        if not count:
+            return Collection(attribute=self, entries=())
+
+        if count > collection.MAX_ENTRIES:
+            raise feedbacks.temp(f"Limit fo {collection.MAX_ENTRIES} surpassed!")
+        
+        TblEntry = self.__class__.tables.attribute_collection_entry
+        TblAlias = self.__class__.tables.attribute_collection_entry_alias
         
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
-                DELETE FROM {TblNodes}
-                WHERE {TblNodes.attribute_id} = {arg(self.id)}
+                DELETE FROM {TblEntry}
+                WHERE {TblEntry.attribute_id} = {arg(self.id)}
             """)
 
-            if not top_raw_nodes:
-                return Collection(
-                    attribute=self,
-                    top_nodes=frozenset(),
-                    normalized_to_node=MappingProxyType({})
-                )
+            norm_syns: set[T] = set()
             
-            norm_to_node: dict[T, CollectionNode[T]] = {}
-            node_count: int = 0
+            real_slots: list[T] = []
+            norm_slots: list[T] = []
+            
+            combined_real_aliases: tuple[set[T], ...] = tuple(set() for _ in range(count))
+            combined_norm_aliases: tuple[set[T], ...] = tuple(set() for _ in range(count))
 
-            def recursively_create_children(parent: None | CollectionNode[T], raw_node: RawCollectionNode, depth: int) -> CollectionNode[T]:
-                # Check depth
-                if depth > MAX_DEPTH:
-                    raise feedbacks.temp("Max collection depth exceeded")
-                
-                # Check total node count
-                nonlocal node_count
-                node_count += 1
+            for i, entry in enumerate(raw_collection):
+                for j, syn_str in enumerate((entry['slot'], *entry['aliases'])):
+                    real_syn = self.slot_type.from_raw_str(syn_str)
+                    norm_syn = self.slot_type.norm(real_syn)
 
-                if node_count > MAX_ELEMS:
-                    raise feedbacks.temp("Max amount of collection elems surpassed!")
-                
-                # Check valid sort_value
-                if not numbers.is_int32(raw_node.sort_value):
-                    raise feedbacks.temp("Sort value out of range")
-                
-                # Get and check slot and aliases
-                real_slot = self.slot_type.from_raw_str(raw_node.slot)
-                norm_slot = self.slot_type.norm(real_slot)
-                norm_to_real_aliases: dict[T, T] = {}
-
-                for raw_alias in raw_node.aliases:
-                    real_alias = self.slot_type.from_raw_str(raw_alias)
-                    norm_to_real_aliases[self.slot_type.norm(real_alias)] = real_alias
-
-                # Remove alias if the name is in aliases
-                norm_to_real_aliases.pop(norm_slot, None)
-
-                if len(norm_to_real_aliases) > MAX_ALIAS_COUNT:
-                    raise feedbacks.temp("Too many aliases")
-
-                node = CollectionNode(
-                    slot=real_slot,
-                    aliases=frozenset(norm_to_real_aliases.values()),
-                    sort_value=raw_node.sort_value,
-                    children=frozenset(),
-                    parent=parent
-                )
-
-                for normed_syn in (norm_slot, *norm_to_real_aliases):
-                    if normed_syn in norm_to_node:
-                        raise feedbacks.temp("Same syn appeared twice")
+                    if norm_syn in norm_syns:
+                        raise feedbacks.temp(f"Slot or alias {norm_syn} seen twice in collection. Must be unique!")
                     
-                    norm_to_node[normed_syn] = node
+                    norm_syns.add(norm_syn)
+                    
+                    if j == 0:
+                        real_slots.append(real_syn)
+                        norm_slots.append(norm_syn)
+                    else:
+                        combined_real_aliases[i].add(real_syn)
+                        combined_norm_aliases[i].add(norm_syn)
 
-                # Create and insert child nodes recursively
-                child_nodes = frozenset(
-                    recursively_create_children(node, child, depth + 1) 
-                    for child in 
-                    raw_node.children
+            c.executemany(lambda args: t"""
+                INSERT INTO {TblEntry} (
+                    {TblEntry.attribute_id},
+                    {TblEntry.index},
+                    {TblEntry.norm_slot},
+                    {TblEntry.real_slot}
                 )
+                VALUES (
+                    {args(itertools.repeat(self.id, count))},
+                    {args(range(0, count))},
+                    {args(norm_slots)},
+                    {args(real_slots)}
+                )
+                RETURNING {TblEntry.index}, {TblEntry.id}
+            """)
 
-                node._post_set_children(child_nodes)
-
-                # Return result
-                return node
+            idx_to_id: list[int] = [0 for _ in range(count)]
             
-            top_nodes = frozenset(recursively_create_children(None, raw_node, 1) for raw_node in top_raw_nodes)
+            for row in c.fetchall(TblEntry):
+                idx_to_id[row.index] = row.id
+
+            combined_aliases_count = 0
+            entry_ids: list[int] = []
+
+            for i, aliases in enumerate(combined_norm_aliases):
+                entry_id = idx_to_id[i]
+                aliases_count = len(aliases)
+
+                combined_aliases_count += aliases_count
+                entry_ids.extend(itertools.repeat(entry_id, aliases_count))
+
+            c.executemany(lambda args: t"""
+                INSERT INTO {TblAlias} (
+                    {TblAlias.attribute_id},
+                    {TblAlias.attribute_collection_entry_id},
+                    {TblAlias.norm_alias},
+                    {TblAlias.real_alias}
+                )
+                VALUES (
+                    {args(itertools.repeat(self.id, combined_aliases_count))},
+                    {args(entry_ids)},
+                    {args(itertools.chain(*combined_norm_aliases))},
+                    {args(itertools.chain(*combined_real_aliases))}
+                )
+            """)
             
-            def recursively_insert_children(parent_id: int | None, nodes: CollectionNodesT[T]) -> None:
-                if not nodes:
-                    return
-
-                for node in nodes:
-                    slot = self.slot_type.to_str(node.slot)
-
-                    c.execute(lambda arg: t"""
-                        INSERT INTO {TblNodes} (
-                            {TblNodes.attribute_id},
-                            {TblNodes.norm_slot},
-                            {TblNodes.real_slot},
-                            {TblNodes.sort_value},
-                            {TblNodes.parent_id}
-                        ) 
-                        VALUES (
-                            {arg(self.id)},
-                            {arg(text.real_to_norm(slot))},
-                            {arg(slot)},
-                            {arg(node.sort_value)},
-                            {arg(parent_id)}
-                        )
-                    """)
-
-                    node_id = c.last_generated_id
-
-                    if node.aliases:
-                        count = len(node.aliases)
-                        aliases = tuple(map(self.slot_type.to_str, node.aliases))
-
-                        c.executemany(lambda args: t"""
-                            INSERT INTO {TblAliases} (
-                                {TblAliases.attribute_id},
-                                {TblAliases.attribute_collection_node_id},
-                                {TblAliases.norm_alias}
-                                {TblAliases.real_alias},
-                            )
-                            VALUES (
-                                {args(itertools.repeat(self.id, count))},
-                                {args(itertools.repeat(node_id, count))},
-                                {args(tuple(map(text.real_to_norm, aliases)))}
-                                {args(aliases)}
-                            )    
-                        """)
-
-                    recursively_insert_children(node_id, node.children)
-
-            # We go from top nodes down the tree so we can be sure
-            # the parent_id is already inserted and the foreign key
-            # check succeeds
-            recursively_insert_children(None, top_nodes)
+            entries: tuple[CollectionEntry, ...] = tuple(
+                CollectionEntry(
+                    id=idx_to_id[i], 
+                    collection_index=i,
+                    value=real_slots[i],
+                    aliases=frozenset(combined_real_aliases[i])
+                )
+                for i in range(count)
+            )
 
             return Collection(
                 attribute=self,
-                top_nodes=top_nodes,
-                normalized_to_node=MappingProxyType(norm_to_node)
-            )
+                entries=entries
+            )     

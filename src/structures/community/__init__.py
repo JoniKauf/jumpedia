@@ -8,7 +8,7 @@ from ranks.community_rank import CommunityRank
 from structures import attributes, task
 from structures.attributes.slot_type import SlotType
 from structures.attributes.static_attribute import StaticAttribute
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 import structures.errors
 from structures.list import List
 from structures.user import JumpediaUser

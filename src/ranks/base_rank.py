@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import functools
 from typing import ClassVar, Iterator, Self
 
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 
 
 @functools.total_ordering

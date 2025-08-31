@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from ranks.jumpedia_rank import JumpediaRank
 from ranks.server_rank import ServerRank
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 from structures.jumpedia import Jumpedia
 
 

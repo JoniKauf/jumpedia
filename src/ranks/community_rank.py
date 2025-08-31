@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from ranks.base_rank import BaseRank
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 
 
 @dataclass(frozen=True)

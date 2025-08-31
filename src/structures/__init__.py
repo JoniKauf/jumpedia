@@ -1,28 +1,13 @@
-"""The internal structures Jumpedia works with behind the scenes.
 
-All structures must follow these idioms:
-- All structures have a parent, besides Jumpedia, which is the root.
-- All structures are managed by their parent, which includes retrieval, 
-  creation, deletion and editing.
-- The parent must be locked when any state of the child will be changed. This
-  also includes retrieval of data before editing the data, otherwise the data
-  could become outdated by the time it is used.
-- Structures are passed to other structures by ids if required. This is
-  because the database could have been updated by then.
-- Names and values of structures are compared by equality from the database.
-- Dynamic data is compared by the code via normalization.
-"""
-
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
-import enum
-import functools
-from typing import Any, Callable, ClassVar, ParamSpec
-
-from errors.feedback import FeedbackError
-from structures.base_structure import BaseStructure
+from threading import RLock
+from typing import Any, Callable, ClassVar, dataclass_transform
+from contextlib import _GeneratorContextManager
+import structures
 from utils import text
-from discordtools import messaging as msg
+from utils import locked
+
 
 type StructuresTypeT = type[BaseStructure] | tuple[type[BaseStructure], *tuple[type[BaseStructure], ...]]
 
@@ -38,3 +23,54 @@ def human_join_structures_type(structures: StructuresTypeT, convert: Callable[[s
     return text.human_join(tuple(
         convert(s.__structure_name__) for s in structures
     ), " or ")
+
+
+@dataclass_transform(frozen_default=True, kw_only_default=True)
+class _StructureMeta(ABCMeta):
+    """Metaclass of all structures.
+
+    It combines ABC and dataclass(frozen=True, kw_only=True) behaviour.
+    """
+    def __new__(mcls: type[_StructureMeta], name: str, bases: tuple[type, ...], namespace: dict[str, Any], /, **kwargs: Any) -> _StructureMeta:
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
+
+
+class BaseStructure(metaclass=_StructureMeta):
+    __structure_name__: ClassVar[str] = ''
+
+    @property
+    @abstractmethod
+    def identity(self) -> tuple[int, ...]:
+        """Uniquely identify an object of this type."""
+    
+    @property
+    def locked(self) -> _GeneratorContextManager[RLock, None, None]:
+        return locked.equality_locked(self)
+    
+    def __hash__(self) -> int:
+        return hash(self.identity)
+    
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, BaseStructure):
+            print(f"Compared", value, "to", self)
+            return NotImplemented
+        
+        return self.__class__ == value.__class__ and self.identity == value.identity
+
+    def __init_subclass__(cls) -> None:
+        structure_name = text.norm_value(cls.__structure_name__)
+
+        if structure_name in structures._cls_names:
+            raise AssertionError("__structure_name__ used twice")
+        
+        structures._cls_names[structure_name] = cls
+
+        return super().__init_subclass__()
+
+    @classmethod
+    def structure_name(cls, title: bool = False) -> str:
+        if title:
+            return cls.__structure_name__.title()
+        else:
+            return cls.__structure_name__.lower()

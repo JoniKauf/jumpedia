@@ -2,7 +2,7 @@ import textwrap
 from typing import TYPE_CHECKING, Any
 from errors.feedback import FeedbackError
 from discordtools import messaging as msg
-from structures.base_structure import BaseStructure
+from structures import BaseStructure
 
 if TYPE_CHECKING:
     from structures.community import Community

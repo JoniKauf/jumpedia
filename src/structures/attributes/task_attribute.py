@@ -1,8 +1,8 @@
 
 from dataclasses import dataclass
 from database import typed
-from structures.attributes import BaseNonStaticAttribute, SlotTypeT, Uniqueness
-from structures.attributes.collection import BaseNonStaticAttributeTables
+from structures.attributes import BaseNonStaticAttribute, SlotTypeT
+from structures.attributes import BaseNonStaticAttributeTables
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -11,7 +11,7 @@ class TaskAttribute[T: SlotTypeT](BaseNonStaticAttribute[T]):
     tables = BaseNonStaticAttributeTables(
         typed.TaskAttribute,
         typed.TaskAttributeAlias,
-        typed.TaskAttributeCollectionNode,
-        typed.TaskAttributeCollectionNodeAlias,
+        typed.TaskAttributeCollectionSlot,
+        typed.TaskAttributeCollectionSlotAlias,
         typed.TaskAttributeTaskValue
     )
