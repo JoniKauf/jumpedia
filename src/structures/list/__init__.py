@@ -1,13 +1,14 @@
 from dataclasses import dataclass
 import itertools
-from typing import TYPE_CHECKING, Callable, ClassVar, Final, overload
+from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Final, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
+from structures import task
 from structures.attributes.slot_type import SlotType, SlotTypeT
 from structures import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT
+from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT, collection
 from structures.attributes.static_attribute import StaticAttribute
 from structures.attributes.task_attribute import TaskAttribute
 from structures.attributes.user_attribute import UserAttribute
@@ -432,14 +433,16 @@ class List(BaseStructure):
 
             return c.affected_row_count > 0
     
-    def _validate_task_syn(self, id: int, syn: str) -> Task:
-        task_ = self.get_task_by_id(id)
+    def _verify_valid_task_syns(self, normed_syns: AbstractSet[str], allowed_tasks: AbstractSet[Task] = frozenset()) -> None:
+        if len(normed_syns) > collection.MAX_ENTRIES:
+        allowed = allowed_tasks | {None}
+        del allowed_tasks
 
-        if task_ is None:
-            raise StructureNotFoundError(id)
+        for normed_syn in normed_syns:
+            if self.get_task_by_syn(normed_syn) not in allowed:
+                raise feedbacks.temp(f"Task syn {normed_syn!r} already taken!")
         
-        if self.get_task_by_syn(syn) != task_:
-            return 
+
     def edit_task(
         self, 
         id: int, 
@@ -447,13 +450,14 @@ class List(BaseStructure):
         raw_aliases: frozenset[str] | None = None, 
         raw_attribute_value_mapping: dict[int, str] | None = None
     ) -> None:
+        if raw_name is None and raw_aliases is None and raw_attribute_value_mapping is None:
+            return
+        
         with self.locked:
-            
+            task = self.get_task_by_id(id)
 
-            
-            
-            if raw_name is None and raw_aliases is None and raw_attribute_value_mapping is None:
-                return
+            if task is None:
+                raise StructureNotFoundError
             
             syns: list[str] = []
 
@@ -464,6 +468,8 @@ class List(BaseStructure):
                 syns.extend(raw_aliases)
 
             (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(syns)
+            
+            self._verify_valid_task_syns({norm_name, *norm_aliases}, {task})
 
             
             
@@ -501,18 +507,18 @@ class List(BaseStructure):
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.id} = {arg(id)}")
         return self._task_row_to_obj(data[0]) if data else None
     
-    def get_task_by_name(self, name: str) -> Task | None:
-        data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.name} = {arg(name)}")
+    def get_task_by_name(self, norm_name: str) -> Task | None:
+        data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.norm_name} = {arg(norm_name)}")
         return self._task_row_to_obj(data[0]) if data else None
 
-    def get_task_by_alias(self, alias: str) -> Task | None:
+    def get_task_by_alias(self, norm_alias: str) -> Task | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.task_id}
                 FROM {typed.TaskAlias}
                 WHERE 
                     {typed.TaskAlias.list_id} = {arg(self.id)}
-                    AND {typed.TaskAlias.alias} = {arg(alias)}
+                    AND {typed.TaskAlias.norm_alias} = {arg(norm_alias)}
             """)
 
             row = c.fetchone(typed.TaskAlias)
@@ -522,8 +528,8 @@ class List(BaseStructure):
         
         return self.get_task_by_id(row.task_id)
     
-    def get_task_by_syn(self, syn: str) -> Task | None:
+    def get_task_by_syn(self, norm_syn: str) -> Task | None:
         return (
-            self.get_task_by_name(syn) or
-            self.get_task_by_alias(syn)
+            self.get_task_by_name(norm_syn) or
+            self.get_task_by_alias(norm_syn)
         )
