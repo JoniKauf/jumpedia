@@ -1,4 +1,5 @@
 from typing import AbstractSet, Any, Callable, ClassVar, Generator, Iterable, Mapping, Self, Sequence, final, get_args, overload
+from typing_extensions import TypeForm
 
 from utils import text
 
@@ -6,15 +7,7 @@ def quoted(s: str) -> str:
     return f'`{s}`'
 
 class Column[TOwner: BaseModel, TValue: Any]:
-    @overload
-    def __init__(self, type: type[TValue], func: Callable[[TOwner], Any]) -> None:
-        pass
-
-    @overload
-    def __init__(self, type: tuple[type[TValue], ...], func: Callable[[TOwner], Any]) -> None:
-        pass
-    
-    def __init__(self, type: type[TValue] | tuple[type[TValue], ...], func: Callable[[TOwner], Any]) -> None:
+    def __init__(self, type: TypeForm[TValue], func: Callable[[TOwner], Any]) -> None:
         self._name: str = ''
         self._type = type
         self._func = func
@@ -58,20 +51,8 @@ class Column[TOwner: BaseModel, TValue: Any]:
     
     def qual(self, model: type[TOwner]) -> str:
         return f"{model}.{self}"
-    
 
-type _ColumnReturnT[TOwner: BaseModel, TValue: Any] = Callable[[Callable[[TOwner], Any]], Column[TOwner, TValue]]
-
-
-@overload
-def column[TOwner: BaseModel, TValue: Any](type: type[TValue]) -> _ColumnReturnT[TOwner, TValue]:
-    pass
-
-@overload
-def column[TOwner: BaseModel, TValue: Any](type: tuple[type[TValue], ...]) -> _ColumnReturnT[TOwner, TValue]:
-    pass
-
-def column[TOwner: BaseModel, TValue: Any](type: type[TValue] | tuple[type[TValue], ...]) -> _ColumnReturnT[TOwner, TValue]:
+def column[TOwner: BaseModel, TValue](type: TypeForm[TValue]) -> Callable[[Callable[[TOwner], Any]], Column[TOwner, TValue]]:
     def wrapper(func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
         return Column(type, func)
     

@@ -34,11 +34,6 @@ type RawCollectionT[T] = list[RawCollectionEntry]
     
 
 # General
-MIN_SYN_LEN: Final[int] = 1
-MAX_SYN_LEN: Final[int] = 32
-MAX_ALIAS_COUNT: Final[int] = 32
-MAX_COLLECTION_ALIASES: Final[int] = 7
-MAX_SLOTS: Final[int] = 32
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
 
 

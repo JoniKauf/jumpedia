@@ -5,6 +5,7 @@ from database import secret
 import mariadb
 from string.templatelib import Interpolation, Template
 from database.simple_orm import Arg, BaseModel, Column, Args, Rows, column
+from structures.jumpedia import THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE
 from utils import text
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
@@ -105,7 +106,7 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[C
     if no_db:
         database = {}
     else:
-        database = {'db': Jumpedia().database_name}
+        database = {'db': THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE.database_name}
 
     connection_data = __get_connection_data() | database
     hashable = _connection_data_to_hashable(connection_data)
@@ -141,17 +142,4 @@ def connected(commit_on_exit: bool = True, *, no_db: bool = False) -> Iterator[C
                 if close_conn:
                     _connections.pop(hashable)
                     conn.close()
-    
 
-
-class _Equal(BaseModel, table_name=None):
-    @column(bool)
-    def eq(self): pass
-
-def collate_equal(a: str, b: str) -> bool:
-    with connected() as c:
-        c.execute(lambda arg: t"SELECT {arg(a)} = {arg(b)} COLLATE utf8mb4_general_ci AS {_Equal.eq}")
-    
-        result = c.fetchone(_Equal)
-
-    return result is not None and result.eq

@@ -12,11 +12,6 @@ from database import typed as typed
 if TYPE_CHECKING:
     from structures.list import List
 
-DEFAULT_STATIC_NAME_ATTRIBUTE_NAME: Final[str] = 'name'
-DEFAULT_STATIC_ALIASES_ATTRIBUTE_NAME: Final[str] = 'aliases'
-
-MIN_SYN_LEN: Final[int] = 1
-MAX_SYN_LEN: Final[int] = 128
 
 @dataclass(frozen=True, kw_only=True)
 class Task(BaseStructure):
@@ -24,13 +19,13 @@ class Task(BaseStructure):
 
     list: 'List'
     id: int
-    name: str
+    name: text.RealStr
 
     @property
-    def aliases(self) -> frozenset[str]:
+    def aliases(self) -> frozenset[text.RealStr]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
-                SELECT {typed.TaskAlias.alias}
+                SELECT {typed.TaskAlias.real_alias}
                 FROM {typed.TaskAlias}
                 WHERE 
                     {typed.TaskAlias.list_id} = {arg(self.list.id)}
@@ -39,7 +34,7 @@ class Task(BaseStructure):
 
             rows = c.fetchall(typed.TaskAlias)
 
-        return frozenset(row.alias for row in rows)
+        return frozenset(row.real_alias for row in rows)
 
     @property
     def identity(self) -> tuple[int, ...]:

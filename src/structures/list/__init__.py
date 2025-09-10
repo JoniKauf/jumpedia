@@ -17,17 +17,9 @@ from structures.task import Task
 from utils import text
 from structures import attributes
 from database import typed
-import structures.list as list_package
-
 
 if TYPE_CHECKING:
     from structures.community import Community
-
-
-MIN_NAME_LENGTH: Final[int] = 2
-MAX_NAME_LENGTH: Final[int] = 64
-MAX_ATTRIBUTES: Final[int] = 3
-MAX_TASKS: Final[int] = 1
 
 
 # --- Collection Types --- #
@@ -39,7 +31,7 @@ class List(BaseStructure):
 
     community: 'Community'
     id: int
-    name: str
+    name: text.RealStr
     
     @property
     def identity(self) -> tuple[int, ...]:
@@ -90,12 +82,12 @@ class List(BaseStructure):
         rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.id} = {arg(id)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
 
-    def get_attribute_by_norm_name[T: BaseAttribute](self, type: type[T], norm_name: str) -> T | None:
+    def get_attribute_by_name[T: BaseAttribute](self, type: type[T], norm_name: text.NormStr) -> T | None:
         table_type = type.tables.attribute
         rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.norm_name} = {arg(norm_name)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
     
-    def get_attribute_by_norm_alias[T: BaseAttribute](self, type: type[T], norm_alias: str) -> T | None:
+    def get_attribute_by_alias[T: BaseAttribute](self, type: type[T], norm_alias: text.NormStr) -> T | None:
         alias_table_type = type.tables.attribute_alias
 
         with queries.connected() as c:
@@ -114,10 +106,10 @@ class List(BaseStructure):
         
         return self.get_attribute_by_id(type, row.attribute_id)
     
-    def get_attribute_by_norm_syn[T: BaseAttribute](self, type: type[T], norm_syn: str) -> T | None:
+    def get_attribute_by_syn[T: BaseAttribute](self, type: type[T], norm_syn: text.NormStr) -> T | None:
         return (
-            self.get_attribute_by_norm_name(type, norm_syn)
-            or self.get_attribute_by_norm_alias(type, norm_syn)
+            self.get_attribute_by_name(type, norm_syn)
+            or self.get_attribute_by_alias(type, norm_syn)
         )
 
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
@@ -141,23 +133,23 @@ class List(BaseStructure):
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_norm_name(self, norm_name: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_name(self, norm_name: text.NormStr) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_norm_name(type, norm_name)
+            attr = self.get_attribute_by_name(type, norm_name)
             
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_norm_alias(self, norm_alias: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_alias(self, norm_alias: text.NormStr) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_norm_alias(type, norm_alias)
+            attr = self.get_attribute_by_alias(type, norm_alias)
             
             if attr is not None:
                 return attr
 
-    def get_any_attribute_by_norm_syn(self, norm_syn: str) -> AnyAttributeT | None:
+    def get_any_attribute_by_syn(self, norm_syn: text.NormStr) -> AnyAttributeT | None:
         for type in ANY_ATTRIBUTE:
-            attr = self.get_attribute_by_norm_syn(type, norm_syn)
+            attr = self.get_attribute_by_syn(type, norm_syn)
             
             if attr is not None:
                 return attr
@@ -199,7 +191,7 @@ class List(BaseStructure):
         min_slots: int = 0,
         raw_collection: RawCollectionT[T] = []
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
-        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(*(raw_name, *raw_aliases))
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms({raw_name, *raw_aliases})
 
         del raw_name
         del raw_aliases
@@ -207,26 +199,23 @@ class List(BaseStructure):
         with self.locked:
             attrs = self.get_all_attributes_flat()
 
-            if len(attrs) >= list_package.MAX_ATTRIBUTES:
+            if len(attrs) >= self.community.limits.list_attribute_count_max:
                 raise feedbacks.temp("Max attributes reached")
             
             for syn in (norm_name, *norm_aliases):
-                if len(syn) > attributes.MAX_SYN_LEN:
+                if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
                     raise feedbacks.temp("Max syn length exceeded")
                 
-                if self.get_any_attribute_by_norm_syn(syn) is not None:
+                if self.get_any_attribute_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
 
-            if not (1 <= max_slots <= attributes.MAX_SLOTS):
-                raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
-            
             if min_slots != 0:
                 if not type.allow_min_slots_on_creation:
                     raise feedbacks.temp("Not allowed to set min_slots")
-
-                if not (0 <= min_slots <= attributes.MAX_SLOTS):
-                    raise feedbacks.temp("Min slots wrong")
-
+                
+            if not (min_slots <= max_slots <= self.community.limits.attribute_slot_count_max):
+                raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
+            
             index = max(attr.position for attr in attrs) + 1 if attrs else 1
 
             AttributeTbl = type.tables.attribute
@@ -304,24 +293,24 @@ class List(BaseStructure):
 
             return c.affected_row_count > 0
 
-    def _cook_raw_attribute_value_mapping(
+    def _cook_raw_task_attribute_value_mapping(
         self, 
-        raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
+        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> dict[TaskAttribute, list[SlotTypeT]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
             
-        # Check if all required attributess are given
+        # Check if all required attributes are given
         for attr in id_to_attr.values():
-            if attr.required and attr.id not in raw_attribute_value_mapping:
+            if attr.required and attr.id not in raw_task_attribute_value_mapping:
                 raise feedbacks.temp(f"Attribute {attr} is required (min >= 1 slots) but it received no values")
         
-        if not raw_attribute_value_mapping:
+        if not raw_task_attribute_value_mapping:
             return {}
         
         attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]] = {}
         
         # Convert ids to attributes and validate value
-        for attr_id, v in raw_attribute_value_mapping.items():
+        for attr_id, v in raw_task_attribute_value_mapping.items():
             if attr_id not in id_to_attr:
                 raise feedbacks.temp("Attribute id not found")
             
@@ -338,20 +327,20 @@ class List(BaseStructure):
         self, 
         raw_name: str, 
         raw_aliases: frozenset[str], 
-        raw_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
+        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> Task:
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms((raw_name, *raw_aliases))
-        
-        del raw_name
-        del raw_aliases
+        self._validate_task_syns({norm_name, *norm_aliases})
+
+        del raw_name, raw_aliases
 
         with self.locked:
             all_tasks = self.get_tasks()
 
-            if len(all_tasks) >= list_package.MAX_TASKS:
+            if len(all_tasks) >= self.community.limits.list_task_count_max:
                 raise feedbacks.temp("Task limit reached")
-
-            attribute_value_mapping = self._cook_raw_attribute_value_mapping(raw_attribute_value_mapping)
+            
+            task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(raw_task_attribute_value_mapping)
                 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
@@ -387,7 +376,7 @@ class List(BaseStructure):
                         )
                     """)
 
-                if attribute_value_mapping:
+                if task_attribute_value_mapping:
                     TaskValueTbl = TaskAttribute.tables.attribute_task_value
 
                     # This is so clean I'm UwU-ing
@@ -395,7 +384,7 @@ class List(BaseStructure):
                     index_args: list[int] = []
                     slot_args: list[SlotTypeT] = []
 
-                    for attr, v in attribute_value_mapping.items():
+                    for attr, v in task_attribute_value_mapping.items():
                         for i, slot in enumerate(v):
                             attribute_id_args.append(attr.id)
                             index_args.append(i)
@@ -433,9 +422,12 @@ class List(BaseStructure):
 
             return c.affected_row_count > 0
     
-    def _verify_valid_task_syns(self, normed_syns: AbstractSet[str], allowed_tasks: AbstractSet[Task] = frozenset()) -> None:
-        if len(normed_syns) > collection.MAX_ENTRIES:
+    def _validate_task_syns(self, normed_syns: AbstractSet[text.NormStr], allowed_tasks: AbstractSet[Task] = frozenset()) -> None:
+        if len(normed_syns) > self.community.jumpedia.limits.attribute_task_value_slot_length_max:
+            raise feedbacks.temp("Too many syns")
+        
         allowed = allowed_tasks | {None}
+
         del allowed_tasks
 
         for normed_syn in normed_syns:
@@ -448,9 +440,9 @@ class List(BaseStructure):
         id: int, 
         raw_name: str | None = None, 
         raw_aliases: frozenset[str] | None = None, 
-        raw_attribute_value_mapping: dict[int, str] | None = None
+        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT] | None = None
     ) -> None:
-        if raw_name is None and raw_aliases is None and raw_attribute_value_mapping is None:
+        if not (raw_name or raw_aliases or raw_task_attribute_value_mapping):
             return
         
         with self.locked:
@@ -459,18 +451,67 @@ class List(BaseStructure):
             if task is None:
                 raise StructureNotFoundError
             
-            syns: list[str] = []
+            raw_syns: list[str] = []
 
             if raw_name:
-                syns.append(raw_name)
+                raw_syns.append(raw_name)
 
             if raw_aliases:
-                syns.extend(raw_aliases)
+                raw_syns.extend(raw_aliases)
 
-            (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(syns)
+            if raw_syns:
+                (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(raw_syns)
+                del raw_syns, raw_name, raw_aliases
+
+                self._validate_task_syns({norm_name, *norm_aliases}, {task})
+
+            if raw_task_attribute_value_mapping:
+                task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(raw_task_attribute_value_mapping)
+
+            with queries.connected() as c:
+                if raw_syns:
+                    TaskTbl = typed.Task
+                    TaskAliasTbl = typed.TaskAlias
+
+                    c.execute(lambda arg: t"""
+                        UPDATE {TaskTbl}
+                        SET 
+                            {TaskTbl.norm_name} = {arg(norm_name)},
+                            {TaskTbl.real_name} = {arg(real_name)}
+                        WHERE
+                            {TaskTbl.list_id} = {arg(self.id)}
+                            AND {TaskTbl.id} = {arg(task.id)}
+                    """)
+
+                    count = len(norm_aliases)
+
+                    c.executemany(lambda args: t"""
+                        UPDATE {TaskAliasTbl}
+                        SET
+                            {TaskAliasTbl.norm_alias} = {args(norm_aliases)},
+                            {TaskAliasTbl.real_alias} = {args(real_aliases)}
+                        WHERE
+                            {TaskAliasTbl.list_id} = {args(itertools.repeat(self.id, count))}
+                            AND {TaskAliasTbl.task_id} = {args(itertools.repeat(task.id, count))}
+                    """)
+
+                if raw_task_attribute_value_mapping:
+                    AttrTaskValueTbl = TaskAttribute.tables.attribute_task_value
+
+                    c.executemany(lambda args: t"""
+                        UPDATE {AttrTaskValueTbl}
+                        SET
+                            {AttrTaskValueTbl.slot} = {args(itertools.chain(*task_attribute_value_mapping.values()))}
+                        WHERE 
+                            {AttrTaskValueTb}
+                    """)
+
+
             
-            self._verify_valid_task_syns({norm_name, *norm_aliases}, {task})
 
+
+
+            
             
             
             
@@ -507,11 +548,11 @@ class List(BaseStructure):
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.id} = {arg(id)}")
         return self._task_row_to_obj(data[0]) if data else None
     
-    def get_task_by_name(self, norm_name: str) -> Task | None:
+    def get_task_by_name(self, norm_name: text.NormStr) -> Task | None:
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.norm_name} = {arg(norm_name)}")
         return self._task_row_to_obj(data[0]) if data else None
 
-    def get_task_by_alias(self, norm_alias: str) -> Task | None:
+    def get_task_by_alias(self, norm_alias: text.NormStr) -> Task | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.task_id}
@@ -528,7 +569,7 @@ class List(BaseStructure):
         
         return self.get_task_by_id(row.task_id)
     
-    def get_task_by_syn(self, norm_syn: str) -> Task | None:
+    def get_task_by_syn(self, norm_syn: text.NormStr) -> Task | None:
         return (
             self.get_task_by_name(norm_syn) or
             self.get_task_by_alias(norm_syn)

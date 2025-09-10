@@ -1,12 +1,11 @@
 
 
 from dataclasses import field
-from types import MappingProxyType
 from typing import Final, NamedTuple, Sequence, overload
+from typing_extensions import Sentinel
 from structures.attributes import BaseAttribute
 from structures.attributes.slot_type import SlotTypeT
 from structures import BaseStructure
-from typing_extensions import Sentinel
 
 # Collection
 MAX_ENTRIES: Final[int] = 1024

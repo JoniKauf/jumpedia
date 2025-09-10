@@ -1,15 +1,16 @@
-from types import NoneType
+from types import NoneType, UnionType
 from typing import Union, overload
 from database.simple_orm import SNAKE, BaseModel, column
+from utils.text import NormStr, RealStr
 
 class Community(BaseModel, table_name=SNAKE):
     @column(int)
     def id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_name(self): pass
-    @column(str)
+    @column(RealStr)
     def real_name(self): pass
-    @column((int, NoneType))
+    @column(int | None)
     def default_selected_list_id(self): pass
 
 class Server(BaseModel, table_name=SNAKE):
@@ -21,9 +22,9 @@ class Server(BaseModel, table_name=SNAKE):
 class JumpediaUser(BaseModel, table_name=SNAKE):
     @column(int)
     def id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_name(self): pass
-    @column(str)
+    @column(RealStr)
     def real_name(self): pass
     @column(int)
     def power(self): pass
@@ -35,9 +36,9 @@ class List(BaseModel, table_name=SNAKE):
     def id(self): pass
     @column(int)
     def community_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_name(self): pass
-    @column(str)
+    @column(RealStr)
     def real_name(self): pass
 
 class CommunityUser(BaseModel, table_name=SNAKE):
@@ -58,9 +59,9 @@ class BaseAttribute(BaseModel, table_name=None):
     def id(self): pass
     @column(int)
     def list_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_name(self): pass
-    @column(str)
+    @column(RealStr)
     def real_name(self): pass
     @column(int)
     def slot_type(self): pass
@@ -79,9 +80,9 @@ class BaseAttributeAlias(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(int)
     def list_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_alias(self): pass
-    @column(str)
+    @column(RealStr)
     def real_alias(self): pass
 
 
@@ -92,9 +93,9 @@ class BaseAttributeCollectionEntry(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(int)
     def index(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_slot(self): pass
-    @column(str)
+    @column(RealStr)
     def real_slot(self): pass
 
 class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
@@ -104,9 +105,9 @@ class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
     def attribute_collection_entry_id(self): pass
     @column(int)
     def attribute_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_alias(self): pass
-    @column(str)
+    @column(RealStr)
     def real_alias(self): pass
 
 class BaseAttributeTaskValue(BaseModel, table_name=None):
@@ -165,9 +166,9 @@ class Task(BaseModel, table_name=SNAKE):
     def id(self): pass
     @column(int)
     def list_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_name(self): pass
-    @column(str)
+    @column(RealStr)
     def real_name(self): pass
 
 class TaskAlias(BaseModel, table_name=SNAKE):
@@ -177,9 +178,9 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     def task_id(self): pass
     @column(int)
     def list_id(self): pass
-    @column(str)
+    @column(NormStr)
     def norm_alias(self): pass
-    @column(str)
+    @column(RealStr)
     def real_alias(self): pass
 
 class TaskAttributeTaskValue(BaseAttributeTaskValue, table_name=SNAKE):

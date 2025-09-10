@@ -29,7 +29,8 @@ def human_join_structures_type(structures: StructuresTypeT, convert: Callable[[s
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.
 
-    It combines ABC and dataclass(frozen=True, kw_only=True) behaviour.
+    It combines ABC and dataclass(frozen=True, kw_only=True) behaviour,
+    with support for typing.
     """
     def __new__(mcls: type[_StructureMeta], name: str, bases: tuple[type, ...], namespace: dict[str, Any], /, **kwargs: Any) -> _StructureMeta:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)

@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Self, TypedDict, Unpack
-import mariadb
-from mariadb.constants import ERR
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, NamedTuple, Self, TypedDict, Unpack
 from database.simple_orm import Arg, Rows
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
@@ -10,6 +8,7 @@ from structures.attributes.slot_type import SlotType
 from structures.attributes.static_attribute import StaticAttribute
 from structures import BaseStructure
 import structures.errors
+
 from structures.list import List
 from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
@@ -29,18 +28,23 @@ class CommunityDataCache:
     server_ids: frozenset[int] | None = None
 
 
-MAX_NAME_LENGTH: int = 64
-MIN_NAME_LENGTH: int = 2
+class CommunityLimits(NamedTuple):
+    community_list_count_max: int
+    list_attribute_count_max: int
+    list_task_count_max: int
+    attribute_alias_count_max = 31
+    attribute_slot_count_max = 32
+    attribute_collection_entry_alias_count_max: int = 7
 
-@dataclass(frozen=True, kw_only=True)
+
+
 class Community(BaseStructure):
     __structure_name__ = "community"
 
-    MAX_LISTS: ClassVar[int] = 1
-
     jumpedia: 'Jumpedia'
     id: int
-    name: str
+    name: text.RealStr
+    limits: CommunityLimits
 
     _cache: CommunityDataCache = field(init=False, default_factory=CommunityDataCache)
 
@@ -72,10 +76,12 @@ class Community(BaseStructure):
             real_name, norm_name = text.raw_to_real_and_norm(raw_name)
             del raw_name
 
-            if self.get_list_by_norm_name(norm_name) is not None:
+            if self.get_list_by_name(norm_name) is not None:
                 raise feedbacks.temp("A list with that name already exists")
             
-            if (count := len(self.get_lists())) >= Community.MAX_LISTS:
+            count = len(self.get_lists())
+
+            if count >= self.limits.community_list_count_max:
                 raise feedbacks.temp("Limit of lists reached", count)
             
             with queries.connected() as c:
@@ -102,20 +108,29 @@ class Community(BaseStructure):
 
                 list.create_attribute(
                     StaticAttribute,
-                    task.DEFAULT_STATIC_NAME_ATTRIBUTE_NAME,
+                    'id',
                     frozenset(),
-                    SlotType.get_by_type(str),
+                    SlotType.INT,
                     1,
                     min_slots=1
                 )
 
                 list.create_attribute(
                     StaticAttribute,
-                    task.DEFAULT_STATIC_ALIASES_ATTRIBUTE_NAME,
+                    'name',
                     frozenset(),
-                    SlotType.get_by_type(str),
+                    SlotType.STR,
                     1,
-                    min_slots=attributes.MAX_SLOTS
+                    min_slots=1
+                )
+
+                list.create_attribute(
+                    StaticAttribute,
+                    'aliases',
+                    frozenset(),
+                    SlotType.STR,
+                    self.limits.attribute_slot_count_max,
+                    min_slots=1
                 )
 
             return list
@@ -131,7 +146,6 @@ class Community(BaseStructure):
 
             if c.affected_row_count <= 0:
                 raise structures.errors.StructureNotFoundError
-
 
     def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
         with queries.connected() as c:
@@ -164,7 +178,7 @@ class Community(BaseStructure):
         data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")
         return self._list_row_to_obj(data[0]) if data else None
     
-    def get_list_by_norm_name(self, norm_name: str) -> List | None:
+    def get_list_by_name(self, norm_name: text.NormStr) -> List | None:
         data = self._fetch_from_list_table(lambda arg: f"{ListTbl.norm_name} = {arg(norm_name)}")
         return self._list_row_to_obj(data[0]) if data else None
     

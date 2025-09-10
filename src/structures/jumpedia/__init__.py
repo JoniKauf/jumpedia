@@ -1,6 +1,6 @@
 
 import time
-from typing import Callable
+from typing import Callable, Final, NamedTuple
 
 from database.simple_orm import Arg, BaseModel, Rows, column
 from errors.feedback import FeedbackError, feedbacks
@@ -9,7 +9,7 @@ from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure, attributes, task, user
 from structures import community
 from structures.attributes import slot_type
-from structures.community import Community
+from structures.community import Community, CommunityLimits
 from structures.user import JumpediaUser
 from utils import functools2, text
 from database import queries, typed
@@ -18,19 +18,29 @@ from discordtools import messaging as msg
 from structures import list as list_
 import structures.errors
 
-DATABASE_NAME: str = 'jumpedia'
-
 class NotInServerError(ValueError):
     pass
 
 class AbstractStructureAndSingleton(type(BaseStructure), functools2.Singleton):
     pass
 
+
+class JumpediaLimits(NamedTuple):
+    community_name_length_max: int
+    list_name_length_max: int
+    user_name_length_max: int  # Discord limit
+    attribute_syn_length_max: int
+    attribute_task_value_slot_length_max: int
+
+
+
+
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
-    id: int = field(init=False, default=1)
-    database_name: str = field(init=False, default=DATABASE_NAME)
-    
+    id: int
+    database_name: str
+    limits: JumpediaLimits
+
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,)
@@ -66,8 +76,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 c.execute(lambda _: t"""
                     CREATE TABLE {typed.Community} (
                         {typed.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
-                        {typed.Community.norm_name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
-                        {typed.Community.real_name} VARCHAR({community.MAX_NAME_LENGTH}) UNIQUE NOT NULL,
+                        {typed.Community.norm_name} VARCHAR({self.limits.community_name_length_max}) UNIQUE NOT NULL,
+                        {typed.Community.real_name} VARCHAR({self.limits.community_name_length_max}) UNIQUE NOT NULL,
                         {typed.Community.default_selected_list_id} INT DEFAULT NULL
                     )
                 """)
@@ -87,8 +97,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.List} (
                         {typed.List.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.List.community_id} INT NOT NULL,
-                        {typed.List.norm_name} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
-                        {typed.List.real_name} VARCHAR({list_.MAX_NAME_LENGTH}) NOT NULL,
+                        {typed.List.norm_name} VARCHAR({self.limits.list_name_length_max}) NOT NULL,
+                        {typed.List.real_name} VARCHAR({self.limits.list_name_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.List.community_id})
                             REFERENCES {typed.Community}({typed.Community.id})
@@ -141,8 +151,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.StaticAttribute} (
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
-                        {typed.StaticAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.StaticAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.StaticAttribute.norm_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.StaticAttribute.real_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
                         {typed.StaticAttribute.slot_type} INT NOT NULL,
                         {typed.StaticAttribute.position} INT NOT NULL,
                         {typed.StaticAttribute.min_slots} INT NOT NULL,
@@ -162,8 +172,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.StaticAttributeAlias.list_id} INT NOT NULL,
-                        {typed.StaticAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.StaticAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.StaticAttributeAlias.norm_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.StaticAttributeAlias.real_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.StaticAttributeAlias.attribute_id})
                             REFERENCES {typed.StaticAttribute}({typed.StaticAttribute.id})
@@ -180,8 +190,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.TaskAttribute} (
                         {typed.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttribute.list_id} INT NOT NULL,
-                        {typed.TaskAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAttribute.norm_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.TaskAttribute.real_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
                         {typed.TaskAttribute.slot_type} INT NOT NULL,
                         {typed.TaskAttribute.position} INT NOT NULL,
                         {typed.TaskAttribute.min_slots} INT NOT NULL,
@@ -201,8 +211,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeAlias.list_id} INT NOT NULL,
-                        {typed.TaskAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAttributeAlias.norm_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.TaskAttributeAlias.real_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeAlias.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -265,8 +275,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.UserAttribute} (
                         {typed.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttribute.list_id} INT NOT NULL,
-                        {typed.UserAttribute.norm_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.UserAttribute.real_name} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.UserAttribute.norm_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.UserAttribute.real_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
                         {typed.UserAttribute.position} INT NOT NULL,
                         {typed.UserAttribute.slot_type} INT NOT NULL,
                         {typed.UserAttribute.min_slots} INT NOT NULL,
@@ -286,8 +296,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeAlias.attribute_id} INT NOT NULL,
                         {typed.UserAttributeAlias.list_id} INT NOT NULL,
-                        {typed.UserAttributeAlias.norm_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
-                        {typed.UserAttributeAlias.real_alias} VARCHAR({attributes.MAX_SYN_LEN}) NOT NULL,
+                        {typed.UserAttributeAlias.norm_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
+                        {typed.UserAttributeAlias.real_alias} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeAlias.attribute_id})
                             REFERENCES {typed.UserAttribute}({typed.UserAttribute.id})
@@ -349,8 +359,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.Task} (
                         {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Task.list_id} INT NOT NULL,
-                        {typed.Task.norm_name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
-                        {typed.Task.real_name} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                        {typed.Task.norm_name} VARCHAR({self.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                        {typed.Task.real_name} VARCHAR({self.limits.attribute_task_value_slot_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.Task.list_id})
                             REFERENCES {typed.List}({typed.List.id})
@@ -365,8 +375,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAlias.task_id} INT NOT NULL,
                         {typed.TaskAlias.list_id} INT NOT NULL,
-                        {typed.TaskAlias.norm_alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
-                        {typed.TaskAlias.real_alias} VARCHAR({task.MAX_SYN_LEN}) NOT NULL,
+                        {typed.TaskAlias.norm_alias} VARCHAR({self.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                        {typed.TaskAlias.real_alias} VARCHAR({self.limits.attribute_task_value_slot_length_max}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAlias.task_id})
                             REFERENCES {typed.Task}({typed.Task.id})
@@ -442,9 +452,10 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     # --- Communities ---
 
     def create_community(self, *, raw_name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
+        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
+        del raw_name
+        
         with self.locked:
-            raw_name, norm_name = text.raw_to_real_and_norm(raw_name)
-
             comm = self.get_community_by_server_id(server_id)
 
             if comm is not None:
@@ -463,7 +474,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     )
                     VALUES (
                         {arg(norm_name)},
-                        {arg(raw_name)}
+                        {arg(real_name)}
                     )
                 """)
 
@@ -483,7 +494,13 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 comm = Community(
                     jumpedia=self,
                     id=community_id,
-                    name=raw_name
+                    name=real_name,
+                    limits=CommunityLimits(
+                        community_list_count_max=2,
+                        list_attribute_count_max=2,
+                        list_task_count_max=2,
+                        attribute_collection_entry_alias_count_max=2
+                    )
                 )  
 
                 comm.get_or_create_community_user(
@@ -500,11 +517,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     True
                 )
 
-                return Community(
-                    jumpedia=self,
-                    id=community_id,
-                    name=raw_name
-                )
+                return comm
     
     def delete_community(self, id: int) -> None:
         with self.locked, queries.connected() as c:
@@ -532,7 +545,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return Community(
             jumpedia=self,
             id=row.id,
-            name=row.real_name
+            name=row.real_name,
+            limits=...
         )
     
     def get_communities(self, where: Callable[[Arg], str] | None = None) -> set[Community]:
@@ -545,7 +559,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         data = self._fetch_from_community_table(lambda arg: f"{typed.Community.id} = {arg(id)}")
         return self._community_row_to_obj(data[0]) if data else None
     
-    def get_community_by_name(self, norm_name: str) -> Community | None:
+    def get_community_by_name(self, norm_name: text.NormStr) -> Community | None:
         data = self._fetch_from_community_table(lambda arg: f"{typed.Community.norm_name} = {arg(norm_name)}")
         return self._community_row_to_obj(data[0]) if data else None
     
@@ -570,13 +584,14 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     def create_or_get_jumpedia_user(
         self, 
         id: int, 
-        real_name: str, 
+        raw_name: str, 
         jumpedia_rank: JumpediaRank, 
         override_name_if_user_exists: bool,
         override_jumpedia_rank_if_user_exists: bool
     ) -> JumpediaUser:
-        real_name, norm_name = text.raw_to_real_and_norm(real_name)
-        
+        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
+        del raw_name
+
         with self.locked:
             user = self.get_user_by_id(id)
 
@@ -710,5 +725,15 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return self.get_community_by_id(result.community_id)  
     
 
-# I get horny thinking about what is about to happen
-Jumpedia()._init()
+# THE ONE PIECE IS REAAAAAAAAAAAAAAAAAAAAAAAAAAAAL
+THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE: Final[Jumpedia] = Jumpedia(
+    id=1,
+    database_name='jumpedia',
+    limits=JumpediaLimits(
+        community_name_length_max=64,
+        list_name_length_max=64,
+        user_name_length_max=32,  # Discord limit
+        attribute_syn_length_max=64,
+        attribute_task_value_slot_length_max=255
+    )
+)

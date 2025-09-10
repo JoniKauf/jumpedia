@@ -2,7 +2,7 @@ from enum import Enum
 import re
 import string
 from string.templatelib import Interpolation, Template
-from typing import Any, assert_never, Callable, Container, Final, Generator, Iterable, Literal, Sequence
+from typing import Any, NewType, assert_never, Callable, Container, Final, Generator, Iterable, Literal, Sequence
 from collections.abc import Set
 
 from errors.feedback import feedbacks
@@ -55,24 +55,35 @@ def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16,
     yield more_elems
 
 
-def raw_to_real(raw: str, /) -> str:
+
+# We don't use NewType just yet, because it has some drawbacks
+# Mostly for us it matters that it still isn't valid in TypeForm[...]
+# as of writing this.
+class RealStr(str): pass
+class NormStr(str): pass
+
+
+def raw_to_real(raw: str, /) -> RealStr:
     raw = replace_whitespace_groups(raw, ' ', True) 
-    return ''.join(c for c in raw if c.isprintable())
+    raw = ''.join(c for c in raw if c.isprintable())
 
+    if not raw:
+        raise ValueError('empty result')
+    
+    return RealStr(raw)
 
-def real_to_norm(real: str, /) -> str:
-    return real.lower()
+def real_to_norm(real: RealStr, /) -> NormStr:
+    return NormStr(real.lower())
 
-def raw_to_norm(raw: str, /) -> str:
+def raw_to_norm(raw: str, /) -> NormStr:
     return real_to_norm(raw_to_real(raw))
 
-def raw_to_real_and_norm(real: str, /) -> tuple[str, str]:
+def raw_to_real_and_norm(real: str, /) -> tuple[RealStr, NormStr]:
     real = raw_to_real(real)
-
     return real, real_to_norm(real)
 
-def raws_to_unique_reals_and_norms(raws: Iterable[str], /, *, strict: bool = False) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    norm_to_real: dict[str, str] = {}
+def raws_to_unique_reals_and_norms(raws: Iterable[str], /, strict: bool = False) -> tuple[tuple[RealStr, ...], tuple[NormStr, ...]]:
+    norm_to_real: dict[NormStr, RealStr] = {}
 
     for raw in raws:
         real, norm = raw_to_real_and_norm(raw)
@@ -86,12 +97,12 @@ def raws_to_unique_reals_and_norms(raws: Iterable[str], /, *, strict: bool = Fal
     # Dict guarantees order for python 3.8+
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
 
-def raw_to_real_and_validate(s: str, min_length: int, max_length: int) -> str:
-    name = raw_to_real(s)
+def raw_to_real_and_validate(raw: str, min_length: int, max_length: int) -> RealStr:
+    name = raw_to_real(raw)
     length = len(name)
 
     if not (min_length <= length <= max_length):
-        raise ValueError(s, length)
+        raise ValueError(raw, length)
     
     return name
 

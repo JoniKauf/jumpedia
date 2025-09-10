@@ -22,7 +22,7 @@ type SlotTypeT = (
 type_ = type
 
 STR_MIN_LEN: Final[int] = 1
-STR_MAX_LEN: Final[int] = 512
+STR_MAX_LEN: Final[int] = 255
 
 NUMBER_MAX: Final[int] = 2 ** 63 - 1
 NUMBER_MIN: Final[int] = -NUMBER_MAX - 1
@@ -72,7 +72,7 @@ class SlotType[T: SlotTypeT]:
         # cls.DATE = SlotType(5, 'date', dt.date)
         # cls.DATETIME = SlotType(6, 'date and time', dt.datetime)
         # cls.TIMEDELTA = SlotType(7, 'timespan', dt.timedelta)
-        cls.STRING = SlotType(8, 'text', str)
+        cls.STR = SlotType(8, 'text', str)
 
     def __post_init__(self):
         for elem in SlotType._slot_types:

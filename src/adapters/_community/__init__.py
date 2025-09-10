@@ -18,7 +18,7 @@ from structures.user.jumpedia_user import JumpediaUser
 
 
 def _require_list_with_name(name: str, community: Community) -> List:
-    list = community.get_list_by_norm_name(name)
+    list = community.get_list_by_name(name)
 
     if list is None:
         raise feedbacks.temp(f"List with the name `{name}` could not be found!")
