@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar
 from database import typed
-from structures.attributes import BaseNonStaticAttribute, SlotTypeT
-from structures.attributes import BaseNonStaticAttributeTables
+from structures.attribute import BaseNonStaticAttribute, SlotTypeT
+from structures.attribute import BaseNonStaticAttributeTables
 
 
 @dataclass(frozen=True, kw_only=True)

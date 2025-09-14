@@ -3,8 +3,8 @@
 from dataclasses import field
 from typing import Final, NamedTuple, Sequence, overload
 from typing_extensions import Sentinel
-from structures.attributes import BaseAttribute
-from structures.attributes.slot_type import SlotTypeT
+from structures.attribute import BaseAttribute
+from structures.attribute.slot_type import SlotTypeT
 from structures import BaseStructure
 
 # Collection

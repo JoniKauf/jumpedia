@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, NamedTuple,
 from database.simple_orm import Arg, Rows
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
-from structures import attributes, task
-from structures.attributes.slot_type import SlotType
-from structures.attributes.static_attribute import StaticAttribute
+from structures import attribute, task
+from structures.attribute.slot_type import SlotType
+from structures.attribute.static_attribute import StaticAttribute
 from structures import BaseStructure
 import structures.errors
 

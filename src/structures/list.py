@@ -1,21 +1,21 @@
 from dataclasses import dataclass
 import itertools
-from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Final, overload
+from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Final, Sequence, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures import task
-from structures.attributes.slot_type import SlotType, SlotTypeT
+from structures.attribute.slot_type import SlotType, SlotTypeT
 from structures import BaseStructure
-from structures.attributes import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT, collection
-from structures.attributes.static_attribute import StaticAttribute
-from structures.attributes.task_attribute import TaskAttribute
-from structures.attributes.user_attribute import UserAttribute
+from structures.attribute import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT, collection
+from structures.attribute.static_attribute import StaticAttribute
+from structures.attribute.task_attribute import TaskAttribute
+from structures.attribute.user_attribute import UserAttribute
 from structures.errors import StructureNotFoundError
 from structures.task import Task
 from utils import text
-from structures import attributes
+from structures import attribute
 from database import typed
 
 if TYPE_CHECKING:
@@ -323,6 +323,71 @@ class List(BaseStructure):
     
     # --- Tasks ---
 
+    def _insert_task_aliases(
+        self, 
+        c: queries.CursorWrapper, 
+        task_id: int,
+        real_aliases: Sequence[text.RealStr], 
+        norm_aliases: Sequence[text.NormStr]
+    ) -> None:
+        if not norm_aliases:
+            return
+        
+        count = len(norm_aliases)
+        TaskAliasTbl = typed.TaskAlias
+
+        c.executemany(lambda args: t"""
+            INSERT INTO {TaskAliasTbl} (
+                {TaskAliasTbl.task_id},
+                {TaskAliasTbl.list_id},
+                {TaskAliasTbl.norm_alias},
+                {TaskAliasTbl.real_alias},
+            ) 
+            VALUES (
+                {args(itertools.repeat(task_id, count))}, 
+                {args(itertools.repeat(self.id, count))}, 
+                {args(norm_aliases)},
+                {args(real_aliases)}
+            )
+        """)
+
+    def _insert_task_attribute_value_mapping(
+        self,
+        c: queries.CursorWrapper,
+        task_id: int,
+        task_attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]]
+    ) -> None:
+        if not task_attribute_value_mapping:
+            return
+        
+        TaskValueTbl = TaskAttribute.tables.attribute_task_value
+
+        # This is so clean I'm UwU-ing
+        attribute_id_args: list[int] = []
+        index_args: list[int] = []
+        slot_args: list[SlotTypeT] = []
+
+        for attr, v in task_attribute_value_mapping.items():
+            for i, slot in enumerate(v):
+                attribute_id_args.append(attr.id)
+                index_args.append(i)
+                slot_args.append(slot)
+
+        c.executemany(lambda args: t"""
+            INSERT INTO {TaskValueTbl} (
+                {TaskValueTbl.task_id},
+                {TaskValueTbl.attribute_id},
+                {TaskValueTbl.index},
+                {TaskValueTbl.real_slot}
+            )
+            VALUES (
+                {args(itertools.repeat(task_id, len(attribute_id_args)))},
+                {args(attribute_id_args)},
+                {args(index_args)},
+                {args(slot_args)}
+            )
+        """)
+
     def create_task(
         self, 
         raw_name: str, 
@@ -330,9 +395,8 @@ class List(BaseStructure):
         raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
     ) -> Task:
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms((raw_name, *raw_aliases))
-        self._validate_task_syns({norm_name, *norm_aliases})
-
         del raw_name, raw_aliases
+        self._validate_task_norm_syns({norm_name, *norm_aliases})
 
         with self.locked:
             all_tasks = self.get_tasks()
@@ -358,57 +422,13 @@ class List(BaseStructure):
 
                 task_id = c.last_generated_id 
                 
-                if norm_aliases:
-                    count = len(norm_aliases)
-
-                    c.executemany(lambda args: t"""
-                        INSERT INTO {typed.TaskAlias} (
-                            {typed.TaskAlias.task_id},
-                            {typed.TaskAlias.list_id},
-                            {typed.TaskAlias.norm_alias},
-                            {typed.TaskAlias.real_alias},
-                        ) 
-                        VALUES (
-                            {args(itertools.repeat(task_id, count))}, 
-                            {args(itertools.repeat(self.id, count))}, 
-                            {args(norm_aliases)},
-                            {args(real_aliases)}
-                        )
-                    """)
-
-                if task_attribute_value_mapping:
-                    TaskValueTbl = TaskAttribute.tables.attribute_task_value
-
-                    # This is so clean I'm UwU-ing
-                    attribute_id_args: list[int] = []
-                    index_args: list[int] = []
-                    slot_args: list[SlotTypeT] = []
-
-                    for attr, v in task_attribute_value_mapping.items():
-                        for i, slot in enumerate(v):
-                            attribute_id_args.append(attr.id)
-                            index_args.append(i)
-                            slot_args.append(slot)
-
-                    c.executemany(lambda args: t"""
-                        INSERT INTO {TaskValueTbl} (
-                            {TaskValueTbl.task_id},
-                            {TaskValueTbl.attribute_id},
-                            {TaskValueTbl.index},
-                            {TaskValueTbl.slot}
-                        )
-                        VALUES (
-                            {args(itertools.repeat(task_id, len(attribute_id_args)))},
-                            {args(attribute_id_args)},
-                            {args(index_args)},
-                            {args(slot_args)}
-                        )
-                    """)
+                self._insert_task_aliases(c, task_id, real_aliases, norm_aliases)
+                self._insert_task_attribute_value_mapping(c, task_id, task_attribute_value_mapping)
 
             return Task(
                 list=self,
                 id=task_id,
-                name=real_name
+                real_name=real_name
             )
         
     def delete_task(self, id: int) -> bool:
@@ -422,100 +442,134 @@ class List(BaseStructure):
 
             return c.affected_row_count > 0
     
-    def _validate_task_syns(self, normed_syns: AbstractSet[text.NormStr], allowed_tasks: AbstractSet[Task] = frozenset()) -> None:
-        if len(normed_syns) > self.community.jumpedia.limits.attribute_task_value_slot_length_max:
+    def _validate_task_norm_syns(self, norm_syns: AbstractSet[text.NormStr], allowed_tasks: AbstractSet[Task] = frozenset()) -> None:
+        if len(norm_syns) > self.community.limits.attribute_slot_count_max:
             raise feedbacks.temp("Too many syns")
         
-        allowed = allowed_tasks | {None}
+        for normed_syn in norm_syns:
+            if len(normed_syn) > self.community.jumpedia.limits.attribute_task_value_slot_length_max:
+                raise feedbacks.temp("Too long syn")
+            
+            task = self.get_task_by_syn(normed_syn)
 
-        del allowed_tasks
-
-        for normed_syn in normed_syns:
-            if self.get_task_by_syn(normed_syn) not in allowed:
+            if task not in allowed_tasks:
                 raise feedbacks.temp(f"Task syn {normed_syn!r} already taken!")
         
 
-    def edit_task(
-        self, 
-        id: int, 
-        raw_name: str | None = None, 
-        raw_aliases: frozenset[str] | None = None, 
-        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT] | None = None
+    def edit_task_name(
+        self,
+        id: int,
+        raw_name: str
     ) -> None:
-        if not (raw_name or raw_aliases or raw_task_attribute_value_mapping):
-            return
-        
         with self.locked:
             task = self.get_task_by_id(id)
 
             if task is None:
                 raise StructureNotFoundError
             
-            raw_syns: list[str] = []
+            real_name, norm_name = text.raw_to_real_and_norm(raw_name)
 
-            if raw_name:
-                raw_syns.append(raw_name)
-
-            if raw_aliases:
-                raw_syns.extend(raw_aliases)
-
-            if raw_syns:
-                (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms(raw_syns)
-                del raw_syns, raw_name, raw_aliases
-
-                self._validate_task_syns({norm_name, *norm_aliases}, {task})
-
-            if raw_task_attribute_value_mapping:
-                task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(raw_task_attribute_value_mapping)
+            if real_name == task.real_name:
+                return
+            
+            TaskTbl = typed.Task
 
             with queries.connected() as c:
-                if raw_syns:
-                    TaskTbl = typed.Task
+                c.execute(lambda arg: t"""
+                    UPDATE {TaskTbl}
+                    SET
+                        {TaskTbl.norm_name} = {arg(norm_name)},
+                        {TaskTbl.real_name} = {arg(real_name)}
+                    WHERE 
+                        {TaskTbl.list_id} = {arg(self.id)}
+                        AND {TaskTbl.id} = {arg(task.id)}
+                """)
+
+                norm_aliases = set(map(text.real_to_norm, task.aliases))
+
+                # If the new name is an alias, remove the alias
+                if norm_name in norm_aliases:
                     TaskAliasTbl = typed.TaskAlias
 
                     c.execute(lambda arg: t"""
-                        UPDATE {TaskTbl}
-                        SET 
-                            {TaskTbl.norm_name} = {arg(norm_name)},
-                            {TaskTbl.real_name} = {arg(real_name)}
+                        DELETE FROM {TaskAliasTbl}
                         WHERE
-                            {TaskTbl.list_id} = {arg(self.id)}
-                            AND {TaskTbl.id} = {arg(task.id)}
+                            {TaskAliasTbl.list_id} = {arg(self.id)}
+                            AND {TaskAliasTbl.task_id} = {arg(task.id)}
+                            AND {TaskAliasTbl.norm_alias} = {arg(norm_name)}
                     """)
 
-                    count = len(norm_aliases)
-
-                    c.executemany(lambda args: t"""
-                        UPDATE {TaskAliasTbl}
-                        SET
-                            {TaskAliasTbl.norm_alias} = {args(norm_aliases)},
-                            {TaskAliasTbl.real_alias} = {args(real_aliases)}
-                        WHERE
-                            {TaskAliasTbl.list_id} = {args(itertools.repeat(self.id, count))}
-                            AND {TaskAliasTbl.task_id} = {args(itertools.repeat(task.id, count))}
-                    """)
-
-                if raw_task_attribute_value_mapping:
-                    AttrTaskValueTbl = TaskAttribute.tables.attribute_task_value
-
-                    c.executemany(lambda args: t"""
-                        UPDATE {AttrTaskValueTbl}
-                        SET
-                            {AttrTaskValueTbl.slot} = {args(itertools.chain(*task_attribute_value_mapping.values()))}
-                        WHERE 
-                            {AttrTaskValueTb}
-                    """)
-
-
+                    assert c.affected_row_count == 1
             
 
+    def edit_task_aliases(
+        self, 
+        id: int, 
+        raw_aliases: frozenset[str]
+    ) -> None:
+        with self.locked:
+            task = self.get_task_by_id(id)
+
+            if task is None:
+                raise StructureNotFoundError
+            
+            (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
+            del raw_aliases
+
+            self._validate_task_norm_syns(set(norm_aliases), {task})
+            
+            norm_name = text.real_to_norm(task.real_name)
+            
+            # If an alias is the name already, remove it
+            try:
+                idx = norm_aliases.index(norm_name)
+            except ValueError:
+                pass
+            else:
+                real_aliases.pop(idx)
+                norm_aliases.pop(idx)
+            
+            del norm_name
+            
+            TaskAliasTbl = typed.TaskAlias
+
+            with queries.connected() as c:
+                # Delete all aliases
+                c.execute(lambda arg: t"""
+                    DELETE FROM {TaskAliasTbl}
+                    WHERE 
+                        {TaskAliasTbl.list_id} = {arg(self.id)}
+                        AND {TaskAliasTbl.task_id} = {arg(task.id)}
+                """)
+
+                self._insert_task_aliases(c, task.id, real_aliases, norm_aliases)
 
 
+    def edit_task_attribute_value_mapping(
+        self,
+        id: int,
+        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
+    ):
+        with self.locked:
+            task = self.get_task_by_id(id)
+
+            if task is None:
+                raise StructureNotFoundError
             
-            
-            
-            
-            
+            task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(
+                raw_task_attribute_value_mapping
+            )
+
+            AttrTaskValueTbl = TaskAttribute.tables.attribute_task_value
+
+            with queries.connected() as c:
+                c.execute(lambda arg: t"""
+                    DELETE FROM {AttrTaskValueTbl}
+                    WHERE
+                        {AttrTaskValueTbl.task_id} = {arg(task.id)}
+                """)
+
+                self._insert_task_attribute_value_mapping(c, task.id, task_attribute_value_mapping)
         
     def _fetch_tasks_from_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Task]:
         with queries.connected() as c:
@@ -535,7 +589,7 @@ class List(BaseStructure):
         return Task(
             list=self,
             id=row.id,
-            name=row.real_name
+            real_name=row.real_name
         )
     
     def get_tasks(self, where: Callable[[Arg], str] | None = None) -> set[Task]:

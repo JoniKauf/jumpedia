@@ -7,6 +7,7 @@ from types import NoneType, UnionType
 from typing import Any, Final, Mapping, Never, Self, Sequence, Union
 import typing
 import json
+from typing_extensions import TypeForm
 PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'
 
@@ -261,3 +262,17 @@ def unparse_timedelta(obj: datetime.timedelta) -> str:
         parts.append(f"{abs(seconds)}s")
         
     return ''.join(parts)
+
+
+
+type PossibleT = None | bool | int | float | str | list[PossibleT] | dict[str, PossibleT]
+
+class Parser[T: PossibleT]:
+    def __init__(self, t: TypeForm[T]) -> NoneType:
+        ...
+
+    def parse(self, obj: str) -> T:
+        ...
+
+
+Parser(dict[str, ])

@@ -1,6 +1,6 @@
 from database import typed
-from structures.attributes import AttributeTables, SlotTypeT
-from structures.attributes import BaseAttribute
+from structures.attribute import AttributeTables, SlotTypeT
+from structures.attribute import BaseAttribute
 
 class StaticAttribute[T: SlotTypeT](BaseAttribute[T]):
     __structure_name__ = "static attribute"

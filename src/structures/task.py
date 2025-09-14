@@ -15,11 +15,9 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, kw_only=True)
 class Task(BaseStructure):
-    __structure_name__ = 'task'
-
-    list: 'List'
+    list: List
     id: int
-    name: text.RealStr
+    real_name: text.RealStr
 
     @property
     def aliases(self) -> frozenset[text.RealStr]:
@@ -39,7 +37,6 @@ class Task(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
-
         
     
 

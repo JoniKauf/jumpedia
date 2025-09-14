@@ -16,14 +16,6 @@ _cls_names: dict[str, type['BaseStructure']] = {}
 def get_structure_types() -> tuple[type['BaseStructure'], ...]:
     return tuple(_cls_names.values())
 
-def human_join_structures_type(structures: StructuresTypeT, convert: Callable[[str], str] = lambda s: s):
-    if not isinstance(structures, tuple):
-        structures = (structures,)
-    
-    return text.human_join(tuple(
-        convert(s.__structure_name__) for s in structures
-    ), " or ")
-
 
 @dataclass_transform(frozen_default=True, kw_only_default=True)
 class _StructureMeta(ABCMeta):
@@ -38,8 +30,6 @@ class _StructureMeta(ABCMeta):
 
 
 class BaseStructure(metaclass=_StructureMeta):
-    __structure_name__: ClassVar[str] = ''
-
     @property
     @abstractmethod
     def identity(self) -> tuple[int, ...]:
@@ -57,21 +47,4 @@ class BaseStructure(metaclass=_StructureMeta):
             print(f"Compared", value, "to", self)
             return NotImplemented
         
-        return self.__class__ == value.__class__ and self.identity == value.identity
-
-    def __init_subclass__(cls) -> None:
-        structure_name = text.norm_value(cls.__structure_name__)
-
-        if structure_name in structures._cls_names:
-            raise AssertionError("__structure_name__ used twice")
-        
-        structures._cls_names[structure_name] = cls
-
-        return super().__init_subclass__()
-
-    @classmethod
-    def structure_name(cls, title: bool = False) -> str:
-        if title:
-            return cls.__structure_name__.title()
-        else:
-            return cls.__structure_name__.lower()
+        return self.__class__ is value.__class__ and self.identity == value.identity

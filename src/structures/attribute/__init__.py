@@ -2,22 +2,21 @@ import builtins
 from collections import defaultdict
 from dataclasses import dataclass
 import itertools
-from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypedDict
 
 from database import queries, typed
 from errors.feedback import feedbacks
-from structures.attributes import slot_type
-from structures.attributes import collection
-from structures.attributes.slot_type import LiteralToStrPossibleT, SlotType, SlotTypeT
-from structures.attributes.collection import MAX_ENTRIES, Collection, CollectionEntry
+from structures.attribute import slot_type
+from structures.attribute import collection
+from structures.attribute.slot_type import LiteralToStrPossibleT, SlotType, SlotTypeT
+from structures.attribute.collection import Collection, CollectionEntry
 from structures import BaseStructure
 from structures.list import List
-from utils import numbers, parsetools, text
+from utils import parsetools
 if TYPE_CHECKING:
-    from structures.attributes.static_attribute import StaticAttribute
-    from structures.attributes.task_attribute import TaskAttribute
-    from structures.attributes.user_attribute import UserAttribute
+    from structures.attribute.static_attribute import StaticAttribute
+    from structures.attribute.task_attribute import TaskAttribute
+    from structures.attribute.user_attribute import UserAttribute
 
 
 
@@ -58,8 +57,6 @@ class BaseNonStaticAttributeTables(AttributeTables):
 
 
 class BaseAttribute[T: SlotTypeT](BaseStructure):
-    __structure_name__ = "base attribute"
-
     tables: ClassVar[AttributeTables]
     allow_min_slots_on_creation: ClassVar[bool] = False
     deletable: ClassVar[bool] = True

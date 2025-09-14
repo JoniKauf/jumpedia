@@ -6,9 +6,9 @@ from database.simple_orm import Arg, BaseModel, Rows, column
 from errors.feedback import FeedbackError, feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
-from structures import BaseStructure, attributes, task, user
+from structures import BaseStructure, attribute, task, user
 from structures import community
-from structures.attributes import slot_type
+from structures.attribute import slot_type
 from structures.community import Community, CommunityLimits
 from structures.user import JumpediaUser
 from utils import functools2, text
@@ -395,7 +395,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {typed.TaskAttributeTaskValue.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeTaskValue.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
                             {typed.TaskAttributeTaskValue.task_id}, 
@@ -418,7 +418,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.UserAttributeTaskValue.attribute_id} INT NOT NULL,
                         {typed.UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {typed.UserAttributeTaskValue.slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeTaskValue.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
                             {typed.UserAttributeTaskValue.user_id},
@@ -546,7 +546,12 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             jumpedia=self,
             id=row.id,
             name=row.real_name,
-            limits=...
+            limits=CommunityLimits(
+                community_list_count_max=2,
+                list_attribute_count_max=2,
+                list_task_count_max=2,
+                attribute_collection_entry_alias_count_max=2
+            )
         )
     
     def get_communities(self, where: Callable[[Arg], str] | None = None) -> set[Community]:
@@ -677,14 +682,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 connect_cmd = cogs.jumpedia.JumpediaCog.connect_community.qualified_name
                 disconnect_cmd = cogs.jumpedia.JumpediaCog.disconnect_community.qualified_name
 
-                raise FeedbackError(
+                raise feedbacks.temp(
                     "Server Already Connected To A Community",
-                    f"This server is already connected to a different community called `{existing_community.name}`!",
-                    additional="A server can only be connected to one community at a time.",
-                    paragraphs=[
-                        f"If you want to change the community for this server, see the commands "
-                        f"{msg.code(connect_cmd)} and {msg.code(disconnect_cmd)}."
-                    ]
                 )     
             
             with queries.connected() as c:

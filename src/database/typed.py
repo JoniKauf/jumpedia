@@ -1,5 +1,3 @@
-from types import NoneType, UnionType
-from typing import Union, overload
 from database.simple_orm import SNAKE, BaseModel, column
 from utils.text import NormStr, RealStr
 
@@ -117,8 +115,8 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(int)
     def index(self): pass
-    @column(str)
-    def slot(self): pass
+    @column(RealStr)
+    def real_slot(self): pass
 
 
 # --- Static Attribute ---

@@ -78,8 +78,8 @@ def real_to_norm(real: RealStr, /) -> NormStr:
 def raw_to_norm(raw: str, /) -> NormStr:
     return real_to_norm(raw_to_real(raw))
 
-def raw_to_real_and_norm(real: str, /) -> tuple[RealStr, NormStr]:
-    real = raw_to_real(real)
+def raw_to_real_and_norm(raw: str, /) -> tuple[RealStr, NormStr]:
+    real = raw_to_real(raw)
     return real, real_to_norm(real)
 
 def raws_to_unique_reals_and_norms(raws: Iterable[str], /, strict: bool = False) -> tuple[tuple[RealStr, ...], tuple[NormStr, ...]]:
