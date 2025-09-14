@@ -1,8 +1,4 @@
-
-
-from typing import Final
-import builtins
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from database import queries
 from structures import BaseStructure
@@ -19,8 +15,7 @@ class Task(BaseStructure):
     id: int
     real_name: text.RealStr
 
-    @property
-    def aliases(self) -> frozenset[text.RealStr]:
+    def get_real_aliases(self) -> frozenset[text.RealStr]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.real_alias}
@@ -33,6 +28,20 @@ class Task(BaseStructure):
             rows = c.fetchall(typed.TaskAlias)
 
         return frozenset(row.real_alias for row in rows)
+    
+    def get_norm_aliases(self) -> frozenset[text.NormStr]:
+        with queries.connected() as c:
+            c.execute(lambda arg: t"""
+                SELECT {typed.TaskAlias.norm_alias}
+                FROM {typed.TaskAlias}
+                WHERE 
+                    {typed.TaskAlias.list_id} = {arg(self.list.id)}
+                    AND {typed.TaskAlias.task_id} = {arg(self.id)}
+            """)
+
+            rows = c.fetchall(typed.TaskAlias)
+
+        return frozenset(row.norm_alias for row in rows)
 
     @property
     def identity(self) -> tuple[int, ...]:

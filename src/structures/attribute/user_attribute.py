@@ -9,7 +9,6 @@ from structures.attribute import BaseNonStaticAttributeTables
 
 @dataclass(frozen=True, kw_only=True)
 class UserAttribute[T: SlotTypeT](BaseNonStaticAttribute[T]):
-    __structure_name__: ClassVar = 'user attribute'
     tables = BaseNonStaticAttributeTables(
         typed.UserAttribute,
         typed.UserAttributeAlias,

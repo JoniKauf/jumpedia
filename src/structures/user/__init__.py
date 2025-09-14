@@ -1,13 +1,10 @@
-
-
-from dataclasses import dataclass
 import re
-from typing import Final, NamedTuple, Never, Sequence, overload, assert_never
+from typing import Final, assert_never
 
-from discordtools import messaging as msg
 from errors.feedback import FeedbackError
 from structures.user.community_user import CommunityUser
 from structures.user.jumpedia_user import JumpediaUser
+from utils import text
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 

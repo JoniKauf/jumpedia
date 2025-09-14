@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, NamedTuple, Self, TypedDict, Unpack
+from typing import TYPE_CHECKING, Callable, NamedTuple
 from database.simple_orm import Arg, Rows
-from errors.feedback import FeedbackError, feedbacks
+from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
-from structures import attribute, task
 from structures.attribute.slot_type import SlotType
 from structures.attribute.static_attribute import StaticAttribute
 from structures import BaseStructure

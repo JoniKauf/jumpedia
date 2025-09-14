@@ -12,7 +12,8 @@ from structures.attribute.slot_type import LiteralToStrPossibleT, SlotType, Slot
 from structures.attribute.collection import Collection, CollectionEntry
 from structures import BaseStructure
 from structures.list import List
-from utils import parsetools
+from utils import parsetools, text
+
 if TYPE_CHECKING:
     from structures.attribute.static_attribute import StaticAttribute
     from structures.attribute.task_attribute import TaskAttribute
@@ -63,7 +64,7 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
 
     list: 'List'
     id: int 
-    name: str
+    real_name: text.RealStr
     slot_type: SlotType[T]
     position: int
     min_slots: int
@@ -93,11 +94,8 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
     
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
-
-    def get_syns(self) -> set[str]:
-        return {self.name} | self.get_aliases()
     
-    def get_aliases(self) -> frozenset[str]:
+    def get_real_aliases(self) -> frozenset[text.RealStr]:
         TblAlias = self.__class__.tables.attribute_alias
 
         with queries.connected() as c:
@@ -110,6 +108,20 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
             rows = c.fetchall(TblAlias)
         
         return frozenset(row.real_alias for row in rows)
+    
+    def get_norm_aliases(self) -> frozenset[text.NormStr]:
+        TblAlias = self.__class__.tables.attribute_alias
+
+        with queries.connected() as c:
+            c.execute(lambda arg: t"""
+                SELECT {TblAlias.norm_alias}
+                FROM {TblAlias}
+                WHERE {TblAlias.attribute_id} = {arg(self.id)}
+            """)
+
+            rows = c.fetchall(TblAlias)
+        
+        return frozenset(row.norm_alias for row in rows)
     
     def get_collection(self) -> Collection[T]:
         return Collection(attribute=self, entries=())

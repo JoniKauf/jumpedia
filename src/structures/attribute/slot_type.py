@@ -3,13 +3,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 import decimal
 import enum
-import functools
 import re
-from typing import Any, ClassVar, Final, Literal, Self, assert_never
+from typing import ClassVar, Final, Literal, Self, assert_never
 import typing
-from discordtools import messaging as msg
 from errors.feedback import feedbacks
-from utils import parsetools, text
+from utils import text
 
 
 type SlotTypeT = (

@@ -1,13 +1,10 @@
 
-from abc import ABC, ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from threading import RLock
-from typing import Any, Callable, ClassVar, dataclass_transform
+from typing import Any, dataclass_transform
 from contextlib import _GeneratorContextManager
-import structures
-from utils import text
 from utils import locked
-
 
 type StructuresTypeT = type[BaseStructure] | tuple[type[BaseStructure], *tuple[type[BaseStructure], ...]]
 

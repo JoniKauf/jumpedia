@@ -3,19 +3,16 @@ import time
 from typing import Callable, Final, NamedTuple
 
 from database.simple_orm import Arg, BaseModel, Rows, column
-from errors.feedback import FeedbackError, feedbacks
+from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
-from structures import BaseStructure, attribute, task, user
-from structures import community
+from structures import BaseStructure, user
 from structures.attribute import slot_type
 from structures.community import Community, CommunityLimits
 from structures.user import JumpediaUser
 from utils import functools2, text
 from database import queries, typed
-from dataclasses import dataclass, field
-from discordtools import messaging as msg
-from structures import list as list_
+from dataclasses import dataclass
 import structures.errors
 
 class NotInServerError(ValueError):
