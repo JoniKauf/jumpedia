@@ -11,7 +11,7 @@ def server_already_connected_to_community(current_community: 'Community', new_co
     if new_community is not None and new_community == current_community:
         return FeedbackError(
             "Server Already Connected To Specified Community",
-            f"This server is already connected to the specified community ({msg.code(current_community.name)})!"
+            f"This server is already connected to the specified community ({msg.code(current_community.real_name)})!"
         )
     
     import cogs.jumpedia
@@ -21,7 +21,7 @@ def server_already_connected_to_community(current_community: 'Community', new_co
 
     return FeedbackError(
         "Server Already Connected To A Community",
-        f"This server is already connected to a different community called {msg.code(current_community.name)}!",
+        f"This server is already connected to a different community called {msg.code(current_community.real_name)}!",
         additional="A server can only be connected to one community at a time.",
         paragraphs=[
             f"If you want to change the community for this server, see the commands "

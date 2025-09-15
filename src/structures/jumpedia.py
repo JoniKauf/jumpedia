@@ -29,9 +29,6 @@ class JumpediaLimits(NamedTuple):
     attribute_syn_length_max: int
     attribute_task_value_slot_length_max: int
 
-
-
-
 @dataclass(frozen=True, kw_only=True)
 class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     id: int
@@ -126,16 +123,16 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 c.execute(lambda _: t"""
                     CREATE TABLE {typed.CommunityUser} (
                         {typed.CommunityUser.community_id} INT NOT NULL,
-                        {typed.CommunityUser.user_id} BIGINT UNSIGNED NOT NULL,
+                        {typed.CommunityUser.jumpedia_user_id} BIGINT UNSIGNED NOT NULL,
                         {typed.CommunityUser.power} INT NOT NULL,
                         {typed.CommunityUser.selected_list_id} INT,
 
-                        PRIMARY KEY ({typed.CommunityUser.community_id}, {typed.CommunityUser.user_id}),
+                        PRIMARY KEY ({typed.CommunityUser.community_id}, {typed.CommunityUser.jumpedia_user_id}),
 
                         FOREIGN KEY ({typed.CommunityUser.community_id})
                             REFERENCES {typed.Community}({typed.Community.id})
                             ON DELETE CASCADE,
-                        FOREIGN KEY ({typed.CommunityUser.user_id})
+                        FOREIGN KEY ({typed.CommunityUser.jumpedia_user_id})
                             REFERENCES {typed.JumpediaUser}({typed.JumpediaUser.id})
                             ON DELETE CASCADE,
                         FOREIGN KEY ({typed.CommunityUser.selected_list_id})
@@ -148,6 +145,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                     CREATE TABLE {typed.StaticAttribute} (
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
+                        {typed.StaticAttribute.kind} TINYINT NOT NULL,
                         {typed.StaticAttribute.norm_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
                         {typed.StaticAttribute.real_name} VARCHAR({self.limits.attribute_syn_length_max}) NOT NULL,
                         {typed.StaticAttribute.slot_type} INT NOT NULL,
@@ -159,6 +157,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                             REFERENCES {typed.List}({typed.List.id})
                             ON DELETE CASCADE,
 
+                        UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.kind}),
                         UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.norm_name}),
                         UNIQUE ({typed.StaticAttribute.list_id}, {typed.StaticAttribute.position})
                     )
@@ -491,7 +490,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 comm = Community(
                     jumpedia=self,
                     id=community_id,
-                    name=real_name,
+                    real_name=real_name,
+                    norm_name=norm_name,
                     limits=CommunityLimits(
                         community_list_count_max=2,
                         list_attribute_count_max=2,
@@ -523,8 +523,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 WHERE {typed.Community.id} = {arg(id)}
             """)
                 
-            if c.affected_row_count <= 0:
-                raise structures.errors.StructureNotFoundError()
+            if c.affected_row_count < 1:
+                raise structures.errors.StructureNotFoundError(Community)
     
     def _fetch_from_community_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Community]:
         with queries.connected() as c:
@@ -542,7 +542,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
         return Community(
             jumpedia=self,
             id=row.id,
-            name=row.real_name,
+            real_name=row.real_name,
+            norm_name=row.norm_name,
             limits=CommunityLimits(
                 community_list_count_max=2,
                 list_attribute_count_max=2,
@@ -674,11 +675,6 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                 if community_id == existing_community.id:
                     raise feedbacks.temp("Community is already in this server!")
                 
-                import cogs.jumpedia
-                
-                connect_cmd = cogs.jumpedia.JumpediaCog.connect_community.qualified_name
-                disconnect_cmd = cogs.jumpedia.JumpediaCog.disconnect_community.qualified_name
-
                 raise feedbacks.temp(
                     "Server Already Connected To A Community",
                 )     
@@ -733,3 +729,5 @@ THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE: Final[Jum
         attribute_task_value_slot_length_max=255
     )
 )
+
+JUMPEDIA = THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE

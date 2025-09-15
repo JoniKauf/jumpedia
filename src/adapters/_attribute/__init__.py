@@ -1,0 +1,5 @@
+from adapters._attribute.static_attribute import StaticAttributeAdapter
+from adapters._attribute.task_attribute import TaskAttributeAdapter
+from adapters._attribute.user_attribute import UserAttributeAdapter
+
+type AnyAttributeAdapterT = StaticAttributeAdapter | TaskAttributeAdapter | UserAttributeAdapter

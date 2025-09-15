@@ -1,2 +1,9 @@
+
+
+from structures import BaseStructure
+
+
 class StructureNotFoundError(LookupError):
-    pass
+    def __init__(self, type: type[BaseStructure]) -> None:
+        self.type = type
+        super().__init__(type)

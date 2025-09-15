@@ -1,4 +1,6 @@
+from typing import Literal
 from database.simple_orm import SNAKE, BaseModel, column
+from structures.list import KindsT
 from utils.text import NormStr, RealStr
 
 class Community(BaseModel, table_name=SNAKE):
@@ -43,7 +45,7 @@ class CommunityUser(BaseModel, table_name=SNAKE):
     @column(int)
     def community_id(self): pass
     @column(int)
-    def user_id(self): pass
+    def jumpedia_user_id(self): pass
     @column(int)
     def power(self): pass
     @column(int)
@@ -122,7 +124,8 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
 # --- Static Attribute ---
 
 class StaticAttribute(BaseAttribute, table_name=SNAKE):
-    pass
+    @column(KindsT)
+    def kind(self): pass
 
 class StaticAttributeAlias(BaseAttributeAlias, table_name=SNAKE):
     pass

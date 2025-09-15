@@ -1,13 +1,15 @@
 import datetime
 from decimal import Decimal
+import itertools
 import json
 import json.tool
 import re
+import shlex
 from types import NoneType, UnionType
-from typing import Any, Final, Mapping, Never, Self, Sequence, Union
+from typing import Any, Final, Mapping, Never, Self, Sequence, TypeIs, Union
 import typing
 import json
-from typing_extensions import TypeForm
+from typing_extensions import Sentinel, TypeForm
 PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = 'utf-8'
 
@@ -265,14 +267,78 @@ def unparse_timedelta(obj: datetime.timedelta) -> str:
 
 
 
-type PossibleT = None | bool | int | float | str | list[PossibleT] | dict[str, PossibleT]
+class ArgParser:
+    # From https://www.fileformat.info/info/unicode/block/general_punctuation/utf8test.htm
+    CLEAN_MAP: dict[str, str] = {
+        '\'': "‘’‚‛",
+        '"': "”“„‟"
+    }
 
-class Parser[T: PossibleT]:
-    def __init__(self, t: TypeForm[T]) -> NoneType:
-        ...
+    def __init__(self) -> None:
+        pass 
 
-    def parse(self, obj: str) -> T:
-        ...
+    def _clean(self, s: str, /) -> str:
+        s = s.strip()
 
+        for k, v in self.__class__.CLEAN_MAP:
+            s = re.sub(rf'[{re.escape(v)}]', k, s)
+        
+        return s
+    
+    def parse_args(self, s: str, /) -> list[str]:
+        s = self._clean(s)
 
-Parser(dict[str, ])
+        result: list[str] = []
+        in_quotes: bool = False
+        in_escape: bool = False
+        current_arg: list[str] = []
+        prev_c: str = ''
+        COUNT = len(s)
+
+        for i, c in enumerate(s):
+            if in_escape:
+                if c not in '\\"':
+                    raise ValueError('\\ not followed by " or \\')
+                
+                current_arg.append(c)
+                in_escape = False
+            
+            elif not in_escape and c == '\\':
+                in_escape = True
+                
+            elif c == '"':
+                if in_quotes:
+                    result.append(''.join(current_arg))
+                    current_arg = []
+
+                    if i < COUNT - 1 and not s[i + 1].isspace():
+                        raise ValueError('Closing " not proceded by whitespace')
+                else:
+                    if not prev_c.isspace():
+                        raise ValueError('Opening " not preceded by whitespace')
+                
+                in_quotes = not in_quotes
+
+            else:
+                if in_quotes:
+                    current_arg.append(c)
+                else:
+                    if c.isspace():
+                        if not prev_c.isspace():
+                            result.append(''.join(current_arg))
+                            current_arg = []
+                    else:
+                        current_arg.append(c)
+                    
+            prev_c = c
+        
+        if in_escape:
+            raise ValueError('Not escaped final \\')
+        
+        if in_quotes:
+            raise ValueError('Not closed quotation mark')
+        
+        if current_arg:
+            result.append(''.join(current_arg))
+
+        return result

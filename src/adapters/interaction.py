@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+
 from functools import cached_property
 import discord as dc
 
-from adapters._base_adapter import BaseAdapter
+from adapters import BaseAdapter
 from adapters._discord.member import MemberAdapter
 from adapters._jumpedia import JumpediaAdapter
 from adapters._discord.user import UserAdapter
@@ -17,7 +17,6 @@ def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     return user_or_member
 
 
-@dataclass(frozen=True)
 class InteractionAdapter(BaseAdapter):
     _interaction: dc.Interaction
 

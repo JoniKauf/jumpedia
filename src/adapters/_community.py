@@ -1,23 +1,21 @@
 
 
-from dataclasses import dataclass
+
 from typing import Any, overload
-from adapters._base_adapter import BaseAdapter
+from adapters import BaseAdapter
 from adapters._list import ListAdapter
-from adapters._users.community_user import CommunityUserAdapter
-from adapters._users.jumpedia_user import JumpediaUserAdapter
+from adapters._user.community_user import CommunityUserAdapter
+from adapters._user.jumpedia_user import JumpediaUserAdapter
 from adapters._jumpedia import JumpediaAdapter
-from discordtools import users
-from errors.feedback import FeedbackError, feedbacks
+from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from structures.community import Community
 from structures import list as list_
 from structures.list import List
-from structures.user.community_user import CommunityUser
-from structures.user.jumpedia_user import JumpediaUser
+from utils import text
 
 
-def _require_list_with_name(name: str, community: Community) -> List:
+def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     list = community.get_list_by_name(name)
 
     if list is None:
@@ -25,24 +23,13 @@ def _require_list_with_name(name: str, community: Community) -> List:
     
     return list
 
-def _valnitize_list_name(name: str) -> str:
-    from utils import text
-
-    return text.raw_to_real_and_validate(
-        name, 
-        list_.MIN_NAME_LENGTH, 
-        list_.MAX_NAME_LENGTH
-    )
-
-@dataclass(frozen=True)
 class CommunityAdapter(BaseAdapter):
     _community: Community
-
     jumpedia: JumpediaAdapter
 
     @property
     def name(self) -> str:
-        return self._community.name
+        return self._community.real_name
 
     # --- List ---
 
@@ -55,19 +42,15 @@ class CommunityAdapter(BaseAdapter):
     
     def get_list(self, name: str) -> ListAdapter:
         return ListAdapter(
-            _require_list_with_name(_valnitize_list_name(name), self._community), 
+            _require_list_with_name(text.raw_to_norm(name), self._community), 
             self
         )
     
     def create_list(self, name: str) -> ListAdapter:
-        from utils import text
-
-        name = _valnitize_list_name(name)
-        
         return ListAdapter(self._community.create_list(name), self)
     
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(_valnitize_list_name(name), self._community)
+        list = _require_list_with_name(text.raw_to_norm(name), self._community)
 
         if not self._community.delete_list(list.id):
             raise feedbacks.temp("The community or list was just deleted!")
@@ -83,8 +66,6 @@ class CommunityAdapter(BaseAdapter):
     _MISSING = object()
 
     def get_default_selected_list(self, name: str, default: Any = _MISSING):
-        name = _valnitize_list_name(name)
-
         list = self._community.get_default_selected_list()
 
         if list is None:
@@ -101,7 +82,7 @@ class CommunityAdapter(BaseAdapter):
             list_id = None
         else:
             list_id = _require_list_with_name(
-                _valnitize_list_name(name), self._community
+                text.raw_to_norm(name), self._community
             ).id
         
         if not self._community.set_default_selected_list(list_id):

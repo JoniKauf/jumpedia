@@ -1,10 +1,7 @@
-from dataclasses import dataclass
 import discord as dc
-from adapters._base_adapter import BaseAdapter
+from adapters import BaseAdapter
 from adapters.interaction import InteractionAdapter
 
-
-@dataclass(frozen=True)
 class UserAdapter(BaseAdapter):
     _user: dc.User
 

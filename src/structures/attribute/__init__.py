@@ -29,7 +29,7 @@ class RawCollectionEntry(TypedDict):
     slot: str
     aliases: list[str]
 
-type RawCollectionT[T] = list[RawCollectionEntry]
+type RawCollectionT = list[RawCollectionEntry]
 
     
 
@@ -59,12 +59,12 @@ class BaseNonStaticAttributeTables(AttributeTables):
 
 class BaseAttribute[T: SlotTypeT](BaseStructure):
     tables: ClassVar[AttributeTables]
-    allow_min_slots_on_creation: ClassVar[bool] = False
     deletable: ClassVar[bool] = True
 
     list: 'List'
     id: int 
     real_name: text.RealStr
+    norm_name: text.NormStr
     slot_type: SlotType[T]
     position: int
     min_slots: int
@@ -263,7 +263,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
     
     def set_collection(
         self,
-        raw_collection: RawCollectionT[T], 
+        raw_collection: RawCollectionT, 
     ) -> 'Collection[T]':
         count = len(raw_collection)
 

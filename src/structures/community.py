@@ -8,6 +8,7 @@ from structures.attribute.static_attribute import StaticAttribute
 from structures import BaseStructure
 import structures.errors
 
+from structures import list
 from structures.list import List
 from structures.user import JumpediaUser
 from structures.user.community_user import CommunityUser
@@ -42,7 +43,8 @@ class Community(BaseStructure):
 
     jumpedia: 'Jumpedia'
     id: int
-    name: text.RealStr
+    real_name: text.RealStr
+    norm_name: text.NormStr
     limits: CommunityLimits
 
     _cache: CommunityDataCache = field(init=False, default_factory=CommunityDataCache)
@@ -99,40 +101,44 @@ class Community(BaseStructure):
                 
                 list_id = c.last_generated_id
 
-                list = List(
+                list_ = List(
                     community=self,
                     id=list_id,
-                    name=real_name
+                    real_name=real_name,
+                    norm_name=norm_name
                 )
 
-                list.create_attribute(
+                list_.create_attribute(
                     StaticAttribute,
                     'id',
                     frozenset(),
                     SlotType.INT,
                     1,
-                    min_slots=1
+                    min_slots=1,
+                    kind=list.STATIC_ATTRIBUTE_KIND_OF_ID
                 )
 
-                list.create_attribute(
+                list_.create_attribute(
                     StaticAttribute,
                     'name',
                     frozenset(),
                     SlotType.STR,
                     1,
-                    min_slots=1
+                    min_slots=1,
+                    kind=list.STATIC_ATTRIBUTE_KIND_OF_NAME
                 )
 
-                list.create_attribute(
+                list_.create_attribute(
                     StaticAttribute,
                     'aliases',
                     frozenset(),
                     SlotType.STR,
                     self.limits.attribute_slot_count_max,
-                    min_slots=1
+                    min_slots=1,
+                    kind=list.STATIC_ATTRIBUTE_KIND_OF_ALIASES
                 )
 
-            return list
+            return list_
             
     def delete_list(self, id: int) -> None:
         with self.locked, queries.connected() as c:
@@ -144,7 +150,7 @@ class Community(BaseStructure):
             """)
 
             if c.affected_row_count <= 0:
-                raise structures.errors.StructureNotFoundError
+                raise structures.errors.StructureNotFoundError(List)
 
     def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
         with queries.connected() as c:
@@ -164,14 +170,15 @@ class Community(BaseStructure):
         return List(
             community=self,
             id=row.id,
-            name=row.real_name
+            real_name=row.real_name,
+            norm_name=row.norm_name
         )
     
-    def get_lists(self, where: Callable[[Arg], str] | None = None) -> list[List]:
-        return [
+    def get_lists(self, where: Callable[[Arg], str] | None = None) -> set[List]:
+        return {
             self._list_row_to_obj(data) 
             for data in self._fetch_from_list_table(where)
-        ]
+        }
 
     def get_list_by_id(self, id: int) -> List | None:
         data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")
@@ -222,7 +229,7 @@ class Community(BaseStructure):
                     c.execute(lambda arg: t"""
                         INSERT INTO {CommunityUserTbl} (
                             {CommunityUserTbl.community_id},
-                            {CommunityUserTbl.user_id},
+                            {CommunityUserTbl.jumpedia_user_id},
                             {CommunityUserTbl.power},
                             {CommunityUserTbl.selected_list_id}
                         )
@@ -246,7 +253,7 @@ class Community(BaseStructure):
                                 {CommunityUserTbl.selected_list_id} = {arg((None if selected_list_id is None else selected_list_id))}
                             WHERE 
                                 {CommunityUserTbl.community_id} = {arg(self.id)}
-                                AND {CommunityUserTbl.user_id} = {arg(jumpedia_user.id)}
+                                AND {CommunityUserTbl.jumpedia_user_id} = {arg(jumpedia_user.id)}
                         """) 
 
             return CommunityUser(
@@ -264,7 +271,7 @@ class Community(BaseStructure):
                 FROM {CommunityUserTbl}
                 WHERE 
                     {CommunityUserTbl.community_id} = {arg(self.id)}
-                    AND {CommunityUserTbl.user_id} = {arg(jumpedia_user.id)}
+                    AND {CommunityUserTbl.jumpedia_user_id} = {arg(jumpedia_user.id)}
             """)
 
             result = c.fetchone(CommunityUserTbl)

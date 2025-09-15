@@ -1,26 +1,19 @@
-
-
-from dataclasses import dataclass
-import json
-from typing import Any, ClassVar, overload, assert_never
-from adapters import _attributes
-from adapters._attributes.static_attribute import StaticAttributeAdapter
-from adapters._attributes.task_attribute import TaskAttributeAdapter
-from adapters._attributes.user_attribute import UserAttributeAdapter
-from adapters._base_adapter import BaseAdapter
+from typing import overload, assert_never
+from adapters import BaseAdapter, _attribute
+from adapters._attribute.static_attribute import StaticAttributeAdapter
+from adapters._attribute.task_attribute import TaskAttributeAdapter
+from adapters._attribute.user_attribute import UserAttributeAdapter
 from adapters._community import CommunityAdapter
 from adapters._task import TaskAdapter
-from errors.feedback import FeedbackError, feedbacks
-from structures import attribute, task
-from structures.attribute import collection
+from errors.feedback import feedbacks
+from structures import attribute
 from structures.attribute.static_attribute import StaticAttribute
 from structures.attribute.user_attribute import UserAttribute
 from structures.task import Task
 from structures.attribute.task_attribute import TaskAttribute
 from structures.list import List
-from utils import parsetools, text
-from discordtools import messaging as msg
-
+from utils import text
+import shlex
 
 @overload
 def _get_attribute_adapter(attribute: StaticAttribute, list: 'ListAdapter') -> StaticAttributeAdapter:
@@ -35,7 +28,7 @@ def _get_attribute_adapter(attribute: UserAttribute, list: 'ListAdapter') -> Use
     pass
 
 
-def _get_attribute_adapter(attribute: attribute.AnyAttributeT, list: 'ListAdapter') -> _attributes.AnyAttributeAdapterT:
+def _get_attribute_adapter(attribute: attribute.AnyAttributeT, list: 'ListAdapter') -> _attribute.AnyAttributeAdapterT:
     if isinstance(attribute, StaticAttribute):
         return StaticAttributeAdapter(attribute, list)
     
@@ -72,26 +65,6 @@ def _require_task_attribute_with_syn(syn: text.NormStr, list: List) -> TaskAttri
     
     return attribute
 
-
-def _validate_and_get_real_and_norm_task_syn(name: str) -> tuple[text.RealStr, text.NormStr]:
-    return text.raw_to_real_and_validate(name, , task.MAX_SYN_LEN)
-
-def _validate_and_get_real_and_norm_attribute_syn(syn: str) -> str:
-    return text.raw_to_real_and_validate(syn, attribute.MIN_SYN_LEN, attribute.MAX_SYN_LEN)
-
-
-ALIAS_PARSER: parsetools.SafeJsonParser[list[str]] = parsetools.SafeJsonParser(
-    max_depth=1,
-    strict_type=[str]
-)
-
-ATTRIBUTE_VALUE_MAPPING_PARSER: parsetools.SafeJsonParser[dict[str, attribute.AttributeValueParseTypesT]] = parsetools.SafeJsonParser(
-    max_depth=collection.MAX_DEPTH,
-    strict_type={str: attribute.ATTRIBUTE_VALUE_PARSE_TYPES}
-)
-
-
-@dataclass(frozen=True)
 class ListAdapter(BaseAdapter):
     _list: List
     
@@ -99,7 +72,7 @@ class ListAdapter(BaseAdapter):
     
     @property
     def name(self) -> str:
-        return self._list.name
+        return self._list.real_name
 
     # --- Task ---
 
@@ -112,14 +85,15 @@ class ListAdapter(BaseAdapter):
     
     def get_task(self, syn: str) -> TaskAdapter:
         return TaskAdapter(
-            _require_task_with_syn(_validate_and_get_real_and_norm_task_syn(syn), self._list),
+            _require_task_with_syn(text.raw_to_norm(syn), self._list),
             self
         )
 
     def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
+        aliases_set = frozenset(shlex.split(aliases))
         
         return TaskAdapter(
-            self._list.create_task(name, aliases_parsed, avm_final),
+            self._list.create_task(name, aliases_set, attribute_value_mapping),
             self
         )
 
@@ -137,13 +111,13 @@ class ListAdapter(BaseAdapter):
 
     # --- Attribute ---
 
-    def get_attributes(self) -> list[_attributes.AnyAttributeAdapterT]:
+    def get_attributes(self) -> list[_attribute.AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
             for attr in self._list.get_all_attributes_flat()
         ]
     
-    def get_attribute(self, syn: str) -> _attributes.AnyAttributeAdapterT:
+    def get_attribute(self, syn: str) -> _attribute.AnyAttributeAdapterT:
         attribute = _require_attribute_with_syn(_validate_and_get_real_and_norm_attribute_syn(syn), self._list)
 
         return _get_attribute_adapter(

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import itertools
-from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Sequence, overload
+from string.templatelib import Template
+from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Final, Literal, NamedTuple, Sequence, get_args, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
@@ -20,17 +21,21 @@ if TYPE_CHECKING:
     from structures.community import Community
 
 
-# --- Collection Types --- #
+STATIC_ATTRIBUTE_KIND_OF_ID: Final = 1
+STATIC_ATTRIBUTE_KIND_OF_NAME: Final = 2
+STATIC_ATTRIBUTE_KIND_OF_ALIASES: Final = 3
+
+type KindsT = Literal[1, 2, 3]
+KINDS: tuple[Literal[1], Literal[2], Literal[3]] = get_args(KindsT.__value__)
 
 
 @dataclass(frozen=True, kw_only=True)
 class List(BaseStructure):
-    __structure_name__: ClassVar[str] = "list"
-
     community: 'Community'
     id: int
-    name: text.RealStr
-    
+    real_name: text.RealStr
+    norm_name: text.NormStr
+
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id, *self.community.identity)
@@ -119,6 +124,27 @@ class List(BaseStructure):
             
             if attr is not None:
                 return attr
+            
+    def get_static_attribute_by_kind(self, kind: KindsT) -> StaticAttribute:
+        StaticAttributeTbl = typed.StaticAttribute
+
+        if kind not in KINDS:
+            raise ValueError(f"Kind {kind} is not valid")
+        
+        with queries.connected() as c:
+            c.execute(lambda arg: t"""
+                SELECT * FROM {StaticAttributeTbl}
+                WHERE
+                    {StaticAttributeTbl.list_id} = {arg(self.id)}
+                    AND {StaticAttributeTbl.kind} = {arg(kind)}
+            """)
+
+            row = c.fetchone(StaticAttributeTbl)
+
+        if row is None:
+            raise RuntimeError(f"Critical error! Could not find static attribute with kind {kind}")
+        
+        return self._attribute_row_to_obj(StaticAttribute, row)
 
     @overload
     def create_attribute[T: StaticAttribute, TSlot: SlotTypeT](
@@ -129,7 +155,8 @@ class List(BaseStructure):
         slot_type: SlotType[TSlot],
         max_slots: int,
         *,
-        min_slots: int
+        min_slots: int,
+        kind: int
     ) -> T:
         pass
 
@@ -142,7 +169,7 @@ class List(BaseStructure):
         slot_type: SlotType[TSlot],
         max_slots: int,
         *,
-        raw_collection: RawCollectionT[T]
+        raw_collection: RawCollectionT
     ) -> T:
         pass
 
@@ -155,8 +182,15 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int = 0,
-        raw_collection: RawCollectionT[T] = []
+        kind: int = 0,
+        raw_collection: RawCollectionT | None = None
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
+        if (min_slots or kind) == issubclass(type, BaseNonStaticAttribute):
+            raise ValueError("Typing not followed on attribute creation #1")
+        
+        if (raw_collection is None) == issubclass(type, BaseNonStaticAttribute):
+            raise ValueError("Typing not followed on attribute creation #2")
+
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms({raw_name, *raw_aliases})
 
         del raw_name
@@ -174,75 +208,83 @@ class List(BaseStructure):
                 
                 if self.get_any_attribute_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
-
-            if min_slots != 0:
-                if not type.allow_min_slots_on_creation:
-                    raise feedbacks.temp("Not allowed to set min_slots")
                 
             if not (min_slots <= max_slots <= self.community.limits.attribute_slot_count_max):
                 raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
             
-            index = max(attr.position for attr in attrs) + 1 if attrs else 1
+            position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
             AttributeTbl = type.tables.attribute
 
             with queries.connected() as c:
-                c.execute(lambda arg: t"""
-                    INSERT INTO {AttributeTbl} (
-                        {AttributeTbl.list_id},
-                        {AttributeTbl.norm_name},
-                        {AttributeTbl.real_name},
-                        {AttributeTbl.slot_type},
-                        {AttributeTbl.position},
-                        {AttributeTbl.min_slots},
-                        {AttributeTbl.max_slots},
-                    )
-                    VALUES (
-                        {arg(self.id)},
-                        {arg(norm_name)},
-                        {arg(real_name)},
-                        {arg(slot_type.id)},
-                        {arg(index)},
-                        {arg(min_slots)},
-                        {arg(max_slots)}
-                    )
-                """)
+                if issubclass(AttributeTbl, typed.StaticAttribute):
+                    c.execute(lambda arg: t"""
+                        INSERT INTO {AttributeTbl} (
+                            {AttributeTbl.list_id},
+                            {AttributeTbl.norm_name},
+                            {AttributeTbl.real_name},
+                            {AttributeTbl.slot_type},
+                            {AttributeTbl.position},
+                            {AttributeTbl.min_slots},
+                            {AttributeTbl.max_slots},
+                            {AttributeTbl.kind}
+                        )
+                        VALUES (
+                            {arg(self.id)},
+                            {arg(norm_name)},
+                            {arg(real_name)},
+                            {arg(slot_type.id)},
+                            {arg(position)},
+                            {arg(min_slots)},
+                            {arg(max_slots)},
+                            {arg(kind)}
+                        )
+                    """)
+                else:
+                    c.execute(lambda arg: t"""
+                        INSERT INTO {AttributeTbl} (
+                            {AttributeTbl.list_id},
+                            {AttributeTbl.norm_name},
+                            {AttributeTbl.real_name},
+                            {AttributeTbl.slot_type},
+                            {AttributeTbl.position},
+                            {AttributeTbl.min_slots},
+                            {AttributeTbl.max_slots}
+                        )
+                        VALUES (
+                            {arg(self.id)},
+                            {arg(norm_name)},
+                            {arg(real_name)},
+                            {arg(slot_type.id)},
+                            {arg(position)},
+                            {arg(min_slots)},
+                            {arg(max_slots)}
+                        )
+                    """)
 
                 attribute_id = c.last_generated_id
 
-                if norm_aliases:
-                    AttributeAliasTbl = type.tables.attribute_alias
-                    count = len(norm_aliases)
-
-                    c.executemany(lambda args: t"""
-                        INSERT INTO {AttributeAliasTbl} (
-                            {AttributeAliasTbl.attribute_id},
-                            {AttributeAliasTbl.list_id},
-                            {AttributeAliasTbl.norm_alias},
-                            {AttributeAliasTbl.real_alias}
-                        ) 
-                        VALUES (
-                            {args(itertools.repeat(attribute_id, count))},
-                            {args(itertools.repeat(self.id, count))},
-                            {args(norm_aliases)},
-                            {args(real_aliases)} 
-                        )
-                    """)
+                self._insert_attribute_aliases(
+                    c,
+                    type,
+                    attribute_id,
+                    real_aliases,
+                    norm_aliases
+                )
 
                 attribute = type(
                     list=self,
                     id=attribute_id,
                     real_name=real_name,
+                    norm_name=norm_name,
                     slot_type=slot_type,
-                    position=index,
+                    position=position,
                     min_slots=min_slots,
                     max_slots=max_slots
                 )
 
                 if raw_collection:
-                    if not isinstance(attribute, BaseNonStaticAttribute):
-                        raise feedbacks.temp("Not CollectionAttribute")
-                    
+                    assert isinstance(attribute, BaseNonStaticAttribute)
                     attribute.set_collection(raw_collection)
                     
                 return attribute
@@ -258,7 +300,7 @@ class List(BaseStructure):
             """)
 
             if c.affected_row_count <= 0:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(type)
 
     def edit_attribute_name(
         self, 
@@ -273,7 +315,7 @@ class List(BaseStructure):
             attribute = self.get_attribute_by_id(type, id)
 
             if attribute is None:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(type)
 
             if real_name == attribute.real_name:
                 return
@@ -320,7 +362,7 @@ class List(BaseStructure):
             attribute = self.get_attribute_by_id(type, id)
 
             if attribute is None:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(type)
 
             self._validate_attribute_syns(
                 norm_aliases={*norm_aliases}, 
@@ -374,10 +416,26 @@ class List(BaseStructure):
         type: type[T], 
         row: typed.BaseAttribute
     ) -> T:
+        if issubclass(type, StaticAttribute):
+            assert isinstance(row, typed.StaticAttribute)
+
+            return type(
+                list=self,
+                id=row.id,
+                real_name=row.real_name,
+                norm_name=row.norm_name,
+                slot_type=SlotType.get_by_id(row.slot_type),
+                position=row.position,
+                min_slots=row.min_slots,
+                max_slots=row.max_slots,
+                kind=row.kind
+            )
+        
         return type(
             list=self,
             id=row.id,
             real_name=row.real_name,
+            norm_name=row.norm_name,
             slot_type=SlotType.get_by_id(row.slot_type),
             position=row.position,
             min_slots=row.min_slots,
@@ -523,7 +581,8 @@ class List(BaseStructure):
             return Task(
                 list=self,
                 id=task_id,
-                real_name=real_name
+                real_name=real_name,
+                norm_name=norm_name
             )
         
     def delete_task(self, id: int):
@@ -536,7 +595,7 @@ class List(BaseStructure):
             """)
 
             if c.affected_row_count < 1:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(Task)
 
     def edit_task_name(
         self,
@@ -550,7 +609,7 @@ class List(BaseStructure):
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(Task)
 
             if real_name == task.real_name:
                 return
@@ -596,7 +655,7 @@ class List(BaseStructure):
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(Task)
 
             self._validate_task_syns(
                 norm_aliases={*norm_aliases}, 
@@ -638,7 +697,7 @@ class List(BaseStructure):
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError
+                raise StructureNotFoundError(Task)
             
             task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(
                 raw_task_attribute_value_mapping
@@ -673,7 +732,8 @@ class List(BaseStructure):
         return Task(
             list=self,
             id=row.id,
-            real_name=row.real_name
+            real_name=row.real_name,
+            norm_name=row.norm_name
         )
     
     def _insert_task_aliases(

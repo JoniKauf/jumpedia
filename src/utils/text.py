@@ -20,18 +20,6 @@ def replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:
 def invalid_identifier_chars(s: str) -> set[str]:
     return set(char for char in s if char not in IDENTIFIER_CHARS) 
 
-def valnitize_many(s: Sequence[str], min_count: int, max_count: int, min_length: int, max_length: int) -> Generator[str, None, None]:
-    if isinstance(s, str):
-        raise ValueError
-    
-    count = len(s)
-
-    if not (min_count <= count <= max_count):
-        raise ValueError(s, count)
-    
-    for elem in s:
-        yield raw_to_real_and_validate(elem, min_length, max_length)
-
 def human_join(objects: Sequence[Any], final_delimiter: str, delimiter: str = ", ") -> str:
     objects_str = tuple(map(str, objects))
 
@@ -96,16 +84,6 @@ def raws_to_unique_reals_and_norms(raws: Iterable[str], /, strict: bool = False)
 
     # Dict guarantees order for python 3.8+
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
-
-def raw_to_real_and_validate(raw: str, min_length: int, max_length: int) -> RealStr:
-    name = raw_to_real(raw)
-    length = len(name)
-
-    if not (min_length <= length <= max_length):
-        raise ValueError(raw, length)
-    
-    return name
-
 
 
 def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> object:

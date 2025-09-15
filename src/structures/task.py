@@ -14,6 +14,7 @@ class Task(BaseStructure):
     list: List
     id: int
     real_name: text.RealStr
+    norm_name: text.NormStr
 
     def get_real_aliases(self) -> frozenset[text.RealStr]:
         with queries.connected() as c:

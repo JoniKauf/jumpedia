@@ -1,15 +1,13 @@
 from dataclasses import dataclass
-from adapters._base_adapter import BaseAdapter
+from adapters import BaseAdapter
 from adapters._community import CommunityAdapter
 from adapters._list import ListAdapter
-from adapters._users.jumpedia_user import JumpediaUserAdapter
+from adapters._user.jumpedia_user import JumpediaUserAdapter
 from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from structures.user.community_user import CommunityUser
 
-
-@dataclass(frozen=True)
 class CommunityUserAdapter(BaseAdapter):
     _community_user: CommunityUser
     
