@@ -209,7 +209,7 @@ class List(BaseStructure):
                 if self.get_any_attribute_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
                 
-            if not (min_slots <= max_slots <= self.community.limits.attribute_slot_count_max):
+            if not (min_slots <= max_slots <= self.community.limits.attribute_task_value_slot_count_max):
                 raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
             
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
@@ -815,7 +815,7 @@ class List(BaseStructure):
         if norm_aliases:
             norm_syns.update(norm_aliases)
         
-        if len(norm_aliases) > self.community.limits.attribute_slot_count_max:
+        if len(norm_aliases) > self.community.limits.attribute_task_value_slot_count_max:
             raise feedbacks.temp("Too many aliases")
         
         for normed_syn in norm_syns:

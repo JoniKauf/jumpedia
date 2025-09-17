@@ -33,8 +33,8 @@ class CommunityLimits(NamedTuple):
     list_attribute_count_max: int
     list_task_count_max: int
     attribute_alias_count_max = 31
-    attribute_slot_count_max = 32
     attribute_collection_entry_alias_count_max: int = 7
+    attribute_task_value_slot_count_max = 32
 
 
 
@@ -133,7 +133,7 @@ class Community(BaseStructure):
                     'aliases',
                     frozenset(),
                     SlotType.STR,
-                    self.limits.attribute_slot_count_max,
+                    self.limits.attribute_task_value_slot_count_max,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_ALIASES
                 )
