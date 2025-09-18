@@ -27,6 +27,7 @@ class JumpediaLimits(NamedTuple):
     list_name_length_max: int
     user_name_length_max: int  # Discord limit
     attribute_syn_length_max: int
+    attribute_task_value_slot_count_max: int
     attribute_task_value_slot_length_max: int
 
 @dataclass(frozen=True, kw_only=True)
@@ -250,7 +251,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
                         {typed.TaskAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.TaskAttributeCollectionSlotAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeCollectionSlotAlias.type_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id})
                             REFERENCES {typed.TaskAttributeCollectionSlot}({typed.TaskAttributeCollectionSlot.id})
@@ -335,7 +336,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
                         {typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
                         {typed.UserAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.UserAttributeCollectionSlotAlias.real_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeCollectionSlotAlias.type_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id})
                             REFERENCES {typed.UserAttributeCollectionSlot}({typed.UserAttributeCollectionSlot.id})
@@ -391,7 +392,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {typed.TaskAttributeTaskValue.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeTaskValue.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
                             {typed.TaskAttributeTaskValue.task_id}, 
@@ -414,7 +415,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.UserAttributeTaskValue.attribute_id} INT NOT NULL,
                         {typed.UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                        {typed.UserAttributeTaskValue.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeTaskValue.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         PRIMARY KEY (
                             {typed.UserAttributeTaskValue.user_id},

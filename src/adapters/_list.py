@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import overload, assert_never
 from adapters import BaseAdapter, _attribute
 from adapters._attribute.static_attribute import StaticAttributeAdapter
@@ -14,6 +15,8 @@ from structures.attribute.task_attribute import TaskAttribute
 from structures.list import List
 from utils import text
 import shlex
+
+from utils.argparser import KwargParser
 
 @overload
 def _get_attribute_adapter(attribute: StaticAttribute, list: 'ListAdapter') -> StaticAttributeAdapter:
@@ -71,8 +74,37 @@ class ListAdapter(BaseAdapter):
     community: CommunityAdapter
     
     @property
-    def name(self) -> str:
+    def real_name(self) -> str:
         return self._list.real_name
+    
+    @cached_property
+    def attribute_value_mapping_parser(self):
+        j_limits = self._list.community.jumpedia.limits
+
+        def item_transformer(item: tuple[str, list[str]]) -> tuple[text.NormStr, list[str]]:
+            if len(item[1]) > j_limits.attribute_task_value_slot_count_max:
+                raise feedbacks.temp("Too many items")
+            
+            k = text.raw_to_norm(item[0])
+
+            if len(k) > j_limits.attribute_syn_length_max:
+                raise feedbacks.temp("Too long name")
+            
+            return k, item[1]
+
+        def post(post: dict[text.NormStr, list[str]]):
+            result: dict[int, list[str]] = {}
+
+            for k, v in post.items():
+                attr = self.get_attribute(k)
+
+                result[attr.id] = v
+
+        return KwargParser(
+            text.raw_to_real,  # To validate
+            item_transformer,
+            post
+        )
 
     # --- Task ---
 
@@ -118,7 +150,7 @@ class ListAdapter(BaseAdapter):
         ]
     
     def get_attribute(self, syn: str) -> _attribute.AnyAttributeAdapterT:
-        attribute = _require_attribute_with_syn(_validate_and_get_real_and_norm_attribute_syn(syn), self._list)
+        attribute = _require_attribute_with_syn(text.raw_to_norm(syn), self._list)
 
         return _get_attribute_adapter(
             attribute,
@@ -126,8 +158,5 @@ class ListAdapter(BaseAdapter):
         )
 
     def get_task_attribute(self, syn: str) -> TaskAttributeAdapter:
-        task_attribute = _require_task_attribute_with_syn(_validate_and_get_real_and_norm_attribute_syn(syn), self._list)
+        task_attribute = _require_task_attribute_with_syn(text.raw_to_norm(syn), self._list)
         return TaskAttributeAdapter(task_attribute, self)
-
-    def create_task_attribute(self) -> TaskAttributeAdapter:
-        self._list.create_task_attribute()

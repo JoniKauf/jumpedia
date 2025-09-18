@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import AbstractSet, Callable, Hashable
+from dataclasses import dataclass, field
+from typing import AbstractSet, Callable, ClassVar, Hashable
 
 class ParserSyntaxError(ValueError):
     pass
@@ -76,13 +76,13 @@ class KeywordNotUniqueError[TK: Hashable, TV](ParserValueError):
         super().__init__(keyword, old_new)
 
 
+
+
 @dataclass(frozen=True, eq=True, unsafe_hash=True)
-class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
-    pre: Callable[[str], str]
-    post_args: Callable[[list[str]], TArgs]
-    post_kwarg: Callable[[tuple[str, list[str]]], tuple[TKwargK, TKwargV]]
-    post_kwargs: Callable[[dict[TKwargK, TKwargV]], TKwargs]
-    
+class ArgParser[TInput, TOutput]:
+    pre: Callable[[TInput], str]
+    post: Callable[[list[str]], TOutput]
+
     def _parse_args_core(self, s: str) -> list[str]:
         """Guarantees to not modify string (important for exception indexes)."""
 
@@ -138,9 +138,22 @@ class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
         
         return args
     
-    
-    def parse_args(self, s: str) -> TArgs:
-        return self.post_args(self._parse_args_core(self.pre(s)))
+    def parse_args(self, o: TInput) -> TOutput:
+        return self.post(self._parse_args_core(self.pre(o)))
+
+def _kwarg_arg_pre(s: str) -> str:
+    return s
+
+@dataclass(frozen=True, eq=True, unsafe_hash=True)
+class KwargParser[TInput, TKeyTransform, TValueTransform, TOutput]:
+    pre: Callable[[TInput], str]
+    item_transform: Callable[[tuple[str, list[str]]], tuple[TKeyTransform, TValueTransform]]
+    post: Callable[[dict[TKeyTransform, TValueTransform]], TOutput]
+
+    _ARG_PARSER: ClassVar[ArgParser] = ArgParser(
+        pre=_kwarg_arg_pre,
+        post=lambda lst: lst
+    )
 
     def _parse_single_arg_with_rest(self, s: str, force_post_spacing: bool) -> tuple[str, str]:
         assert s == s.rstrip()
@@ -185,7 +198,6 @@ class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
         
         return ("", ''.join(arg))
                 
-
     def _parse_kw_name(self, s: str) -> tuple[str, str]:
         assert s == s.rstrip()
         
@@ -208,7 +220,7 @@ class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
         s = s[1:]
 
         try:
-            unclosed_list = self._parse_args_core(s)
+            unclosed_list = self._ARG_PARSER._parse_args_core(s)
         except UnquotedCharError as e:
             if s[e.i] != ']':
                 raise UnquotedCharError(s, e.i, e.parsed_args)
@@ -218,16 +230,17 @@ class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
             raise UnclosedListError(unclosed_list, s)
         
 
-    def parse_kwargs(self, s: str) -> TKwargs:
-        s = self.pre(s)
+    def parse_kwargs(self, o: TInput) -> TOutput:
+        s = self.pre(o)
+        del o
 
-        kwargs: dict[TKwargK, TKwargV] = {}
+        kwargs: dict[TKeyTransform, TValueTransform] = {}
         
         while s:
             s, k = self._parse_kw_name(s)
             s, v = self._parse_kw_value(s)
 
-            k, v = self.post_kwarg((k, v))
+            k, v = self.item_transform((k, v))
 
             if k in kwargs:
                 raise KeywordNotUniqueError(k, (kwargs[k], v))
@@ -236,19 +249,4 @@ class ArgParser[TArgs, TKwargK: Hashable, TKwargV, TKwargs]:
 
             s = s.lstrip()
 
-        return self.post_kwargs(kwargs)
-            
-
-def __main() -> None:
-    parser = ArgParser(lambda arg: arg, lambda args: args, lambda kwarg: kwarg, lambda kwargs: kwargs)
-
-    while True:
-        try:
-            result = parser.parse_kwargs(input("Input: "))
-        except ValueError as e:
-            print("Error Class:", e.__class__.__name__, "args:", e.args)
-        else:
-            print("Result:", result)
-
-if __name__ == '__main__':
-    __main()
+        return self.post(kwargs)

@@ -6,7 +6,7 @@ from structures.attribute import BaseNonStaticAttributeTables
 
 
 @dataclass(frozen=True, kw_only=True)
-class TaskAttribute[T: SlotTypeT](BaseNonStaticAttribute[T]):
+class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         typed.TaskAttribute,
         typed.TaskAttributeAlias,

@@ -1,5 +1,6 @@
 from typing import Literal
 from database.simple_orm import SNAKE, BaseModel, column
+from structures.attribute.slot_type import TypeStr
 from structures.list import KindsT
 from utils.text import NormStr, RealStr
 
@@ -95,8 +96,8 @@ class BaseAttributeCollectionEntry(BaseModel, table_name=None):
     def index(self): pass
     @column(NormStr)
     def norm_slot(self): pass
-    @column(RealStr)
-    def real_slot(self): pass
+    @column(TypeStr)
+    def type_slot(self): pass
 
 class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
     @column(int)
@@ -107,8 +108,8 @@ class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(NormStr)
     def norm_alias(self): pass
-    @column(RealStr)
-    def real_alias(self): pass
+    @column(TypeStr)
+    def type_alias(self): pass
 
 class BaseAttributeTaskValue(BaseModel, table_name=None):
     @column(int)
@@ -117,8 +118,8 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
     def attribute_id(self): pass
     @column(int)
     def index(self): pass
-    @column(RealStr)
-    def real_slot(self): pass
+    @column(TypeStr)
+    def type_slot(self): pass
 
 
 # --- Static Attribute ---

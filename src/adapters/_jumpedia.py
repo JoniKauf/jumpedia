@@ -60,7 +60,7 @@ class JumpediaAdapter(BaseAdapter):
 
         if initial_list_name is not None:
             list = community.create_list(initial_list_name)
-            community.set_default_selected_list(list.name)
+            community.set_default_selected_list(list.real_name)
 
         return community
     

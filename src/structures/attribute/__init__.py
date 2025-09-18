@@ -1,6 +1,7 @@
 import builtins
 from collections import defaultdict
 from dataclasses import dataclass
+import functools
 import itertools
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypedDict
 
@@ -8,11 +9,13 @@ from database import queries, typed
 from errors.feedback import feedbacks
 from structures.attribute import slot_type
 from structures.attribute import collection
-from structures.attribute.slot_type import LiteralToStrPossibleT, SlotType, SlotTypeT
+from structures.attribute.slot_type import TypeStr, SlotType, SlotTypeT
 from structures.attribute.collection import Collection, CollectionEntry
 from structures import BaseStructure
+from structures.jumpedia import JUMPEDIA
 from structures.list import List
 from utils import parsetools, text
+from utils.argparser import ArgParser, KwargParser
 
 if TYPE_CHECKING:
     from structures.attribute.static_attribute import StaticAttribute
@@ -21,29 +24,11 @@ if TYPE_CHECKING:
 
 
 
-type AnyAttributeT[T: SlotTypeT] = StaticAttribute[T] | TaskAttribute[T] | UserAttribute[T]
+type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
-
-
-class RawCollectionEntry(TypedDict):
-    slot: str
-    aliases: list[str]
-
-type RawCollectionT = list[RawCollectionEntry]
-
-    
 
 # General
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
-
-
-# Any of TYPES_LITERAL_ALLOWED or a list of any of TYPES_LITERAL_ALLOWED
-type AttributeValueParseTypesT = LiteralToStrPossibleT | list[LiteralToStrPossibleT]
-ATTRIBUTE_VALUE_PARSE_TYPES = (bool, int, str, [bool, int, str])
-
-# Checking ATTRIBUTE_VALUE_PARSE_TYPES is too much effort and hard to generalize
-# Just make sure it stays consistent when changing one
-
 
 @dataclass(frozen=True, slots=True)
 class AttributeTables:
@@ -57,23 +42,17 @@ class BaseNonStaticAttributeTables(AttributeTables):
     attribute_task_value: type[typed.BaseAttributeTaskValue]
 
 
-class BaseAttribute[T: SlotTypeT](BaseStructure):
+class BaseAttribute(BaseStructure):
     tables: ClassVar[AttributeTables]
-    deletable: ClassVar[bool] = True
-
+    
     list: 'List'
     id: int 
     real_name: text.RealStr
     norm_name: text.NormStr
-    slot_type: SlotType[T]
+    slot_type: SlotType
     position: int
     min_slots: int
     max_slots: int
-
-    value_parser: ClassVar[parsetools.SafeJsonParser] = parsetools.SafeJsonParser(
-        max_depth=1,
-        strict_type=ATTRIBUTE_VALUE_PARSE_TYPES
-    )
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -123,64 +102,18 @@ class BaseAttribute[T: SlotTypeT](BaseStructure):
         
         return frozenset(row.norm_alias for row in rows)
     
-    def get_collection(self) -> Collection[T]:
+    def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
-        if not isinstance(loaded, list):
-            loaded = [loaded]
-
-        if not (self.min_slots <= (count := len(loaded)) <= self.max_slots):
+    def raw_to_slots(self, value: list[str]) -> builtins.list[TypeStr]:
+        if not (self.min_slots <= (count := len(value)) <= self.max_slots):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
-        result_values: list[T] = []
+        return [self.slot_type.raw_to_slot(slot) for slot in value]
         
-        for slot in loaded:
-            if not isinstance(slot, self.slot_type.type):
-                raise feedbacks.temp(f"not list, str or value type '{loaded}'")
-            
-            if not self.slot_type.literal_to_str_possible:
-                raise feedbacks.temp(f"value type '{self.slot_type}' is not valid")
-            
-            parsed_value = self.slot_type.from_raw_str(str(slot))
-
-            result_values.append(parsed_value)
-        
-        return result_values
-
-    def value_from_str(self, s: str) -> Any:
-        return self.value_from_loaded(self.__class__.value_parser.loads(s))
-    
-
-    type ValueSortKeyT = tuple[SlotType.SortKeyT, *tuple[SlotType.SortKeyT, ...]]
-
-    def sort_key(self, v: builtins.list[T], sign: Literal[+1, -1]) -> tuple[ValueSortKeyT, *tuple[ValueSortKeyT, ...]]:        
-        if not v:
-            return ((SORT_KEY_NONE_NUMBER * sign,),)
-        
-        if isinstance(self, BaseNonStaticAttribute):
-            collection = self.get_collection()
-            
-            if collection:
-                result: list[int] = []
-
-                for slot in v:
-                    node = collection.get_entry_by_syn(slot)
-
-                    if node is None:
-                        raise ValueError
-                    
-                    result.append(node.collection_index * sign)
-                
-                return (tuple(result),)  # type: ignore
-                
-        return tuple(
-            self.slot_type.sort_key(slot, sign)
-            for slot in v
-        )  # type: ignore
 
 
-class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
+class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
     tables: ClassVar[BaseNonStaticAttributeTables]
 
     def __post_init__(self) -> None:
@@ -190,15 +123,14 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             raise RuntimeError
     
 
-    def value_from_loaded(self, loaded: AttributeValueParseTypesT) -> builtins.list[T]:
-        value = super().value_from_loaded(loaded)
-        
+    def raw_to_slots(self, value: list[str]) -> builtins.list[TypeStr]:
+        converted = super().raw_to_slots(value)
         collection = self.get_collection()
 
         if not collection:
-            return value
+            return converted
         
-        result: list[T] = []
+        result: list[TypeStr] = []
 
         for slot in value:
             node = collection.get_entry_by_syn(slot)
@@ -211,7 +143,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         return result
 
 
-    def get_collection(self) -> Collection[T]:
+    def get_collection(self) -> Collection:
         TblEntry = self.__class__.tables.attribute_collection_entry
         TblAlias = self.__class__.tables.attribute_collection_entry_alias
 
@@ -230,7 +162,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
             c.execute(lambda arg: t"""
                 SELECT 
                     {TblAlias.attribute_collection_entry_id},
-                    {TblAlias.real_alias}
+                    {TblAlias.type_alias}
                 FROM
                     {TblAlias}
                 WHERE
@@ -243,13 +175,13 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
         entry_id_to_aliases: defaultdict[int, set[T]] = defaultdict(set)
         
         for alias_row in alias_rows:
-            alias = self.slot_type.from_clean_str(alias_row.real_alias)
+            alias = self.slot_type.raw_to_slot(alias_row.type_alias)
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
         
-        entries: tuple[CollectionEntry[T], ...] = tuple(
+        entries: tuple[CollectionEntry, ...] = tuple(
             CollectionEntry(
                 id=entry_row.id,
-                value=self.slot_type.from_clean_str(entry_row.real_slot),
+                value=self.slot_type.from_str(entry_row.real_slot),
                 collection_index=entry_row.index,
                 aliases=frozenset(entry_id_to_aliases[entry_row.id])
             ) 
@@ -292,7 +224,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
 
             for i, entry in enumerate(raw_collection):
                 for j, syn_str in enumerate((entry['slot'], *entry['aliases'])):
-                    real_syn = self.slot_type.from_raw_str(syn_str)
+                    real_syn = self.slot_type.raw_to_slot(syn_str)
                     norm_syn = self.slot_type.norm(real_syn)
 
                     if norm_syn in norm_syns:
@@ -312,7 +244,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     {TblEntry.attribute_id},
                     {TblEntry.index},
                     {TblEntry.norm_slot},
-                    {TblEntry.real_slot}
+                    {TblEntry.type_slot}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, count))},
@@ -343,7 +275,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute[T]):
                     {TblAlias.attribute_id},
                     {TblAlias.attribute_collection_entry_id},
                     {TblAlias.norm_alias},
-                    {TblAlias.real_alias}
+                    {TblAlias.type_alias}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, combined_aliases_count))},

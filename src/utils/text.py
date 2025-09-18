@@ -48,7 +48,7 @@ def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16,
 # Mostly for us it matters that it still isn't valid in TypeForm[...]
 # as of writing this.
 class RealStr(str): pass
-class NormStr(str): pass
+class NormStr(RealStr): pass
 
 
 def raw_to_real(raw: str, /) -> RealStr:
