@@ -447,7 +447,7 @@ class List(BaseStructure):
     
     def _cook_raw_task_attribute_value_mapping(
         self, 
-        raw_task_attribute_value_mapping: dict[int, str]
+        raw_task_attribute_value_mapping: dict[int, Sequence[str]]
     ) -> dict[TaskAttribute, list[SlotTypeT]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
             

@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import overload, assert_never
+from typing import Final, overload, assert_never
 from adapters import BaseAdapter, _attribute
 from adapters._attribute.static_attribute import StaticAttributeAdapter
 from adapters._attribute.task_attribute import TaskAttributeAdapter
@@ -13,10 +13,8 @@ from structures.attribute.user_attribute import UserAttribute
 from structures.task import Task
 from structures.attribute.task_attribute import TaskAttribute
 from structures.list import List
-from utils import text
-import shlex
-
-from utils.argparser import KwargParser
+from utils import argparsing, text
+from discord import utils as dcutils
 
 @overload
 def _get_attribute_adapter(attribute: StaticAttribute, list: 'ListAdapter') -> StaticAttributeAdapter:
@@ -68,6 +66,68 @@ def _require_task_attribute_with_syn(syn: text.NormStr, list: List) -> TaskAttri
     
     return attribute
 
+def _error_at_str(e: argparsing.UnexpectedCharError) -> str:
+    SHOW_AROUND_CHARS: Final[int] = 10
+    MORE: Final[str] = '...'
+
+    start_from = e.i - SHOW_AROUND_CHARS
+    end_at = e.i + SHOW_AROUND_CHARS
+    parts: list[str] = ['```\n']
+
+    if start_from > 0:
+        start_from = 0
+        parts.append(MORE)
+
+    parts.append(e.s[start_from:e.i].replace('`', r'´'))
+
+    if e.i >= len(e.s):
+        parts.append(f"{e.s[e.i]} <<")
+    else:
+        parts.append(f" >> {e.s[e.i]} << ")
+
+    parts.append(e.s[e.i:end_at + 1].replace('`', r'´'))
+    
+    if end_at < len(e.s):
+        parts.append(MORE)
+
+    return ''.join(parts)
+
+
+def _parse_args(s: str) -> list[str]:
+    try:
+        return argparsing.parse_args(text.raw_to_real(s))
+    except argparsing.UnexpectedCharError as e:
+        assert isinstance(e.state, argparsing.ArgParseState)
+
+        error_at = _error_at_str(e)
+
+        if e.i >= len(e.s):
+            match e.state:
+                case argparsing.ArgParseState.IN_QUOTES:
+                    raise feedbacks.temp(f"\" was never closed. {error_at}")
+                
+                case argparsing.ArgParseState.IN_ESCAPE:
+                    raise feedbacks.temp(f"\\ must be followed by \" or \\, but text just ended. {error_at}")
+                
+        match e.state:
+            case argparsing.ArgParseState.OUT_QUOTES_AFTER_COMMA:
+                raise feedbacks.temp(f"Expected end of text or another argument wrapped in \", but got: {error_at}")
+            
+            case argparsing.ArgParseState.IN_QUOTES:
+                raise feedbacks.temp(f"Expected text or \" to end the string, but got: {error_at}")
+            
+            case argparsing.ArgParseState.IN_ESCAPE:
+                raise feedbacks.temp(f"Expected \\ or \" after \\, but got: {error_at}")
+            
+            case argparsing.ArgParseState.OUT_QUOTES_BEFORE_COMMA:
+                raise feedbacks.temp(f"Expected end of text of , for next value, but got: {error_at}")
+            
+            case _:
+                assert_never(e)
+
+def _parse_kwargs(s: str) -> dict[text.NormStr, list[str]]:
+    return argparsing.parse_kwargs(text.raw_to_real(s), text.raw_to_norm)
+
 class ListAdapter(BaseAdapter):
     _list: List
     
@@ -76,35 +136,6 @@ class ListAdapter(BaseAdapter):
     @property
     def real_name(self) -> str:
         return self._list.real_name
-    
-    @cached_property
-    def attribute_value_mapping_parser(self):
-        j_limits = self._list.community.jumpedia.limits
-
-        def item_transformer(item: tuple[str, list[str]]) -> tuple[text.NormStr, list[str]]:
-            if len(item[1]) > j_limits.attribute_task_value_slot_count_max:
-                raise feedbacks.temp("Too many items")
-            
-            k = text.raw_to_norm(item[0])
-
-            if len(k) > j_limits.attribute_syn_length_max:
-                raise feedbacks.temp("Too long name")
-            
-            return k, item[1]
-
-        def post(post: dict[text.NormStr, list[str]]):
-            result: dict[int, list[str]] = {}
-
-            for k, v in post.items():
-                attr = self.get_attribute(k)
-
-                result[attr.id] = v
-
-        return KwargParser(
-            text.raw_to_real,  # To validate
-            item_transformer,
-            post
-        )
 
     # --- Task ---
 
@@ -122,10 +153,15 @@ class ListAdapter(BaseAdapter):
         )
 
     def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
-        aliases_set = frozenset(shlex.split(aliases))
+        aliases_set = frozenset(argparsing.parse_args(aliases))
         
+        avm = {
+            self.get_attribute(k).id: v for k, v in
+            _parse_kwargs(attribute_value_mapping or '').items()
+        }
+
         return TaskAdapter(
-            self._list.create_task(name, aliases_set, attribute_value_mapping),
+            self._list.create_task(name, aliases_set, ),
             self
         )
 

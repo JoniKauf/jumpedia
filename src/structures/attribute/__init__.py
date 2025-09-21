@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 import functools
 import itertools
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, Sequence, TypedDict
 
 from database import queries, typed
 from errors.feedback import feedbacks
@@ -15,7 +15,6 @@ from structures import BaseStructure
 from structures.jumpedia import JUMPEDIA
 from structures.list import List
 from utils import parsetools, text
-from utils.argparser import ArgParser, KwargParser
 
 if TYPE_CHECKING:
     from structures.attribute.static_attribute import StaticAttribute
@@ -105,7 +104,7 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def raw_to_slots(self, value: list[str]) -> builtins.list[TypeStr]:
+    def raw_to_slots(self, value: Sequence[str]) -> builtins.list[TypeStr]:
         if not (self.min_slots <= (count := len(value)) <= self.max_slots):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
@@ -113,7 +112,7 @@ class BaseAttribute(BaseStructure):
         
 
 
-class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
+class BaseNonStaticAttribute(BaseAttribute):
     tables: ClassVar[BaseNonStaticAttributeTables]
 
     def __post_init__(self) -> None:
@@ -123,7 +122,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
             raise RuntimeError
     
 
-    def raw_to_slots(self, value: list[str]) -> builtins.list[TypeStr]:
+    def raw_to_slots(self, value: Sequence[str]) -> builtins.list[TypeStr]:
         converted = super().raw_to_slots(value)
         collection = self.get_collection()
 
@@ -172,7 +171,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
 
             alias_rows = c.fetchall(TblAlias)
 
-        entry_id_to_aliases: defaultdict[int, set[T]] = defaultdict(set)
+        entry_id_to_aliases: defaultdict[int, set[slot_type.TypeStr]] = defaultdict(set)
         
         for alias_row in alias_rows:
             alias = self.slot_type.raw_to_slot(alias_row.type_alias)
@@ -181,7 +180,7 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
         entries: tuple[CollectionEntry, ...] = tuple(
             CollectionEntry(
                 id=entry_row.id,
-                value=self.slot_type.from_str(entry_row.real_slot),
+                value=entry_row.type_slot,
                 collection_index=entry_row.index,
                 aliases=frozenset(entry_id_to_aliases[entry_row.id])
             ) 
@@ -195,8 +194,8 @@ class BaseNonStaticAttribute[T: SlotTypeT](BaseAttribute):
     
     def set_collection(
         self,
-        raw_collection: RawCollectionT, 
-    ) -> 'Collection[T]':
+        raw_collection: Sequence[str], 
+    ) -> 'Collection':
         count = len(raw_collection)
 
         if not count:
