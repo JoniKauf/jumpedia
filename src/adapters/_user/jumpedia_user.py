@@ -1,8 +1,11 @@
+from typing import TYPE_CHECKING
 from adapters import BaseAdapter
-from adapters._jumpedia import JumpediaAdapter
 from ranks.jumpedia_rank import JumpediaRank
 from structures.user.jumpedia_user import JumpediaUser
 
+if TYPE_CHECKING:
+    from adapters._jumpedia import JumpediaAdapter
+    
 class JumpediaUserAdapter(BaseAdapter):
     _jumpedia_user: JumpediaUser
 

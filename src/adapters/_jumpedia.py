@@ -1,16 +1,18 @@
 from dataclasses import field
+from typing import TYPE_CHECKING
 from adapters import BaseAdapter
 from adapters._community import CommunityAdapter
 from adapters._discord.user import UserAdapter
 from adapters._user.jumpedia_user import JumpediaUserAdapter
-from adapters.interaction import InteractionAdapter
 from errors.feedback import feedbacks
 from ranks.jumpedia_rank import JumpediaRank
-from structures import community
 from structures.community import Community
 from structures.jumpedia import JUMPEDIA, Jumpedia
 from utils import text
 
+if TYPE_CHECKING:
+    from adapters.interaction import InteractionAdapter
+    
 def _require_server_with_community(community: Community | None) -> Community:
     if community is None:
         raise feedbacks.temp("Server isnt connected ot community")

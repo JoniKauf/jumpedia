@@ -1,10 +1,9 @@
-from functools import cached_property
-from typing import Final, overload, assert_never
-from adapters import BaseAdapter, _attribute
+from typing import TYPE_CHECKING, Final, overload, assert_never
+from adapters import BaseAdapter
+from adapters._attribute import AnyAttributeAdapterT
 from adapters._attribute.static_attribute import StaticAttributeAdapter
 from adapters._attribute.task_attribute import TaskAttributeAdapter
 from adapters._attribute.user_attribute import UserAttributeAdapter
-from adapters._community import CommunityAdapter
 from adapters._task import TaskAdapter
 from errors.feedback import feedbacks
 from structures import attribute
@@ -14,7 +13,9 @@ from structures.task import Task
 from structures.attribute.task_attribute import TaskAttribute
 from structures.list import List
 from utils import argparsing, text
-from discord import utils as dcutils
+
+if TYPE_CHECKING:
+    from adapters._community import CommunityAdapter
 
 @overload
 def _get_attribute_adapter(attribute: StaticAttribute, list: 'ListAdapter') -> StaticAttributeAdapter:
@@ -29,7 +30,7 @@ def _get_attribute_adapter(attribute: UserAttribute, list: 'ListAdapter') -> Use
     pass
 
 
-def _get_attribute_adapter(attribute: attribute.AnyAttributeT, list: 'ListAdapter') -> _attribute.AnyAttributeAdapterT:
+def _get_attribute_adapter(attribute: attribute.AnyAttributeT, list: 'ListAdapter') -> AnyAttributeAdapterT:
     if isinstance(attribute, StaticAttribute):
         return StaticAttributeAdapter(attribute, list)
     
@@ -152,40 +153,52 @@ class ListAdapter(BaseAdapter):
             self
         )
 
-    def create_task(self, name: str, aliases: str, attribute_value_mapping: str | None) -> TaskAdapter:
-        aliases_set = frozenset(argparsing.parse_args(aliases))
+    def create_task(self, name: str, aliases: str, task_attribute_value_mapping: str | None) -> TaskAdapter:
+        aliases_set = frozenset(_parse_args(aliases))
         
         avm = {
-            self.get_attribute(k).id: v for k, v in
-            _parse_kwargs(attribute_value_mapping or '').items()
+            self.get_attribute(k).id: v 
+            for k, v in
+            _parse_kwargs(task_attribute_value_mapping or '').items()
         }
 
-        return TaskAdapter(
-            self._list.create_task(name, aliases_set, ),
-            self
-        )
+        return TaskAdapter(self._list.create_task(name, aliases_set, avm), self)
 
     
     def delete_task(self, syn: str) -> None:
-        task = self.get_task(_validate_and_get_real_and_norm_task_syn(syn))
+        task = self.get_task(syn)
         self._list.delete_task(task._task.id)
 
-    def edit_task(self) -> None:
-        ...
-        # TODO: Make sure to check if unique value
+    def edit_task_name(self, syn: str, new_name: str) -> None:
+        task = self.get_task(syn)
+        self._list.edit_task_name(task._task.id, new_name)
 
+    def edit_task_aliases(self, syn: str, new_aliases: str) -> None:
+        aliases_set = frozenset(_parse_args(new_aliases))
+
+        task = self.get_task(syn)
+        self._list.edit_task_aliases(task._task.id, aliases_set)
     
+    def edit_task_attribute_value_mapping(self, syn: str, new_task_attribute_value_mapping: str) -> None:
+        task = self.get_task(syn)
 
+        avm = {
+            self.get_attribute(k).id: v 
+            for k, v in
+            _parse_kwargs(new_task_attribute_value_mapping).items()
+        }
+
+        self._list.edit_task_attribute_value_mapping(task._task.id, avm)
 
     # --- Attribute ---
 
-    def get_attributes(self) -> list[_attribute.AnyAttributeAdapterT]:
+    def get_attributes(self) -> list[AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
             for attr in self._list.get_all_attributes_flat()
         ]
     
-    def get_attribute(self, syn: str) -> _attribute.AnyAttributeAdapterT:
+    def get_attribute(self, syn: str) -> AnyAttributeAdapterT:
         attribute = _require_attribute_with_syn(text.raw_to_norm(syn), self._list)
 
         return _get_attribute_adapter(

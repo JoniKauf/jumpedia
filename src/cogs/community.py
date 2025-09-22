@@ -3,10 +3,8 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from utils import required
 from discord_structures import modals, predicates, views
-from discordtools import messaging, feedbackerrors as fbe, users
-from bridges.context import Context
+from discordtools import messaging
 import ranks
 from ranks.community_rank import CommunityRank
 from ranks.server_rank import ServerRank

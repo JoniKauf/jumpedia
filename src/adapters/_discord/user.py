@@ -1,7 +1,10 @@
+from typing import TYPE_CHECKING
 import discord as dc
 from adapters import BaseAdapter
-from adapters.interaction import InteractionAdapter
 
+if TYPE_CHECKING:
+    from adapters.interaction import InteractionAdapter
+    
 class UserAdapter(BaseAdapter):
     _user: dc.User
 

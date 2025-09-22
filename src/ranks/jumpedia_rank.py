@@ -17,8 +17,6 @@ class JumpediaRank(BaseRank):
 
     @classmethod
     def _init(cls) -> None:
-        super()._init()
-        
         cls.JUMPEDIA_USER = JumpediaRank(0, "None")
         cls.META_ADMIN = JumpediaRank(100, "Meta Administrator")
         cls.JONIKAUF = JumpediaRank(200, "JoniKauf")

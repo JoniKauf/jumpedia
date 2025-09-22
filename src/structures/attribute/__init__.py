@@ -1,22 +1,20 @@
 import builtins
 from collections import defaultdict
 from dataclasses import dataclass
-import functools
 import itertools
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, Sequence, TypedDict
+from typing import TYPE_CHECKING, ClassVar, Final, Sequence, get_args
 
 from database import queries, typed
 from errors.feedback import feedbacks
 from structures.attribute import slot_type
 from structures.attribute import collection
-from structures.attribute.slot_type import TypeStr, SlotType, SlotTypeT
+from structures.attribute.slot_type import TypeStr, SlotType
 from structures.attribute.collection import Collection, CollectionEntry
 from structures import BaseStructure
-from structures.jumpedia import JUMPEDIA
-from structures.list import List
-from utils import parsetools, text
+from utils import text
 
 if TYPE_CHECKING:
+    from structures.list import List
     from structures.attribute.static_attribute import StaticAttribute
     from structures.attribute.task_attribute import TaskAttribute
     from structures.attribute.user_attribute import UserAttribute
@@ -24,7 +22,16 @@ if TYPE_CHECKING:
 
 
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
-ANY_ATTRIBUTE = (StaticAttribute, TaskAttribute, UserAttribute)
+
+_any_attribute: tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]] | None = None
+
+def ANY_ATTRIBUTE() -> tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]]:
+    global _any_attribute
+    
+    if _any_attribute is not None:
+        return _any_attribute
+
+    return (_any_attribute := get_args(AnyAttributeT.__value__)) 
 
 # General
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
@@ -55,7 +62,7 @@ class BaseAttribute(BaseStructure):
 
     @property
     def identity(self) -> tuple[int, ...]:
-        return (ANY_ATTRIBUTE.index(self.__class__), self.id) + self.list.identity
+        return (ANY_ATTRIBUTE().index(self.__class__), self.id) + self.list.identity
     
     @property
     def required(self) -> bool:
@@ -213,13 +220,13 @@ class BaseNonStaticAttribute(BaseAttribute):
                 WHERE {TblEntry.attribute_id} = {arg(self.id)}
             """)
 
-            norm_syns: set[T] = set()
+            norm_syns: set[text.NormStr] = set()
             
-            real_slots: list[T] = []
-            norm_slots: list[T] = []
+            type_slots: list[TypeStr] = []
+            norm_slots: list[text.NormStr] = []
             
-            combined_real_aliases: tuple[set[T], ...] = tuple(set() for _ in range(count))
-            combined_norm_aliases: tuple[set[T], ...] = tuple(set() for _ in range(count))
+            combined_real_aliases: tuple[set[text.RealStr], ...] = tuple(set() for _ in range(count))
+            combined_norm_aliases: tuple[set[text.NormStr], ...] = tuple(set() for _ in range(count))
 
             for i, entry in enumerate(raw_collection):
                 for j, syn_str in enumerate((entry['slot'], *entry['aliases'])):
@@ -232,7 +239,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                     norm_syns.add(norm_syn)
                     
                     if j == 0:
-                        real_slots.append(real_syn)
+                        type_slots.append(real_syn)
                         norm_slots.append(norm_syn)
                     else:
                         combined_real_aliases[i].add(real_syn)
@@ -249,7 +256,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                     {args(itertools.repeat(self.id, count))},
                     {args(range(0, count))},
                     {args(norm_slots)},
-                    {args(real_slots)}
+                    {args(type_slots)}
                 )
                 RETURNING {TblEntry.index}, {TblEntry.id}
             """)
@@ -288,7 +295,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                 CollectionEntry(
                     id=idx_to_id[i], 
                     collection_index=i,
-                    value=real_slots[i],
+                    value=type_slots[i],
                     aliases=frozenset(combined_real_aliases[i])
                 )
                 for i in range(count)

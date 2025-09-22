@@ -2,13 +2,12 @@ import inspect
 import os
 import traceback
 from typing import Any, Callable
-
+from errors import BaseUserReturnableError
 from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import CommandError, Context
 
 import discord
-from discordtools import errors, msg
 from database import secret
 
 if __name__ == '__main__':
@@ -51,7 +50,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
     if not interaction.response.is_done():
         await interaction.response.defer()
 
-    if isinstance(e, errors.UserReturnableError):
+    if isinstance(e, BaseUserReturnableError):
         e.msg_kwargs['content'] = str(e)
         return await interaction.followup.send(**e.msg_kwargs)
 

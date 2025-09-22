@@ -57,7 +57,7 @@ class SlotType:
         cls.BOOL = SlotType(1, 'boolean (true/false)', bool)
         cls.INT = SlotType(2, 'integer', int)
         cls.DECIMAL = SlotType(3, 'decimal', Decimal)
-        cls.STR = SlotType(8, 'text', text.RealStr)
+        cls.STR = SlotType(8, 'text', str)
 
     def __post_init__(self):
         for elem in SlotType._slot_types:

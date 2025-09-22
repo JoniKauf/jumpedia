@@ -18,8 +18,6 @@ class ServerRank(BaseRank):
 
     @classmethod
     def _init(cls):
-        super()._init()
-        
         cls.SERVER_MEMBER = ServerRank(0, "Member")
         cls.SERVER_ADMINISTRATOR = ServerRank(10, "Server Administrator")
         cls.SERVER_OWNER = ServerRank(20, "Server Owner")

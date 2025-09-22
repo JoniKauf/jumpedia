@@ -3,8 +3,6 @@ from typing import Callable, Coroutine
 import discord as dc
 from discord import app_commands as acmds
 
-from discordtools import msg
-
 YES_BUTTON_LABEL = "Yes"
 
 class DangerousConfirm(dc.ui.View):

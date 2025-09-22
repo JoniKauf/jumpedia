@@ -15,13 +15,6 @@ from database import queries, typed
 from dataclasses import dataclass
 import structures.errors
 
-class NotInServerError(ValueError):
-    pass
-
-class AbstractStructureAndSingleton(type(BaseStructure), functools2.Singleton):
-    pass
-
-
 class JumpediaLimits(NamedTuple):
     community_name_length_max: int
     list_name_length_max: int
@@ -30,8 +23,7 @@ class JumpediaLimits(NamedTuple):
     attribute_task_value_slot_count_max: int
     attribute_task_value_slot_length_max: int
 
-@dataclass(frozen=True, kw_only=True)
-class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
+class Jumpedia(BaseStructure):
     id: int
     database_name: str
     limits: JumpediaLimits
@@ -39,8 +31,8 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,)
-
-    def _init(self) -> None:
+        
+    def __post_init__(self) -> None:
         class PartSchemaTbl(BaseModel, table_name=None):
             @column(str)
             def SCHEMA_NAME(self): pass
@@ -228,7 +220,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.TaskAttributeCollectionSlot.attribute_id} INT NOT NULL,
                         {typed.TaskAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
                         {typed.TaskAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.TaskAttributeCollectionSlot.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.TaskAttributeCollectionSlot.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.TaskAttributeCollectionSlot.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -313,7 +305,7 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
                         {typed.UserAttributeCollectionSlot.attribute_id} INT NOT NULL,
                         {typed.UserAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
                         {typed.UserAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                        {typed.UserAttributeCollectionSlot.real_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                        {typed.UserAttributeCollectionSlot.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                         FOREIGN KEY ({typed.UserAttributeCollectionSlot.attribute_id})
                             REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -716,18 +708,19 @@ class Jumpedia(BaseStructure, metaclass=AbstractStructureAndSingleton):
             """)
 
         return self.get_community_by_id(result.community_id)  
-    
+
 
 # THE ONE PIECE IS REAAAAAAAAAAAAAAAAAAAAAAAAAAAAL
 THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE: Final[Jumpedia] = Jumpedia(
     id=1,
-    database_name='jumpedia',
+    database_name=typed.DATABASE_NAME,
     limits=JumpediaLimits(
         community_name_length_max=64,
         list_name_length_max=64,
         user_name_length_max=32,  # Discord limit
         attribute_syn_length_max=64,
-        attribute_task_value_slot_length_max=255
+        attribute_task_value_slot_length_max=255,
+        attribute_task_value_slot_count_max=32
     )
 )
 

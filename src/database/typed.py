@@ -1,8 +1,17 @@
-from typing import Literal
+from typing import TYPE_CHECKING, Final
 from database.simple_orm import SNAKE, BaseModel, column
-from structures.attribute.slot_type import TypeStr
-from structures.list import KindsT
 from utils.text import NormStr, RealStr
+
+
+if TYPE_CHECKING:
+    from structures.attribute.slot_type import TypeStr
+    from structures.list import KindsT
+else:
+    TypeStr = str
+    KindsT = int
+
+
+DATABASE_NAME: Final[str] = 'jumpedia'
 
 class Community(BaseModel, table_name=SNAKE):
     @column(int)

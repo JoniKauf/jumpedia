@@ -2,11 +2,14 @@
 
 from dataclasses import field
 from typing import Final, NamedTuple, Sequence, overload
+from discord import TYPE_CHECKING
 from typing_extensions import Sentinel
-from structures.attribute import BaseAttribute
 from structures.attribute.slot_type import TypeStr
 from structures import BaseStructure
 from utils import text
+
+if TYPE_CHECKING:
+    from structures.attribute import BaseAttribute
 
 # Collection
 MAX_ENTRIES: Final[int] = 1024

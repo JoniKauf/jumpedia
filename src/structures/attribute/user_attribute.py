@@ -7,7 +7,6 @@ from structures.attribute import BaseNonStaticAttribute
 from structures.attribute import BaseNonStaticAttributeTables
 
 
-@dataclass(frozen=True, kw_only=True)
 class UserAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         typed.UserAttribute,

@@ -3,10 +3,9 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters._jumpedia import JumpediaAdapter
+from adapters.interaction import InteractionAdapter
 from errors.feedback import feedbacks
-from database import queries
 from discord_structures import modals, predicates
-from database.typed import Tables as Tables
 from discordtools import messaging
 from ranks import CommunityRank, JumpediaRank, ServerRank
 
@@ -17,14 +16,14 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
 
     @acmds.command()
     async def super_secret_command(self, interaction: dc.Interaction) -> None:
+        ia = InteractionAdapter(interaction)
+
         JONI_ID = 679564566769827841
 
-        
-        
         if interaction.user.id != JONI_ID:
             raise feedbacks.temp("You are not permitted to use this command!")
         
-        jumpedia.get_or_create_current_jumpedia_user(JumpediaRank.JONIKAUF)
+        ia.jumpedia.get_or_create_current_jumpedia_user(JumpediaRank.JONIKAUF)
 
         await interaction.response.send_message(messaging.layout(
             "Hi Joni.",

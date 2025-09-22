@@ -5,22 +5,16 @@ from dataclasses import dataclass
 import functools
 from typing import ClassVar, Iterator, Self
 
-from structures import BaseStructure
-
 
 @functools.total_ordering
 @dataclass(frozen=True)
 class BaseRank:
-    _init_done: ClassVar[bool] = False
     SORTED: ClassVar[tuple[Self, ...]]
 
     power: int
     name: str
     
     def __post_init__(self) -> None:
-        if self._init_done:
-            raise AssertionError("Init done")
-
         if self.power in self.__class__._lookup:
             raise AssertionError("Same power twice")
         
@@ -28,8 +22,8 @@ class BaseRank:
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-
         cls._lookup: dict[int, Self] = {}
+        # cls._init()
 
     @classmethod
     def _create_sorted(cls) -> None:
@@ -37,14 +31,9 @@ class BaseRank:
             sorted(cls._lookup.values(), key=lambda rank: rank.power)
         )
 
-    @abstractmethod
     @classmethod
     def _init(cls) -> None:
-        if cls == BaseRank:
-            raise NotImplementedError()
-        
-        cls._init_done = True
-
+        pass
 
     @classmethod
     def get(cls, power: int) -> Self:
@@ -55,7 +44,7 @@ class BaseRank:
         return iter(cls.SORTED)
     
     def __lt__(self, value: Self) -> bool:
-        if type(self) != type(value):
+        if type(self) is not type(value):
             raise AssertionError("Cannot compare 2 different types of ranks")
         
         return self.power < value.power

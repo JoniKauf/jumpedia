@@ -1,12 +1,15 @@
+from typing import TYPE_CHECKING
 from adapters import BaseAdapter
-from adapters._attribute.static_attribute import StaticAttributeAdapter
-from adapters._attribute.task_attribute import TaskAttributeAdapter
-from adapters._attribute.user_attribute import UserAttributeAdapter
-from adapters._list import ListAdapter
 from structures.attribute import BaseAttribute
 from structures.attribute.slot_type import SlotType, SlotTypeT
 from utils import text
 
+
+if TYPE_CHECKING:
+    from adapters._list import ListAdapter
+    from adapters._attribute.static_attribute import StaticAttributeAdapter
+    from adapters._attribute.task_attribute import TaskAttributeAdapter
+    from adapters._attribute.user_attribute import UserAttributeAdapter
 
 class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     _attribute: T
@@ -39,5 +42,6 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     @property
     def max_slots(self) -> int:
         return self._attribute.max_slots
+
 
 type AnyAttributeAdapterT = StaticAttributeAdapter | TaskAttributeAdapter | UserAttributeAdapter

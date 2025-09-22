@@ -1,19 +1,14 @@
 import builtins
-import json
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from typing import Any, Optional as Opt
-from utils import required
-from discord_structures import modals, predicates
+from typing import Any
+from discord_structures import modals
 from discordtools import messaging
-from bridges.context import Context
-from discordtools import feedbackerrors as fbe
-from structures.attribute import AttributeValueTypeEnum, StaticAttribute, TaskAttribute, UserAttribute
-from structures.jumpedia import Jumpedia
-from structures.list import List
-from structures.ranks import CommunityRank
+from structures.attribute.slot_type import SlotTypeEnum
+from structures.attribute.task_attribute import TaskAttribute
+from structures.attribute.user_attribute import UserAttribute
 from structures.task import Task
 from utils import parsetools
 
@@ -84,7 +79,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         self, 
         ia: dc.Interaction, 
         name: str, 
-        value_type: AttributeValueTypeEnum, 
+        value_type: SlotTypeEnum, 
         max_slots: int, 
         unique_slots: bool, 
         unique_value_per_list: bool, 
@@ -118,7 +113,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         self, 
         ia: dc.Interaction, 
         name: str, 
-        value_type: AttributeValueTypeEnum, 
+        value_type: SlotTypeEnum, 
         max_slots: int, 
         unique_slots: bool, 
         aliases: str = parsetools.EMPTY_JSON_LIST, 

@@ -3,7 +3,6 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters.context import Context
 from discord_structures import predicates
 from discordtools import messaging
 

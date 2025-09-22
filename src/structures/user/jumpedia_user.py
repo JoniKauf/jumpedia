@@ -1,11 +1,12 @@
-from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ranks.jumpedia_rank import JumpediaRank
 from structures import BaseStructure
-from structures.jumpedia import Jumpedia
+
+if TYPE_CHECKING:
+    from structures.jumpedia import Jumpedia
 
 
-@dataclass(frozen=True, kw_only=True)
 class JumpediaUser(BaseStructure):
     __structure_name__ = 'jumpedia user'
 

@@ -6,8 +6,6 @@ from adapters._discord.server import ServerAdapter
 from adapters._discord.user import UserAdapter
 from ranks.server_rank import ServerRank
 
-
-@dataclass(frozen=True)
 class MemberAdapter(BaseAdapter):
     _member: dc.Member
 

@@ -8,8 +8,8 @@ import pickle
 import logging
 
 def main():
-    if sys.version_info < (3, 12):
-        raise RuntimeError('Developed for Python 3.12 or higher')
+    if sys.version_info < (3, 14):
+        raise RuntimeError('Developed for Python 3.14 or higher')
     
     if platform.python_implementation() != 'CPython':
         raise RuntimeError('Developed for CPython, other Python implementation may not be compatible!')

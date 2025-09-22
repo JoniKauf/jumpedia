@@ -2,16 +2,17 @@
 
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from database import typed
 from database import queries
 from ranks.community_rank import CommunityRank
 from structures import BaseStructure
-from structures.community import Community
-from structures.list import List
 from structures.user.jumpedia_user import JumpediaUser
 
+if TYPE_CHECKING:
+    from structures.community import Community
+    from structures.list import List
 
-@dataclass(frozen=True, kw_only=True)
 class CommunityUser(BaseStructure):
     __structure_name__ = 'community user'
 

@@ -1,20 +1,20 @@
 
 
 
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 from adapters import BaseAdapter
 from adapters._list import ListAdapter
 from adapters._user.community_user import CommunityUserAdapter
 from adapters._user.jumpedia_user import JumpediaUserAdapter
-from adapters._jumpedia import JumpediaAdapter
 from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from structures.community import Community
-from structures import list as list_
 from structures.list import List
 from utils import text
 
-
+if TYPE_CHECKING:
+    from adapters._jumpedia import JumpediaAdapter
+    
 def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     list = community.get_list_by_name(name)
 

@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, NamedTuple
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
@@ -23,11 +22,6 @@ ListTbl = typed.List
 CommunityTbl = typed.Community
 CommunityUserTbl = typed.CommunityUser
 
-@dataclass
-class CommunityDataCache:
-    server_ids: frozenset[int] | None = None
-
-
 class CommunityLimits(NamedTuple):
     community_list_count_max: int
     list_attribute_count_max: int
@@ -46,12 +40,7 @@ class Community(BaseStructure):
     norm_name: text.NormStr
     limits: CommunityLimits
 
-    _cache: CommunityDataCache = field(init=False, default_factory=CommunityDataCache)
-
     def get_server_ids(self) -> frozenset[int]:
-        if self._cache.server_ids is not None:
-            return self._cache.server_ids
-        
         ServerTbl = typed.Server
         
         with queries.connected() as c:
@@ -63,9 +52,7 @@ class Community(BaseStructure):
 
             result = c.fetchall(ServerTbl)
 
-        self._cache.server_ids = frozenset(row.id for row in result)
-
-        return self._cache.server_ids
+        return frozenset(row.id for row in result)
         
     @property
     def identity(self) -> tuple[int, ...]:

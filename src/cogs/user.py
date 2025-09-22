@@ -3,9 +3,6 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from discord_structures import predicates
-from discordtools import helpers, messaging, feedbackerrors as fbe
-from bridges.context import Context
-from structures.ranks import AnyRank
 
 class UserCog(cmds.GroupCog, group_name="user"):
     def __init__(self, bot: cmds.Bot) -> None:

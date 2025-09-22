@@ -18,8 +18,6 @@ class CommunityRank(BaseRank):
 
     @classmethod
     def _init(cls):
-        super()._init()
-
         cls.USER = CommunityRank(0, "User")
         cls.HELPER = CommunityRank(10, "Helper")
         cls.MODERATOR = CommunityRank(20, "Moderator")

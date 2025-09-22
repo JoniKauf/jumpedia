@@ -8,7 +8,6 @@ from adapters._jumpedia import JumpediaAdapter
 from adapters._discord.user import UserAdapter
 from adapters._discord.server import ServerAdapter
 from errors.feedback import feedbacks
-from ranks.server_rank import ServerRank
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     if isinstance(user_or_member, dc.User):

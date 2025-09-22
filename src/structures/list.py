@@ -1,24 +1,19 @@
-from dataclasses import dataclass, field
-from functools import cached_property
 import itertools
-from string.templatelib import Template
-from typing import TYPE_CHECKING, AbstractSet, Callable, ClassVar, Final, Literal, NamedTuple, Sequence, get_args, overload
+from typing import TYPE_CHECKING, AbstractSet, Callable, Final, Iterable, Literal, Mapping, Sequence, get_args, overload
 
 from database import queries 
 from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
-from structures.attribute.slot_type import SlotType, SlotTypeT
+from structures.attribute.slot_type import SlotType, SlotTypeT, TypeStr
 from structures import BaseStructure
-from structures.attribute import ANY_ATTRIBUTE, AnyAttributeT, AttributeValueParseTypesT, BaseAttribute, BaseNonStaticAttribute, RawCollectionT
+from structures.attribute import AnyAttributeT, BaseAttribute, BaseNonStaticAttribute
 from structures.attribute.static_attribute import StaticAttribute
 from structures.attribute.task_attribute import TaskAttribute
 from structures.attribute.user_attribute import UserAttribute
 from structures.errors import StructureNotFoundError
-from structures.jumpedia import JUMPEDIA
 from structures.task import Task
 from utils import text
 from database import typed
-from utils.argparser import KwargParser
 
 if TYPE_CHECKING:
     from structures.community import Community
@@ -31,8 +26,6 @@ STATIC_ATTRIBUTE_KIND_OF_ALIASES: Final = 3
 type KindsT = Literal[1, 2, 3]
 KINDS: tuple[Literal[1], Literal[2], Literal[3]] = get_args(KindsT.__value__)
 
-
-@dataclass(frozen=True, kw_only=True)
 class List(BaseStructure):
     community: 'Community'
     id: int
@@ -154,8 +147,8 @@ class List(BaseStructure):
         self, 
         type: type[T],
         raw_name: str,
-        raw_aliases: frozenset[str],
-        slot_type: SlotType[TSlot],
+        raw_aliases: Iterable[str],
+        slot_type: SlotType,
         max_slots: int,
         *,
         min_slots: int,
@@ -168,11 +161,11 @@ class List(BaseStructure):
         self, 
         type: type[T],
         raw_name: str,
-        raw_aliases: frozenset[str],
-        slot_type: SlotType[TSlot],
+        raw_aliases: Iterable[str],
+        slot_type: SlotType,
         max_slots: int,
         *,
-        raw_collection: RawCollectionT
+        raw_collection: Sequence[str]
     ) -> T:
         pass
 
@@ -180,13 +173,13 @@ class List(BaseStructure):
         self, 
         type: type[T],
         raw_name: str,
-        raw_aliases: frozenset[str],
-        slot_type: SlotType[TSlot],
+        raw_aliases: Iterable[str],
+        slot_type: SlotType,
         max_slots: int,
         *,
         min_slots: int = 0,
         kind: int = 0,
-        raw_collection: RawCollectionT | None = None
+        raw_collection: Sequence[str] | None = None
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         if (min_slots or kind) == issubclass(type, BaseNonStaticAttribute):
             raise ValueError("Typing not followed on attribute creation #1")
@@ -212,7 +205,7 @@ class List(BaseStructure):
                 if self.get_any_attribute_by_syn(syn) is not None:
                     raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
                 
-            if not (min_slots <= max_slots <= self.community.limits.attribute_task_value_slot_count_max):
+            if not (min_slots <= max_slots <= self.community.jumpedia.limits.attribute_task_value_slot_count_max):
                 raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
             
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
@@ -356,7 +349,7 @@ class List(BaseStructure):
         self,
         type: type[BaseAttribute],
         id: int, 
-        raw_aliases: frozenset[str]
+        raw_aliases: Iterable[str]
     ) -> None:
         (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
         del raw_aliases
@@ -447,8 +440,8 @@ class List(BaseStructure):
     
     def _cook_raw_task_attribute_value_mapping(
         self, 
-        raw_task_attribute_value_mapping: dict[int, Sequence[str]]
-    ) -> dict[TaskAttribute, list[SlotTypeT]]:
+        raw_task_attribute_value_mapping: Mapping[int, Sequence[str]]
+    ) -> dict[TaskAttribute, list[TypeStr]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
             
         # Check if all required attributes are given
@@ -459,7 +452,7 @@ class List(BaseStructure):
         if not raw_task_attribute_value_mapping:
             return {}
         
-        attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]] = {}
+        attribute_value_mapping: dict[TaskAttribute, list[TypeStr]] = {}
         
         # Convert ids to attributes and validate value
         for attr_id, v in raw_task_attribute_value_mapping.items():
@@ -467,9 +460,9 @@ class List(BaseStructure):
                 raise feedbacks.temp("Attribute id not found")
             
             attr = id_to_attr[attr_id]
-            v = attr.raw_to_slots(v)
+            val = attr.raw_to_slots(v)
 
-            attribute_value_mapping[attr] = v
+            attribute_value_mapping[attr] = val
 
         return attribute_value_mapping
     
@@ -546,8 +539,8 @@ class List(BaseStructure):
     def create_task(
         self, 
         raw_name: str, 
-        raw_aliases: frozenset[str], 
-        raw_task_attribute_value_mapping: dict[int, str]
+        raw_aliases: Iterable[str], 
+        raw_task_attribute_value_mapping: Mapping[int, Sequence[str]]
     ) -> Task:
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms((raw_name, *raw_aliases))
         del raw_name, raw_aliases
@@ -649,7 +642,7 @@ class List(BaseStructure):
     def edit_task_aliases(
         self, 
         id: int, 
-        raw_aliases: frozenset[str]
+        raw_aliases: Iterable[str]
     ) -> None:
         (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
         del raw_aliases
@@ -694,7 +687,7 @@ class List(BaseStructure):
     def edit_task_attribute_value_mapping(
         self,
         id: int,
-        raw_task_attribute_value_mapping: dict[int, AttributeValueParseTypesT]
+        raw_task_attribute_value_mapping: Mapping[int, Sequence[str]]
     ):
         with self.locked:
             task = self.get_task_by_id(id)
@@ -771,7 +764,7 @@ class List(BaseStructure):
         self,
         c: queries.CursorWrapper,
         task_id: int,
-        task_attribute_value_mapping: dict[TaskAttribute, list[SlotTypeT]]
+        task_attribute_value_mapping: dict[TaskAttribute, list[TypeStr]]
     ) -> None:
         if not task_attribute_value_mapping:
             return
@@ -818,7 +811,7 @@ class List(BaseStructure):
         if norm_aliases:
             norm_syns.update(norm_aliases)
         
-        if len(norm_aliases) > self.community.limits.attribute_task_value_slot_count_max:
+        if len(norm_aliases) > self.community.jumpedia.limits.attribute_task_value_slot_count_max:
             raise feedbacks.temp("Too many aliases")
         
         for normed_syn in norm_syns:

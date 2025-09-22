@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from database import queries
 from structures import BaseStructure
@@ -8,8 +7,6 @@ from database import typed as typed
 if TYPE_CHECKING:
     from structures.list import List
 
-
-@dataclass(frozen=True, kw_only=True)
 class Task(BaseStructure):
     list: List
     id: int

@@ -1,12 +1,15 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from adapters import BaseAdapter
-from adapters._community import CommunityAdapter
-from adapters._list import ListAdapter
 from adapters._user.jumpedia_user import JumpediaUserAdapter
 from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
 from structures.user.community_user import CommunityUser
+
+if TYPE_CHECKING:
+    from adapters._community import CommunityAdapter
+    from adapters._list import ListAdapter
 
 class CommunityUserAdapter(BaseAdapter):
     _community_user: CommunityUser
