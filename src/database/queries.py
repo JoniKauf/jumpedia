@@ -42,20 +42,22 @@ class CursorWrapper:
 
     def execute(
         self, 
-        statement: Callable[[Arg], Template[*tuple[InterpolationExecuteT, ...]]]
+        statement: Callable[[Arg], Template[*tuple[InterpolationExecuteT, ...]]],
+        /
     ) -> None:
         arg = Arg()
         template = statement(arg)
 
         for v in template.values:
             if not isinstance(v, INTERPOLATION_EXECUTE):
-                raise TypeError()
+                raise TypeError(f"{v!r} not isinstance {INTERPOLATION_EXECUTE!r}")
 
         self._cursor.execute(text.t_to_f_string(template), arg.steal())
-    
+
     def executemany(
         self, 
-        statement: Callable[[Args], Template[*tuple[InterpolationExecuteManyT, ...]]]
+        statement: Callable[[Args], Template[*tuple[InterpolationExecuteManyT, ...]]],
+        /
     ) -> None:
         args = Args()
         template = statement(args)
@@ -96,6 +98,14 @@ class CursorWrapper:
     @property
     def connection(self) -> mariadb.Connection:
         return self._cursor.connection
+    
+
+    def execute_raw(
+        self,
+        statement: str,
+        /
+    ) -> None:
+        self._cursor.execute(statement)
 
         
 @contextmanager

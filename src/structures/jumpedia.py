@@ -38,7 +38,7 @@ class Jumpedia(BaseStructure):
             def SCHEMA_NAME(self): pass
 
         with queries.connected(no_db=True) as c:
-            c.execute(lambda _: t"""
+            c.execute_raw(f"""
                 SELECT {PartSchemaTbl.SCHEMA_NAME}
                 FROM INFORMATION_SCHEMA.{PartSchemaTbl}
                 WHERE {PartSchemaTbl.SCHEMA_NAME} = '{self.database_name}';
@@ -53,14 +53,14 @@ class Jumpedia(BaseStructure):
 
             time.sleep(5)
 
-            c.execute(lambda _: t"""
+            c.execute_raw(f"""
                 CREATE DATABASE `{self.database_name}`
                     CHARACTER SET = utf8mb4
                 """)
                 
         with queries.connected() as c:
             try:
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.Community} (
                         {typed.Community.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Community.norm_name} VARCHAR({self.limits.community_name_length_max}) UNIQUE NOT NULL,
@@ -69,7 +69,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.Server} (
                         {typed.Server.id} BIGINT UNSIGNED PRIMARY KEY,
                         {typed.Server.community_id} INT NOT NULL,
@@ -80,7 +80,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.List} (
                         {typed.List.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.List.community_id} INT NOT NULL,
@@ -96,7 +96,7 @@ class Jumpedia(BaseStructure):
                 """)
 
                 # Add foreign key to community, otherwise we would have circular dependency
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     ALTER TABLE {typed.Community}
                     ADD CONSTRAINT fk_community_default_list
                     FOREIGN KEY ({typed.Community.default_selected_list_id})
@@ -104,7 +104,7 @@ class Jumpedia(BaseStructure):
                         ON DELETE SET NULL
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.JumpediaUser} (
                         {typed.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
                         {typed.JumpediaUser.norm_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
@@ -113,7 +113,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.CommunityUser} (
                         {typed.CommunityUser.community_id} INT NOT NULL,
                         {typed.CommunityUser.jumpedia_user_id} BIGINT UNSIGNED NOT NULL,
@@ -134,7 +134,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.StaticAttribute} (
                         {typed.StaticAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttribute.list_id} INT NOT NULL,
@@ -156,7 +156,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.StaticAttributeAlias} (
                         {typed.StaticAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.StaticAttributeAlias.attribute_id} INT NOT NULL,
@@ -175,7 +175,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAttribute} (
                         {typed.TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttribute.list_id} INT NOT NULL,
@@ -195,7 +195,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAttributeAlias} (
                         {typed.TaskAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeAlias.attribute_id} INT NOT NULL,
@@ -214,7 +214,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAttributeCollectionSlot} (
                         {typed.TaskAttributeCollectionSlot.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionSlot.attribute_id} INT NOT NULL,
@@ -237,7 +237,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAttributeCollectionSlotAlias} (
                         {typed.TaskAttributeCollectionSlotAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
@@ -260,7 +260,7 @@ class Jumpedia(BaseStructure):
                 """)
 
                 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.UserAttribute} (
                         {typed.UserAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttribute.list_id} INT NOT NULL,
@@ -280,7 +280,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.UserAttributeAlias} (
                         {typed.UserAttributeAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeAlias.attribute_id} INT NOT NULL,
@@ -299,7 +299,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.UserAttributeCollectionSlot} (
                         {typed.UserAttributeCollectionSlot.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionSlot.attribute_id} INT NOT NULL,
@@ -322,7 +322,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.UserAttributeCollectionSlotAlias} (
                         {typed.UserAttributeCollectionSlotAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.UserAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
@@ -344,7 +344,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.Task} (
                         {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.Task.list_id} INT NOT NULL,
@@ -359,7 +359,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAlias} (
                         {typed.TaskAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                         {typed.TaskAlias.task_id} INT NOT NULL,
@@ -379,7 +379,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.TaskAttributeTaskValue} (
                         {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
                         {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
@@ -401,7 +401,7 @@ class Jumpedia(BaseStructure):
                     )
                 """)
                 
-                c.execute(lambda _: t"""
+                c.execute_raw(f"""
                     CREATE TABLE {typed.UserAttributeTaskValue} (
                         {typed.UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
                         {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
@@ -429,7 +429,7 @@ class Jumpedia(BaseStructure):
                 """)
             except Exception as e:
                 try:
-                    c.execute(lambda _: t"""
+                    c.execute_raw(f"""
                         DROP DATABASE `{self.database_name}`
                     """)
                 finally:
