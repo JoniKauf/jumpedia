@@ -36,11 +36,11 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
     
     @get_group.command(name="communities", description="Get all communities.")
     async def show_communities(self, interaction: dc.Interaction) -> None:
-        communities = JumpediaAdapter(interaction).get_communities()
+        ia = InteractionAdapter(interaction)
 
         await interaction.response.send_message(messaging.layout(
             "All Communities",
-            '\n'.join(f"- {community.name}" for community in communities) or "None",
+            '\n'.join(f"- {community.name}" for community in ia.jumpedia.get_communities()) or "None",
             messaging.MessageStatus.INFO
         ))
 
@@ -49,10 +49,10 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
 
     @create_group.command(name="community", description="Create a new community.")
     @acmds.check(predicates.rank_required(JumpediaRank.META_ADMIN))
-    async def create_community(self, interaction: dc.Interaction, community_name: str) -> None:
-        ctx = Context(interaction)
+    async def create_community(self, interaction: dc.Interaction, community_name: str, initial_list_name: str) -> None:
+        jumpedia = InteractionAdapter(interaction).jumpedia
 
-        community = ctx.jumpedia.create_community(interaction.user, ctx.server.id, community_name)
+        community = jumpedia.create_community(community_name, initial_list_name)
 
         await interaction.response.send_message(messaging.layout(
             "Community Created",

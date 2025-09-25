@@ -4,7 +4,7 @@ from typing import Any, Callable, Final, Hashable, Iterator, Mapping, Never, Pro
 from database import secret, typed
 import mariadb
 from string.templatelib import Interpolation, Template
-from database.simple_orm import Arg, BaseModel, BaseModelMeta, Column, Args, Rows, column
+from database.simple_orm import Arg, BaseModel, BaseModelMeta, Column, Args, Raw, Rows, column
 from utils import text
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
@@ -30,10 +30,10 @@ _lock = RLock()
 def _connection_data_to_hashable(connection_data: dict[str, Hashable]) -> frozenset[tuple[str, Hashable]]:
     return frozenset(connection_data.items())
 
-type InterpolationExecuteT = Interpolation[Arg.ArgPlaceholder | BaseModelMeta | Column]
+type InterpolationExecuteT = Interpolation[Arg.ArgPlaceholder | Raw | BaseModelMeta | Column]
 INTERPOLATION_EXECUTE = get_args(InterpolationExecuteT.__value__)[0]
 
-type InterpolationExecuteManyT = Interpolation[Args.ArgsPlaceholder | BaseModelMeta | Column]
+type InterpolationExecuteManyT = Interpolation[Args.ArgsPlaceholder | Raw | BaseModelMeta | Column]
 INTERPOLATION_EXECUTE_MANY = get_args(InterpolationExecuteManyT.__value__)[0]
 
 class CursorWrapper:

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Final
 from database.simple_orm import SNAKE, BaseModel, column
 from utils.text import NormStr, RealStr
 
-
+# Only way I found to *easily* remove cyclic imports in this case
 if TYPE_CHECKING:
     from structures.attribute.slot_type import TypeStr
     from structures.list import KindsT

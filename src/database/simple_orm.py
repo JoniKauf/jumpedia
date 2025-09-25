@@ -128,6 +128,9 @@ class Rows[T: BaseModel]:
     def __iter__(self) -> Generator[T, None, None]:
         yield from self._rows 
 
+    def __len__(self) -> int:
+        return len(self._rows)
+    
     def __getitem__(self, idx: int) -> T:
         return self._rows[idx]
 
@@ -188,3 +191,11 @@ class Args:
         args = tuple(zip(*self._args))
         self._args.clear()
         return args
+    
+
+class Raw:
+    def __init__(self, raw: str, /) -> None:
+        self.raw = raw
+
+    def __str__(self) -> str:
+        return self.raw

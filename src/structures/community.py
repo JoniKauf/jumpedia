@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Callable, NamedTuple
-from database.simple_orm import Arg, Rows
+from database.simple_orm import Arg, Raw, Rows
 from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from structures.attribute.slot_type import SlotType
@@ -145,7 +145,7 @@ class Community(BaseStructure):
                 FROM {ListTbl}
                 WHERE 
                     {ListTbl.community_id} = {arg(self.id)}
-                    {f"AND {where(arg)}" if where is not None else ""}
+                    {Raw(f"AND {where(arg)}" if where is not None else "")}
             """)
 
             result = c.fetchall(ListTbl)

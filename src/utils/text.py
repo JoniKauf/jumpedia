@@ -7,15 +7,28 @@ from collections.abc import Set
 
 from errors.feedback import feedbacks
 
-PASCAL_REPLACE_PATTERN = re.compile(r'(?!^)([A-Z]+)')
-ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+')
+ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r'\s+', re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + '_')
 
+BAD_CHAR_MAPPING = str.maketrans({
+    '‘': "'",
+    '’': "'",
+    '‚': "'",
+    '‛': "'",
+    '“': '"',
+    '”': '"',
+    '„': '"',
+    '‟': '"'
+})
+
 def pascal_to_snake(s: str):
-    return re.sub(PASCAL_REPLACE_PATTERN, r'_\1', s).lower()
+    return s[0].lower() + ''.join(f'_{c.lower()}' if c.isupper() else c for c in s[1:])
 
 def replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:
     return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
+
+def replace_bad_chars(s: str) -> str:
+    return s.translate(BAD_CHAR_MAPPING)
 
 def invalid_identifier_chars(s: str) -> set[str]:
     return set(char for char in s if char not in IDENTIFIER_CHARS) 
@@ -50,9 +63,9 @@ def shorten_many(objects: Sequence[Any], *, max_elems: int = 8, max_s: int = 16,
 class RealStr(str): pass
 class NormStr(RealStr): pass
 
-
 def raw_to_real(raw: str, /) -> RealStr:
-    raw = replace_whitespace_groups(raw, ' ', True) 
+    raw = replace_whitespace_groups(raw, ' ', True)
+    raw = replace_bad_chars(raw)
     raw = ''.join(c for c in raw if c.isprintable())
 
     if not raw:

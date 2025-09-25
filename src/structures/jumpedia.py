@@ -2,7 +2,7 @@
 import time
 from typing import Callable, Final, NamedTuple
 
-from database.simple_orm import Arg, BaseModel, Rows, column
+from database.simple_orm import SNAKE, Arg, BaseModel, Raw, Rows, column
 from errors.feedback import feedbacks
 from ranks.community_rank import CommunityRank
 from ranks.jumpedia_rank import JumpediaRank
@@ -33,18 +33,18 @@ class Jumpedia(BaseStructure):
         return (self.id,)
         
     def __post_init__(self) -> None:
-        class PartSchemaTbl(BaseModel, table_name=None):
+        class SCHEMATA(BaseModel, table_name="SCHEMATA"):
             @column(str)
             def SCHEMA_NAME(self): pass
 
         with queries.connected(no_db=True) as c:
             c.execute_raw(f"""
-                SELECT {PartSchemaTbl.SCHEMA_NAME}
-                FROM INFORMATION_SCHEMA.{PartSchemaTbl}
-                WHERE {PartSchemaTbl.SCHEMA_NAME} = '{self.database_name}';
+                SELECT {SCHEMATA.SCHEMA_NAME}
+                FROM INFORMATION_SCHEMA.{SCHEMATA}
+                WHERE {SCHEMATA.SCHEMA_NAME} = '{self.database_name}';
             """)
 
-            exists = c.fetchone(PartSchemaTbl) is not None
+            exists = c.fetchone(SCHEMATA) is not None
 
             if exists:
                 return
@@ -228,7 +228,7 @@ class Jumpedia(BaseStructure):
 
                         UNIQUE (
                             {typed.TaskAttributeCollectionSlot.attribute_id},
-                            {typed.TaskAttributeCollectionSlot.norm_slot},
+                            {typed.TaskAttributeCollectionSlot.norm_slot}
                         ),
                         UNIQUE (
                             {typed.TaskAttributeCollectionSlot.attribute_id},
@@ -313,7 +313,7 @@ class Jumpedia(BaseStructure):
 
                         UNIQUE (
                             {typed.UserAttributeCollectionSlot.attribute_id},
-                            {typed.UserAttributeCollectionSlot.norm_slot},
+                            {typed.UserAttributeCollectionSlot.norm_slot}
                         ),
                         UNIQUE (
                             {typed.UserAttributeCollectionSlot.attribute_id},
@@ -524,7 +524,7 @@ class Jumpedia(BaseStructure):
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.Community}
-                {f"WHERE {where(arg)}" if where is not None else ""}
+                {Raw(f"WHERE {where(arg)}" if where is not None else "")}
             """)
 
             result = c.fetchall(typed.Community)
@@ -635,7 +635,7 @@ class Jumpedia(BaseStructure):
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.JumpediaUser}
-                {f"WHERE {where(arg)}" if where is not None else ""}
+                {Raw(f"WHERE {where(arg)}" if where is not None else "")}
             """)
 
             result = c.fetchall(typed.JumpediaUser)
