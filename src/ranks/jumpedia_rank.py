@@ -1,19 +1,16 @@
-
-
-
-
 from dataclasses import dataclass
 from typing import ClassVar
 
 from ranks.base_rank import BaseRank
 
+
 @dataclass(frozen=True)
 class JumpediaRank(BaseRank):
     _init_done: ClassVar[bool] = False
 
-    DEFAULT: ClassVar['JumpediaRank']
-    LOWEST: ClassVar['JumpediaRank']
-    HIGHEST: ClassVar['JumpediaRank']
+    DEFAULT: ClassVar["JumpediaRank"]
+    LOWEST: ClassVar["JumpediaRank"]
+    HIGHEST: ClassVar["JumpediaRank"]
 
     @classmethod
     def _init(cls) -> None:

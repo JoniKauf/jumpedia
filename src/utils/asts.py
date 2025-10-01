@@ -3,6 +3,7 @@ from typing import Iterable, Optional as Opt
 from structures.task.task import Task
 from utils import devtools as dev
 
+
 class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
     def __init__(self, trickjumps: Iterable[Task]) -> None:
         self.parents = []
@@ -23,10 +24,10 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
             result = super().visit(node)
         except SyntaxError as e:
             raise SyntaxError(e.msg + " | " + str(self.parents))
-        
+
         self.parents.pop()
         return result
-    
+
     # Root (because 'eval' mode)
     def visit_Expression(self, node: ast.Expression):
         if self.parents != [node]:
@@ -35,8 +36,8 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
         self.filtered = self.visit(node.body)
 
         return self.filtered
-                
-    def visit_BoolOp(self, node: ast.BoolOp): 
+
+    def visit_BoolOp(self, node: ast.BoolOp):
         if not isinstance(self._parents_index(-2), ast.Expression):
             raise SyntaxError("Expression expected")
 
@@ -53,9 +54,9 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
             self.filtered = result
         else:
             raise SyntaxError("Unsupported boolean operator")
-    
+
         return self.filtered
-    
+
     def visit_BinOp(self, node: ast.BinOp):
         if not isinstance(self._parents_index(-2), (ast.BoolOp, ast.Expression)):
             raise SyntaxError("Not child of boolOp or Expression")
@@ -67,34 +68,34 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
             raise SyntaxError("Right part is not string")
         if not isinstance(node.op, ast.Div):
             raise SyntaxError("Not a div")
-        
+
         attr: str = self.visit(node.left)
         literal: str = self.visit(node.right)
 
-        #TODO
-    
+        # TODO
+
     def visit_Compare(self, node: ast.Compare):
         if not isinstance(self._parents_index(-2), (ast.BoolOp, ast.Expression)):
             raise SyntaxError("Not child of boolOp or Expression")
-        
+
         if not isinstance(node.left, ast.Name):
             raise SyntaxError("Left part is not variable")
-        
+
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise SyntaxError("Not exactly 1 comparator or operator")
-        
+
         if not isinstance(node.comparators[0], ast.Constant):
             raise SyntaxError("Right part is not constant")
-        
+
         if not isinstance(node.comparators[0].value, str):
             raise SyntaxError("Right part is not string")
-        
+
         if not isinstance(node.ops[0], ast.Eq):
             raise SyntaxError("Not a valid comparison")
-        
+
         attr: attrs.AttrNormalT = self.visit(node.left)
         literal: str = self.visit(node.comparators[0])
-        
+
         result: set[Task] = set()
 
         if Task.field_value_type_info()[attr.value_cls]:
@@ -108,17 +109,16 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
                 for attr_obj in attr:
                     if literal == str(attr_obj):
                         result.add(tj)
-        
+
         return result
-        
-    
+
     # Variable name
     def visit_Name(self, node: ast.Name):
         try:
             attr = attrs.syn_to_cls(node.id)
         except KeyError:
             raise SyntaxError(f"Invalid attr '{node.id}'")
-        
+
         return attr
 
     def visit_Constant(self, node: ast.Constant):
@@ -126,14 +126,15 @@ class TrickjumpFilterNodeVisitor(ast.NodeVisitor):
             raise SyntaxError("must be string")
         if not isinstance(self._parents_index(-2), (ast.Compare, ast.BinOp)):
             raise SyntaxError("Not part of comparison")
-        
+
         return node.value
-    
+
     def generic_visit(self, node: ast.AST):
         raise SyntaxError("Generic Visit")
 
+
 code = """name == 'Vault' or name == 'Metro Impossible'"""
-tree = ast.parse(code, mode='eval')
+tree = ast.parse(code, mode="eval")
 
 with dev.timed("Get all jumps"):
     jumps = Task.get_all()

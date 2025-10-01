@@ -6,7 +6,7 @@ from database.simple_orm import Arg, Rows
 from errors.feedback import feedbacks
 from structures.attribute.slot_type import SlotType, SlotTypeT, TypeStr
 from structures import BaseStructure
-from structures.attribute import AnyAttributeT, BaseAttribute, BaseNonStaticAttribute
+from structures.attribute import ANY_ATTRIBUTE, AnyAttributeT, BaseAttribute, BaseNonStaticAttribute
 from structures.attribute.static_attribute import StaticAttribute
 from structures.attribute.task_attribute import TaskAttribute
 from structures.attribute.user_attribute import UserAttribute
@@ -83,39 +83,39 @@ class List(BaseStructure):
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
         return tuple(
             attr
-            for type in ANY_ATTRIBUTE
+            for type in ANY_ATTRIBUTE()
                 for attr in self.get_attributes(type)
         )
     
     def get_all_attributes(self) -> tuple[set[StaticAttribute], set[TaskAttribute], set[UserAttribute]]:
         return tuple(
             self.get_attributes(type)
-            for type in ANY_ATTRIBUTE
+            for type in ANY_ATTRIBUTE()
         )  # type: ignore
 
     def get_any_attribute_by_id(self, id: int) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE:
+        for type in ANY_ATTRIBUTE():
             attr = self.get_attribute_by_id(type, id)
 
             if attr is not None:
                 return attr
         
     def get_any_attribute_by_name(self, norm_name: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE:
+        for type in ANY_ATTRIBUTE():
             attr = self.get_attribute_by_name(type, norm_name)
             
             if attr is not None:
                 return attr
         
     def get_any_attribute_by_alias(self, norm_alias: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE:
+        for type in ANY_ATTRIBUTE():
             attr = self.get_attribute_by_alias(type, norm_alias)
             
             if attr is not None:
                 return attr
 
     def get_any_attribute_by_syn(self, norm_syn: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE:
+        for type in ANY_ATTRIBUTE():
             attr = self.get_attribute_by_syn(type, norm_syn)
             
             if attr is not None:

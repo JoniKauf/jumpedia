@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class JumpediaUser(BaseStructure):
-    __structure_name__ = 'jumpedia user'
+    __structure_name__ = "jumpedia user"
 
     jumpedia: Jumpedia
     id: int

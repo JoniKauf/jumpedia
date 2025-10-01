@@ -1,5 +1,3 @@
-
-
 from structures import BaseStructure
 
 

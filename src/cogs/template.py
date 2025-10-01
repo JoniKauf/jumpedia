@@ -4,6 +4,7 @@ import discord.ext.commands as cmds
 
 from discord_structures import predicates
 
+
 class Template(cmds.GroupCog, group_name="template"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot

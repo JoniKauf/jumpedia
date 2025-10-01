@@ -1,6 +1,3 @@
-
-
-
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -11,10 +8,10 @@ from structures import BaseStructure
 @dataclass(frozen=True)
 class CommunityRank(BaseRank):
     _init_done: ClassVar[bool] = False
-    
-    DEFAULT: ClassVar['CommunityRank']
-    LOWEST: ClassVar['CommunityRank']
-    HIGHEST: ClassVar['CommunityRank']
+
+    DEFAULT: ClassVar["CommunityRank"]
+    LOWEST: ClassVar["CommunityRank"]
+    HIGHEST: ClassVar["CommunityRank"]
 
     @classmethod
     def _init(cls):

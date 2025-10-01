@@ -11,5 +11,5 @@ class SecretContentT(TypedDict):
 
 
 def listen() -> SecretContentT:
-    with open(os.path.abspath(__LOCATION), encoding='utf-8') as f:
+    with open(os.path.abspath(__LOCATION), encoding="utf-8") as f:
         return json.load(f)

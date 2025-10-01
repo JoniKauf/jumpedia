@@ -1,11 +1,12 @@
-if __name__ != '__main__':
+if __name__ != "__main__":
     raise SyntaxError()
 
 from decimal import Decimal
 import re
 import datetime as dt
 
-_TIMEDELTA_PARSE_PATTERN = re.compile(r'''
+_TIMEDELTA_PARSE_PATTERN = re.compile(
+    r"""
     ^                     # String start
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
     \s*                   # Whitespace 0 to ∞ times
@@ -36,7 +37,10 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
         (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
     )?                    # End group, its insides must either fully match or not exist at all
     $                     # String end
-''', re.VERBOSE | re.IGNORECASE)
+""",
+    re.VERBOSE | re.IGNORECASE,
+)
+
 
 def _parse_timedelta(s: str) -> dt.timedelta:
     match = _TIMEDELTA_PARSE_PATTERN.match(s.strip())
@@ -49,12 +53,12 @@ def _parse_timedelta(s: str) -> dt.timedelta:
 
     if len(groups) < 2:
         raise ValueError("Timedelta format is either empty or only a sign")
-    
+
     total_seconds = Decimal()
     sign = 1
 
-    if groups[-1] in '-+':
-        if groups[-1] == '-':
+    if groups[-1] in "-+":
+        if groups[-1] == "-":
             sign = -1
 
         groups.pop()
@@ -63,19 +67,19 @@ def _parse_timedelta(s: str) -> dt.timedelta:
         unit = groups[i].lower()[0]
         value = Decimal(groups[i + 1])
 
-        if unit == 'd':
+        if unit == "d":
             total_seconds += value * 86400
-        elif unit == 'h':
+        elif unit == "h":
             total_seconds += value * 3600
-        elif unit == 'm':
+        elif unit == "m":
             total_seconds += value * 60
         else:
             total_seconds += value
-    
+
     try:
         return dt.timedelta(seconds=float(total_seconds * sign))
     except Exception:
         raise ValueError("Number too small or big")
-    
+
 
 print(_parse_timedelta("10d"))

@@ -10,13 +10,13 @@ from discord.ext.commands import CommandError, Context
 import discord
 from database import secret
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise RuntimeError
 
 SEP = r" \ ".strip()
 
-BOT: commands.Bot = globals()['BOT']
-TOKEN = secret.listen()['DISCORD_TOKEN']
+BOT: commands.Bot = globals()["BOT"]
+TOKEN = secret.listen()["DISCORD_TOKEN"]
 
 COGS_DIR = r"cogs"
 
@@ -27,7 +27,8 @@ def get_cogs() -> list[str]:
         for module in os.listdir(COGS_DIR)
         if not module.startswith("__")
     ]
-    
+
+
 @BOT.event
 async def on_ready():
     try:
@@ -40,21 +41,25 @@ async def on_ready():
         traceback.print_exc()
         exit(1)
 
+
 @BOT.tree.error
-async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+async def on_app_command_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+) -> None:
     if isinstance(error, app_commands.CommandInvokeError):
         e = error.original
     else:
         e = error
-    
+
     if not interaction.response.is_done():
         await interaction.response.defer()
 
     if isinstance(e, BaseUserReturnableError):
-        e.msg_kwargs['content'] = str(e)
+        e.msg_kwargs["content"] = str(e)
         return await interaction.followup.send(**e.msg_kwargs)
 
     await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
     raise e
+
 
 BOT.run(TOKEN)

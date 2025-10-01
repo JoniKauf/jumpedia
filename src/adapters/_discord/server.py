@@ -5,6 +5,7 @@ from adapters import BaseAdapter
 if TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
 
+
 class ServerAdapter(BaseAdapter):
     _server: dc.Guild
 

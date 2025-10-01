@@ -1,8 +1,8 @@
-
 from dataclasses import dataclass
 from database import typed
 from structures.attribute import BaseNonStaticAttribute
 from structures.attribute import BaseNonStaticAttributeTables
+
 
 class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
@@ -10,5 +10,5 @@ class TaskAttribute(BaseNonStaticAttribute):
         typed.TaskAttributeAlias,
         typed.TaskAttributeCollectionSlot,
         typed.TaskAttributeCollectionSlotAlias,
-        typed.TaskAttributeTaskValue
+        typed.TaskAttributeTaskValue,
     )

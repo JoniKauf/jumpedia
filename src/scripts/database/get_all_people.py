@@ -11,7 +11,7 @@ for line in lines:
 
     if not all(parts[:2]):
         raise ValueError
-    
+
     old, _, new = parts
     old = old.strip()
     new = new.strip()

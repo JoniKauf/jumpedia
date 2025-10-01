@@ -10,8 +10,9 @@ from typing import Any, Final, Mapping, Never, Self, Sequence, TypeIs, Union
 import typing
 import json
 from typing_extensions import Sentinel, TypeForm
+
 PARSING_MAX_LENGTH: Final[int] = 2**20
-ENCODING: Final[str] = 'utf-8'
+ENCODING: Final[str] = "utf-8"
 
 EMPTY_JSON_STR: Final[str] = json.dumps("")
 EMPTY_JSON_LIST: Final[str] = json.dumps([])
@@ -26,25 +27,33 @@ def json_depth(o: Any) -> int:
         return 1 + max(json_depth(a) for a in o)
     return 0
 
-# Because list and dict are not covariant, we have to use other ways. This is a known issue.
-type SupportedJsonTypesT = None | bool | int | float | str | Sequence[SupportedJsonTypesT] | Mapping[str, SupportedJsonTypesT]
 
-# This represents the strict type. 
-# A literal tuple represents a union. 
-# There are two variants, the ...NoUnionT is there to not allow nested tuples/unions. 
-type SupportedJsonTypesTypeNoUnionT = type[None | bool | int | float | str] | list[SupportedJsonTypesTypeT] | dict[type[str], SupportedJsonTypesTypeT] | type[Anything]
-type SupportedJsonTypesTypeT = SupportedJsonTypesTypeNoUnionT | tuple[SupportedJsonTypesTypeNoUnionT, ...]
+# Because list and dict are not covariant, we have to use other ways. This is a known issue.
+type SupportedJsonTypesT = None | bool | int | float | str | Sequence[
+    SupportedJsonTypesT
+] | Mapping[str, SupportedJsonTypesT]
+
+# This represents the strict type.
+# A literal tuple represents a union.
+# There are two variants, the ...NoUnionT is there to not allow nested tuples/unions.
+type SupportedJsonTypesTypeNoUnionT = type[None | bool | int | float | str] | list[
+    SupportedJsonTypesTypeT
+] | dict[type[str], SupportedJsonTypesTypeT] | type[Anything]
+type SupportedJsonTypesTypeT = SupportedJsonTypesTypeNoUnionT | tuple[
+    SupportedJsonTypesTypeNoUnionT, ...
+]
 
 _NON_UNION_EXPECTED_TYPE = frozenset((NoneType, bool, int, float, str))
+
 
 class Anything:
     def __new__(cls) -> Never:
         raise RuntimeError()
 
 
-
 class StrictTypeError(ValueError):
     """The given strict_type is invalid"""
+
 
 class TooManyArgs(ValueError):
     def __init__(self, given: int, max: int, *args: object) -> NoneType:
@@ -52,10 +61,17 @@ class TooManyArgs(ValueError):
         self.given = given
         self.max = max
 
+
 class SafeJsonParser[T: SupportedJsonTypesT]:
     MAX_LENGTH: int = PARSING_MAX_LENGTH
 
-    def __init__(self, *, max_depth: int = -1, max_length: int = MAX_LENGTH, strict_type: SupportedJsonTypesTypeT = Anything) -> None:
+    def __init__(
+        self,
+        *,
+        max_depth: int = -1,
+        max_length: int = MAX_LENGTH,
+        strict_type: SupportedJsonTypesTypeT = Anything,
+    ) -> None:
         self.max_depth = max_depth
         self.max_length = max_length
         self.strict_type = strict_type
@@ -66,7 +82,7 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
 
         if length > self.max_length:
             raise ValueError(length)
-        
+
         try:
             result: Any = json.loads(s, **kwargs)
         except json.JSONDecodeError as e:
@@ -75,24 +91,26 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
             raise e
         except Exception as e:
             raise e
-        
+
         self.validate_json_type(result, self.strict_type)
-        
+
         if self.max_depth >= 0 and (depth := json_depth(result)) > self.max_depth:
             raise RecursionError(depth)
 
         return result
-    
+
     @classmethod
-    def validate_json_type(cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = Anything) -> None:
+    def validate_json_type(
+        cls, obj: SupportedJsonTypesT, strict_type: SupportedJsonTypesTypeT = Anything
+    ) -> None:
         if strict_type == Anything:
             return
-        
+
         type_origin = typing.get_origin(strict_type)
 
         if type_origin is None:
             type_origin = strict_type
-        
+
         # Ex: [str]
         if isinstance(type_origin, list):
             if not isinstance(obj, list):
@@ -100,10 +118,10 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
 
             if len(type_origin) > 1:
                 raise TooManyArgs(len(type_origin), 1)
-            
+
             if not type_origin:
                 return
-            
+
             expected_elems_type = type_origin[0]
 
             if expected_elems_type == Anything:
@@ -118,22 +136,22 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
         if isinstance(type_origin, dict):
             if not isinstance(obj, dict):
                 raise TypeError
-            
+
             if len(type_origin) > 1:
                 raise TooManyArgs(len(type_origin), 1)
-            
+
             if not type_origin:
                 return
-            
+
             expected_k_type, expected_v_type = next(iter(type_origin.items()))
 
             if expected_v_type != str:
                 raise StrictTypeError("Key must be type of str")
-            
+
             for child_k, child_v in obj.items():
                 if not isinstance(child_k, expected_k_type):
                     raise TypeError("Dict key not str")
-                
+
                 if expected_v_type != Anything:
                     cls.validate_json_type(child_v, expected_v_type)
 
@@ -141,36 +159,37 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
 
         if isinstance(type_origin, tuple):
             success: bool = False
-            
+
             for union_member in type_origin:
                 try:
                     cls.validate_json_type(obj, union_member)
                 except TypeError:  # Fail, continue to next member and try it
                     continue
-                else:    # Success, at least one member of the union didn't fail
+                else:  # Success, at least one member of the union didn't fail
                     success = True
                     # Success so rest of types get validated (example: we succeed but at the end we include bytes. If this is a valid strict_type, we wouldn't check then)
                     continue
-            
+
             if success:
                 return
-            
+
             # Not a single union_member matched the type
             raise TypeError(obj, strict_type)
-        
+
         if not type_origin in _NON_UNION_EXPECTED_TYPE:
             raise StrictTypeError(type_origin)
-   
+
         if typing.get_args(strict_type):
             raise StrictTypeError
-        
+
         # Not isinstance because sees bool as int and more...
         if not type(obj) == type_origin:
-            raise TypeError(obj, strict_type)  
-            
-        
+            raise TypeError(obj, strict_type)
+
+
 # Regex and function created by Joni. If you use it, mention me if u wanna be cool af :)
-_TIMEDELTA_PARSE_PATTERN = re.compile(r'''
+_TIMEDELTA_PARSE_PATTERN = re.compile(
+    r"""
     ([-+])?               # [Group 1: Optional '-' or '+' sign]
     \s*                   # Whitespace 0 to ∞ times
     (?:                   # Group without capturing:
@@ -199,7 +218,9 @@ _TIMEDELTA_PARSE_PATTERN = re.compile(r'''
         \s*                   # Whitespace 0 to ∞ times
         (s|secs?|seconds?)    # [Group 9: 's', 'sec', 'secs', 'second' or 'seconds']
     )?                    # End group, its insides must either fully match or not exist at all
-''', re.VERBOSE | re.IGNORECASE)
+""",
+    re.VERBOSE | re.IGNORECASE,
+)
 
 
 def parse_timedelta(s: str) -> datetime.timedelta:
@@ -213,78 +234,74 @@ def parse_timedelta(s: str) -> datetime.timedelta:
 
     if len(groups) < 2:
         raise ValueError("Timedelta format is either empty or only a sign")
-    
+
     total_seconds = Decimal()
     sign = 1
 
-    if groups[-1] in '-+':
-        if groups[-1] == '-':
+    if groups[-1] in "-+":
+        if groups[-1] == "-":
             sign = -1
 
         groups.pop()
 
     for i in range(0, len(groups), 2):
         unit = groups[i][0].lower()
-        value = Decimal(groups[i + 1].replace('.', ',', 1))
+        value = Decimal(groups[i + 1].replace(".", ",", 1))
 
-        if unit == 'd':
+        if unit == "d":
             total_seconds += value * 86400
-        elif unit == 'h':
+        elif unit == "h":
             total_seconds += value * 3600
-        elif unit == 'm':
+        elif unit == "m":
             total_seconds += value * 60
         else:
             total_seconds += value
-    
+
     try:
         return datetime.timedelta(seconds=float(total_seconds * sign))
     except Exception:
         raise ValueError("Number too small or big")
-    
+
 
 def unparse_timedelta(obj: datetime.timedelta) -> str:
     if obj.total_seconds() < 0:
         parts: list[str] = ["-"]
     else:
         parts: list[str] = []
-    
+
     mins, seconds = divmod(obj.seconds, 60)
     hours, mins = divmod(mins, 60)
 
     if obj.microseconds:
-        seconds += (obj.microseconds / 1_000_000)
+        seconds += obj.microseconds / 1_000_000
 
-    if obj.days: 
+    if obj.days:
         parts.append(f"{abs(obj.days)}d")
-    if hours: 
+    if hours:
         parts.append(f"{abs(hours)}h")
-    if mins: 
+    if mins:
         parts.append(f"{abs(mins)}m")
     if seconds:
         parts.append(f"{abs(seconds)}s")
-        
-    return ''.join(parts)
 
+    return "".join(parts)
 
 
 class ArgParser:
     # From https://www.fileformat.info/info/unicode/block/general_punctuation/utf8test.htm
-    CLEAN_MAP: dict[str, str] = {
-        '\'': "‘’‚‛",
-        '"': "”“„‟"
-    }
+    CLEAN_MAP: dict[str, str] = {"'": "‘’‚‛", '"': "”“„‟"}
 
     def __init__(self) -> None:
-        pass 
+        pass
 
     def _clean(self, s: str, /) -> str:
         s = s.strip()
 
         for k, v in self.__class__.CLEAN_MAP:
-            s = re.sub(rf'[{re.escape(v)}]', k, s)
-        
+            s = re.sub(rf"[{re.escape(v)}]", k, s)
+
         return s
-    
+
     def parse_args(self, s: str, /) -> list[str]:
         s = self._clean(s)
 
@@ -292,23 +309,23 @@ class ArgParser:
         in_quotes: bool = False
         in_escape: bool = False
         current_arg: list[str] = []
-        prev_c: str = ''
+        prev_c: str = ""
         COUNT = len(s)
 
         for i, c in enumerate(s):
             if in_escape:
                 if c not in '\\"':
                     raise ValueError('\\ not followed by " or \\')
-                
+
                 current_arg.append(c)
                 in_escape = False
-            
-            elif not in_escape and c == '\\':
+
+            elif not in_escape and c == "\\":
                 in_escape = True
-                
+
             elif c == '"':
                 if in_quotes:
-                    result.append(''.join(current_arg))
+                    result.append("".join(current_arg))
                     current_arg = []
 
                     if i < COUNT - 1 and not s[i + 1].isspace():
@@ -316,7 +333,7 @@ class ArgParser:
                 else:
                     if not prev_c.isspace():
                         raise ValueError('Opening " not preceded by whitespace')
-                
+
                 in_quotes = not in_quotes
 
             else:
@@ -325,20 +342,20 @@ class ArgParser:
                 else:
                     if c.isspace():
                         if not prev_c.isspace():
-                            result.append(''.join(current_arg))
+                            result.append("".join(current_arg))
                             current_arg = []
                     else:
                         current_arg.append(c)
-                    
+
             prev_c = c
-        
+
         if in_escape:
-            raise ValueError('Not escaped final \\')
-        
+            raise ValueError("Not escaped final \\")
+
         if in_quotes:
-            raise ValueError('Not closed quotation mark')
-        
+            raise ValueError("Not closed quotation mark")
+
         if current_arg:
-            result.append(''.join(current_arg))
+            result.append("".join(current_arg))
 
         return result

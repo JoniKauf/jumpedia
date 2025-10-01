@@ -4,6 +4,7 @@ import discord.ext.commands as cmds
 
 from discord_structures import predicates
 
+
 class UserCog(cmds.GroupCog, group_name="user"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
@@ -18,34 +19,38 @@ class UserCog(cmds.GroupCog, group_name="user"):
             rank_info: list[tuple[str, AnyRank]] = [
                 ("Server Rank", server_user.server_rank),
                 ("Community Rank", server_user.community_rank),
-                ("Meta Rank", server_user.meta_rank)
+                ("Meta Rank", server_user.meta_rank),
             ]
 
-            return await ia.response.send_message(messaging.layout(
-                "Rank Information",
-                "You have the following ranks:\n" +
-                ('\n'.join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
-                messaging.MessageStatus.INFO
-            ))
+            return await ia.response.send_message(
+                messaging.layout(
+                    "Rank Information",
+                    "You have the following ranks:\n"
+                    + (
+                        "\n".join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)
+                    ),
+                    messaging.MessageStatus.INFO,
+                )
+            )
 
         user_id, user_name = helpers.get_user_id_and_name(user)
 
-        community_user = ctx.community.create_or_get_community_user(
-            user_id, user_name
-        )
+        community_user = ctx.community.create_or_get_community_user(user_id, user_name)
 
         rank_info: list[tuple[str, AnyRank]] = [
             ("Community Rank", community_user.community_rank),
-            ("Meta Rank", community_user.meta_rank)
+            ("Meta Rank", community_user.meta_rank),
         ]
 
-        await ia.response.send_message(messaging.layout(
-            "Rank Information Retrieved",
-            f"The user `{user_name}` has the following ranks:\n" +
-            ('\n'.join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
-            messaging.MessageStatus.INFO
-        ))
-        
+        await ia.response.send_message(
+            messaging.layout(
+                "Rank Information Retrieved",
+                f"The user `{user_name}` has the following ranks:\n"
+                + ("\n".join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
+                messaging.MessageStatus.INFO,
+            )
+        )
+
 
 async def setup(bot: cmds.Bot):
     await bot.add_cog(UserCog(bot))

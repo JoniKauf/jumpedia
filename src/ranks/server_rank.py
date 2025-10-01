@@ -1,5 +1,3 @@
-
-
 import discord as dc
 
 from dataclasses import dataclass
@@ -12,9 +10,9 @@ from ranks.base_rank import BaseRank
 class ServerRank(BaseRank):
     _init_done: ClassVar[bool] = False
 
-    DEFAULT: ClassVar['ServerRank']
-    LOWEST: ClassVar['ServerRank']
-    HIGHEST: ClassVar['ServerRank']
+    DEFAULT: ClassVar["ServerRank"]
+    LOWEST: ClassVar["ServerRank"]
+    HIGHEST: ClassVar["ServerRank"]
 
     @classmethod
     def _init(cls):

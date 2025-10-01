@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from adapters._attribute.task_attribute import TaskAttributeAdapter
     from adapters._attribute.user_attribute import UserAttributeAdapter
 
+
 class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     _attribute: T
     list: ListAdapter
@@ -18,27 +19,27 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     @property
     def id(self) -> int:
         return self._attribute.id
-    
+
     @property
     def real_name(self) -> text.RealStr:
         return self._attribute.real_name
-    
+
     @property
     def norm_name(self) -> text.NormStr:
         return self._attribute.norm_name
-    
+
     @property
     def _slot_type(self) -> SlotType:
         return self._attribute.slot_type
-    
+
     @property
     def position(self) -> int:
         return self._attribute.position
-    
+
     @property
     def min_slots(self) -> int:
         return self._attribute.min_slots
-    
+
     @property
     def max_slots(self) -> int:
         return self._attribute.max_slots

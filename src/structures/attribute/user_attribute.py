@@ -1,5 +1,3 @@
-
-
 from dataclasses import dataclass
 from typing import ClassVar
 from database import typed
@@ -13,5 +11,5 @@ class UserAttribute(BaseNonStaticAttribute):
         typed.UserAttributeAlias,
         typed.UserAttributeCollectionSlot,
         typed.UserAttributeCollectionSlotAlias,
-        typed.UserAttributeTaskValue
+        typed.UserAttributeTaskValue,
     )

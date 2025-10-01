@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from structures.attribute.user_attribute import UserAttribute
 
 
-
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 
 _any_attribute: tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]] | None = None

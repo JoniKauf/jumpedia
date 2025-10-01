@@ -10,11 +10,13 @@ with queries.connected(None) as (conn, cursor):
     cursor.execute(f"CREATE DATABASE `{queries.META_DATABASE_NAME}`")
 
 with queries.connected(queries.MetaDatabase) as (conn, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE community (
             id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(50) UNIQUE,
             display_name VARCHAR(50) UNIQUE,
             database_name VARCHAR(50) UNIQUE         
         )
-    """)
+    """
+    )
