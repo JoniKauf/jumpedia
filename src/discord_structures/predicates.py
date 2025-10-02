@@ -18,7 +18,7 @@ type PredicateT = Callable[[dc.Interaction], Literal[True]]
 def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
     return FeedbackError(
         "Not Permitted",
-        f"You must at least have the rank `{my_rank}`, but your rank is only `{rank_required}`!",
+        f"You must at least have the rank `{rank_required}`, but your rank is only `{my_rank}`!",
     )
 
 

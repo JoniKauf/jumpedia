@@ -78,8 +78,7 @@ class CommunityAdapter(BaseAdapter):
                 text.raw_to_norm(name), self._community
             ).id
 
-        if not self._community.set_default_selected_list(list_id):
-            raise feedbacks.temp("The specified list or community was just deleted!")
+        self._community.set_default_selected_list(list_id)
 
     # --- User ---
 

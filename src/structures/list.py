@@ -2,7 +2,7 @@ import itertools
 from typing import TYPE_CHECKING, AbstractSet, Callable, Final, Iterable, Literal, Mapping, Sequence, get_args, overload
 
 from database import queries 
-from database.simple_orm import Arg, Rows
+from database.simple_orm import Arg, Raw, Rows
 from errors.feedback import feedbacks
 from structures.attribute.slot_type import SlotType, SlotTypeT, TypeStr
 from structures import BaseStructure
@@ -152,7 +152,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int,
-        kind: int
+        kind: KindsT
     ) -> T:
         pass
 
@@ -178,7 +178,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int = 0,
-        kind: int = 0,
+        kind: KindsT | None = None,
         raw_collection: Sequence[str] | None = None
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         if (min_slots or kind) == issubclass(type, BaseNonStaticAttribute):
@@ -276,7 +276,8 @@ class List(BaseStructure):
                     slot_type=slot_type,
                     position=position,
                     min_slots=min_slots,
-                    max_slots=max_slots
+                    max_slots=max_slots,
+                    kind=kind
                 )
 
                 if raw_collection:
@@ -402,7 +403,7 @@ class List(BaseStructure):
                 FROM {table_type}
                 WHERE 
                     {table_type.list_id} = {arg(self.id)}
-                    {f"AND {where(arg)}" if where is not None else ""}
+                    {Raw(f"AND {where(arg)}" if where is not None else "")}
             """)
 
             return c.fetchall(table_type)

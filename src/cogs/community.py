@@ -101,10 +101,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.rename(other_user="user", rank_enum="rank")
     @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
     async def user_community_rank(
-        self, interaction: dc.Interaction, other_user: str | dc.User, rank_enum: SetRanks
+        self, interaction: dc.Interaction, other_user: str, rank_enum: SetRanks
     ) -> None:
         ia = InteractionAdapter(interaction)
-        other_user_id, other_user_name = 
+        other_user_id, other_user_name = (1, 2)
 
         other_community_user = ctx.get_community().create_or_get_community_user(
             other_user.id, other_user_name

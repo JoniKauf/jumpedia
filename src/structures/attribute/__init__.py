@@ -1,8 +1,8 @@
 import builtins
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass, field
 import itertools
-from typing import TYPE_CHECKING, ClassVar, Final, Sequence, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Sequence, get_args
 
 from database import queries, typed
 from errors.feedback import feedbacks
@@ -14,23 +14,19 @@ from structures import BaseStructure
 from utils import text
 
 if TYPE_CHECKING:
-    from structures.list import List
+    from structures.list import List, KindsT
     from structures.attribute.static_attribute import StaticAttribute
     from structures.attribute.task_attribute import TaskAttribute
     from structures.attribute.user_attribute import UserAttribute
 
-
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 
-_any_attribute: tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]] | None = None
-
 def ANY_ATTRIBUTE() -> tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]]:
-    global _any_attribute
-    
-    if _any_attribute is not None:
-        return _any_attribute
+    from structures.attribute.static_attribute import StaticAttribute
+    from structures.attribute.task_attribute import TaskAttribute
+    from structures.attribute.user_attribute import UserAttribute
 
-    return (_any_attribute := get_args(AnyAttributeT.__value__)) 
+    return (StaticAttribute, TaskAttribute, UserAttribute)
 
 # General
 SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
@@ -58,6 +54,7 @@ class BaseAttribute(BaseStructure):
     position: int
     min_slots: int
     max_slots: int
+    kind: KindsT | None = None
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -115,8 +112,6 @@ class BaseAttribute(BaseStructure):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
         return [self.slot_type.raw_to_slot(slot) for slot in value]
-        
-
 
 class BaseNonStaticAttribute(BaseAttribute):
     tables: ClassVar[BaseNonStaticAttributeTables]

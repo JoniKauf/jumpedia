@@ -26,8 +26,8 @@ class CommunityLimits(NamedTuple):
     community_list_count_max: int
     list_attribute_count_max: int
     list_task_count_max: int
-    attribute_alias_count_max = 31
-    attribute_collection_entry_alias_count_max: int = 7
+    attribute_alias_count_max: int
+    attribute_collection_entry_alias_count_max: int
 
 
 
@@ -197,6 +197,9 @@ class Community(BaseStructure):
                 SET {CommunityTbl.default_selected_list_id} = {arg(list_id)}
                 WHERE {CommunityTbl.id} = {arg(self.id)}
             """)
+
+            if c.affected_row_count < 1:
+                raise structures.errors.StructureNotFoundError(Community)
 
     def get_or_create_community_user(
         self, 

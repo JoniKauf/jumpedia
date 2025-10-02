@@ -25,7 +25,7 @@ class JumpediaLimits(NamedTuple):
 
 
 # Moved out of class to reduce line length at least a bit
-def __create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
+def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
     try:
         c.execute_raw(f"""
             CREATE TABLE {typed.Community} (
@@ -440,7 +440,7 @@ class Jumpedia(BaseStructure):
                 """)
 
         with queries.connected() as c:
-            __create_db_tables(self, c)
+            _create_db_tables(self, c)
     
 
     # --- Communities ---
@@ -492,9 +492,10 @@ class Jumpedia(BaseStructure):
                     norm_name=norm_name,
                     limits=CommunityLimits(
                         community_list_count_max=2,
-                        list_attribute_count_max=2,
+                        list_attribute_count_max=3,
                         list_task_count_max=2,
-                        attribute_collection_entry_alias_count_max=2
+                        attribute_collection_entry_alias_count_max=2,
+                        attribute_alias_count_max=2
                     )
                 )  
 
@@ -544,9 +545,10 @@ class Jumpedia(BaseStructure):
             norm_name=row.norm_name,
             limits=CommunityLimits(
                 community_list_count_max=2,
-                list_attribute_count_max=2,
+                list_attribute_count_max=3,
                 list_task_count_max=2,
-                attribute_collection_entry_alias_count_max=2
+                attribute_collection_entry_alias_count_max=2,
+                attribute_alias_count_max=2
             )
         )
     

@@ -66,11 +66,15 @@ class JumpediaAdapter(BaseAdapter):
             ),
             self,
         )
-
+        
         if initial_list_name is not None:
-            list = community.create_list(initial_list_name)
-            community.set_default_selected_list(list.name)
-
+            try:
+                list = community.create_list(initial_list_name)
+                community.set_default_selected_list(list.name)
+            except Exception as e:
+                self.delete_community(name)
+                raise e
+                
         return community
 
     def delete_community(self, name: str) -> None:
