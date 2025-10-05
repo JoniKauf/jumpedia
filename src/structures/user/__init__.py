@@ -1,10 +1,10 @@
 import re
 from typing import Final, assert_never
 
-from errors.feedback import FeedbackError
-from structures.user.community_user import CommunityUser
-from structures.user.jumpedia_user import JumpediaUser
-from utils import text
+from ...errors.feedback import FeedbackError
+from ..user.community_user import CommunityUser
+from ..user.jumpedia_user import JumpediaUser
+from ...utils import text
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 

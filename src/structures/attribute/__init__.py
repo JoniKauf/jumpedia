@@ -1,8 +1,8 @@
 import builtins
 from collections import defaultdict
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import dataclass
 import itertools
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Sequence, get_args
+from typing import TYPE_CHECKING, ClassVar, Final, Sequence, TypedDict
 
 from database import queries, typed
 from errors.feedback import feedbacks
@@ -61,6 +61,10 @@ class BaseAttribute(BaseStructure):
         return (ANY_ATTRIBUTE().index(self.__class__), self.id) + self.list.identity
     
     @property
+    def name(self) -> str:
+        return self.real_name
+    
+    @property
     def required(self) -> bool:
         return self.min_slots > 0
     
@@ -112,6 +116,12 @@ class BaseAttribute(BaseStructure):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
         return [self.slot_type.raw_to_slot(slot) for slot in value]
+
+
+class RawCollectionEntryItem(TypedDict):
+    value: str
+    aliases: frozenset[str]
+
 
 class BaseNonStaticAttribute(BaseAttribute):
     tables: ClassVar[BaseNonStaticAttributeTables]
@@ -195,7 +205,7 @@ class BaseNonStaticAttribute(BaseAttribute):
     
     def set_collection(
         self,
-        raw_collection: Sequence[str], 
+        raw_collection: Sequence[RawCollectionEntryItem], 
     ) -> 'Collection':
         count = len(raw_collection)
 
@@ -223,9 +233,9 @@ class BaseNonStaticAttribute(BaseAttribute):
             combined_norm_aliases: tuple[set[text.NormStr], ...] = tuple(set() for _ in range(count))
 
             for i, entry in enumerate(raw_collection):
-                for j, syn_str in enumerate((entry['slot'], *entry['aliases'])):
-                    real_syn = self.slot_type.raw_to_slot(syn_str)
-                    norm_syn = self.slot_type.norm(real_syn)
+                for j, syn_str in enumerate((entry['value'], *entry['aliases'])):
+                    type_syn = self.slot_type.raw_to_slot(syn_str)
+                    norm_syn = text.real_to_norm(type_syn)
 
                     if norm_syn in norm_syns:
                         raise feedbacks.temp(f"Slot or alias {norm_syn} seen twice in collection. Must be unique!")
@@ -233,10 +243,10 @@ class BaseNonStaticAttribute(BaseAttribute):
                     norm_syns.add(norm_syn)
                     
                     if j == 0:
-                        type_slots.append(real_syn)
+                        type_slots.append(type_syn)
                         norm_slots.append(norm_syn)
                     else:
-                        combined_real_aliases[i].add(real_syn)
+                        combined_real_aliases[i].add(type_syn)
                         combined_norm_aliases[i].add(norm_syn)
 
             c.executemany(lambda args: t"""

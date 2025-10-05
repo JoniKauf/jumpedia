@@ -66,7 +66,7 @@ class JumpediaAdapter(BaseAdapter):
             ),
             self,
         )
-        
+
         if initial_list_name is not None:
             try:
                 list = community.create_list(initial_list_name)
@@ -74,7 +74,7 @@ class JumpediaAdapter(BaseAdapter):
             except Exception as e:
                 self.delete_community(name)
                 raise e
-                
+
         return community
 
     def delete_community(self, name: str) -> None:

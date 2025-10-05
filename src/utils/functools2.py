@@ -1,6 +1,5 @@
-import functools
 import inspect
-from typing import Any, Callable, MutableMapping, Protocol
+from typing import Any, Callable
 
 
 def get_relevant_kwargs(

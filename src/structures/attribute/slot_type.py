@@ -108,6 +108,9 @@ class SlotType:
         return cls._slot_types.copy()
 
     def raw_to_slot(self, s: str) -> TypeStr:
+        if not isinstance(s, str):
+            raise TypeError()
+
         old_s, s = s, text.raw_to_real(s)
 
         if not s:

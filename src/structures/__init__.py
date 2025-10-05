@@ -35,21 +35,25 @@ class _StructureMeta(ABCMeta):
     ) -> _StructureMeta:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
-    
+
     @cached_property
     def structure_name(self) -> str:
-        return text.pascal_to_snake(self.__name__, delim=' ')
+        return text.pascal_to_snake(self.__name__, delim=" ")
 
 
 class BaseStructure(metaclass=_StructureMeta):
+    @property
+    def locked(self) -> _GeneratorContextManager[RLock, None, None]:
+        return locked.equality_locked(self)
+
     @property
     @abstractmethod
     def identity(self) -> tuple[int, ...]:
         """Uniquely identify an object of this type."""
 
     @property
-    def locked(self) -> _GeneratorContextManager[RLock, None, None]:
-        return locked.equality_locked(self)
+    @abstractmethod
+    def name(self) -> str: ...
 
     def __hash__(self) -> int:
         return hash(self.identity)

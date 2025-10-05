@@ -1,4 +1,4 @@
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Final, NamedTuple, Sequence, overload
 from discord import TYPE_CHECKING
 from typing_extensions import Sentinel
@@ -20,7 +20,8 @@ class CollectionEntry(NamedTuple):
     aliases: frozenset[TypeStr]
 
 
-class Collection(BaseStructure, Sequence[CollectionEntry]):
+@dataclass(frozen=True, slots=True)
+class Collection(Sequence[CollectionEntry]):
     attribute: BaseAttribute
     entries: tuple[CollectionEntry, ...]
     _syn_to_entry: dict[text.NormStr, CollectionEntry] = field(
@@ -43,10 +44,6 @@ class Collection(BaseStructure, Sequence[CollectionEntry]):
                     )
 
                 self._syn_to_entry[norm] = entry
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (0, *self.attribute.identity)
 
     def __len__(self) -> int:
         return self.entries.__len__()

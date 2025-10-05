@@ -2,6 +2,7 @@ from database import typed
 from structures.attribute import AttributeTables
 from structures.attribute import BaseAttribute
 
+
 class StaticAttribute(BaseAttribute):
     tables = AttributeTables(typed.StaticAttribute, typed.StaticAttributeAlias)
 
@@ -9,6 +10,6 @@ class StaticAttribute(BaseAttribute):
         from structures.list import KINDS
 
         if self.kind not in KINDS:
-            raise TypeError(f'kind {self.kind} not in {KINDS}')
-        
+            raise TypeError(f"kind {self.kind} not in {KINDS}")
+
         return super().__post_init__()

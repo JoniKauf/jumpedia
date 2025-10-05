@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING
-from database import queries
-from structures import BaseStructure
-from utils import text
-from database import typed as typed
+from ..database import queries
+from . import BaseStructure
+from ..utils import text
+from ..database import typed as typed
 
 if TYPE_CHECKING:
-    from structures.list import List
+    from .list import List
 
 class Task(BaseStructure):
     list: List
@@ -13,6 +13,10 @@ class Task(BaseStructure):
     real_name: text.RealStr
     norm_name: text.NormStr
 
+    @property
+    def name(self) -> str:
+        return self.real_name
+    
     def get_real_aliases(self) -> frozenset[text.RealStr]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""

@@ -55,9 +55,8 @@ class UserCog(cmds.GroupCog, group_name="user"):
             )
         )
 
-    
-    set_group = acmds.Group(name='set', description="Set data of a user.")
-    
+    set_group = acmds.Group(name="set", description="Set data of a user.")
+
     SetRanks = Enum(
         "PromoteRanks", [(rank.name, rank) for rank in CommunityRank.iter()] + []
     )  # For some reason adding a second list removes type errors
@@ -71,8 +70,10 @@ class UserCog(cmds.GroupCog, group_name="user"):
         self, interaction: dc.Interaction, other_user: dc.User, rank_enum: SetRanks
     ) -> None:
         ia = InteractionAdapter(interaction)
-        
-        other_user_id, other_user_name = ia.jumpedia.get_current_community().get_or_create_community_user()
+
+        other_user_id, other_user_name = (
+            ia.jumpedia.get_current_community().get_or_create_community_user()
+        )
 
         other_community_user = ctx.get_community().create_or_get_community_user(
             other_user.id, other_user_name
@@ -111,6 +112,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
                 messaging.MessageStatus.SUCCESS,
             )
         )
+
 
 async def setup(bot: cmds.Bot):
     await bot.add_cog(UserCog(bot))

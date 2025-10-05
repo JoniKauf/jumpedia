@@ -40,6 +40,14 @@ class Community(BaseStructure):
     norm_name: text.NormStr
     limits: CommunityLimits
 
+    @property
+    def identity(self) -> tuple[int, ...]:
+        return (self.id,) + self.jumpedia.identity
+    
+    @property
+    def name(self) -> str:
+        return self.real_name
+    
     def get_server_ids(self) -> frozenset[int]:
         ServerTbl = typed.Server
         
@@ -53,10 +61,6 @@ class Community(BaseStructure):
             result = c.fetchall(ServerTbl)
 
         return frozenset(row.id for row in result)
-        
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.jumpedia.identity
     
     def create_list(self, raw_name: str) -> 'List':
         with self.locked:

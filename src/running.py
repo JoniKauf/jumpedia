@@ -1,13 +1,10 @@
-import inspect
 import os
 import traceback
-from typing import Any, Callable
 from errors import BaseUserReturnableError
-from discord import app_commands
-from discord.ext import commands
-from discord.ext.commands import CommandError, Context
 
 import discord
+from discord.ext import commands as cmds
+from discord import app_commands as acmds
 from database import secret
 
 if __name__ == "__main__":
@@ -15,7 +12,7 @@ if __name__ == "__main__":
 
 SEP = r" \ ".strip()
 
-BOT: commands.Bot = globals()["BOT"]
+BOT: cmds.Bot = globals()["BOT"]
 TOKEN = secret.listen()["DISCORD_TOKEN"]
 
 COGS_DIR = r"cogs"
@@ -44,9 +41,9 @@ async def on_ready():
 
 @BOT.tree.error
 async def on_app_command_error(
-    interaction: discord.Interaction, error: app_commands.AppCommandError
+    interaction: discord.Interaction, error: acmds.AppCommandError
 ) -> None:
-    if isinstance(error, app_commands.CommandInvokeError):
+    if isinstance(error, acmds.CommandInvokeError):
         e = error.original
     else:
         e = error

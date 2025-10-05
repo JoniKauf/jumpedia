@@ -1,22 +1,15 @@
-from enum import Enum
 import re
 import string
 from string.templatelib import Interpolation, Template
 from typing import (
     Any,
-    NewType,
     assert_never,
-    Callable,
-    Container,
-    Final,
     Generator,
     Iterable,
     Literal,
     Sequence,
 )
-from collections.abc import Set
 
-from errors.feedback import feedbacks
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
@@ -26,8 +19,10 @@ BAD_CHAR_MAPPING = str.maketrans(
 )
 
 
-def pascal_to_snake(s: str, /, delim: str = '_'):
-    return s[0].lower() + "".join(f"{delim}{c.lower()}" if c.isupper() else c for c in s[1:])
+def pascal_to_snake(s: str, /, delim: str = "_"):
+    return s[0].lower() + "".join(
+        f"{delim}{c.lower()}" if c.isupper() else c for c in s[1:]
+    )
 
 
 def replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:

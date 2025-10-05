@@ -105,8 +105,8 @@ class CommunityAdapter(BaseAdapter):
         return self.get_or_create_community_user(
             self.jumpedia.get_or_create_current_jumpedia_user(), override_community_rank
         )
-    
+
     # --- Server ---
-    
+
     def get_server_count(self) -> int:
         return len(self._community.get_server_ids())

@@ -36,6 +36,9 @@ class List(BaseStructure):
     def identity(self) -> tuple[int, ...]:
         return (self.id, *self.community.identity)
 
+    @property
+    def name(self) -> str:
+        return self.real_name
 
     # --- All Attributes ---
 

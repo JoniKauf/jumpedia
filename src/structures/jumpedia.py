@@ -1,4 +1,5 @@
 
+from functools import cached_property
 import time
 from typing import Callable, Final, NamedTuple
 
@@ -402,7 +403,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
         finally:
             raise e
     
-print("Jumpedia database successfully created!")
+    print("Jumpedia database successfully created!")
 
 class Jumpedia(BaseStructure):
     id: int
@@ -412,6 +413,10 @@ class Jumpedia(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,)
+    
+    @cached_property
+    def name(self) -> str:
+        return self.__class__.structure_name
 
     def __post_init__(self) -> None:
         class SCHEMATA(BaseModel, table_name="SCHEMATA"):
@@ -715,6 +720,7 @@ class Jumpedia(BaseStructure):
             assert community is not None
 
             return community
+
 
 
 # THE ONE PIECE IS REAAAAAAAAAAAAAAAAAAAAAAAAAAAAL

@@ -1,0 +1,4 @@
+discord
+mariadb
+beartype
+typing_extensions

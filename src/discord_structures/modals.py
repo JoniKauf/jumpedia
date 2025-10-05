@@ -56,8 +56,9 @@ class ConfirmByEnteringModal(ui.Modal):
         await self.after_submit(ia, self.predicate(self.text_input.value))
 
 
-
-async def delete_structure_confirmation(structure: type[BaseStructure], delete: Callable[[dc.Interaction], None]):
+async def delete_structure_confirmation(
+    structure: type[BaseStructure], delete: Callable[[dc.Interaction], None]
+):
     async def after_submit(interaction: dc.Interaction, success: bool) -> None:
         if success:
             delete(interaction)
@@ -65,7 +66,7 @@ async def delete_structure_confirmation(structure: type[BaseStructure], delete: 
             await interaction.response.send_message(
                 messaging.layout(
                     f"{structure.structure_name.title()} Deleted",
-                    f"The speicifed {structure.structure_name} has successfully been deleted!",
+                    f"The specifed {structure.structure_name} has successfully been deleted!",
                     messaging.MessageStatus.SUCCESS,
                 )
             )
@@ -73,8 +74,8 @@ async def delete_structure_confirmation(structure: type[BaseStructure], delete: 
 
         await interaction.response.send_message(
             messaging.layout(
-                "List Deletion Aborted",
-                f"The list `{list.name}` has **not** been deleted because the name entered is not correct!",
+                f"{structure.structure_name.title()} Deletion Aborted",
+                f"The {structure.structure_name} has **not** been deleted because the name entered is not correct!",
                 messaging.MessageStatus.WARNING,
             )
         )

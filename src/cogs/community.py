@@ -114,7 +114,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         name="delete", description="Delete objects from the community."
     )
 
-    @delete_group.command(name="delete", description="Delete a list from the community.")
+    @delete_group.command(
+        name="delete", description="Delete a list from the community."
+    )
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_list(self, interaction: dc.Interaction, list_name: str) -> None:
         ia = InteractionAdapter(interaction)

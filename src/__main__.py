@@ -1,14 +1,20 @@
+from beartype.claw import beartype_package
+
+beartype_package("src")
+
 import platform
 import runpy
-import sys
 
 import discord as dc
 from discord.ext import commands
 import pickle
 import logging
 
-
 def main():
+    import sys
+
+    sys.dont_write_bytecode = True
+
     if sys.version_info < (3, 14):
         raise RuntimeError("Developed for Python 3.14 or higher")
 
@@ -24,12 +30,11 @@ def main():
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    from structures import jumpedia
-
     BOT = commands.Bot(
         command_prefix=" ", intents=dc.Intents.default(), help_command=None
     )
-    runpy.run_module("running", init_globals={"BOT": BOT})
+
+    runpy.run_module("src.running", init_globals={"BOT": BOT})
 
 
 if __name__ == "__main__":

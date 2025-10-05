@@ -25,6 +25,10 @@ class CommunityUser(BaseStructure):
     def identity(self) -> tuple[int, ...]:
         return (self.community.id, *self.jumpedia_user.identity)
     
+    @property
+    def name(self) -> str:
+        return self.jumpedia_user.name
+    
     def get_selected_list(self) -> List | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""

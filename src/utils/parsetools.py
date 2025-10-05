@@ -1,15 +1,11 @@
 import datetime
 from decimal import Decimal
-import itertools
 import json
-import json.tool
 import re
-import shlex
-from types import NoneType, UnionType
-from typing import Any, Final, Mapping, Never, Self, Sequence, TypeIs, Union
+from types import NoneType
+from typing import Any, Final, Mapping, Never, Sequence
 import typing
 import json
-from typing_extensions import Sentinel, TypeForm
 
 PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = "utf-8"
