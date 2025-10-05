@@ -1,7 +1,7 @@
 import asyncio
-from typing import Callable, Coroutine
+import typing as t
+
 import discord as dc
-from discord import app_commands as acmds
 
 YES_BUTTON_LABEL = "Yes"
 
@@ -10,8 +10,8 @@ class DangerousConfirm(dc.ui.View):
     def __init__(
         self,
         interaction: dc.Interaction,
-        on_yes: Callable[[dc.Interaction], Coroutine[None, None, bool]],
-        on_no: Callable[[dc.Interaction], Coroutine[None, None, bool]],
+        on_yes: t.Callable[[dc.Interaction], t.Coroutine[None, None, bool]],
+        on_no: t.Callable[[dc.Interaction], t.Coroutine[None, None, bool]],
     ):
         self.interaction = interaction
         self.on_yes = on_yes

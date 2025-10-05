@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING
-import discord as dc
-from adapters import BaseAdapter
+import typing as t
 
-if TYPE_CHECKING:
-    from adapters.interaction import InteractionAdapter
+import discord as dc
+
+from .. import BaseAdapter
+
+if t.TYPE_CHECKING:
+    from ..interaction import InteractionAdapter
 
 
 class ServerAdapter(BaseAdapter):

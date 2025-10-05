@@ -1,15 +1,15 @@
-from typing import TYPE_CHECKING
-from adapters import BaseAdapter
-from structures.attribute import BaseAttribute
-from structures.attribute.slot_type import SlotType, SlotTypeT
-from utils import text
+import typing as t
 
+from ...structures.attribute import BaseAttribute
+from ...structures.attribute.slot_type import SlotType
+from ...utils import text
+from .. import BaseAdapter
 
-if TYPE_CHECKING:
-    from adapters._list import ListAdapter
-    from adapters._attribute.static_attribute import StaticAttributeAdapter
-    from adapters._attribute.task_attribute import TaskAttributeAdapter
-    from adapters._attribute.user_attribute import UserAttributeAdapter
+if t.TYPE_CHECKING:
+    from .._list import ListAdapter
+    from .static_attribute import StaticAttributeAdapter
+    from .task_attribute import TaskAttributeAdapter
+    from .user_attribute import UserAttributeAdapter
 
 
 class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):

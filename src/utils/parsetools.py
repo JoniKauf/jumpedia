@@ -1,11 +1,10 @@
 import datetime
-from decimal import Decimal
 import json
 import re
+import typing as t
+from decimal import Decimal
 from types import NoneType
 from typing import Any, Final, Mapping, Never, Sequence
-import typing
-import json
 
 PARSING_MAX_LENGTH: Final[int] = 2**20
 ENCODING: Final[str] = "utf-8"
@@ -102,7 +101,7 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
         if strict_type == Anything:
             return
 
-        type_origin = typing.get_origin(strict_type)
+        type_origin = t.get_origin(strict_type)
 
         if type_origin is None:
             type_origin = strict_type
@@ -175,7 +174,7 @@ class SafeJsonParser[T: SupportedJsonTypesT]:
         if not type_origin in _NON_UNION_EXPECTED_TYPE:
             raise StrictTypeError(type_origin)
 
-        if typing.get_args(strict_type):
+        if t.get_args(strict_type):
             raise StrictTypeError
 
         # Not isinstance because sees bool as int and more...

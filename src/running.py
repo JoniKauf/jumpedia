@@ -1,14 +1,16 @@
+import logging
 import os
+import pickle
+import sys
 import traceback
-from errors import BaseUserReturnableError
 
-import discord
-from discord.ext import commands as cmds
+import discord as dc
 from discord import app_commands as acmds
-from database import secret
+from discord.ext import commands as cmds
 
-if __name__ == "__main__":
-    raise RuntimeError
+from .database import secret
+from .errors import BaseUserReturnableError
+
 
 SEP = r" \ ".strip()
 
@@ -41,7 +43,7 @@ async def on_ready():
 
 @BOT.tree.error
 async def on_app_command_error(
-    interaction: discord.Interaction, error: acmds.AppCommandError
+    interaction: dc.Interaction, error: acmds.AppCommandError
 ) -> None:
     if isinstance(error, acmds.CommandInvokeError):
         e = error.original
@@ -60,3 +62,21 @@ async def on_app_command_error(
 
 
 BOT.run(TOKEN)
+
+
+def main() -> None:
+    # --- Set Global Defaults ---
+    sys.dont_write_bytecode = True
+    pickle.DEFAULT_PROTOCOL = 5
+
+    # --- Import/Run modules to preload and test functionality ---
+    from src.structures import jumpedia
+
+    logging.basicConfig(
+        level=logging.INFO,  # or DEBUG, WARNING, etc.
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    
+    BOT = cmds.Bot(
+        command_prefix="33e32r230ro2dd", intents=dc.Intents.default(), help_command=None
+    )

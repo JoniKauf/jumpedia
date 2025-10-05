@@ -1,16 +1,17 @@
-from typing import TYPE_CHECKING, Any, overload
-from adapters import BaseAdapter
-from adapters._list import ListAdapter
-from adapters._user.community_user import CommunityUserAdapter
-from adapters._user.jumpedia_user import JumpediaUserAdapter
-from errors.feedback import feedbacks
-from ranks.community_rank import CommunityRank
-from structures.community import Community
-from structures.list import List
-from utils import text
+import typing as t
 
-if TYPE_CHECKING:
-    from adapters._jumpedia import JumpediaAdapter
+from ..errors.feedback import feedbacks
+from ..ranks.community_rank import CommunityRank
+from ..structures.community import Community
+from ..structures.list import List
+from ..utils import text
+from . import BaseAdapter
+from ._list import ListAdapter
+from ._user.community_user import CommunityUserAdapter
+from ._user.jumpedia_user import JumpediaUserAdapter
+
+if t.TYPE_CHECKING:
+    from ._jumpedia import JumpediaAdapter
 
 
 def _require_list_with_name(name: text.NormStr, community: Community) -> List:
@@ -49,11 +50,11 @@ class CommunityAdapter(BaseAdapter):
         if not self._community.delete_list(list.id):
             raise feedbacks.temp("The community or list was just deleted!")
 
-    @overload
+    @t.overload
     def get_default_selected_list(self) -> ListAdapter:
         pass
 
-    @overload
+    @t.overload
     def get_default_selected_list[T](self, default: T) -> ListAdapter | T:
         pass
 

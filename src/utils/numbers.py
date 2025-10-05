@@ -1,6 +1,5 @@
 from typing import Final
 
-
 INT32_MIN: Final[int] = -(2**31)
 INT32_MAX: Final[int] = 2**31 - 1
 

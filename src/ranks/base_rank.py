@@ -1,13 +1,14 @@
+import functools
+import typing as t
 from abc import abstractmethod
 from dataclasses import dataclass
-import functools
-from typing import ClassVar, Iterator, Self
 
 
 @functools.total_ordering
 @dataclass(frozen=True)
 class BaseRank:
-    SORTED: ClassVar[tuple[Self, ...]]
+    SORTED: t.ClassVar[tuple[t.Self, ...]]
+    _lookup: t.ClassVar[dict[int, t.Self]]
 
     power: int
     name: str
@@ -20,7 +21,7 @@ class BaseRank:
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        cls._lookup: dict[int, Self] = {}
+        cls._lookup = {}
         # cls._init()
 
     @classmethod
@@ -32,14 +33,14 @@ class BaseRank:
         pass
 
     @classmethod
-    def get(cls, power: int) -> Self:
+    def get(cls, power: int) -> t.Self:
         return cls._lookup[power]
 
     @classmethod
-    def iter(cls) -> Iterator[Self]:
+    def iter(cls) -> t.Iterator[t.Self]:
         return iter(cls.SORTED)
 
-    def __lt__(self, value: Self) -> bool:
+    def __lt__(self, value: t.Self) -> bool:
         if type(self) is not type(value):
             raise AssertionError("Cannot compare 2 different types of ranks")
 

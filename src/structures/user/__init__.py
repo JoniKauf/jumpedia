@@ -1,23 +1,23 @@
 import re
-from typing import Final, assert_never
+import typing as t
 
 from ...errors.feedback import FeedbackError
+from ...utils import text
 from ..user.community_user import CommunityUser
 from ..user.jumpedia_user import JumpediaUser
-from ...utils import text
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 
 
-MAX_NAME_LENGTH: Final[int] = 32
+MAX_NAME_LENGTH: t.Final[int] = 32
 
-MIN_ID: Final[int] = 0
-MAX_ID: Final[int] = 2**64 - 1  # Snowflake is Unsigned Long int
+MIN_ID: t.Final[int] = 0
+MAX_ID: t.Final[int] = 2**64 - 1  # Snowflake is Unsigned Long int
 
 ID_BOUNDS = (MIN_ID, MAX_ID)
 
-MIN_ID_STR_LENGTH: Final[int] = min(len(str(n)) for n in ID_BOUNDS)
-MAX_ID_STR_LENGTH: Final[int] = max(len(str(n)) for n in ID_BOUNDS)
+MIN_ID_STR_LENGTH: t.Final[int] = min(len(str(n)) for n in ID_BOUNDS)
+MAX_ID_STR_LENGTH: t.Final[int] = max(len(str(n)) for n in ID_BOUNDS)
 
 _BOUNDS_REGEX_INSERT: str = (
     "{" + f"{MIN_ID_STR_LENGTH},{MAX_ID_STR_LENGTH}" + "}"

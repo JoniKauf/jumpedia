@@ -1,12 +1,12 @@
 import re
 
+from ...structures.user import MAX_ID, MIN_ID
+
 MENTION_PATTERN = re.compile(r"^<@([0-9]{0,20})>$")
 
 
 def _int_to_id(i: int) -> int:
-    MAX = 2**64 - 1
-
-    if 0 > i > MAX:
+    if MIN_ID > i > MAX_ID:
         raise ValueError("Out of range")
 
     return i

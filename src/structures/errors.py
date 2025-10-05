@@ -1,4 +1,4 @@
-from structures import BaseStructure
+from . import BaseStructure
 
 
 class StructureNotFoundError(LookupError):

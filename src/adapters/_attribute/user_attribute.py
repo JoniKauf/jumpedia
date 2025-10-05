@@ -1,5 +1,5 @@
-from adapters._attribute import BaseAttributeAdapter
-from structures.attribute.user_attribute import UserAttribute
+from ...structures.attribute.user_attribute import UserAttribute
+from . import BaseAttributeAdapter
 
 
 class UserAttributeAdapter(BaseAttributeAdapter[UserAttribute]):

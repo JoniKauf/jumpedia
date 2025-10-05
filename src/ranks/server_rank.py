@@ -1,18 +1,16 @@
-import discord as dc
-
+import typing as t
 from dataclasses import dataclass
-from typing import ClassVar
 
-from ranks.base_rank import BaseRank
+from .base_rank import BaseRank
 
 
 @dataclass(frozen=True)
 class ServerRank(BaseRank):
-    _init_done: ClassVar[bool] = False
+    _init_done: t.ClassVar[bool] = False
 
-    DEFAULT: ClassVar["ServerRank"]
-    LOWEST: ClassVar["ServerRank"]
-    HIGHEST: ClassVar["ServerRank"]
+    DEFAULT: t.ClassVar["ServerRank"]
+    LOWEST: t.ClassVar["ServerRank"]
+    HIGHEST: t.ClassVar["ServerRank"]
 
     @classmethod
     def _init(cls):

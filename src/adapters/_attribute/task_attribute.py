@@ -1,6 +1,5 @@
-from adapters._attribute import BaseAttributeAdapter
-from structures.attribute.slot_type import SlotType, SlotTypeT
-from structures.attribute.task_attribute import TaskAttribute
+from ...structures.attribute.task_attribute import TaskAttribute
+from . import BaseAttributeAdapter
 
 
 class TaskAttributeAdapter(BaseAttributeAdapter[TaskAttribute]):

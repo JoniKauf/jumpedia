@@ -1,9 +1,10 @@
 import builtins
+from typing import Any
+
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from typing import Any
 from discord_structures import modals
 from discordtools import messaging
 from structures.attribute.slot_type import SlotTypeEnum

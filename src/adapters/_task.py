@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING
-from adapters import BaseAdapter
-from structures.task import Task
+import typing as t
 
-if TYPE_CHECKING:
+from ..structures.task import Task
+from . import BaseAdapter
+
+if t.TYPE_CHECKING:
     from adapters._list import ListAdapter
 
 

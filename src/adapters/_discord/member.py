@@ -1,10 +1,11 @@
-from dataclasses import dataclass
 from functools import cached_property
+
 import discord as dc
-from adapters import BaseAdapter
-from adapters._discord.server import ServerAdapter
-from adapters._discord.user import UserAdapter
-from ranks.server_rank import ServerRank
+
+from ...ranks import ServerRank
+from .. import BaseAdapter
+from .server import ServerAdapter
+from .user import UserAdapter
 
 
 class MemberAdapter(BaseAdapter):

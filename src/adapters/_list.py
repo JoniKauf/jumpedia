@@ -1,38 +1,39 @@
-from typing import TYPE_CHECKING, Final, overload, assert_never
-from adapters import BaseAdapter
-from adapters._attribute import AnyAttributeAdapterT
-from adapters._attribute.static_attribute import StaticAttributeAdapter
-from adapters._attribute.task_attribute import TaskAttributeAdapter
-from adapters._attribute.user_attribute import UserAttributeAdapter
-from adapters._task import TaskAdapter
-from errors.feedback import feedbacks
-from structures import attribute
-from structures.attribute.static_attribute import StaticAttribute
-from structures.attribute.user_attribute import UserAttribute
-from structures.task import Task
-from structures.attribute.task_attribute import TaskAttribute
-from structures.list import List
-from utils import argparsing, text
+import typing as t
 
-if TYPE_CHECKING:
+from ..errors.feedback import feedbacks
+from ..structures import attribute
+from ..structures.attribute.static_attribute import StaticAttribute
+from ..structures.attribute.task_attribute import TaskAttribute
+from ..structures.attribute.user_attribute import UserAttribute
+from ..structures.list import List
+from ..structures.task import Task
+from ..utils import argparsing, text
+from . import BaseAdapter
+from ._attribute import AnyAttributeAdapterT
+from ._attribute.static_attribute import StaticAttributeAdapter
+from ._attribute.task_attribute import TaskAttributeAdapter
+from ._attribute.user_attribute import UserAttributeAdapter
+from ._task import TaskAdapter
+
+if t.TYPE_CHECKING:
     from adapters._community import CommunityAdapter
 
 
-@overload
+@t.overload
 def _get_attribute_adapter(
     attribute: StaticAttribute, list: "ListAdapter"
 ) -> StaticAttributeAdapter:
     pass
 
 
-@overload
+@t.overload
 def _get_attribute_adapter(
     attribute: TaskAttribute, list: "ListAdapter"
 ) -> TaskAttributeAdapter:
     pass
 
 
-@overload
+@t.overload
 def _get_attribute_adapter(
     attribute: UserAttribute, list: "ListAdapter"
 ) -> UserAttributeAdapter:
@@ -84,8 +85,8 @@ def _require_task_attribute_with_syn(syn: text.NormStr, list: List) -> TaskAttri
 
 
 def _error_at_str(e: argparsing.UnexpectedCharError) -> str:
-    SHOW_AROUND_CHARS: Final[int] = 10
-    MORE: Final[str] = "..."
+    SHOW_AROUND_CHARS: t.Final[int] = 10
+    MORE: t.Final[str] = "..."
 
     start_from = e.i - SHOW_AROUND_CHARS
     end_at = e.i + SHOW_AROUND_CHARS

@@ -1,16 +1,16 @@
+import typing as t
 from dataclasses import dataclass
-from typing import Any, dataclass_transform
 
 
-@dataclass_transform(frozen_default=True)
+@t.dataclass_transform(frozen_default=True)
 class _AdapterMeta(type):
     def __new__(
         mcls: type[_AdapterMeta],
         name: str,
         bases: tuple[type, ...],
-        namespace: dict[str, Any],
+        namespace: dict[str, t.Any],
         /,
-        **kwargs: Any,
+        **kwargs: t.Any,
     ) -> _AdapterMeta:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         return dataclass(frozen=True)(cls)  # type: ignore

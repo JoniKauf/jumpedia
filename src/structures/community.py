@@ -1,28 +1,26 @@
-from typing import TYPE_CHECKING, Callable, NamedTuple
-from database.simple_orm import Arg, Raw, Rows
-from errors.feedback import feedbacks
-from ranks.community_rank import CommunityRank
-from structures.attribute.slot_type import SlotType
-from structures.attribute.static_attribute import StaticAttribute
-from structures import BaseStructure
-import structures.errors
+import typing as t
 
-from structures import list
-from structures.list import List
-from structures.user import JumpediaUser
-from structures.user.community_user import CommunityUser
-from utils import text
-from database import queries, typed
+from ..database import queries, typed
+from ..database.simple_orm import Arg, Raw, Rows
+from ..errors.feedback import feedbacks
+from ..ranks.community_rank import CommunityRank
+from ..utils import text
+from . import BaseStructure, errors, list
+from .attribute.slot_type import SlotType
+from .attribute.static_attribute import StaticAttribute
+from .list import List
+from .user import JumpediaUser
+from .user.community_user import CommunityUser
 
-if TYPE_CHECKING:
-    from structures.jumpedia import Jumpedia
+if t.TYPE_CHECKING:
+    from .jumpedia import Jumpedia
  
 
 ListTbl = typed.List
 CommunityTbl = typed.Community
 CommunityUserTbl = typed.CommunityUser
 
-class CommunityLimits(NamedTuple):
+class CommunityLimits(t.NamedTuple):
     community_list_count_max: int
     list_attribute_count_max: int
     list_task_count_max: int
@@ -140,9 +138,9 @@ class Community(BaseStructure):
             """)
 
             if c.affected_row_count <= 0:
-                raise structures.errors.StructureNotFoundError(List)
+                raise errors.StructureNotFoundError(List)
 
-    def _fetch_from_list_table(self, where: Callable[[Arg], str] | None) -> Rows[ListTbl]:
+    def _fetch_from_list_table(self, where: t.Callable[[Arg], str] | None) -> Rows[ListTbl]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
@@ -164,7 +162,7 @@ class Community(BaseStructure):
             norm_name=row.norm_name
         )
     
-    def get_lists(self, where: Callable[[Arg], str] | None = None) -> set[List]:
+    def get_lists(self, where: t.Callable[[Arg], str] | None = None) -> set[List]:
         return {
             self._list_row_to_obj(data) 
             for data in self._fetch_from_list_table(where)

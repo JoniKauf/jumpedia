@@ -1,12 +1,13 @@
 from functools import cached_property
+
 import discord as dc
 
-from adapters import BaseAdapter
-from adapters._discord.member import MemberAdapter
-from adapters._jumpedia import JumpediaAdapter
-from adapters._discord.user import UserAdapter
-from adapters._discord.server import ServerAdapter
-from errors.feedback import feedbacks
+from ..errors.feedback import feedbacks
+from . import BaseAdapter
+from ._discord.member import MemberAdapter
+from ._discord.server import ServerAdapter
+from ._discord.user import UserAdapter
+from ._jumpedia import JumpediaAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:

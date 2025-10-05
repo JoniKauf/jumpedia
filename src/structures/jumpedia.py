@@ -1,22 +1,22 @@
 
-from functools import cached_property
 import time
-from typing import Callable, Final, NamedTuple
+import typing as t
+from functools import cached_property
 
-from database.simple_orm import Arg, BaseModel, Raw, Rows, column
-from errors.feedback import feedbacks
-from ranks.community_rank import CommunityRank
-from ranks.jumpedia_rank import JumpediaRank
-from structures import BaseStructure, user
-from structures.attribute import slot_type
-from structures.community import Community, CommunityLimits
-from structures.user import JumpediaUser
-from utils import text
-from database import queries, typed
-import structures.errors
+from ..database import queries, typed
+from ..database.simple_orm import Arg, BaseModel, Raw, Rows, column
+from ..errors.feedback import feedbacks
+from ..ranks.community_rank import CommunityRank
+from ..ranks.jumpedia_rank import JumpediaRank
+from ..utils import text
+from . import BaseStructure, user
+from .attribute import slot_type
+from .community import Community, CommunityLimits
+from .errors import StructureNotFoundError
+from .user import JumpediaUser
 
 
-class JumpediaLimits(NamedTuple):
+class JumpediaLimits(t.NamedTuple):
     community_name_length_max: int
     list_name_length_max: int
     user_name_length_max: int  # Discord limit
@@ -528,9 +528,9 @@ class Jumpedia(BaseStructure):
             """)
                 
             if c.affected_row_count < 1:
-                raise structures.errors.StructureNotFoundError(Community)
+                raise StructureNotFoundError(Community)
     
-    def _fetch_from_community_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.Community]:
+    def _fetch_from_community_table(self, where: t.Callable[[Arg], str] | None) -> Rows[typed.Community]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
@@ -557,7 +557,7 @@ class Jumpedia(BaseStructure):
             )
         )
     
-    def get_communities(self, where: Callable[[Arg], str] | None = None) -> set[Community]:
+    def get_communities(self, where: t.Callable[[Arg], str] | None = None) -> set[Community]:
         return {
             self._community_row_to_obj(data) 
             for data in self._fetch_from_community_table(where)
@@ -642,7 +642,7 @@ class Jumpedia(BaseStructure):
                     jumpedia_rank=jumpedia_rank
                 )
 
-    def _fetch_from_user_table(self, where: Callable[[Arg], str] | None) -> Rows[typed.JumpediaUser]:
+    def _fetch_from_user_table(self, where: t.Callable[[Arg], str] | None) -> Rows[typed.JumpediaUser]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
@@ -662,7 +662,7 @@ class Jumpedia(BaseStructure):
             jumpedia_rank=JumpediaRank.get(row.power)
         )
     
-    def get_users(self, where: Callable[[Arg], str] | None = None) -> list[JumpediaUser]:
+    def get_users(self, where: t.Callable[[Arg], str] | None = None) -> list[JumpediaUser]:
         return [
             self._user_row_to_obj(data) 
             for data in self._fetch_from_user_table(where)
@@ -724,7 +724,7 @@ class Jumpedia(BaseStructure):
 
 
 # THE ONE PIECE IS REAAAAAAAAAAAAAAAAAAAAAAAAAAAAL
-THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE: Final[Jumpedia] = Jumpedia(
+THE_ONE_AND_ONLY_JUMPEDIA_OBJECT_ONE_MIGHT_EVEN_CALL_IT_THE_ONE_PIECE: t.Final[Jumpedia] = Jumpedia(
     id=1,
     database_name=typed.DATABASE_NAME,
     limits=JumpediaLimits(

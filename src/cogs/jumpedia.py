@@ -3,9 +3,9 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
-from errors.feedback import feedbacks
 from discord_structures import modals, predicates
 from discordtools import messaging
+from errors.feedback import feedbacks
 from ranks import CommunityRank, JumpediaRank, ServerRank
 
 

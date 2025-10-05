@@ -1,17 +1,16 @@
+import typing as t
 from dataclasses import dataclass
-from typing import ClassVar
 
-from ranks.base_rank import BaseRank
-from structures import BaseStructure
+from .base_rank import BaseRank
 
 
 @dataclass(frozen=True)
 class CommunityRank(BaseRank):
-    _init_done: ClassVar[bool] = False
+    _init_done: t.ClassVar[bool] = False
 
-    DEFAULT: ClassVar["CommunityRank"]
-    LOWEST: ClassVar["CommunityRank"]
-    HIGHEST: ClassVar["CommunityRank"]
+    DEFAULT: t.ClassVar["CommunityRank"]
+    LOWEST: t.ClassVar["CommunityRank"]
+    HIGHEST: t.ClassVar["CommunityRank"]
 
     @classmethod
     def _init(cls):

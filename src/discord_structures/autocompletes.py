@@ -1,10 +1,11 @@
-from collections import defaultdict
 import functools
-import math
-from typing import Any, Callable, Coroutine, Sequence
+import typing as t
+from collections import defaultdict
+
 import discord as dc
 from discord import app_commands as acmds
-import errors
+
+from .. import errors
 
 type ChoiceValueT = int | float | str
 type ChoiceT = acmds.Choice[ChoiceValueT]
@@ -31,7 +32,7 @@ PAGING_SUFFIX: str = ">"
 REVERSE_PAGING_SUFFIX: str = "<"
 MAX_PAGE: int = 99_999
 
-BEST_MATCH_CRITERIAS: tuple[Callable[[str, str], bool], ...] = (
+BEST_MATCH_CRITERIAS: tuple[t.Callable[[str, str], bool], ...] = (
     lambda elem, current: elem == current,
     lambda elem, current: elem.startswith(current),
     lambda elem, current: current in elem,
@@ -39,12 +40,12 @@ BEST_MATCH_CRITERIAS: tuple[Callable[[str, str], bool], ...] = (
 )
 
 
-def _convert_to_choices(elems: Sequence[ChoiceValueT]) -> list[ChoiceT]:
+def _convert_to_choices(elems: t.Sequence[ChoiceValueT]) -> list[ChoiceT]:
     return [acmds.Choice(name=str(elem), value=elem) for elem in elems]
 
 
 def _convert_to_choice_values(
-    elems: Sequence[ChoiceT | ChoiceValueT],
+    elems: t.Sequence[ChoiceT | ChoiceValueT],
 ) -> list[ChoiceValueT]:
     return [elem.value if isinstance(elem, acmds.Choice) else elem for elem in elems]
 
@@ -81,7 +82,7 @@ def _get_page(s: str) -> tuple[int, bool, str]:
 
 
 def _open_page(
-    elems: Sequence[ChoiceValueT], page: int, reverse: bool, per_page_limit: int
+    elems: t.Sequence[ChoiceValueT], page: int, reverse: bool, per_page_limit: int
 ) -> list[ChoiceValueT]:
     elems = list(elems)
 
@@ -101,7 +102,7 @@ def _open_page(
 
 
 def _best_match(
-    current: str, elems: Sequence[ChoiceValueT], limit: int
+    current: str, elems: t.Sequence[ChoiceValueT], limit: int
 ) -> list[ChoiceValueT]:
     results: list[list[ChoiceValueT]] = [[] for _ in range(len(BEST_MATCH_CRITERIAS))]
     current = current.casefold()
@@ -128,7 +129,7 @@ def _best_match(
 
 
 def best_match(
-    elems: Sequence[ChoiceT | ChoiceValueT], *, limit: int = AUTOCOMPLETE_LIMIT
+    elems: t.Sequence[ChoiceT | ChoiceValueT], *, limit: int = AUTOCOMPLETE_LIMIT
 ):
     _verify_limit(limit)
     elems = _convert_to_choice_values(elems)
@@ -141,7 +142,9 @@ def best_match(
 
 
 def paged(
-    elems: Sequence[ChoiceT | ChoiceValueT], *, per_page_limit: int = AUTOCOMPLETE_LIMIT
+    elems: t.Sequence[ChoiceT | ChoiceValueT],
+    *,
+    per_page_limit: int = AUTOCOMPLETE_LIMIT,
 ):
     _verify_limit(per_page_limit)
     elems = _convert_to_choice_values(elems)
@@ -155,7 +158,9 @@ def paged(
 
 
 def best_match_paged(
-    elems: Sequence[ChoiceT | ChoiceValueT], *, per_page_limit: int = AUTOCOMPLETE_LIMIT
+    elems: t.Sequence[ChoiceT | ChoiceValueT],
+    *,
+    per_page_limit: int = AUTOCOMPLETE_LIMIT,
 ):
     async def autocomplete(ia: dc.Interaction, current: str) -> list[ChoiceT]:
         _verify_limit(per_page_limit)

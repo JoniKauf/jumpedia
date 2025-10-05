@@ -1,29 +1,11 @@
+import typing as t
 from dataclasses import dataclass
-from enum import Enum
-import textwrap
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    ClassVar,
-    Coroutine,
-    Generator,
-    Iterable,
-    Iterator,
-    Literal,
-    NamedTuple,
-    Sequence,
-    TypedDict,
-)
 
 import discord as dc
-from discord.ui import Button, View
-import inspect
 
-import errors
-from utils import text
+from .. import errors
 
-InteractionFuncT = Callable[..., Coroutine]
+type InteractionFuncT = t.Callable[..., t.Coroutine]
 
 
 def is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
@@ -37,7 +19,7 @@ def is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
 
 @dataclass(frozen=True, slots=True)
 class MessageStatus:
-    _init_done: ClassVar[bool] = False
+    _init_done: t.ClassVar[bool] = False
 
     emoji: str
     name: str
@@ -66,7 +48,7 @@ def layout(
     message_status: MessageStatus,
     *,
     additional: str | None = None,
-    paragraphs: Sequence[str] = (),
+    paragraphs: t.Sequence[str] = (),
 ) -> str:
     result: list[str] = []
 

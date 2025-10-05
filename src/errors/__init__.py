@@ -1,4 +1,5 @@
-from typing import Any, Mapping, Sequence
+import typing as t
+
 from discord.app_commands.errors import CheckFailure
 
 
@@ -16,7 +17,7 @@ class BaseUserReturnableError(RuntimeError, CheckFailure):
     Marks an exception whose string representation can be returned to the user on Discord.
     """
 
-    def __init__(self, *args: Any, **msg_kwargs: Any) -> None:
+    def __init__(self, *args: t.Any, **msg_kwargs: t.Any) -> None:
         if self.__class__ == BaseUserReturnableError:
             raise RuntimeError(
                 f"{self.__class__.__name__} is a base class and must be inherited"

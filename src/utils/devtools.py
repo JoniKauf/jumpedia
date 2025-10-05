@@ -1,8 +1,8 @@
-from contextlib import contextmanager
-from datetime import datetime, timezone
 import os
 import platform
 import time
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Callable
 
 

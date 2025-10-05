@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
-from ranks.jumpedia_rank import JumpediaRank
-from structures import BaseStructure
+from ...ranks.jumpedia_rank import JumpediaRank
+from .. import BaseStructure
 
 if TYPE_CHECKING:
-    from structures.jumpedia import Jumpedia
+    from ..jumpedia import Jumpedia
 
 
 class JumpediaUser(BaseStructure):

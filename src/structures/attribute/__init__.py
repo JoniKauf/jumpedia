@@ -1,23 +1,21 @@
 import builtins
+import itertools
+import typing as t
 from collections import defaultdict
 from dataclasses import dataclass
-import itertools
-from typing import TYPE_CHECKING, ClassVar, Final, Sequence, TypedDict
 
-from database import queries, typed
-from errors.feedback import feedbacks
-from structures.attribute import slot_type
-from structures.attribute import collection
-from structures.attribute.slot_type import TypeStr, SlotType
-from structures.attribute.collection import Collection, CollectionEntry
-from structures import BaseStructure
-from utils import text
+from ...database import queries, typed
+from ...errors.feedback import feedbacks
+from ...utils import text
+from .. import BaseStructure
+from .collection import Collection, CollectionEntry
+from .slot_type import SlotType, TypeStr
 
-if TYPE_CHECKING:
-    from structures.list import List, KindsT
-    from structures.attribute.static_attribute import StaticAttribute
-    from structures.attribute.task_attribute import TaskAttribute
-    from structures.attribute.user_attribute import UserAttribute
+if t.TYPE_CHECKING:
+    from ..list import KindsT, List
+    from .static_attribute import StaticAttribute
+    from .task_attribute import TaskAttribute
+    from .user_attribute import UserAttribute
 
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 
@@ -29,7 +27,7 @@ def ANY_ATTRIBUTE() -> tuple[type[StaticAttribute], type[TaskAttribute], type[Us
     return (StaticAttribute, TaskAttribute, UserAttribute)
 
 # General
-SORT_KEY_NONE_NUMBER: Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
+SORT_KEY_NONE_NUMBER: t.Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
 
 @dataclass(frozen=True, slots=True)
 class AttributeTables:
@@ -44,7 +42,7 @@ class BaseNonStaticAttributeTables(AttributeTables):
 
 
 class BaseAttribute(BaseStructure):
-    tables: ClassVar[AttributeTables]
+    tables: t.ClassVar[AttributeTables]
     
     list: 'List'
     id: int 
@@ -111,20 +109,20 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def raw_to_slots(self, value: Sequence[str]) -> builtins.list[TypeStr]:
+    def raw_to_slots(self, value: t.Sequence[str]) -> builtins.list[TypeStr]:
         if not (self.min_slots <= (count := len(value)) <= self.max_slots):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
         return [self.slot_type.raw_to_slot(slot) for slot in value]
 
 
-class RawCollectionEntryItem(TypedDict):
+class RawCollectionEntryItem(t.TypedDict):
     value: str
     aliases: frozenset[str]
 
 
 class BaseNonStaticAttribute(BaseAttribute):
-    tables: ClassVar[BaseNonStaticAttributeTables]
+    tables: t.ClassVar[BaseNonStaticAttributeTables]
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -133,7 +131,7 @@ class BaseNonStaticAttribute(BaseAttribute):
             raise RuntimeError
     
 
-    def raw_to_slots(self, value: Sequence[str]) -> builtins.list[TypeStr]:
+    def raw_to_slots(self, value: t.Sequence[str]) -> builtins.list[TypeStr]:
         converted = super().raw_to_slots(value)
         collection = self.get_collection()
 
@@ -205,7 +203,7 @@ class BaseNonStaticAttribute(BaseAttribute):
     
     def set_collection(
         self,
-        raw_collection: Sequence[RawCollectionEntryItem], 
+        raw_collection: t.Sequence[RawCollectionEntryItem], 
     ) -> 'Collection':
         count = len(raw_collection)
 

@@ -1,8 +1,5 @@
-from dataclasses import dataclass
-from typing import ClassVar
-from database import typed
-from structures.attribute import BaseNonStaticAttribute
-from structures.attribute import BaseNonStaticAttributeTables
+from ...database import typed
+from . import BaseNonStaticAttribute, BaseNonStaticAttributeTables
 
 
 class UserAttribute(BaseNonStaticAttribute):

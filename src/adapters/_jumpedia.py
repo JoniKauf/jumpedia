@@ -1,16 +1,17 @@
+import typing as t
 from dataclasses import field
-from typing import TYPE_CHECKING
-from adapters import BaseAdapter
-from adapters._community import CommunityAdapter
-from adapters._discord.user import UserAdapter
-from adapters._user.jumpedia_user import JumpediaUserAdapter
-from errors.feedback import feedbacks
-from ranks.jumpedia_rank import JumpediaRank
-from structures.community import Community
-from structures.jumpedia import JUMPEDIA, Jumpedia
-from utils import text
 
-if TYPE_CHECKING:
+from ..errors.feedback import feedbacks
+from ..ranks.jumpedia_rank import JumpediaRank
+from ..structures.community import Community
+from ..structures.jumpedia import JUMPEDIA, Jumpedia
+from ..utils import text
+from . import BaseAdapter
+from ._community import CommunityAdapter
+from ._discord.user import UserAdapter
+from ._user.jumpedia_user import JumpediaUserAdapter
+
+if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
 
 

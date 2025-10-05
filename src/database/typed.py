@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Final
-from database.simple_orm import SNAKE, BaseModel, column
-from utils.text import NormStr, RealStr
+import typing as t
+
+from ..utils.text import NormStr, RealStr
+from .simple_orm import SNAKE, BaseModel, column
 
 # Only way I found to *easily* remove cyclic imports in this case
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from structures.attribute.slot_type import TypeStr
     from structures.list import KindsT
 else:
@@ -11,7 +12,7 @@ else:
     KindsT = int
 
 
-DATABASE_NAME: Final[str] = "jumpedia"
+DATABASE_NAME: t.Final[str] = "jumpedia"
 
 
 class Community(BaseModel, table_name=SNAKE):

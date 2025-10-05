@@ -1,15 +1,7 @@
 import re
 import string
+import typing as t
 from string.templatelib import Interpolation, Template
-from typing import (
-    Any,
-    assert_never,
-    Generator,
-    Iterable,
-    Literal,
-    Sequence,
-)
-
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
@@ -38,7 +30,7 @@ def invalid_identifier_chars(s: str) -> set[str]:
 
 
 def human_join(
-    objects: Sequence[Any], final_delimiter: str, delimiter: str = ", "
+    objects: t.Sequence[t.Any], final_delimiter: str, delimiter: str = ", "
 ) -> str:
     objects_str = tuple(map(str, objects))
 
@@ -48,19 +40,19 @@ def human_join(
     return f"{delimiter.join(objects_str[:-1])}{final_delimiter}{objects[-1]}"
 
 
-def shorten(o: Any, max: int = 32, more: str = "...") -> str:
+def shorten(o: t.Any, max: int = 32, more: str = "...") -> str:
     s = str(o)
     return s[: max - len(more)] + more if len(s) > max else s
 
 
 def shorten_many(
-    objects: Sequence[Any],
+    objects: t.Sequence[t.Any],
     *,
     max_elems: int = 8,
     max_s: int = 16,
     more_elems: str = "...",
     more_s: str = "...",
-) -> Generator[str, None, None]:
+) -> t.Generator[str, None, None]:
     if len(objects) >= max_elems:
         yield from map(str, objects)
         return
@@ -107,7 +99,7 @@ def raw_to_real_and_norm(raw: str, /) -> tuple[RealStr, NormStr]:
 
 
 def raws_to_unique_reals_and_norms(
-    raws: Iterable[str], /, strict: bool = False
+    raws: t.Iterable[str], /, strict: bool = False
 ) -> tuple[tuple[RealStr, ...], tuple[NormStr, ...]]:
     norm_to_real: dict[NormStr, RealStr] = {}
 
@@ -124,7 +116,7 @@ def raws_to_unique_reals_and_norms(
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
 
 
-def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> object:
+def _convert(value: object, conversion: t.Literal["a", "r", "s"] | None) -> object:
     if conversion == "a":
         return ascii(value)
     elif conversion == "r":

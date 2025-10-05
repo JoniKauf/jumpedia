@@ -1,23 +1,24 @@
+import typing as t
 from abc import ABCMeta, abstractmethod
+from contextlib import _GeneratorContextManager
 from dataclasses import dataclass
 from functools import cached_property
 from threading import RLock
-from typing import Any, dataclass_transform
-from contextlib import _GeneratorContextManager
-from utils import locked, text
+
+from ..utils import locked, text
 
 type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
 ]
 
-_cls_names: dict[str, type["BaseStructure"]] = {}
+_cls_names: dict[str, type[BaseStructure]] = {}
 
 
 def get_structure_types() -> tuple[type["BaseStructure"], ...]:
     return tuple(_cls_names.values())
 
 
-@dataclass_transform(frozen_default=True, kw_only_default=True)
+@t.dataclass_transform(frozen_default=True, kw_only_default=True)
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.
 
@@ -29,9 +30,9 @@ class _StructureMeta(ABCMeta):
         mcls: type[_StructureMeta],
         name: str,
         bases: tuple[type, ...],
-        namespace: dict[str, Any],
+        namespace: dict[str, t.Any],
         /,
-        **kwargs: Any,
+        **kwargs: t.Any,
     ) -> _StructureMeta:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore

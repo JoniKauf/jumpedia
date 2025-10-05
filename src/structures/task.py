@@ -1,10 +1,11 @@
-from typing import TYPE_CHECKING
-from ..database import queries
-from . import BaseStructure
-from ..utils import text
-from ..database import typed as typed
+import typing as t
 
-if TYPE_CHECKING:
+from ..database import queries
+from ..database import typed as typed
+from ..utils import text
+from . import BaseStructure
+
+if t.TYPE_CHECKING:
     from .list import List
 
 class Task(BaseStructure):

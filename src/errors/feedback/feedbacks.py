@@ -1,10 +1,12 @@
 import textwrap
-from typing import TYPE_CHECKING, Any
-from errors.feedback import FeedbackError
-from discordtools import messaging as msg
+import typing as t
 
-if TYPE_CHECKING:
-    from structures.community import Community
+from ...discordtools import messaging as msg
+from ...structures import BaseStructure
+from . import FeedbackError
+
+if t.TYPE_CHECKING:
+    from ...structures.community import Community
 
 
 def server_already_connected_to_community(
@@ -73,7 +75,7 @@ def invalid_attribute_value_mapping(
     )
 
 
-def temp(*args: Any, **kwargs: Any) -> FeedbackError:
+def temp(*args: t.Any, **kwargs: t.Any) -> FeedbackError:
     return FeedbackError(
         "Temporary Error!",
         "### Data:\n"

@@ -1,28 +1,18 @@
-from typing import (
-    AbstractSet,
-    Any,
-    Callable,
-    ClassVar,
-    Generator,
-    Iterable,
-    Mapping,
-    Self,
-    Sequence,
-    final,
-    get_args,
-    overload,
-)
+import typing as t
+
 from typing_extensions import TypeForm
 
-from utils import text
+from ..utils import text
 
 
 def quoted(s: str) -> str:
     return f"`{s}`"
 
 
-class Column[TOwner: BaseModel, TValue: Any]:
-    def __init__(self, type: TypeForm[TValue], func: Callable[[TOwner], Any]) -> None:
+class Column[TOwner: BaseModel, TValue: t.Any]:
+    def __init__(
+        self, type: TypeForm[TValue], func: t.Callable[[TOwner], t.Any]
+    ) -> None:
         self._name: str = ""
         self._type = type
         self._func = func
@@ -35,12 +25,12 @@ class Column[TOwner: BaseModel, TValue: Any]:
         else:
             self._aliases.add(name)
 
-    @overload
+    @t.overload
     def __get__(self, instance: TOwner, owner: type[TOwner]) -> TValue:
         pass
 
-    @overload
-    def __get__(self, instance: None, owner: type[TOwner]) -> Self:
+    @t.overload
+    def __get__(self, instance: None, owner: type[TOwner]) -> t.Self:
         pass
 
     def __get__(self, instance: TOwner | None, owner: type[TOwner]):
@@ -70,21 +60,21 @@ class Column[TOwner: BaseModel, TValue: Any]:
 
 def column[TOwner: BaseModel, TValue](
     type: TypeForm[TValue],
-) -> Callable[[Callable[[TOwner], Any]], Column[TOwner, TValue]]:
-    def wrapper(func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
+) -> t.Callable[[t.Callable[[TOwner], t.Any]], Column[TOwner, TValue]]:
+    def wrapper(func: t.Callable[[TOwner], t.Any]) -> Column[TOwner, TValue]:
         return Column(type, func)
 
     return wrapper
 
 
-def column_alias[TOwner: BaseModel, TValue: Any](column: Column[TOwner, TValue]):
-    def wrapper(func: Callable[[TOwner], Any]) -> Column[TOwner, TValue]:
+def column_alias[TOwner: BaseModel, TValue: t.Any](column: Column[TOwner, TValue]):
+    def wrapper(func: t.Callable[[TOwner], t.Any]) -> Column[TOwner, TValue]:
         return column
 
     return wrapper
 
 
-@final
+@t.final
 class SNAKE:
     pass
 
@@ -102,7 +92,7 @@ class BaseModelMeta(type):
         cls,
         name: str,
         bases: tuple[type, ...],
-        namespace: dict[str, Any],
+        namespace: dict[str, t.Any],
         *,
         table_name: str | type[SNAKE] | None,
     ) -> type:
@@ -120,13 +110,13 @@ class BaseModelMeta(type):
 
 
 class BaseModel(metaclass=BaseModelMeta, table_name=None):
-    _columns: ClassVar[dict[str, Column[Self, Any]]]
+    _columns: t.ClassVar[dict[str, Column[t.Self, t.Any]]]
 
-    def __init__(self, columns_data: Mapping[str, Any]) -> None:
+    def __init__(self, columns_data: t.Mapping[str, t.Any]) -> None:
         self._columns_data = dict(columns_data)
 
     @classmethod
-    def all_columns_except(cls, except_: AbstractSet[Column[Self, Any]]) -> str:
+    def all_columns_except(cls, except_: t.AbstractSet[Column[t.Self, t.Any]]) -> str:
         return ",".join(str(c) for c in cls._columns.values() if c not in except_)
 
     def __init_subclass__(cls) -> None:
@@ -135,10 +125,10 @@ class BaseModel(metaclass=BaseModelMeta, table_name=None):
 
 
 class Rows[T: BaseModel]:
-    def __init__(self, rows: Sequence[Mapping[str, Any]], model: type[T]) -> None:
+    def __init__(self, rows: t.Sequence[t.Mapping[str, t.Any]], model: type[T]) -> None:
         self._rows = tuple(model(row) for row in rows)
 
-    def __iter__(self) -> Generator[T, None, None]:
+    def __iter__(self) -> t.Generator[T, None, None]:
         yield from self._rows
 
     def __len__(self) -> int:
@@ -160,7 +150,7 @@ class Arg:
             return self.value
 
     def __init__(self) -> None:
-        self._args: list[Any] = []
+        self._args: list[t.Any] = []
 
     def __call__(self, o: object) -> ArgPlaceholder:
         return self.add(o)
@@ -184,14 +174,14 @@ class Args:
             return self.value
 
     def __init__(self) -> None:
-        self._args: list[Sequence[Any]] = []
+        self._args: list[t.Sequence[t.Any]] = []
 
-    def __call__(self, os: Iterable[object]) -> ArgsPlaceholder:
+    def __call__(self, os: t.Iterable[object]) -> ArgsPlaceholder:
         return self.add(os)
 
-    def add(self, os: Iterable[object]) -> ArgsPlaceholder:
+    def add(self, os: t.Iterable[object]) -> ArgsPlaceholder:
         if not isinstance(os, tuple):
-            os_tup: Sequence[object] = tuple(os)
+            os_tup: t.Sequence[object] = tuple(os)
 
         if self._args and len(os_tup) != len(self._args[0]):
             raise ValueError
@@ -200,7 +190,7 @@ class Args:
 
         return self.__class__.ArgsPlaceholder(PLACEHOLDER_STR)
 
-    def steal(self) -> tuple[Sequence[object], ...]:
+    def steal(self) -> tuple[t.Sequence[object], ...]:
         args = tuple(zip(*self._args))
         self._args.clear()
         return args

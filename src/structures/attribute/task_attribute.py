@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from database import typed
-from structures.attribute import BaseNonStaticAttribute
-from structures.attribute import BaseNonStaticAttributeTables
+
+from ...database import typed
+from . import BaseNonStaticAttribute, BaseNonStaticAttributeTables
 
 
 class TaskAttribute(BaseNonStaticAttribute):

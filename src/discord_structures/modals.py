@@ -1,14 +1,11 @@
 import asyncio
-from types import CoroutineType
-from typing import Any, Callable, Coroutine
+import typing as t
+
 import discord as dc
 from discord import ui
 
-from discord import app_commands as acmds
-from discord.utils import MISSING
-
-from discordtools import messaging
-from structures import BaseStructure
+from ..discordtools import messaging
+from ..structures import BaseStructure
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -17,8 +14,10 @@ class ConfirmByEnteringModal(ui.Modal):
         interaction: dc.Interaction,
         title: str,
         label: str,
-        predicate: Callable[[str], bool],
-        after_submit: Callable[[dc.Interaction, bool], Coroutine[Any, Any, None]],
+        predicate: t.Callable[[str], bool],
+        after_submit: t.Callable[
+            [dc.Interaction, bool], t.Coroutine[t.Any, t.Any, None]
+        ],
         timeout: float = 180,
     ) -> None:
         super().__init__(title=title, timeout=timeout)
@@ -57,7 +56,9 @@ class ConfirmByEnteringModal(ui.Modal):
 
 
 async def delete_structure_confirmation(
-    structure: type[BaseStructure], delete: Callable[[dc.Interaction], None]
+    interaction: dc.Interaction,
+    structure: type[BaseStructure],
+    delete: t.Callable[[dc.Interaction], None],
 ):
     async def after_submit(interaction: dc.Interaction, success: bool) -> None:
         if success:
@@ -81,7 +82,7 @@ async def delete_structure_confirmation(
         )
 
     await interaction.response.send_modal(
-        modals.ConfirmByEnteringModal(
+        ConfirmByEnteringModal(
             interaction,
             "Confirm List Deletion",
             "Re-Enter the list's name to confirm",

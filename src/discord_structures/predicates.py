@@ -1,18 +1,18 @@
-from typing import Any, Callable, Coroutine, Literal, Optional as Opt, assert_never
-import discord as dc
-import discord.app_commands as acmds
-import discord.ext.commands as cmds
-from adapters.interaction import InteractionAdapter
-from errors.feedback import FeedbackError, feedbacks
-from errors import ImpossibleError
-from ranks import AnyRankT
-from ranks.community_rank import CommunityRank
-from ranks.jumpedia_rank import JumpediaRank
-from ranks.server_rank import ServerRank
-import discordtools.messaging as msg
+import typing as t
 
-type AsyncPredicateT = Callable[[dc.Interaction], Coroutine[Any, Any, Literal[True]]]
-type PredicateT = Callable[[dc.Interaction], Literal[True]]
+import discord as dc
+
+from ..adapters.interaction import InteractionAdapter
+from ..errors.feedback import FeedbackError
+from ..ranks import AnyRankT
+from ..ranks.community_rank import CommunityRank
+from ..ranks.jumpedia_rank import JumpediaRank
+from ..ranks.server_rank import ServerRank
+
+type AsyncPredicateT = t.Callable[
+    [dc.Interaction], t.Coroutine[t.Any, t.Any, t.Literal[True]]
+]
+type PredicateT = t.Callable[[dc.Interaction], t.Literal[True]]
 
 
 def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
@@ -23,7 +23,7 @@ def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
 
 
 def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
-    async def predicate_func(interaction: dc.Interaction) -> Literal[True]:
+    async def predicate_func(interaction: dc.Interaction) -> t.Literal[True]:
         # Power == 0 required
         if not rank_required:
             return True
@@ -64,6 +64,6 @@ def rank_required(rank_required: AnyRankT) -> AsyncPredicateT:
 
             raise _not_permitted(community_rank, rank_required)
 
-        assert_never(rank_required)
+        t.assert_never(rank_required)
 
     return predicate_func

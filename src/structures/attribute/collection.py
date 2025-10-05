@@ -1,19 +1,20 @@
+import typing as t
 from dataclasses import dataclass, field
-from typing import Final, NamedTuple, Sequence, overload
-from discord import TYPE_CHECKING
-from typing_extensions import Sentinel
-from structures.attribute.slot_type import TypeStr
-from structures import BaseStructure
-from utils import text
 
-if TYPE_CHECKING:
-    from structures.attribute import BaseAttribute
+from typing_extensions import Sentinel
+
+from ...utils import text
+from .. import BaseStructure
+from .slot_type import TypeStr
+
+if t.TYPE_CHECKING:
+    from . import BaseAttribute
 
 # Collection
-MAX_ENTRIES: Final[int] = 1024
+MAX_ENTRIES: t.Final[int] = 1024
 
 
-class CollectionEntry(NamedTuple):
+class CollectionEntry(t.NamedTuple):
     id: int
     collection_index: int
     value: TypeStr
@@ -21,7 +22,7 @@ class CollectionEntry(NamedTuple):
 
 
 @dataclass(frozen=True, slots=True)
-class Collection(Sequence[CollectionEntry]):
+class Collection(t.Sequence[CollectionEntry]):
     attribute: BaseAttribute
     entries: tuple[CollectionEntry, ...]
     _syn_to_entry: dict[text.NormStr, CollectionEntry] = field(
@@ -48,10 +49,10 @@ class Collection(Sequence[CollectionEntry]):
     def __len__(self) -> int:
         return self.entries.__len__()
 
-    @overload
+    @t.overload
     def __getitem__(self, index: int) -> CollectionEntry: ...
 
-    @overload
+    @t.overload
     def __getitem__(
         self, index: slice[int, int, int]
     ) -> tuple[CollectionEntry, ...]: ...
@@ -63,10 +64,10 @@ class Collection(Sequence[CollectionEntry]):
 
     _NO_DEFAULT = Sentinel("_NO_DEFAULT")
 
-    @overload
+    @t.overload
     def get_entry_by_syn(self, syn: str, /) -> CollectionEntry: ...
 
-    @overload
+    @t.overload
     def get_entry_by_syn[TDefault](
         self, syn: str, /, default: TDefault
     ) -> CollectionEntry | TDefault: ...

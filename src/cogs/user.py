@@ -1,11 +1,12 @@
 from enum import Enum
+
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+import ranks
 from adapters.interaction import InteractionAdapter
 from discord_structures import predicates
-import ranks
 from ranks.community_rank import CommunityRank
 
 

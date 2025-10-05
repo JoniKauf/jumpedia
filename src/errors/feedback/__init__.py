@@ -1,6 +1,7 @@
-from typing import Any, Mapping, Sequence
-from discordtools import messaging
-from errors import BaseUserReturnableError
+import typing as t
+
+from ...discordtools import messaging
+from .. import BaseUserReturnableError
 
 
 class FeedbackError(BaseUserReturnableError):
@@ -12,9 +13,9 @@ class FeedbackError(BaseUserReturnableError):
         core: str,
         *,
         additional: str | None = None,
-        related_documentation: Sequence[tuple[str, str]] = (),
-        paragraphs: Sequence[str] = (),
-        msg_kwargs: Mapping[str, Any] | None = None,
+        related_documentation: t.Sequence[tuple[str, str]] = (),
+        paragraphs: t.Sequence[str] = (),
+        msg_kwargs: t.Mapping[str, t.Any] | None = None,
     ):
         self.header = header
         self.core = core
