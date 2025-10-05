@@ -8,6 +8,7 @@ from discord import app_commands as acmds
 from discord.utils import MISSING
 
 from discordtools import messaging
+from structures import BaseStructure
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -53,3 +54,37 @@ class ConfirmByEnteringModal(ui.Modal):
 
     async def on_submit(self, ia: dc.Interaction) -> None:
         await self.after_submit(ia, self.predicate(self.text_input.value))
+
+
+
+async def delete_structure_confirmation(structure: type[BaseStructure], delete: Callable[[dc.Interaction], None]):
+    async def after_submit(interaction: dc.Interaction, success: bool) -> None:
+        if success:
+            delete(interaction)
+
+            await interaction.response.send_message(
+                messaging.layout(
+                    f"{structure.structure_name.title()} Deleted",
+                    f"The speicifed {structure.structure_name} has successfully been deleted!",
+                    messaging.MessageStatus.SUCCESS,
+                )
+            )
+            return
+
+        await interaction.response.send_message(
+            messaging.layout(
+                "List Deletion Aborted",
+                f"The list `{list.name}` has **not** been deleted because the name entered is not correct!",
+                messaging.MessageStatus.WARNING,
+            )
+        )
+
+    await interaction.response.send_modal(
+        modals.ConfirmByEnteringModal(
+            interaction,
+            "Confirm List Deletion",
+            "Re-Enter the list's name to confirm",
+            lambda s: s == list.name,
+            after_submit,
+        )
+    )

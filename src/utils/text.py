@@ -26,8 +26,8 @@ BAD_CHAR_MAPPING = str.maketrans(
 )
 
 
-def pascal_to_snake(s: str):
-    return s[0].lower() + "".join(f"_{c.lower()}" if c.isupper() else c for c in s[1:])
+def pascal_to_snake(s: str, /, delim: str = '_'):
+    return s[0].lower() + "".join(f"{delim}{c.lower()}" if c.isupper() else c for c in s[1:])
 
 
 def replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:

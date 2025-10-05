@@ -91,59 +91,6 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    SetRanks = Enum(
-        "PromoteRanks", [(rank.name, rank) for rank in CommunityRank.iter()] + []
-    )  # For some reason adding a second list removes type errors
-
-    @set_group.command(
-        name="user_community_rank", description="Set a user's community rank."
-    )
-    @acmds.rename(other_user="user", rank_enum="rank")
-    @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
-    async def user_community_rank(
-        self, interaction: dc.Interaction, other_user: str, rank_enum: SetRanks
-    ) -> None:
-        ia = InteractionAdapter(interaction)
-        other_user_id, other_user_name = (1, 2)
-
-        other_community_user = ctx.get_community().create_or_get_community_user(
-            other_user.id, other_user_name
-        )
-
-        new_rank: CommunityRank = rank_enum.value
-
-        if new_rank.power == other_community_user.community_rank.power:
-            raise fbe.TemporaryFeedbackError(
-                "The new rank for the user is equal to the one they already have."
-            )
-
-        community_user = ctx.get_community_user()
-
-        rank_below_mine = ranks.get_offset_rank(community_user.most_important_rank, -1)
-
-        if new_rank.power > rank_below_mine.power:
-            raise fbe.TemporaryFeedbackError(
-                "The rank you want to give to that user is too high. You must be higher than the rank you want to give."
-            )
-
-        ctx.get_community().change_community_user_community_rank(
-            other_user_id, other_user_name, new_rank
-        )
-
-        what_moted = (
-            "promoted"
-            if new_rank.power > other_community_user.community_rank.power
-            else "demoted"
-        )
-
-        await interaction.response.send_message(
-            messaging.layout(
-                f"User {what_moted.title()}",
-                f"The user `{other_user_name}` has successfully been {what_moted} to `{new_rank}`!",
-                messaging.MessageStatus.SUCCESS,
-            )
-        )
-
     create_group = acmds.Group(
         name="create", description="Create new objects for the community."
     )
@@ -151,9 +98,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @create_group.command(name="list", description="Create a new list.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
     async def create_list(self, interaction: dc.Interaction, list_name: str) -> None:
-        ctx = Context(interaction)
+        ia = InteractionAdapter(interaction)
 
-        new_list = ctx.get_community().create_list(list_name)
+        new_list = ia.jumpedia.get_current_community().create_list(list_name)
 
         await interaction.response.send_message(
             messaging.layout(
@@ -167,14 +114,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         name="delete", description="Delete objects from the community."
     )
 
-    @delete_group.command(name="list", description="Delete a list from the community.")
+    @delete_group.command(name="delete", description="Delete a list from the community.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_list(self, interaction: dc.Interaction, list_name: str) -> None:
-        ctx = Context(interaction)
+        ia = InteractionAdapter(interaction)
 
-        list = required.structure_not_none(
-            ctx.get_community().get_list_by_name(list_name), list_name, List
-        )
+        list = ia.jumpedia.get_current_community().get_list(list_name)
 
         async def after_submit(interaction: dc.Interaction, success: bool) -> None:
             if success:

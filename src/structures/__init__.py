@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
+from functools import cached_property
 from threading import RLock
 from typing import Any, dataclass_transform
 from contextlib import _GeneratorContextManager
-from utils import locked
+from utils import locked, text
 
 type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
@@ -34,6 +35,10 @@ class _StructureMeta(ABCMeta):
     ) -> _StructureMeta:
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
+    
+    @cached_property
+    def structure_name(self) -> str:
+        return text.pascal_to_snake(self.__name__, delim=' ')
 
 
 class BaseStructure(metaclass=_StructureMeta):
