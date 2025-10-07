@@ -12,9 +12,13 @@ class JumpediaUser(BaseStructure):
 
     jumpedia: Jumpedia
     id: int
-    name: str
+    user_name: str
     jumpedia_rank: JumpediaRank
 
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id, *self.jumpedia.identity)
+    
+    @property
+    def name(self) -> str:
+        return self.user_name

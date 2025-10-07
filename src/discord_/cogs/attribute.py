@@ -4,8 +4,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discord_structures import predicates
-from discordtools import messaging
+from ..tools import messaging
 
 
 class AttributeCog(cmds.GroupCog, group_name="attribute"):
@@ -29,7 +28,3 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                 "All Attributes", "\n\n".join(result), messaging.MessageStatus.INFO
             )
         )
-
-
-async def setup(bot: cmds.Bot):
-    await bot.add_cog(AttributeCog(bot))

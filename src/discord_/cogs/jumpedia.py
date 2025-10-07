@@ -2,11 +2,11 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters.interaction import InteractionAdapter
-from discord_structures import modals, predicates
-from discordtools import messaging
-from errors.feedback import feedbacks
-from ranks import CommunityRank, JumpediaRank, ServerRank
+from ...adapters.interaction import InteractionAdapter
+from ..structs import modals, predicates
+from ..tools import messaging
+from ...errors.feedback import feedbacks
+from ...ranks import CommunityRank, JumpediaRank, ServerRank
 
 
 class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
@@ -86,36 +86,10 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
         ia = InteractionAdapter(interaction)
         community = ia.jumpedia.get_current_community()
 
-        async def after_submit(interaction: dc.Interaction, correct: bool) -> None:
-            if correct:
-                ia.jumpedia.delete_community(community.name)
-
-                await interaction.response.send_message(
-                    messaging.layout(
-                        "Community Deleted",
-                        f"The community `{community.name}` has "
-                        "successfully been deleted!",
-                        messaging.MessageStatus.SUCCESS,
-                    )
-                )
-            else:
-                await interaction.response.send_message(
-                    messaging.layout(
-                        "Community Deletion Aborted",
-                        f"The community `{community.name}` has **not** been "
-                        "deleted because the name entered is not correct!",
-                        messaging.MessageStatus.WARNING,
-                    )
-                )
-
-        await interaction.response.send_modal(
-            modals.ConfirmByEnteringModal(
-                interaction,
-                "Confirm Community Deletion",
-                "Enter the community's name to confirm",
-                lambda s: s == community.name,
-                after_submit,
-            )
+        await modals.delete_structure_confirmation(
+            ia._interaction, 
+            community._community, 
+            lambda _: ia.jumpedia.delete_community(community.name)
         )
 
     connect_group = acmds.Group(
@@ -165,6 +139,3 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
             )
         )
 
-
-async def setup(bot: cmds.Bot):
-    await bot.add_cog(JumpediaCog(bot))

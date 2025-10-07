@@ -34,12 +34,17 @@ class _StructureMeta(ABCMeta):
         /,
         **kwargs: t.Any,
     ) -> _StructureMeta:
-        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        cls = super().__new__(mcls, name, bases, namespace | {'_type_name': None}, **kwargs)
         return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
 
-    @cached_property
-    def structure_name(self) -> str:
-        return text.pascal_to_snake(self.__name__, delim=" ")
+    @property
+    def type_name(self) -> str:
+        v = getattr(self, '_type_name')
+
+        if v is None:
+            v = text.pascal_to_snake(self.__name__, delim=" ")
+
+        return v
 
 
 class BaseStructure(metaclass=_StructureMeta):

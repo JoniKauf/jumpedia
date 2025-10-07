@@ -4,8 +4,8 @@ import typing as t
 import discord as dc
 from discord import ui
 
-from ..discordtools import messaging
-from ..structures import BaseStructure
+from ..tools import messaging
+from ...structures import BaseStructure
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -57,7 +57,7 @@ class ConfirmByEnteringModal(ui.Modal):
 
 async def delete_structure_confirmation(
     interaction: dc.Interaction,
-    structure: type[BaseStructure],
+    structure: BaseStructure,
     delete: t.Callable[[dc.Interaction], None],
 ):
     async def after_submit(interaction: dc.Interaction, success: bool) -> None:
@@ -66,27 +66,26 @@ async def delete_structure_confirmation(
 
             await interaction.response.send_message(
                 messaging.layout(
-                    f"{structure.structure_name.title()} Deleted",
-                    f"The specifed {structure.structure_name} has successfully been deleted!",
+                    f"{structure.__class__.type_name.title()} Deleted",
+                    f"The specifed {structure.__class__.type_name} has successfully been deleted!",
                     messaging.MessageStatus.SUCCESS,
                 )
             )
-            return
-
-        await interaction.response.send_message(
-            messaging.layout(
-                f"{structure.structure_name.title()} Deletion Aborted",
-                f"The {structure.structure_name} has **not** been deleted because the name entered is not correct!",
-                messaging.MessageStatus.WARNING,
+        else:
+            await interaction.response.send_message(
+                messaging.layout(
+                    f"{structure.__class__.type_name.title()} Deletion Aborted",
+                    f"The {structure.__class__.type_name} has **not** been deleted because the name entered is not correct!",
+                    messaging.MessageStatus.WARNING,
+                )
             )
-        )
 
     await interaction.response.send_modal(
         ConfirmByEnteringModal(
             interaction,
-            "Confirm List Deletion",
-            "Re-Enter the list's name to confirm",
-            lambda s: s == list.name,
+            f"Confirm {structure.__class__.type_name.title()} Deletion",
+            f"Re-Enter the {structure.__class__.type_name}'s name to confirm:",
+            lambda s: s == structure.name,
             after_submit,
         )
     )

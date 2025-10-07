@@ -22,7 +22,7 @@ def __get_connection_data() -> dict[str, t.Hashable]:
     global __connection_data
 
     if __connection_data is None:
-        __connection_data = secret.listen()["DB_CONNECTION_INFO"]
+        __connection_data = secret.listen().DB_CONNECTION_INFO
 
     return __connection_data
 

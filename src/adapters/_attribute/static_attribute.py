@@ -1,4 +1,4 @@
-from ...structures.attribute import StaticAttribute
+from ...structures.attribute.static_attribute import StaticAttribute
 from . import BaseAttributeAdapter
 
 

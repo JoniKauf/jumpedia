@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import discord as dc
 
-from .. import errors
+from ... import errors
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
 

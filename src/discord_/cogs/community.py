@@ -4,12 +4,12 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-import ranks
-from adapters.interaction import InteractionAdapter
-from discord_structures import modals, predicates, views
-from discordtools import messaging
-from ranks.community_rank import CommunityRank
-from ranks.server_rank import ServerRank
+from ... import ranks
+from ...adapters.interaction import InteractionAdapter
+from ..structs import modals, predicates, views
+from ..tools import messaging
+from ...ranks.community_rank import CommunityRank
+from ...ranks.server_rank import ServerRank
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -153,7 +153,3 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 after_submit,
             )
         )
-
-
-async def setup(bot: cmds.Bot):
-    await bot.add_cog(CommunityCog(bot))

@@ -1,7 +1,7 @@
 import textwrap
 import typing as t
 
-from ...discordtools import messaging as msg
+from ...discord_.tools import messaging as msg
 from ...structures import BaseStructure
 from . import FeedbackError
 

@@ -15,7 +15,7 @@ class JumpediaUserAdapter(BaseAdapter):
 
     @property
     def name(self) -> str:
-        return self._jumpedia_user.name
+        return self._jumpedia_user.user_name
 
     @property
     def jumpedia_rank(self) -> JumpediaRank:

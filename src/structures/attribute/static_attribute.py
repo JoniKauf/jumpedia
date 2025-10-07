@@ -6,7 +6,7 @@ from . import AttributeTables, BaseAttribute
 
 if t.TYPE_CHECKING:
     from ..list import KindsT
-    
+
 
 class StaticAttribute(BaseAttribute):
     tables = AttributeTables(typed.StaticAttribute, typed.StaticAttributeAlias)

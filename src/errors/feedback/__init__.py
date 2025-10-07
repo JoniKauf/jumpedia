@@ -1,6 +1,6 @@
 import typing as t
 
-from ...discordtools import messaging
+from ...discord_.tools import messaging
 from .. import BaseUserReturnableError
 
 

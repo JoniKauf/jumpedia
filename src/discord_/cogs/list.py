@@ -5,13 +5,13 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from discord_structures import modals
-from discordtools import messaging
-from structures.attribute.slot_type import SlotTypeEnum
-from structures.attribute.task_attribute import TaskAttribute
-from structures.attribute.user_attribute import UserAttribute
-from structures.task import Task
-from utils import parsetools
+from ..structs import modals
+from ..tools import messaging
+from ...structures.attribute.slot_type import SlotTypeEnum
+from ...structures.attribute.task_attribute import TaskAttribute
+from ...structures.attribute.user_attribute import UserAttribute
+from ...structures.task import Task
+from ...utils import parsetools
 
 
 class ListCog(cmds.GroupCog, group_name="list"):
@@ -302,7 +302,3 @@ class ListCog(cmds.GroupCog, group_name="list"):
                 after_submit,
             )
         )
-
-
-async def setup(bot: cmds.Bot):
-    await bot.add_cog(ListCog(bot))

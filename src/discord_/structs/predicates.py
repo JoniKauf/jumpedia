@@ -2,12 +2,12 @@ import typing as t
 
 import discord as dc
 
-from ..adapters.interaction import InteractionAdapter
-from ..errors.feedback import FeedbackError
-from ..ranks import AnyRankT
-from ..ranks.community_rank import CommunityRank
-from ..ranks.jumpedia_rank import JumpediaRank
-from ..ranks.server_rank import ServerRank
+from ...adapters.interaction import InteractionAdapter
+from ...errors.feedback import FeedbackError
+from ...ranks import AnyRankT
+from ...ranks.community_rank import CommunityRank
+from ...ranks.jumpedia_rank import JumpediaRank
+from ...ranks.server_rank import ServerRank
 
 type AsyncPredicateT = t.Callable[
     [dc.Interaction], t.Coroutine[t.Any, t.Any, t.Literal[True]]

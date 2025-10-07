@@ -1,9 +1,19 @@
 
+
 def __main():
+    # --- Set global defaults ---
     import sys
-    import platform
+    sys.dont_write_bytecode = True
+
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,  # or DEBUG, WARNING, etc.
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
 
     # --- Check Python Implementation ---
+    import platform
+
     if sys.version_info < (3, 14):
         raise RuntimeError("Developed for Python 3.14 or higher")
 
@@ -11,18 +21,13 @@ def __main():
         raise RuntimeError(
             "Developed for CPython, other Python implementation may not be compatible!"
         )
-    
-    import subprocess
 
-    subprocess.run(['py -m isort .'])
-    subprocess.run(['py -m black .'])
-
-    from beartype.claw import beartype_package
-
-    beartype_package("src")
-
+    # --- Import/Run modules to preload and test functionality ---
+    from src.structures import jumpedia
     
     
+
+    import src.discord_
 
 
 if __name__ == "__main__":

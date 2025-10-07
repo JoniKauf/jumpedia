@@ -416,7 +416,7 @@ class Jumpedia(BaseStructure):
     
     @cached_property
     def name(self) -> str:
-        return self.__class__.structure_name
+        return self.__class__.type_name
 
     def __post_init__(self) -> None:
         class SCHEMATA(BaseModel, table_name="SCHEMATA"):
@@ -507,7 +507,7 @@ class Jumpedia(BaseStructure):
                 comm.get_or_create_community_user(
                     self.create_or_get_jumpedia_user(
                         jumpedia_user.id, 
-                        jumpedia_user.name,
+                        jumpedia_user.user_name,
                         JumpediaRank.DEFAULT,
                         True,
                         False
@@ -622,9 +622,9 @@ class Jumpedia(BaseStructure):
 
                 else:
                     jumpedia_rank = jumpedia_rank if override_jumpedia_rank_if_user_exists else user.jumpedia_rank
-                    real_name = real_name if override_name_if_user_exists else user.name
+                    real_name = real_name if override_name_if_user_exists else user.user_name
 
-                    if real_name != user.name or jumpedia_rank != user.jumpedia_rank:
+                    if real_name != user.user_name or jumpedia_rank != user.jumpedia_rank:
                         c.execute(lambda arg: t"""
                             UPDATE {typed.JumpediaUser} 
                             SET 
@@ -638,7 +638,7 @@ class Jumpedia(BaseStructure):
                 return JumpediaUser(
                     jumpedia=self,
                     id=id,
-                    name=real_name,
+                    user_name=real_name,
                     jumpedia_rank=jumpedia_rank
                 )
 
@@ -657,7 +657,7 @@ class Jumpedia(BaseStructure):
     def _user_row_to_obj(self, row: typed.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
             jumpedia=self,
-            name=row.real_name,
+            user_name=row.real_name,
             id=row.id,
             jumpedia_rank=JumpediaRank.get(row.power)
         )

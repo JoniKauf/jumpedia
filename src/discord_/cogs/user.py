@@ -4,10 +4,10 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-import ranks
-from adapters.interaction import InteractionAdapter
-from discord_structures import predicates
-from ranks.community_rank import CommunityRank
+from .. import ranks
+from ..adapters.interaction import InteractionAdapter
+from ..structs import predicates
+from ..ranks.community_rank import CommunityRank
 
 
 class UserCog(cmds.GroupCog, group_name="user"):
@@ -113,7 +113,3 @@ class UserCog(cmds.GroupCog, group_name="user"):
                 messaging.MessageStatus.SUCCESS,
             )
         )
-
-
-async def setup(bot: cmds.Bot):
-    await bot.add_cog(UserCog(bot))

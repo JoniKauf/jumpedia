@@ -57,9 +57,7 @@ class Collection(t.Sequence[CollectionEntry]):
         self, index: slice[int, int, int]
     ) -> tuple[CollectionEntry, ...]: ...
 
-    def __getitem__(
-        self, index: int | slice[int, int, int]
-    ) -> CollectionEntry | tuple[CollectionEntry, ...]:
+    def __getitem__(self, index) -> CollectionEntry | tuple[CollectionEntry, ...]:
         return self.entries.__getitem__(index)
 
     _NO_DEFAULT = Sentinel("_NO_DEFAULT")
