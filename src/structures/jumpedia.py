@@ -5,14 +5,13 @@ from functools import cached_property
 
 from ..database import queries, typed
 from ..database.simple_orm import Arg, BaseModel, Raw, Rows, column
-from ..errors.feedback import feedbacks
 from ..ranks.community_rank import CommunityRank
 from ..ranks.jumpedia_rank import JumpediaRank
 from ..utils import text
 from . import BaseStructure, user
 from .attribute import slot_type
 from .community import Community, CommunityLimits
-from .errors import StructureNotFoundError
+from .errors import ServerAlreadyConnectedToCommunityError, StructureFoundError, StructureNotFoundError, SynAlreadyTakenError
 from .user import JumpediaUser
 
 
@@ -458,12 +457,12 @@ class Jumpedia(BaseStructure):
             comm = self.get_community_by_server_id(server_id)
 
             if comm is not None:
-                raise feedbacks.temp("Server already connected to a community")
+                raise ServerAlreadyConnectedToCommunityError(comm)
             
             comm = self.get_community_by_name(norm_name)
 
             if comm is not None:
-                raise feedbacks.temp("Community with that name exists")
+                raise SynAlreadyTakenError(comm)
 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""

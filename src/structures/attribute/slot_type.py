@@ -4,7 +4,6 @@ import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 
-from ...errors.feedback import feedbacks
 from ...utils import text
 
 type SlotTypeT = (

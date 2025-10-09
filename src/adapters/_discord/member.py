@@ -1,6 +1,6 @@
 from functools import cached_property
 
-import discord_ as dc
+import discord as dc
 
 from ...ranks import ServerRank
 from .. import BaseAdapter

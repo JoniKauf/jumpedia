@@ -1,7 +1,7 @@
 import re
 import string
 import typing as t
-from string.templatelib import Interpolation, Template
+from string.templatelib import Interpolation, Template, convert
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
@@ -116,16 +116,11 @@ def raws_to_unique_reals_and_norms(
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
 
 
-def _convert(value: object, conversion: t.Literal["a", "r", "s"] | None) -> object:
-    if conversion == "a":
-        return ascii(value)
-    elif conversion == "r":
-        return repr(value)
-    elif conversion == "s":
-        return str(value)
+def apply_f_to_interpolation_value(value: t.Any, conversion: t.Literal['a', 'r', 's'] | None, format_spec: str) -> str:
+    value = convert(value, conversion)
+    value = format(value, format_spec)
     return value
-
-
+    
 # From https://peps.python.org/pep-0750/#example-implementing-f-strings-with-t-strings
 def t_to_f_string(template: Template) -> str:
     parts = []
@@ -134,9 +129,7 @@ def t_to_f_string(template: Template) -> str:
             case str() as s:
                 parts.append(s)
             case Interpolation(value, _, conversion, format_spec):
-                value = _convert(value, conversion)
-                value = format(value, format_spec)
-                parts.append(value)
+                parts.append(apply_f_to_interpolation_value(value, conversion, format_spec))
             case _:
                 assert_never(item)
 

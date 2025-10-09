@@ -6,7 +6,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from ..structs import modals
-from ..tools import messaging
+from ..utils import messaging
 from ...structures.attribute.slot_type import SlotTypeEnum
 from ...structures.attribute.task_attribute import TaskAttribute
 from ...structures.attribute.user_attribute import UserAttribute

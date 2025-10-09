@@ -5,7 +5,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from ...database import queries, typed
-from ...errors.feedback import feedbacks
 from ...utils import text
 from .. import BaseStructure
 from .collection import Collection, CollectionEntry

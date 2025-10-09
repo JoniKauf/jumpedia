@@ -1,8 +1,6 @@
 import re
 import typing as t
 
-from ...errors.feedback import FeedbackError
-from ...utils import text
 from ..user.community_user import CommunityUser
 from ..user.jumpedia_user import JumpediaUser
 
@@ -23,14 +21,6 @@ _BOUNDS_REGEX_INSERT: str = (
     "{" + f"{MIN_ID_STR_LENGTH},{MAX_ID_STR_LENGTH}" + "}"
 )  # {n,m}
 _USER_MENTION_PATTERN: re.Pattern = re.compile(rf"^<@!?(\d{_BOUNDS_REGEX_INSERT})>$")
-
-
-def invalid_user_format(user_id: str | int) -> FeedbackError:
-    return FeedbackError(
-        "Invalid User Format",
-        f"The format `{text.shorten(user_id)}` used to specify a user is invalid!",
-        additional="Either mention a user in the command (it won't ping them) or insert their Discord ID directly.",
-    )
 
 
 def extract_id_from_int(user_id: int) -> int:

@@ -66,7 +66,6 @@ class BaseStructure(metaclass=_StructureMeta):
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, BaseStructure):
-            print(f"Compared", value, "to", self)
             return NotImplemented
 
         return self.__class__ is value.__class__ and self.identity == value.identity

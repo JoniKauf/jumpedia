@@ -1,7 +1,7 @@
 import typing as t
 from dataclasses import field
 
-from ..errors.feedback import feedbacks
+from ..discord_.errors import FeedbackError
 from ..ranks.jumpedia_rank import JumpediaRank
 from ..structures.community import Community
 from ..structures.jumpedia import JUMPEDIA, Jumpedia
@@ -10,6 +10,7 @@ from . import BaseAdapter
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter
 from ._user.jumpedia_user import JumpediaUserAdapter
+from ..structures.errors import ServerAlreadyConnectedToCommunityError, StructureFoundError, SynAlreadyTakenError
 
 if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
@@ -59,12 +60,26 @@ class JumpediaAdapter(BaseAdapter):
     ) -> CommunityAdapter:
         jumpedia_user = self.get_or_create_current_jumpedia_user()._jumpedia_user
 
-        community = CommunityAdapter(
-            self._jumpedia.create_community(
+        try:
+            comm = self._jumpedia.create_community(
                 raw_name=name,
                 jumpedia_user=jumpedia_user,
                 server_id=self.interaction.current_server.id,
-            ),
+            )
+        except ServerAlreadyConnectedToCommunityError as e:
+            raise FeedbackError(
+                "Server Already Connected To A Community",
+                f"The server you are on (`{self.interaction.current_server.name}`) "
+                f"is already connected to a community (`{e.structure.name}`)!"
+            )
+        except SynAlreadyTakenError:
+            raise FeedbackError(
+                "Name Already Taken",
+                f"The name `{name}` is already taken"
+            )
+
+        community = CommunityAdapter(
+            
             self,
         )
 

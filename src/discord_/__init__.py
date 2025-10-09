@@ -1,44 +1,52 @@
 import importlib
+import inspect
+import os
 import traceback
-
+import typing as t
 import importlib
 import pkgutil
+import types
 import discord as dc
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
 from ..database import secret
-from ..errors import BaseUserReturnableError
+from .errors import BaseUserReturnableError
 
 BOT = cmds.Bot(
     command_prefix="33e32r230ro2dd", intents=dc.Intents.default()
 )
 
 
-def _get_all_cogs_from_package(package: str):
-    modules = (
-        importlib.import_module(module_name, package)
-        for _, module_name, _ in pkgutil.iter_modules([package])
-    )
+def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:
+    rel = os.path.relpath(pkg_path, start=os.getcwd()).strip(os.path.sep).replace(os.path.sep, '.')
+    
+    # Use pkgutil to iterate over modules in the package
+    for importer, modname, ispkg in pkgutil.iter_modules([pkg_path]):
+        if ispkg:
+            continue
 
-    return (
-        obj(BOT) for module in modules
-            for obj in module.__dict__.values()
-        if issubclass(obj, cmds.Cog)
-    )
+        if modname == '__init__':
+            continue
+        
+        yield importlib.import_module(
+            f"{rel}.{modname}"
+        )
+
+
         
 @BOT.event
 async def on_ready():
-    try:
-        for cog in _get_all_cogs_from_package('.cogs'):
-            await BOT.add_cog(cog)
+    from . import cogs
 
-        await BOT.tree.sync()
-        await BOT.wait_until_ready()
-    except BaseException as e:
-        traceback.print_exc()
-        exit(1)
+    # The one without sin among you should be the first to throw a stone at her.
+    for module in _get_all_modules_from_package(os.path.dirname(cogs.__file__)):
+        for obj in module.__dict__.values():
+            if inspect.isclass(obj) and issubclass(obj, cmds.Cog):
+                await BOT.add_cog(obj(BOT))
 
+    await BOT.tree.sync()
+    await BOT.wait_until_ready()
 
 @BOT.tree.error
 async def on_app_command_error(

@@ -1,6 +1,6 @@
 import typing as t
 
-import discord_ as dc
+import discord as dc
 
 from .. import BaseAdapter
 
@@ -16,3 +16,7 @@ class ServerAdapter(BaseAdapter):
     @property
     def id(self) -> int:
         return self._server.id
+    
+    @property
+    def name(self) -> str:
+        return self._server.name

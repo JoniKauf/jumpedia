@@ -7,7 +7,7 @@ import discord.ext.commands as cmds
 from ... import ranks
 from ...adapters.interaction import InteractionAdapter
 from ..structs import modals, predicates, views
-from ..tools import messaging
+from ..utils import messaging
 from ...ranks.community_rank import CommunityRank
 from ...ranks.server_rank import ServerRank
 
@@ -45,7 +45,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     get_group = acmds.Group(name="get", description="Get objects of the community.")
 
     @get_group.command(name="lists", description="Get all lists of the community.")
-    async def list_lists(self, interaction: dc.Interaction) -> None:
+    async def get_lists(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
 
         community = ia.jumpedia.get_current_community()

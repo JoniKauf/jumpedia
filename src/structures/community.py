@@ -2,7 +2,6 @@ import typing as t
 
 from ..database import queries, typed
 from ..database.simple_orm import Arg, Raw, Rows
-from ..errors.feedback import feedbacks
 from ..ranks.community_rank import CommunityRank
 from ..utils import text
 from . import BaseStructure, errors, list

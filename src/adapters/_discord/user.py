@@ -1,6 +1,6 @@
 import typing as t
 
-import discord_ as dc
+import discord as dc
 
 from .. import BaseAdapter
 

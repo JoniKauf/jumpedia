@@ -2,17 +2,14 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from ..errors import FeedbackError
 from ...adapters.interaction import InteractionAdapter
 from ..structs import modals, predicates
-from ..tools import messaging
-from ...errors.feedback import feedbacks
+from ..utils import messaging
 from ...ranks import CommunityRank, JumpediaRank, ServerRank
 
 
-class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
-    def __init__(self, bot: cmds.Bot) -> None:
-        self.bot = bot
-
+class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @acmds.command()
     async def super_secret_command(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
@@ -20,14 +17,17 @@ class JumpediaCog(cmds.GroupCog, group_name="jumpedia"):
         JONI_ID = 679564566769827841
 
         if interaction.user.id != JONI_ID:
-            raise feedbacks.temp("You are not permitted to use this command!")
+            raise FeedbackError(
+                "No.",
+                t"YOU SHALL NOT PASS!\n-# Gandalf said calmly"
+            )
 
         ia.jumpedia.get_or_create_current_jumpedia_user(JumpediaRank.JONIKAUF)
 
         await interaction.response.send_message(
             messaging.layout(
                 "Hi Joni.",
-                "Everything was setup properly.",
+                t"Everything was setup properly.",
                 messaging.MessageStatus.INFO,
             )
         )

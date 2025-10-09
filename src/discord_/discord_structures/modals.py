@@ -4,7 +4,7 @@ import typing as t
 import discord as dc
 from discord import ui
 
-from ..tools import messaging
+from ..utils import messaging
 from ...structures import BaseStructure
 
 
