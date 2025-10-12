@@ -1,206 +1,221 @@
-import enum
-from typing import Callable, Hashable
+import ast
+import io
+import tokenize
+import typing as t
+from dataclasses import dataclass
 
 
-class State(enum.Enum):
-    pass
+class BaseExpressionParserVisitor[T](ast.NodeVisitor):
+    def __init__(self) -> None:
+        if self.__class__ is BaseExpressionParserVisitor:
+            raise RuntimeError
+
+        super().__init__()
+
+    def __init_subclass__(cls, body_type: type[ast.AST]) -> None:
+        cls._body_type = body_type
+        super().__init_subclass__()
+
+    def start_visit(self, node: ast.AST) -> T:
+        return self.visit(node)
+
+    def visit_Expression(self, node: ast.Expression) -> t.Any:
+        if not isinstance(node.body, self.__class__._body_type):
+            raise ValueError(
+                f"Root is {node.body.__class__} instead of {self.__class__._body_type}"
+            )
+
+        return self.visit(node.body)
+
+    def generic_visit(self, node: ast.AST) -> t.Any:
+        # This should never be called because the parent should
+        # check whether the children are of the correct type.
+        assert False
 
 
-class ArgParseState(State):
-    OUT_QUOTES_AFTER_COMMA = enum.auto()
-    IN_QUOTES = enum.auto()
-    IN_ESCAPE = enum.auto()
-    OUT_QUOTES_BEFORE_COMMA = enum.auto()
+def _check_children_type[T: ast.AST](
+    children: t.Iterable[ast.AST], child_type: type[T]
+) -> list[T]:
+    if child_type is not ast.AST:
+        for child in children:
+            if not isinstance(child, child_type):
+                raise ValueError(f"child is {child.__class__} instead of {child_type}")
+
+    return list(children)  # type: ignore
 
 
-class KwargParseState(State):
-    KW_OUT_BEFORE_SPACE = enum.auto()
-    KW_OUT_AFTER_SPACE = enum.auto()
-    KW_IN_QUOTES = enum.auto()
-    KW_IN_ESCAPE = enum.auto()
-    BEFORE_EQUAL = enum.auto()
-    AFTER_EQUAL = enum.auto()
-    V_OUT_QUOTES_AFTER_COMMA = enum.auto()
-    V_IN_QUOTES = enum.auto()
-    V_IN_ESCAPE = enum.auto()
-    V_OUT_QUOTES_BEFORE_COMMA = enum.auto()
+def _typical_visit_Constant(node: ast.Constant) -> str:
+    if not isinstance(node.value, str):
+        raise ValueError(f"constant's value is {node.value.__class__} instead of {str}")
+
+    return node.value
 
 
-class UnexpectedCharError(ValueError):
-    def __init__(self, state: State, s: str, i: int) -> None:
-        self.state = state
-        self.s = s
-        self.i = i
-
-        super().__init__(state, s, i)
+def _typical_visit_List(
+    node: ast.List, visitor: BaseExpressionParserVisitor, elts_type: type[ast.AST]
+) -> list:
+    elts = _check_children_type(node.elts, elts_type)
+    return [visitor.visit(n) for n in elts]
 
 
-def parse_args(s: str, /) -> list[str]:
-    state: ArgParseState = ArgParseState.OUT_QUOTES_AFTER_COMMA
-    arg: list[str] = []
-    args: list[str] = []
+def _typical_visit_Dict(node: ast.Dict, visitor: BaseExpressionParserVisitor) -> t.Any:
+    if None in node.keys:
+        raise ValueError("Stars")
 
-    for i, c in enumerate(s):
-        match state:
-            case ArgParseState.OUT_QUOTES_AFTER_COMMA:
-                if c == '"':
-                    state = ArgParseState.IN_QUOTES
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+    keys = t.cast(list[ast.AST], node.keys)
+    values = node.values
 
-            case ArgParseState.IN_QUOTES:
-                if c == '"':
-                    args.append("".join(arg))
-                    arg = []
-                    state = ArgParseState.OUT_QUOTES_BEFORE_COMMA
-                elif c == "\\":
-                    state = ArgParseState.IN_ESCAPE
-                else:
-                    arg.append(c)
+    keys = _check_children_type(keys, ast.Constant)
+    values = _check_children_type(values, ast.List)
 
-            case ArgParseState.IN_ESCAPE:
-                if c not in '"\\':
-                    raise UnexpectedCharError(state, s, i)
+    dct: dict = {}
 
-                arg.append(c)
-                state = ArgParseState.IN_QUOTES
+    for k, v in zip(keys, values):
+        kv = visitor.visit(k)
 
-            case ArgParseState.OUT_QUOTES_BEFORE_COMMA:
-                if c == ",":
-                    state = ArgParseState.OUT_QUOTES_AFTER_COMMA
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+        if kv in dct:
+            raise ValueError("Dict key not unique")
 
-    if state not in (
-        ArgParseState.OUT_QUOTES_BEFORE_COMMA,
-        ArgParseState.OUT_QUOTES_AFTER_COMMA,
-    ):
-        raise UnexpectedCharError(state, "", len(s))
+        dct[kv] = visitor.visit(v)
 
-    return args
+    return dct
 
 
-def parse_kwargs[TK: Hashable = str](
-    s: str, /, transform_key: Callable[[str], TK] = lambda k: k
-) -> dict[TK, list[str]]:
-    state: KwargParseState = KwargParseState.KW_OUT_AFTER_SPACE
-    kw: list[str] = []
-    arg: list[str] = []
-    args: list[str] = []
-    kwargs: dict[TK, list[str]] = {}
+class TupleVisitorMixin[T: tuple]:
+    def __init__(self, handle_tuple: t.Callable[[ast.Tuple, t.Self], T]) -> None:
+        self._handle_tuple = handle_tuple
+        super().__init__()
 
-    def item_complete():
-        nonlocal state, kw, args, arg
-        assert not arg
+    def visit_Tuple(self, node: ast.Tuple) -> t.Any:
+        return self._handle_tuple(node, self)
+    
 
-        k = transform_key("".join(kw))
+class ListOfStrVisitor(BaseExpressionParserVisitor[list[str]], body_type=ast.List):
+    def visit_List(self, node: ast.List) -> t.Any:
+        return _typical_visit_List(node, self, ast.Constant)
 
-        if k in kwargs:
-            raise KeyError("key taken")
+    def visit_Constant(self, node: ast.Constant) -> t.Any:
+        return _typical_visit_Constant(node)
 
-        kwargs[k] = args
-        kw = []
-        args = []
+class ListOfTupleVisitor[T: tuple](TupleVisitorMixin[T], BaseExpressionParserVisitor[list[T]], body_type=ast.List):
+    def visit_List(self, node: ast.List) -> t.Any:
+        return _typical_visit_List(node, self, ast.Tuple)
 
-    for i, c in enumerate(s):
-        match state:
-            case KwargParseState.KW_OUT_AFTER_SPACE:
-                if c == '"':
-                    state = KwargParseState.KW_IN_QUOTES
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+class DictOfStrToListOfStrVisitor(
+    BaseExpressionParserVisitor[dict[str, list[str]]], body_type=ast.Dict
+):
+    def visit_Dict(self, node: ast.Dict) -> t.Any:
+        return _typical_visit_Dict(node, self)
 
-            case KwargParseState.KW_IN_QUOTES:
-                if c == '"':
-                    state = KwargParseState.BEFORE_EQUAL
-                elif c == "\\":
-                    state = KwargParseState.KW_IN_ESCAPE
-                else:
-                    kw.append(c)
+    def visit_List(self, node: ast.List) -> t.Any:
+        return _typical_visit_List(node, self, ast.Constant)
 
-            case KwargParseState.KW_IN_ESCAPE:
-                if c not in '"\\':
-                    raise UnexpectedCharError(state, s, i)
+    def visit_Constant(self, node: ast.Constant) -> t.Any:
+        return _typical_visit_Constant(node)
 
-                kw.append(c)
-                state = KwargParseState.KW_IN_QUOTES
 
-            case KwargParseState.BEFORE_EQUAL:
-                if c == "=":
-                    state = KwargParseState.AFTER_EQUAL
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+class DictOfStrToListOfTupleVisitor[T: tuple](
+    TupleVisitorMixin[T], BaseExpressionParserVisitor[dict[str, list[T]]], body_type=ast.Dict
+):
+    def visit_Dict(self, node: ast.Dict) -> t.Any:
+        return _typical_visit_Dict(node, self)
 
-            case KwargParseState.AFTER_EQUAL:
-                if c == "[":
-                    state = KwargParseState.V_OUT_QUOTES_AFTER_COMMA
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+    def visit_List(self, node: ast.List) -> t.Any:
+        return _typical_visit_List(node, self, ast.Tuple)
 
-            case KwargParseState.V_OUT_QUOTES_AFTER_COMMA:
-                if c == '"':
-                    state = KwargParseState.V_IN_QUOTES
-                elif c == "]":
-                    item_complete()
-                    state = KwargParseState.KW_OUT_BEFORE_SPACE
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+    def visit_Constant(self, node: ast.Constant) -> t.Any:
+        return _typical_visit_Constant(node)
 
-            case KwargParseState.V_IN_QUOTES:
-                if c == '"':
-                    args.append("".join(arg))
-                    arg = []
-                    state = KwargParseState.V_OUT_QUOTES_BEFORE_COMMA
-                elif c == "\\":
-                    state = KwargParseState.V_IN_ESCAPE
-                else:
-                    arg.append(c)
 
-            case KwargParseState.V_IN_ESCAPE:
-                if c not in '"\\':
-                    raise UnexpectedCharError(state, s, i)
+@dataclass(frozen=True, slots=True)
+class ArgParser[T]:
+    node_visitor: BaseExpressionParserVisitor[T]
 
-                arg.append(c)
-                state = KwargParseState.V_IN_QUOTES
+    @staticmethod
+    def _validate_tokens(s: str):
+        tok_gen = tokenize.generate_tokens(io.StringIO(s).readline)
+        prev_tok = next(tok_gen, None)
 
-            case KwargParseState.V_OUT_QUOTES_BEFORE_COMMA:
-                if c == ",":
-                    state = KwargParseState.V_OUT_QUOTES_AFTER_COMMA
-                elif c == "]":
-                    item_complete()
-                    state = KwargParseState.KW_OUT_BEFORE_SPACE
-                elif not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+        if prev_tok is None:
+            return
 
-            case KwargParseState.KW_OUT_BEFORE_SPACE:
-                if not c.isspace():
-                    raise UnexpectedCharError(state, s, i)
+        for tok in tok_gen:
+            # Disallow inplicit s
+            if prev_tok.type == tokenize.STRING and tok.type == tokenize.STRING:
+                raise ValueError("Implicit concat of strings")
 
-                state = KwargParseState.KW_OUT_AFTER_SPACE
+            prev_tok = tok
 
-    if not state in (
-        KwargParseState.KW_OUT_BEFORE_SPACE,
-        KwargParseState.KW_OUT_AFTER_SPACE,
-    ):
-        raise UnexpectedCharError(state, "", len(s))
+    def parse(self, s: str) -> T:
+        if not (s := s.strip()):
+            raise ValueError("Empty string")
 
-    return kwargs
+        # Throws TokenError when syntax wrong
+        self.__class__._validate_tokens(s)
+
+        return self.node_visitor.start_visit(ast.parse(s, mode="eval"))
 
 
 def __main() -> None:
-    import time
+    clss = BaseExpressionParserVisitor.__subclasses__()
+
+    def handle_tup(
+        tup: ast.Tuple, visitor: BaseExpressionParserVisitor
+    ) -> tuple[str, list[str]]:
+        if len(tup.elts) != 2:
+            raise ValueError("Tuple wrong amount of elements")
+
+        first, second = tup.elts
+
+        if not isinstance(first, ast.Constant):
+            raise ValueError("First tuple element not constant")
+
+        if not isinstance(second, ast.List):
+            raise ValueError("Second tuple element not list")
+
+        return (
+            _typical_visit_Constant(first),
+            _typical_visit_List(second, visitor, ast.Constant),
+        )
 
     while True:
-        inp = input("Input: ")
-        try:
-            start = time.perf_counter()
-            result = parse_kwargs(inp)
-        except (KeyError, UnexpectedCharError) as e:
-            result = e.__class__.__name__, e.__dict__
-        finally:
-            end = time.perf_counter()
+        inp = input(
+            "\n".join(f"[{i}] {cls.__name__}" for i, cls in enumerate(clss)) + "\n> "
+        )
 
-        print(f"Result [{end - start:.4f}s]:", result, end="\n\n")
+        try:
+            choice = int(inp)
+
+            if not (0 <= choice < len(clss)):
+                raise Exception
+        except Exception:
+            print("Invalid input!", end="\n\n\n")
+            continue
+
+        visitor_type = clss[choice]
+
+        if visitor_type is not DictOfStrToListOfTupleVisitor:
+            visitor = visitor_type()
+        else:
+            visitor = visitor_type(handle_tup)
+
+        parser = ArgParser(visitor)
+
+        while True:
+            inp = input("Input: ")
+
+            if inp == "exit":
+                break
+
+            try:
+                print("Result:", repr(parser.parse(inp)))
+            except ValueError as e:
+                # raise e
+                print("Error:", repr(e))
+
+            print("\n")
+
+        print("\n" * 5)
 
 
 if __name__ == "__main__":

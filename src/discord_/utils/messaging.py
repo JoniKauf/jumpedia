@@ -1,11 +1,9 @@
-import itertools
-from string.templatelib import Interpolation, Template
 import typing as t
 from dataclasses import dataclass
+from string.templatelib import Interpolation, Template
 
 import discord as dc
 
-from .. import errors
 from ...utils import text
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
@@ -44,29 +42,15 @@ class MessageStatus:
 
 MessageStatus._init()
 
-@dataclass(frozen=True, slots=True)
-class Persistent():
-    obj: object
 
-def _template_to_data(t: Template) -> list[tuple[str, bool]]:
-    result: list[tuple[str, bool]] = []
+class _InterpolationData(t.NamedTuple):
+    evaluated: str
+    shortable: bool
 
-    for obj in t:
-        if isinstance(obj, str):
-            result.append((obj, False))
-            continue
-        
-        v = text.apply_f_to_interpolation_value(obj.value, obj.conversion, obj.format_spec)
-
-        if isinstance(obj.value, Persistent):
-            result.append((v, False))
-        
-        result.append((v, True))
-
-    return result
 
 def _get_byte_length(s: str) -> int:
-    return len(s.encode('utf-8'))
+    return len(s.encode("utf-8"))
+
 
 def layout(
     header: str,
@@ -76,61 +60,87 @@ def layout(
     additional: Template | None = None,
     paragraphs: t.Sequence[Template] = (),
 ) -> str:
-    data: list[list[tuple[str, bool]]] = [
-        core_data := _template_to_data(core),
-        additional_data := _template_to_data(additional or Template()),
-        *(paragraphs_data := list(map(_template_to_data, paragraphs)))
-    ]
+    final_templ = (
+        Template(
+            f"## {header.strip()}\n",
+        )
+        + core
+    )
 
-    header = f"## {header.strip()}\n"
+    if additional is not None:
+        final_templ += Template("\n") + additional
+
+    for parag in paragraphs:
+        final_templ += Template("\n\n") + parag
 
     if message_status is not MessageStatus.NONE:
-        message_status_txt = f"\n\n-# :{message_status.emoji}:  {message_status.name}"
-    else:
-        message_status_txt = ""
+        final_templ += Template(
+            f"\n\n-# :{message_status.emoji}:  {message_status.name}"
+        )
 
-    MORE = '...'
-    MIN_LENGTH = 5
-    MIN_LENGTH_WITH_MORE = len(MORE) + MIN_LENGTH
+    interp_to_data: dict[int, _InterpolationData] = {}
+
+    for i, interp in enumerate(final_templ.interpolations):
+        if interp.format_spec == 'p':
+            interp_to_data[id(interp)] = data = _InterpolationData(
+                str(interp.value.obj), False
+            )
+        else:
+            interp_to_data[id(interp)] = data = _InterpolationData(
+                text.apply_f_to_interpolation_value(interp), True
+            )
+
+        prev_str, next_str = final_templ.strings[i], final_templ.strings[i + 1]
+
+        if prev_str.endswith("`") and next_str.startswith("`"):
+            interp_to_data[id(interp)] = _InterpolationData(
+                data.evaluated.replace("`", "´"), data.shortable
+            )
+
+    MIN_LEN: int = 8
+    MORE: str = "..."
+    MIN_LEN_MINUS_MORE: int = MIN_LEN - len(MORE)
+
+    assert MIN_LEN > 0
+    assert MIN_LEN > len(MORE), "MIN_LEN must be bigger than len(MORE)"
 
     while True:
-        result: list[str] = [
-            header,
-            ''.join(e[0] for e in core_data).strip()
-        ]
-
-        if additional is not None:
-            result.append('\n' + ''.join(e[0] for e in additional_data or ()).strip())
-
-        if paragraphs:
-            result.append(''.join(f"\n\n{''.join(e[0] for e in p).strip()}" for p in paragraphs_data))
-
-        result.append(message_status_txt)
-
-        s = ''.join(result)
+        s = "".join(
+            (
+                interp_to_data[id(elem)].evaluated
+                if isinstance(elem, Interpolation)
+                else elem
+            )
+            for elem in final_templ
+        )
 
         if _get_byte_length(s) <= dc.message.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES:
-            break
+            return s
 
-        biggest_i: int = -1
-        biggest_j: int = -1
-        biggest_length: int = -1
+        biggest: Interpolation | None = None
+        biggest_len: int = MIN_LEN
 
-        for i, lst in enumerate(data):
-            for j, (s, shortable) in enumerate(lst):
-                if not shortable or len(s) <= MIN_LENGTH_WITH_MORE:
-                    continue
-                
-                length = _get_byte_length(s)
+        # Reverse bec we prefer shortening later
+        for interp in reversed(final_templ.interpolations):
+            evaluated, shortable = interp_to_data[id(interp)]
 
-                if length > biggest_length:
-                    biggest_i, biggest_j, biggest_length = i, j, length
+            if shortable is False:
+                continue
 
-        
-        if biggest_length < 0 or len(data[biggest_i][biggest_j][0]) <= MIN_LENGTH_WITH_MORE:
-            raise ValueError("String not shortable enough!")
-        
-        biggest_s = data[biggest_i][biggest_j][0]
-        data[biggest_i][biggest_j] = (biggest_s[0:max(MIN_LENGTH, len(biggest_s) / 2)] + MORE, True)
+            length = len(evaluated)
 
-    return ''.join(result)
+            if length > biggest_len:
+                biggest_len = length
+                biggest = interp
+
+        if biggest is None:
+            raise ValueError("Layout not shortable enough")
+
+        id_ = id(biggest)
+        new_length = max(MIN_LEN_MINUS_MORE, biggest_len // 2)
+        still_shortable = new_length > MIN_LEN_MINUS_MORE
+
+        interp_to_data[id_] = _InterpolationData(
+            interp_to_data[id_].evaluated[:new_length] + MORE,
+            still_shortable,
+        )

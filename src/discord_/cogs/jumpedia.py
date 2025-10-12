@@ -2,11 +2,11 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ..errors import FeedbackError
 from ...adapters.interaction import InteractionAdapter
+from ...ranks import CommunityRank, JumpediaRank, ServerRank
+from ..errors import FeedbackError
 from ..structs import modals, predicates
 from ..utils import messaging
-from ...ranks import CommunityRank, JumpediaRank, ServerRank
 
 
 class JumpediaCog(cmds.GroupCog, name="jumpedia"):

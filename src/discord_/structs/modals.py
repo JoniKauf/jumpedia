@@ -4,8 +4,8 @@ import typing as t
 import discord as dc
 from discord import ui
 
-from ..utils import messaging
 from ...structures import BaseStructure
+from ..utils import messaging
 
 
 class ConfirmByEnteringModal(ui.Modal):

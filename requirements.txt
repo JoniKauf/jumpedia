@@ -1,6 +1,7 @@
 discord
 mariadb
 typing_extensions
+beartype
 black
 isort
 requests

@@ -14,9 +14,9 @@ class SecretContentT(NamedTuple):
 def listen() -> SecretContentT:
     with open(os.path.abspath(__LOCATION), encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)
-    
+
     tup = tuple(data.items())
-    
+
     # Assert same order
     assert tuple(map(lambda e: e[0], tup)) == SecretContentT._fields
 
