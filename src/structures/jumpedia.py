@@ -11,7 +11,9 @@ from ..utils import text
 from . import BaseStructure, user
 from .attribute import slot_type
 from .community import Community, CommunityLimits
-from .errors import ServerAlreadyConnectedToCommunityError, StructureFoundError, StructureNotFoundError, SynAlreadyTakenError
+from .errors import (ServerAlreadyConnectedToCommunityError,
+                     StructureFoundError, StructureNotFoundError,
+                     SynAlreadyTakenError)
 from .user import JumpediaUser
 
 

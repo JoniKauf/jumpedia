@@ -1,11 +1,11 @@
 import importlib
 import inspect
 import os
-import traceback
-import typing as t
-import importlib
 import pkgutil
+import traceback
 import types
+import typing as t
+
 import discord as dc
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
@@ -13,28 +13,27 @@ from discord.ext import commands as cmds
 from ..database import secret
 from .errors import BaseUserReturnableError
 
-BOT = cmds.Bot(
-    command_prefix="33e32r230ro2dd", intents=dc.Intents.default()
-)
+BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.default())
 
 
 def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:
-    rel = os.path.relpath(pkg_path, start=os.getcwd()).strip(os.path.sep).replace(os.path.sep, '.')
-    
+    rel = (
+        os.path.relpath(pkg_path, start=os.getcwd())
+        .strip(os.path.sep)
+        .replace(os.path.sep, ".")
+    )
+
     # Use pkgutil to iterate over modules in the package
     for importer, modname, ispkg in pkgutil.iter_modules([pkg_path]):
         if ispkg:
             continue
 
-        if modname == '__init__':
+        if modname == "__init__":
             continue
-        
-        yield importlib.import_module(
-            f"{rel}.{modname}"
-        )
+
+        yield importlib.import_module(f"{rel}.{modname}")
 
 
-        
 @BOT.event
 async def on_ready():
     from . import cogs
@@ -47,6 +46,7 @@ async def on_ready():
 
     await BOT.tree.sync()
     await BOT.wait_until_ready()
+
 
 @BOT.tree.error
 async def on_app_command_error(

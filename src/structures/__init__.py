@@ -34,12 +34,14 @@ class _StructureMeta(ABCMeta):
         /,
         **kwargs: t.Any,
     ) -> _StructureMeta:
-        cls = super().__new__(mcls, name, bases, namespace | {'_type_name': None}, **kwargs)
+        cls = super().__new__(
+            mcls, name, bases, namespace | {"_type_name": None}, **kwargs
+        )
         return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
 
     @property
     def type_name(self) -> str:
-        v = getattr(self, '_type_name')
+        v = getattr(self, "_type_name")
 
         if v is None:
             v = text.pascal_to_snake(self.__name__, delim=" ")

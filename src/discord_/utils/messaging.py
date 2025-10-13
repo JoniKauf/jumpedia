@@ -1,12 +1,12 @@
 import itertools
-from string.templatelib import Interpolation, Template
 import typing as t
 from dataclasses import dataclass
+from string.templatelib import Interpolation, Template
 
 import discord as dc
 
-from .. import errors
 from ...utils import text
+from .. import errors
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
 
@@ -44,9 +44,11 @@ class MessageStatus:
 
 MessageStatus._init()
 
+
 @dataclass(frozen=True, slots=True)
-class Persistent():
+class Persistent:
     obj: object
+
 
 def _template_to_data(t: Template) -> list[tuple[str, bool]]:
     result: list[tuple[str, bool]] = []
@@ -55,18 +57,22 @@ def _template_to_data(t: Template) -> list[tuple[str, bool]]:
         if isinstance(obj, str):
             result.append((obj, False))
             continue
-        
-        v = text.apply_f_to_interpolation_value(obj.value, obj.conversion, obj.format_spec)
+
+        v = text.apply_f_to_interpolation_value(
+            obj.value, obj.conversion, obj.format_spec
+        )
 
         if isinstance(obj.value, Persistent):
             result.append((v, False))
-        
+
         result.append((v, True))
 
     return result
 
+
 def _get_byte_length(s: str) -> int:
-    return len(s.encode('utf-8'))
+    return len(s.encode("utf-8"))
+
 
 def layout(
     header: str,
@@ -79,7 +85,7 @@ def layout(
     data: list[list[tuple[str, bool]]] = [
         core_data := _template_to_data(core),
         additional_data := _template_to_data(additional or Template()),
-        *(paragraphs_data := list(map(_template_to_data, paragraphs)))
+        *(paragraphs_data := list(map(_template_to_data, paragraphs))),
     ]
 
     header = f"## {header.strip()}\n"
@@ -89,25 +95,26 @@ def layout(
     else:
         message_status_txt = ""
 
-    MORE = '...'
+    MORE = "..."
     MIN_LENGTH = 5
     MIN_LENGTH_WITH_MORE = len(MORE) + MIN_LENGTH
 
     while True:
-        result: list[str] = [
-            header,
-            ''.join(e[0] for e in core_data).strip()
-        ]
+        result: list[str] = [header, "".join(e[0] for e in core_data).strip()]
 
         if additional is not None:
-            result.append('\n' + ''.join(e[0] for e in additional_data or ()).strip())
+            result.append("\n" + "".join(e[0] for e in additional_data or ()).strip())
 
         if paragraphs:
-            result.append(''.join(f"\n\n{''.join(e[0] for e in p).strip()}" for p in paragraphs_data))
+            result.append(
+                "".join(
+                    f"\n\n{''.join(e[0] for e in p).strip()}" for p in paragraphs_data
+                )
+            )
 
         result.append(message_status_txt)
 
-        s = ''.join(result)
+        s = "".join(result)
 
         if _get_byte_length(s) <= dc.message.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES:
             break
@@ -120,17 +127,22 @@ def layout(
             for j, (s, shortable) in enumerate(lst):
                 if not shortable or len(s) <= MIN_LENGTH_WITH_MORE:
                     continue
-                
+
                 length = _get_byte_length(s)
 
                 if length > biggest_length:
                     biggest_i, biggest_j, biggest_length = i, j, length
 
-        
-        if biggest_length < 0 or len(data[biggest_i][biggest_j][0]) <= MIN_LENGTH_WITH_MORE:
+        if (
+            biggest_length < 0
+            or len(data[biggest_i][biggest_j][0]) <= MIN_LENGTH_WITH_MORE
+        ):
             raise ValueError("String not shortable enough!")
-        
-        biggest_s = data[biggest_i][biggest_j][0]
-        data[biggest_i][biggest_j] = (biggest_s[0:max(MIN_LENGTH, len(biggest_s) / 2)] + MORE, True)
 
-    return ''.join(result)
+        biggest_s = data[biggest_i][biggest_j][0]
+        data[biggest_i][biggest_j] = (
+            biggest_s[0 : max(MIN_LENGTH, len(biggest_s) / 2)] + MORE,
+            True,
+        )
+
+    return "".join(result)

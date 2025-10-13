@@ -116,11 +116,14 @@ def raws_to_unique_reals_and_norms(
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
 
 
-def apply_f_to_interpolation_value(value: t.Any, conversion: t.Literal['a', 'r', 's'] | None, format_spec: str) -> str:
+def apply_f_to_interpolation_value(
+    value: t.Any, conversion: t.Literal["a", "r", "s"] | None, format_spec: str
+) -> str:
     value = convert(value, conversion)
     value = format(value, format_spec)
     return value
-    
+
+
 # From https://peps.python.org/pep-0750/#example-implementing-f-strings-with-t-strings
 def t_to_f_string(template: Template) -> str:
     parts = []
@@ -129,7 +132,9 @@ def t_to_f_string(template: Template) -> str:
             case str() as s:
                 parts.append(s)
             case Interpolation(value, _, conversion, format_spec):
-                parts.append(apply_f_to_interpolation_value(value, conversion, format_spec))
+                parts.append(
+                    apply_f_to_interpolation_value(value, conversion, format_spec)
+                )
             case _:
                 assert_never(item)
 

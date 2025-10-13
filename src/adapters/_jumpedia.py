@@ -4,13 +4,17 @@ from dataclasses import field
 from ..discord_.errors import FeedbackError
 from ..ranks.jumpedia_rank import JumpediaRank
 from ..structures.community import Community
+from ..structures.errors import (
+    ServerAlreadyConnectedToCommunityError,
+    StructureFoundError,
+    SynAlreadyTakenError,
+)
 from ..structures.jumpedia import JUMPEDIA, Jumpedia
 from ..utils import text
 from . import BaseAdapter
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter
 from ._user.jumpedia_user import JumpediaUserAdapter
-from ..structures.errors import ServerAlreadyConnectedToCommunityError, StructureFoundError, SynAlreadyTakenError
 
 if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
@@ -70,16 +74,14 @@ class JumpediaAdapter(BaseAdapter):
             raise FeedbackError(
                 "Server Already Connected To A Community",
                 f"The server you are on (`{self.interaction.current_server.name}`) "
-                f"is already connected to a community (`{e.structure.name}`)!"
+                f"is already connected to a community (`{e.structure.name}`)!",
             )
         except SynAlreadyTakenError:
             raise FeedbackError(
-                "Name Already Taken",
-                f"The name `{name}` is already taken"
+                "Name Already Taken", f"The name `{name}` is already taken"
             )
 
         community = CommunityAdapter(
-            
             self,
         )
 

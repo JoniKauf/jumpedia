@@ -4,7 +4,6 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-
 # class UserCog(cmds.GroupCog, group_name="user"):
 #     def __init__(self, bot: cmds.Bot) -> None:
 #         self.bot = bot

@@ -6,10 +6,10 @@ import discord.ext.commands as cmds
 
 from ... import ranks
 from ...adapters.interaction import InteractionAdapter
-from ..structs import modals, predicates, views
-from ..utils import messaging
 from ...ranks.community_rank import CommunityRank
 from ...ranks.server_rank import ServerRank
+from ..structs import modals, predicates, views
+from ..utils import messaging
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):

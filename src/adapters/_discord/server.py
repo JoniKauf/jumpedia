@@ -16,7 +16,7 @@ class ServerAdapter(BaseAdapter):
     @property
     def id(self) -> int:
         return self._server.id
-    
+
     @property
     def name(self) -> str:
         return self._server.name
