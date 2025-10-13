@@ -12,7 +12,7 @@ from . import BaseStructure, user
 from .attribute import slot_type
 from .community import Community, CommunityLimits
 from .errors import (ServerAlreadyConnectedToCommunityError,
-                     StructureFoundError, StructureNotFoundError,
+                     StructureNotFoundError,
                      SynAlreadyTakenError)
 from .user import JumpediaUser
 
@@ -451,9 +451,8 @@ class Jumpedia(BaseStructure):
 
     # --- Communities ---
 
-    def create_community(self, *, raw_name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
+    def create_community(self, *, name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
         real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-        del raw_name
         
         with self.locked:
             comm = self.get_community_by_server_id(server_id)
@@ -464,7 +463,7 @@ class Jumpedia(BaseStructure):
             comm = self.get_community_by_name(norm_name)
 
             if comm is not None:
-                raise SynAlreadyTakenError(comm)
+                raise SynAlreadyTakenError(norm_name, comm)
 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""

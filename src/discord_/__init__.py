@@ -13,7 +13,7 @@ from discord.ext import commands as cmds
 from ..database import secret
 from .errors import BaseUserReturnableError
 
-BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.default())
+BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
 
 
 def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:

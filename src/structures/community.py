@@ -4,7 +4,7 @@ from ..database import queries, typed
 from ..database.simple_orm import Arg, Raw, Rows
 from ..ranks.community_rank import CommunityRank
 from ..utils import text
-from . import BaseStructure, errors, list
+from . import BaseStructure, list
 from .attribute.slot_type import SlotType
 from .attribute.static_attribute import StaticAttribute
 from .list import List
@@ -25,8 +25,6 @@ class CommunityLimits(t.NamedTuple):
     list_task_count_max: int
     attribute_alias_count_max: int
     attribute_collection_entry_alias_count_max: int
-
-
 
 class Community(BaseStructure):
     __structure_name__ = "community"
@@ -60,17 +58,21 @@ class Community(BaseStructure):
         return frozenset(row.id for row in result)
     
     def create_list(self, raw_name: str) -> 'List':
+        from . import errors
+
         with self.locked:
             real_name, norm_name = text.raw_to_real_and_norm(raw_name)
             del raw_name
 
-            if self.get_list_by_name(norm_name) is not None:
-                raise feedbacks.temp("A list with that name already exists")
+            list_ = self.get_list_by_name(norm_name)
+
+            if list_ is not None:
+                raise errors.SynAlreadyTakenError(list_)
             
             count = len(self.get_lists())
 
             if count >= self.limits.community_list_count_max:
-                raise feedbacks.temp("Limit of lists reached", count)
+                raise errors.LimitOfStructuresReachedError(self.limits.community_list_count_max, List)
             
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
@@ -128,6 +130,8 @@ class Community(BaseStructure):
             return list_
             
     def delete_list(self, id: int) -> None:
+        from . import errors
+
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
                 DELETE FROM {ListTbl}
@@ -192,6 +196,7 @@ class Community(BaseStructure):
         return self.get_list_by_id(row.default_selected_list_id)
     
     def set_default_selected_list(self, list_id: int | None) -> None:
+        from . import errors
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 UPDATE {CommunityTbl} 
@@ -200,7 +205,7 @@ class Community(BaseStructure):
             """)
 
             if c.affected_row_count < 1:
-                raise structures.errors.StructureNotFoundError(Community)
+                raise errors.StructureNotFoundError(Community)
 
     def get_or_create_community_user(
         self, 

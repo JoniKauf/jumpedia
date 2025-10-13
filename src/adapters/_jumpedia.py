@@ -1,14 +1,13 @@
 import typing as t
 from dataclasses import field
 
+from . import parsers
 from ..discord_.errors import FeedbackError
 from ..ranks.jumpedia_rank import JumpediaRank
 from ..structures.community import Community
-from ..structures.errors import (
-    ServerAlreadyConnectedToCommunityError,
-    StructureFoundError,
-    SynAlreadyTakenError,
-)
+from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
+                                 StructureFoundError, SynAlreadyTakenError)
+from . import errors
 from ..structures.jumpedia import JUMPEDIA, Jumpedia
 from ..utils import text
 from . import BaseAdapter
@@ -73,17 +72,13 @@ class JumpediaAdapter(BaseAdapter):
         except ServerAlreadyConnectedToCommunityError as e:
             raise FeedbackError(
                 "Server Already Connected To A Community",
-                f"The server you are on (`{self.interaction.current_server.name}`) "
-                f"is already connected to a community (`{e.structure.name}`)!",
+                t"The server you are on (`{self.interaction.current_server.name}`) "
+                t"is already connected to a community (`{e.structure.name}`)!",
             )
-        except SynAlreadyTakenError:
-            raise FeedbackError(
-                "Name Already Taken", f"The name `{name}` is already taken"
-            )
+        except SynAlreadyTakenError as e:
+            raise errors.SynAlreadyTakenFeedbackError(e)
 
-        community = CommunityAdapter(
-            self,
-        )
+        community = CommunityAdapter(comm, self)
 
         if initial_list_name is not None:
             try:

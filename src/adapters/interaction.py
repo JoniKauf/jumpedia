@@ -2,7 +2,7 @@ from functools import cached_property
 
 import discord as dc
 
-from ..errors.feedback import feedbacks
+from ..discord_.errors import FeedbackError
 from . import BaseAdapter
 from ._discord.member import MemberAdapter
 from ._discord.server import ServerAdapter
@@ -12,7 +12,10 @@ from ._jumpedia import JumpediaAdapter
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     if isinstance(user_or_member, dc.User):
-        raise feedbacks.temp("You must be on a server")
+        raise FeedbackError(
+            "Not On Server",
+            t"You must execute this command on a server!"
+        )
 
     return user_or_member
 

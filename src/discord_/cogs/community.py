@@ -4,7 +4,6 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ... import ranks
 from ...adapters.interaction import InteractionAdapter
 from ...ranks.community_rank import CommunityRank
 from ...ranks.server_rank import ServerRank

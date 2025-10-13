@@ -23,8 +23,8 @@ def __main():
         )
 
     # --- Import/Run modules to preload and test functionality ---
-    from src.structures import jumpedia
     import src.discord_
+    from src.structures import jumpedia
 
 
 if __name__ == "__main__":

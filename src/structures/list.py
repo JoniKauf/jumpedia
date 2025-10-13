@@ -3,16 +3,14 @@ import typing as t
 
 from ..database import queries, typed
 from ..database.simple_orm import Arg, Raw, Rows
-from ..errors.feedback import feedbacks
 from ..utils import text
 from . import BaseStructure
 from .attribute import (ANY_ATTRIBUTE, AnyAttributeT, BaseAttribute,
-                        BaseNonStaticAttribute)
+                        BaseNonStaticAttribute, SimpleCollectionEntryItem)
 from .attribute.slot_type import SlotType, SlotTypeT, TypeStr
 from .attribute.static_attribute import StaticAttribute
 from .attribute.task_attribute import TaskAttribute
 from .attribute.user_attribute import UserAttribute
-from .errors import StructureNotFoundError
 from .task import Task
 
 if t.TYPE_CHECKING:
@@ -168,7 +166,7 @@ class List(BaseStructure):
         slot_type: SlotType,
         max_slots: int,
         *,
-        raw_collection: t.Sequence[str]
+        raw_collection: t.Sequence[tuple[str, t.Iterable[str]]]
     ) -> T:
         pass
 
@@ -182,13 +180,12 @@ class List(BaseStructure):
         *,
         min_slots: int = 0,
         kind: KindsT | None = None,
-        raw_collection: t.Sequence[str] | None = None
+        raw_collection: t.Sequence[tuple[str, t.Iterable[str]]] = ()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
-        if (min_slots or kind) == issubclass(type, BaseNonStaticAttribute):
-            raise ValueError("Typing not followed on attribute creation #1")
-        
-        if (raw_collection is None) == issubclass(type, BaseNonStaticAttribute):
-            raise ValueError("Typing not followed on attribute creation #2")
+        from . import errors
+
+        assert (min_slots or kind) != issubclass(type, BaseNonStaticAttribute), "Typing not followed on attribute creation #1"
+        assert (not raw_collection) != issubclass(type, BaseNonStaticAttribute), "Typing not followed on attribute creation #2"
 
         (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms({raw_name, *raw_aliases})
 
@@ -199,17 +196,18 @@ class List(BaseStructure):
             attrs = self.get_all_attributes_flat()
 
             if len(attrs) >= self.community.limits.list_attribute_count_max:
-                raise feedbacks.temp("Max attributes reached")
+                raise errors.LimitOfStructuresReachedError(self.community.limits.list_attribute_count_max, type)
             
             for syn in (norm_name, *norm_aliases):
                 if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
-                    raise feedbacks.temp("Max syn length exceeded")
+                    raise errors.SynTooLongError(len(syn), self.community.jumpedia.limits.attribute_syn_length_max, type)
                 
-                if self.get_any_attribute_by_syn(syn) is not None:
-                    raise feedbacks.temp(f"Attribute name or alias `{syn}` already used as name or alias of different attribute")
+                attr_ = self.get_any_attribute_by_syn(syn)
+                if attr_ is not None:
+                    raise errors.SynAlreadyTakenError(syn, attr_)
                 
             if not (min_slots <= max_slots <= self.community.jumpedia.limits.attribute_task_value_slot_count_max):
-                raise feedbacks.temp("Max slots must be between 1 and 32 inclusive")
+                raise errors.ElementCountOutOfRangeError(min_slots, self.community.jumpedia.limits.attribute_task_value_slot_count_max, type)
             
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
@@ -284,12 +282,16 @@ class List(BaseStructure):
                 )
 
                 if raw_collection:
-                    assert isinstance(attribute, BaseNonStaticAttribute)
-                    attribute.set_collection(raw_collection)
+                    assert isinstance(attribute, BaseNonStaticAttribute), "Typing not followed on attribute creation #3"
+                    attribute.set_collection([
+                        SimpleCollectionEntryItem(tup[0]) for tup in raw_collection
+                    ])
                     
                 return attribute
 
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
+        from . import errors
+
         AttributeTbl = type.tables.attribute
 
         with self.locked, queries.connected() as c:
@@ -300,7 +302,7 @@ class List(BaseStructure):
             """)
 
             if c.affected_row_count <= 0:
-                raise StructureNotFoundError(type)
+                raise errors.StructureNotFoundError(type)
 
     def edit_attribute_name(
         self, 
@@ -355,6 +357,8 @@ class List(BaseStructure):
         id: int, 
         raw_aliases: t.Iterable[str]
     ) -> None:
+        from . import errors
+
         (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
         del raw_aliases
         
@@ -362,7 +366,7 @@ class List(BaseStructure):
             attribute = self.get_attribute_by_id(type, id)
 
             if attribute is None:
-                raise StructureNotFoundError(type)
+                raise errors.StructureNotFoundError(type)
 
             self._validate_attribute_syns(
                 norm_aliases={*norm_aliases}, 
@@ -586,6 +590,8 @@ class List(BaseStructure):
             )
         
     def delete_task(self, id: int):
+        from . import errors
+
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
                 DELETE FROM {typed.Task}
@@ -595,13 +601,15 @@ class List(BaseStructure):
             """)
 
             if c.affected_row_count < 1:
-                raise StructureNotFoundError(Task)
+                raise errors.StructureNotFoundError(Task)
 
     def edit_task_name(
         self,
         id: int,
         raw_name: str
     ) -> None:
+        from . import errors
+
         real_name, norm_name = text.raw_to_real_and_norm(raw_name)
         del raw_name
 
@@ -609,7 +617,7 @@ class List(BaseStructure):
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError(Task)
+                raise errors.StructureNotFoundError(Task)
 
             if real_name == task.real_name:
                 return
@@ -648,6 +656,8 @@ class List(BaseStructure):
         id: int, 
         raw_aliases: t.Iterable[str]
     ) -> None:
+        from . import errors
+
         (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
         del raw_aliases
         
@@ -655,7 +665,7 @@ class List(BaseStructure):
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError(Task)
+                raise errors.StructureNotFoundError(Task)
 
             self._validate_task_syns(
                 norm_aliases={*norm_aliases}, 
@@ -693,11 +703,13 @@ class List(BaseStructure):
         id: int,
         raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[str]]
     ):
+        from . import errors
+
         with self.locked:
             task = self.get_task_by_id(id)
 
             if task is None:
-                raise StructureNotFoundError(Task)
+                raise errors.StructureNotFoundError(Task)
             
             task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(
                 raw_task_attribute_value_mapping

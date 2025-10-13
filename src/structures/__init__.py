@@ -2,7 +2,6 @@ import typing as t
 from abc import ABCMeta, abstractmethod
 from contextlib import _GeneratorContextManager
 from dataclasses import dataclass
-from functools import cached_property
 from threading import RLock
 
 from ..utils import locked, text
@@ -37,7 +36,7 @@ class _StructureMeta(ABCMeta):
         cls = super().__new__(
             mcls, name, bases, namespace | {"_type_name": None}, **kwargs
         )
-        return dataclass(frozen=True, kw_only=True)(cls)  # type: ignore
+        return beartype.beartype(dataclass(frozen=True, kw_only=True)(cls))  # type: ignore
 
     @property
     def type_name(self) -> str:

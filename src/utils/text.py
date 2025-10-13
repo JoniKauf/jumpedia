@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import re
 import string
 import typing as t
@@ -69,7 +70,6 @@ def shorten_many(
 class RealStr(str):
     pass
 
-
 class NormStr(RealStr):
     pass
 
@@ -116,11 +116,9 @@ def raws_to_unique_reals_and_norms(
     return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
 
 
-def apply_f_to_interpolation_value(
-    value: t.Any, conversion: t.Literal["a", "r", "s"] | None, format_spec: str
-) -> str:
-    value = convert(value, conversion)
-    value = format(value, format_spec)
+def apply_f_to_interpolation_value(interpolation: Interpolation):
+    value = convert(interpolation.value, interpolation.conversion)
+    value = format(value, interpolation.format_spec)
     return value
 
 
@@ -131,9 +129,9 @@ def t_to_f_string(template: Template) -> str:
         match item:
             case str() as s:
                 parts.append(s)
-            case Interpolation(value, _, conversion, format_spec):
+            case Interpolation() as interp:
                 parts.append(
-                    apply_f_to_interpolation_value(value, conversion, format_spec)
+                    apply_f_to_interpolation_value(interp)
                 )
             case _:
                 assert_never(item)

@@ -15,7 +15,9 @@ if t.TYPE_CHECKING:
     from .static_attribute import StaticAttribute
     from .task_attribute import TaskAttribute
     from .user_attribute import UserAttribute
-
+else:
+    KindsT = int
+    
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 
 def ANY_ATTRIBUTE() -> tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]]:
@@ -115,9 +117,9 @@ class BaseAttribute(BaseStructure):
         return [self.slot_type.raw_to_slot(slot) for slot in value]
 
 
-class RawCollectionEntryItem(t.TypedDict):
-    value: str
-    aliases: frozenset[str]
+class SimpleCollectionEntryItem(t.TypedDict):
+    value: text.RealStr
+    aliases: frozenset[text.RealStr]
 
 
 class BaseNonStaticAttribute(BaseAttribute):
@@ -202,7 +204,7 @@ class BaseNonStaticAttribute(BaseAttribute):
     
     def set_collection(
         self,
-        raw_collection: t.Sequence[RawCollectionEntryItem], 
+        raw_collection: t.Sequence[SimpleCollectionEntryItem], 
     ) -> 'Collection':
         count = len(raw_collection)
 
