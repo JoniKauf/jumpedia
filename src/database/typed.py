@@ -6,10 +6,10 @@ from .simple_orm import SNAKE, BaseModel, column
 # Only way I found to *easily* remove cyclic imports in this case
 if t.TYPE_CHECKING:
     from structures.attribute.slot_type import TypeStr
-    from structures.list import KindsT
+    from structures.list import KindT
 else:
     TypeStr = str
-    KindsT = int
+    KindT = int
 
 
 DATABASE_NAME: t.Final[str] = "jumpedia"
@@ -225,7 +225,7 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
 
 
 class StaticAttribute(BaseAttribute, table_name=SNAKE):
-    @column(KindsT)
+    @column(KindT)
     def kind(self):
         pass
 

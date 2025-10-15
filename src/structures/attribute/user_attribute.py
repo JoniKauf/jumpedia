@@ -10,3 +10,4 @@ class UserAttribute(BaseNonStaticAttribute):
         typed.UserAttributeCollectionSlotAlias,
         typed.UserAttributeTaskValue,
     )
+    type_id = 2

@@ -452,7 +452,7 @@ class Jumpedia(BaseStructure):
     # --- Communities ---
 
     def create_community(self, *, name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
-        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
+        real_name, norm_name = text.raw_to_real_and_norm(name)
         
         with self.locked:
             comm = self.get_community_by_server_id(server_id)
@@ -557,11 +557,11 @@ class Jumpedia(BaseStructure):
             )
         )
     
-    def get_communities(self, where: t.Callable[[Arg], str] | None = None) -> set[Community]:
-        return {
+    def get_communities(self, where: t.Callable[[Arg], str] | None = None) -> list[Community]:
+        return [
             self._community_row_to_obj(data) 
             for data in self._fetch_from_community_table(where)
-        }
+        ]
         
     def get_community_by_id(self, id: int) -> Community | None:
         data = self._fetch_from_community_table(lambda arg: f"{typed.Community.id} = {arg(id)}")

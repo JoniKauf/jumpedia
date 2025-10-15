@@ -8,6 +8,7 @@ import mariadb
 from ..utils import text
 from . import secret, typed
 from .simple_orm import Arg, Args, BaseModel, BaseModelMeta, Column, Raw, Rows
+import atexit
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
 #     # mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
@@ -15,27 +16,10 @@ from .simple_orm import Arg, Args, BaseModel, BaseModelMeta, Column, Raw, Rows
 # }
 
 
-__connection_data: dict[str, t.Any] | None = None
-
-
-def __get_connection_data() -> dict[str, t.Hashable]:
-    global __connection_data
-
-    if __connection_data is None:
-        __connection_data = secret.listen().DB_CONNECTION_INFO
-
-    return __connection_data
-
-
-_connections: dict[frozenset[tuple[str, t.Hashable]], mariadb.Connection] = {}
-_lock = RLock()
-
-
-def _connection_data_to_hashable(
-    connection_data: dict[str, t.Hashable],
-) -> frozenset[tuple[str, t.Hashable]]:
-    return frozenset(connection_data.items())
-
+__CONNECTION_DATA: dict[str, t.Any] = {
+    **secret.listen().DB_CONNECTION_INFO,
+    **{'autocommit': False}
+}
 
 type InterpolationExecuteT = Interpolation[
     Arg.ArgPlaceholder | Raw | BaseModelMeta | Column
@@ -115,46 +99,27 @@ class CursorWrapper:
         self._cursor.execute(statement)
 
 
-@contextmanager
-def connected(
-    commit_on_exit: bool = True, *, no_db: bool = False
-) -> t.Iterator[CursorWrapper]:
-    if no_db:
-        database = {}
-    else:
-        database = {"db": typed.DATABASE_NAME}
+CONNECTION_POOL = mariadb.ConnectionPool(pool_name="pool", pool_size=5, pool_reset_connection=True, db=typed.DATABASE_NAME, **__CONNECTION_DATA)
+atexit.register(lambda **_: CONNECTION_POOL.close())
 
-    connection_data = __get_connection_data() | database
-    hashable = _connection_data_to_hashable(connection_data)
+@contextmanager
+def connected(*, no_db: bool = False) -> t.Iterator[CursorWrapper]:
+    if no_db:
+        conn = mariadb.connect(**__CONNECTION_DATA)
+    else:
+        conn = CONNECTION_POOL.get_connection()
 
     try:
-        with _lock:
-            conn = _connections.get(hashable, None)
-
-            if conn is None:
-                close_conn = True
-                _connections[hashable] = conn = mariadb.connect(**connection_data)
-            else:
-                close_conn = False
-
         cursor = conn.cursor(dictionary=True)
-
+        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         yield CursorWrapper(cursor)
-
     except Exception as e:
         if conn:
             conn.rollback()
 
         raise e
-
     finally:
         if conn is not None:
-            if commit_on_exit:
-                conn.commit()
-
+            conn.commit()
             cursor.close()
-
-            with _lock:
-                if close_conn:
-                    _connections.pop(hashable)
-                    conn.close()
+            conn.close()

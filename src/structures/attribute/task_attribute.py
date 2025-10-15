@@ -12,3 +12,4 @@ class TaskAttribute(BaseNonStaticAttribute):
         typed.TaskAttributeCollectionSlotAlias,
         typed.TaskAttributeTaskValue,
     )
+    type_id = 1

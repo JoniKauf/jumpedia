@@ -1,14 +1,18 @@
 import ast
 import typing as t
-from ..discord_.errors import FeedbackError
-from .errors import InvalidArgumentFeedbackError
-from ..utils.argparsing import (ArgParser, DictOfStrToListOfStrVisitor,
-                                ListOfTupleVisitor,
-                                ListOfStrVisitor)
+from src.discord_.errors import FeedbackError
+from src.adapters.errors import InvalidArgumentFeedbackError
+from src.utils.expression_parsing.parser import ExpressionParser, ExpressionParserConfig
+from src.utils.expression_parsing.visitor import ListOfStrVisitor, ListOfTupleVisitor, DictOfStrToListOfStrVisitor, ExpressionVisitorConfig, BaseExpressionVisitor
+from structures.task import Task
 
-LIST_PARSER = ArgParser(ListOfStrVisitor())
+_KIBIBYTE = 2 ** 10
 
-MAPPING_PARSER = ArgParser(DictOfStrToListOfStrVisitor())
+_CONFIG_PARSER = ExpressionParserConfig(_KIBIBYTE * _KIBIBYTE * 2, _KIBIBYTE * 4)
+_CONFIG_VISITOR = ExpressionVisitorConfig(255)
+
+LIST_PARSER = ExpressionParser(ListOfStrVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER)
+MAPPING_PARSER = ExpressionParser(DictOfStrToListOfStrVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER)
 
 
 def _handle_name_aliases_tuple(tup: ast.Tuple, visitor: ListOfTupleVisitor) -> tuple[str, list[str]]:
@@ -54,8 +58,17 @@ def _handle_name_aliases_tuple(tup: ast.Tuple, visitor: ListOfTupleVisitor) -> t
     return (first.value, elts)
 
     
+LIST_OF_NAME_ALIASES_PARSER = ExpressionParser(ListOfTupleVisitor(_handle_name_aliases_tuple, config=_CONFIG_VISITOR), config=_CONFIG_PARSER)
 
-
-LIST_OF_NAME_ALIASES_PARSER = ArgParser(ListOfTupleVisitor(
-    _handle_name_aliases_tuple
-))
+    
+class FilterVisitor(BaseExpressionVisitor[list[ast.AST]], body_type=ast.BoolOp):
+    def __init__(self, tasks: list[Task], *, config: ExpressionVisitorConfig) -> None:
+        self.tasks = tasks
+        super().__init__(config=config)
+ 
+    def visit_Constant(self, node: ast.Constant) -> t.Any:
+        print("const")
+    
+    def visit_BoolOp(self, node: ast.BoolOp) -> t.Any:
+        if isinstance(node)
+    

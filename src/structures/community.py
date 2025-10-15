@@ -1,3 +1,4 @@
+import builtins
 import typing as t
 
 from ..database import queries, typed
@@ -165,11 +166,11 @@ class Community(BaseStructure):
             norm_name=row.norm_name
         )
     
-    def get_lists(self, where: t.Callable[[Arg], str] | None = None) -> set[List]:
-        return {
+    def get_lists(self, where: t.Callable[[Arg], str] | None = None) -> builtins.list[List]:
+        return [
             self._list_row_to_obj(data) 
             for data in self._fetch_from_list_table(where)
-        }
+        ]
 
     def get_list_by_id(self, id: int) -> List | None:
         data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")

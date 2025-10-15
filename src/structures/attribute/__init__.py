@@ -11,12 +11,12 @@ from .collection import Collection, CollectionEntry
 from .slot_type import SlotType, TypeStr
 
 if t.TYPE_CHECKING:
-    from ..list import KindsT, List
+    from ..list import KindT, List
     from .static_attribute import StaticAttribute
     from .task_attribute import TaskAttribute
     from .user_attribute import UserAttribute
 else:
-    KindsT = int
+    KindT = int
     
 type AnyAttributeT = StaticAttribute | TaskAttribute | UserAttribute
 
@@ -44,6 +44,7 @@ class BaseNonStaticAttributeTables(AttributeTables):
 
 class BaseAttribute(BaseStructure):
     tables: t.ClassVar[AttributeTables]
+    type_id: t.ClassVar[int]
     
     list: 'List'
     id: int 
@@ -53,7 +54,7 @@ class BaseAttribute(BaseStructure):
     position: int
     min_slots: int
     max_slots: int
-    kind: KindsT | None = None
+    kind: KindT | None = None
 
     @property
     def identity(self) -> tuple[int, ...]:

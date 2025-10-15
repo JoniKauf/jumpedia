@@ -49,9 +49,10 @@ class _InterpolationData(t.NamedTuple):
     shortable: bool
 
 
+MAX_DISCORD_CODE_UNITS: int = 2000
 
-def _get_byte_length(s: str) -> int:
-    return len(s.encode("utf-8"))
+def utf16_code_units(s: str) -> int:
+    return len(s.encode('utf-16-le')) // 2
 
 
 def layout(
@@ -116,7 +117,7 @@ def layout(
             for elem in final_templ
         )
 
-        if _get_byte_length(s) <= dc.message.utils.DEFAULT_FILE_SIZE_LIMIT_BYTES:
+        if utf16_code_units(s) <= MAX_DISCORD_CODE_UNITS:
             return s
 
         biggest: Interpolation | None = None

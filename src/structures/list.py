@@ -1,6 +1,8 @@
 import itertools
 import typing as t
 
+from structures.task.attribute_value_mapping import AttributeValueMapping
+
 from ..database import queries, typed
 from ..database.simple_orm import Arg, Raw, Rows
 from ..utils import text
@@ -21,8 +23,8 @@ STATIC_ATTRIBUTE_KIND_OF_ID: t.Final = 1
 STATIC_ATTRIBUTE_KIND_OF_NAME: t.Final = 2
 STATIC_ATTRIBUTE_KIND_OF_ALIASES: t.Final = 3
 
-type KindsT = t.Literal[1, 2, 3]
-KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindsT.__value__)
+type KindT = t.Literal[1, 2, 3]
+KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
 
 class List(BaseStructure):
     community: 'Community'
@@ -40,11 +42,11 @@ class List(BaseStructure):
 
     # --- All Attributes ---
 
-    def get_attributes[T: BaseAttribute](self, type: type[T]) -> set[T]:
-        return {
+    def get_attributes[T: BaseAttribute](self, type: type[T]) -> list[T]:
+        return [
             self._attribute_row_to_obj(type, row)
             for row in self._fetch_from_attribute_table(type.tables.attribute, None)
-        }
+        ]
 
     def get_attribute_by_id[T: BaseAttribute](self, type: type[T], id: int) -> T | None:
         table_type = type.tables.attribute
@@ -88,7 +90,7 @@ class List(BaseStructure):
                 for attr in self.get_attributes(type)
         )
     
-    def get_all_attributes(self) -> tuple[set[StaticAttribute], set[TaskAttribute], set[UserAttribute]]:
+    def get_all_attributes(self) -> tuple[list[StaticAttribute], list[TaskAttribute], list[UserAttribute]]:
         return tuple(
             self.get_attributes(type)
             for type in ANY_ATTRIBUTE()
@@ -121,8 +123,8 @@ class List(BaseStructure):
             
             if attr is not None:
                 return attr
-            
-    def get_static_attribute_by_kind(self, kind: KindsT) -> StaticAttribute:
+    
+    def get_static_attribute_by_kind(self, kind: KindT) -> StaticAttribute:
         StaticAttributeTbl = typed.StaticAttribute
 
         if kind not in KINDS:
@@ -153,7 +155,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int,
-        kind: KindsT
+        kind: KindT
     ) -> T:
         pass
 
@@ -179,7 +181,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int = 0,
-        kind: KindsT | None = None,
+        kind: KindT | None = None,
         raw_collection: t.Sequence[tuple[str, t.Iterable[str]]] = ()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         from . import errors
@@ -404,6 +406,8 @@ class List(BaseStructure):
         table_type: type[T], 
         where: t.Callable[[Arg], str] | None
     ) -> Rows[T]:
+        order = t"ORDER BY {table_type.kind}" if issubclass(table_type, StaticAttribute) else t""
+
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
@@ -411,7 +415,7 @@ class List(BaseStructure):
                 WHERE 
                     {table_type.list_id} = {arg(self.id)}
                     {Raw(f"AND {where(arg)}" if where is not None else "")}
-            """)
+            """ + order)
 
             return c.fetchall(table_type)
         
@@ -507,11 +511,11 @@ class List(BaseStructure):
 
     # --- Tasks ---
 
-    def get_tasks(self, where: t.Callable[[Arg], str] | None = None) -> set[Task]:
-        return {
+    def get_tasks(self, where: t.Callable[[Arg], str] | None = None) -> list[Task]:
+        return [
             self._task_row_to_obj(data) 
             for data in self._fetch_tasks_from_table(where)
-        }
+        ]
 
     def get_task_by_id(self, id: int) -> Task | None:
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.id} = {arg(id)}")
@@ -543,6 +547,39 @@ class List(BaseStructure):
             self.get_task_by_name(norm_syn) or
             self.get_task_by_alias(norm_syn)
         )
+    
+
+    def get_tasks_attribute_value_mapping(self, attribute_types: frozenset[type[AnyAttributeT]]) -> dict[Task, AttributeValueMapping]:
+        id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
+        task_to_avm: dict[Task, AttributeValueMapping] = {}
+        
+        data: list[tuple[int, AnyAttributeT, tuple[text.RealStr, ...]]] = []
+
+        with queries.connected() as c:
+            for attr_type in attribute_types:
+                if issubclass(attr_type, StaticAttribute):
+                    id_attr, name_attr, aliases_attr = self.get_attributes(attr_type)
+
+                    for id, task in id_to_task.items():
+                        data.append((id, id_attr, (text.RealStr(id),)))
+                        data.append((id, name_attr, (task.real_name,)))
+
+                    c.execute(lambda arg: t"""
+                        SELECT {typed.TaskAlias.real_alias}, {typed.TaskAlias.task_id}
+                        FROM {typed.TaskAlias}
+                        WHERE {typed.TaskAlias.list_id} = {arg(self.id)}
+                    """)
+
+                    task_id_to_aliases = itertools.groupby(c.fetchall(typed.TaskAlias), lambda row: row.task_id)
+
+                    for task_id, aliases in task_id_to_aliases:
+                        data.append((task_id, aliases_attr, tuple(alias.real_alias for alias in aliases)))
+
+                elif issubclass(attr_type, TaskAttribute):
+                    tbl = attr_type.tables.attribute_task_value
+                    c.execute(lambda arg: t"""
+                        SELECT {.}
+                    """)
     
     def create_task(
         self, 

@@ -1,17 +1,23 @@
 import ast
 import io
 import tokenize
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
+import typing as t
 
 from . import errors
-from .config import ExpressionParsingConfig
-from .visitor import BaseExpressionVisitor
+from .visitor import BaseExpressionVisitor, ExpressionVisitorConfig
 
+
+class ExpressionParserConfig(t.NamedTuple):
+    SOURCE_LEN_MAX: int
+    TOKEN_COUNT_MAX: int
 
 @dataclass(frozen=True, slots=True)
 class ExpressionParser[T]:
     visitor: BaseExpressionVisitor[T]
-    config: ExpressionParsingConfig
+    _: KW_ONLY
+    config: ExpressionParserConfig
+
 
     def _validate_tokens(self, s: str):
         tok_gen = tokenize.generate_tokens(io.StringIO(s).readline)
@@ -66,7 +72,7 @@ def __main():
         
         if not isinstance(second, ast.List) or not all(isinstance(elem, ast.Constant) and isinstance(elem.value, str) for elem in second.elts):
             raise ValueError("Second element is not list of strings")
-        
+
         return first.value, list(map(lambda elem: elem.value ,second.elts))
     
     while True:
@@ -85,18 +91,13 @@ def __main():
             continue
         
         visitor_cls = clss[choice]
-        config = ExpressionParsingConfig(
-            SOURCE_LEN_MAX=200,
-            STR_LEN_MAX=20,
-            TOKEN_COUNT_MAX=200
-        )
 
         if issubclass(visitor_cls, (ListOfTupleVisitor, DictOfStrToListOfTupleVisitor)):
-            visitor = visitor_cls(visit_Tuple, config)
+            visitor = visitor_cls(visit_Tuple, config=ExpressionVisitorConfig(100))
         else:
-            visitor = visitor_cls(config)
+            visitor = visitor_cls(config=ExpressionVisitorConfig(100))
 
-        parser = ExpressionParser(visitor, config)
+        parser = ExpressionParser(visitor, config=ExpressionParserConfig(100, 100))
 
         while (inp := input("Input: ")) != "exit":
             try:
