@@ -1,7 +1,7 @@
 import typing as t
 from abc import ABCMeta, abstractmethod
 from contextlib import _GeneratorContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import RLock
 
 from ..utils import locked, text
@@ -36,21 +36,25 @@ class _StructureMeta(ABCMeta):
         cls = super().__new__(
             mcls, name, bases, namespace | {"_type_name": None}, **kwargs
         )
-        return beartype.beartype(dataclass(frozen=True, kw_only=True)(cls))  # type: ignore
+        return dataclass(frozen=True, slots=True, kw_only=True)(cls)  # type: ignore
 
     @property
     def type_name(self) -> str:
         v = getattr(self, "_type_name")
 
         if v is None:
-            v = text.pascal_to_snake(self.__name__, delim=" ")
+            v = text.pascal_to_snake(self.__name__.removeprefix('Base'), delim=" ")
 
         return v
 
-
 class BaseStructure(metaclass=_StructureMeta):
+    python_id: int = field(init=False, default=-1)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, 'python_id', id(self))
+
     @property
-    def locked(self) -> _GeneratorContextManager[RLock, None, None]:
+    def locked(self) -> _GeneratorContextManager[None]:
         return locked.equality_locked(self)
 
     @property

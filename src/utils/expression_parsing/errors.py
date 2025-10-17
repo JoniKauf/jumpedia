@@ -1,6 +1,6 @@
 import ast
 import typing as t
-
+from . import utils
 
 class BaseExpressionParsingError(Exception):
     pass
@@ -12,9 +12,9 @@ class GenericVisitError(BaseExpressionParsingError):
         super().__init__()
 
 
-class WrongChildError(BaseExpressionParsingError):
+class WrongVisitError(BaseExpressionParsingError):
     def __init__(
-        self, received: ast.AST, expected: type[ast.AST]
+        self, received: ast.AST, expected: utils.ExpectedAstT | None
     ) -> None:
         self.received = received
         self.expected = expected

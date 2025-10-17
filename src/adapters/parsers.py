@@ -1,10 +1,21 @@
 import ast
+from dataclasses import dataclass
+from functools import cached_property
+from types import MappingProxyType
 import typing as t
+
+import rexpr
 from src.discord_.errors import FeedbackError
-from src.adapters.errors import InvalidArgumentFeedbackError
+from src.adapters.errors import InvalidArgumentFeedbackError, StructureNotFoundViaSynFeedbackError
 from src.utils.expression_parsing.parser import ExpressionParser, ExpressionParserConfig
 from src.utils.expression_parsing.visitor import ListOfStrVisitor, ListOfTupleVisitor, DictOfStrToListOfStrVisitor, ExpressionVisitorConfig, BaseExpressionVisitor
+from src.utils.expression_parsing import utils as ep_utils, errors as ep_errors
+from structures.attribute import AnyAttributeT, BaseAttribute
+from structures.attribute.slot_type import SlotTypeT
 from structures.task import Task
+from structures.task.attribute_value_mapping import AttributeValueMapping
+from utils import text
+from utils.text import NormStr
 
 _KIBIBYTE = 2 ** 10
 
@@ -60,15 +71,120 @@ def _handle_name_aliases_tuple(tup: ast.Tuple, visitor: ListOfTupleVisitor) -> t
     
 LIST_OF_NAME_ALIASES_PARSER = ExpressionParser(ListOfTupleVisitor(_handle_name_aliases_tuple, config=_CONFIG_VISITOR), config=_CONFIG_PARSER)
 
+type FilterAvmCollectionT = MappingProxyType[int, dict[NormStr, frozenset[SlotTypeT]]]
+type FilterAttributesT = MappingProxyType[NormStr, AnyAttributeT]
+
+
+
+_OP_TO_FUNC: dict[type[ast.AST], t.Callable[[SlotTypeT, frozenset[SlotTypeT]], bool]] = {
+    ast.Eq:    lambda v, tav: v in tav, 
+    ast.NotEq: lambda v, tav: v not in tav, 
+    ast.Lt:    lambda v, tav: any(v < s for s in tav), 
+    ast.LtE:   lambda v, tav: any(v <= s for s in tav), 
+    ast.Gt:    lambda v, tav: any(v > s for s in tav), 
+    ast.GtE:   lambda v, tav: any(v >= s for s in tav)
+}
+
+class FilterVisitor(BaseExpressionVisitor[list[AttributeValueMapping], [t.Iterable[AttributeValueMapping]]], body_type=(ast.BoolOp, ast.Compare)):
+    def start_visit(self, node: ast.AST, avms: t.Iterable[AttributeValueMapping]) -> list[AttributeValueMapping]:
+        attribute_value_mappings: dict[int, AttributeValueMapping] = {
+            avm.python_id: avm for avm in avms
+        }
+
+        favmc: FilterAvmCollectionT = MappingProxyType({
+            avm.python_id: {
+                attr.norm_name: frozenset(map(attr.slot_type.slot_to_norm, val))
+                for attr, val in avm.combined.items()
+            } for avm in attribute_value_mappings.values()
+        })
+
+        attributes: FilterAttributesT = MappingProxyType({
+            attr.norm_name: attr
+            for avm in attribute_value_mappings.values()
+                for attr in avm.combined
+        })
+
+        result: FilterAvmCollectionT = super().visit(node, favmc, attributes)
+        
+        return list(attribute_value_mappings[id] for id in result)
     
-class FilterVisitor(BaseExpressionVisitor[list[ast.AST]], body_type=ast.BoolOp):
-    def __init__(self, tasks: list[Task], *, config: ExpressionVisitorConfig) -> None:
-        self.tasks = tasks
-        super().__init__(config=config)
- 
-    def visit_Constant(self, node: ast.Constant) -> t.Any:
-        print("const")
     
-    def visit_BoolOp(self, node: ast.BoolOp) -> t.Any:
-        if isinstance(node)
+    def visit_BoolOp(self, node: ast.BoolOp, favmc: FilterAvmCollectionT, attributes: FilterAttributesT) -> t.Any:
+        assert isinstance(node.op, ast.And | ast.Or)
+
+        values = ep_utils.validate_children_type(node.values, ast.Compare)
+
+        if isinstance(node.op, ast.Or):
+            remaining = favmc
+            result: dict[int, dict[NormStr, frozenset[SlotTypeT]]] = {}
+
+            for v in values:
+                if not remaining:
+                    break
+
+                new: FilterAvmCollectionT = self.visit(v, remaining, attributes)
+                remaining = dict(remaining.items() - new.items())
+                result |= new
+
+            return result
+        
+        if isinstance(node.op, ast.And):
+            for v in values:
+                if not favmc:
+                    break
+                
+                new: FilterAvmCollectionT = self.visit(v, favmc, attributes)
+                favmc = MappingProxyType(dict(favmc.items() & new.items()))
+
+            return favmc
+        
+        t.assert_never(node.op)
+
+    def visit_Compare(self, node: ast.Compare, favmc: FilterAvmCollectionT, attributes: FilterAttributesT) -> t.Any:
+        if len(node.ops) > 1:
+            raise ep_errors.WrongVisitError(node.ops[1], None)
+        
+        op = node.ops[0]
+
+        op_func = _OP_TO_FUNC.get(op.__class__)
+
+        if op_func is None:
+            raise ep_errors.WrongVisitError(op, self.__class__)
+        
+        left, right = node.left, node.comparators[0]
+        
+        LEFT_RIGHT_TYPE = ast.Constant
+
+        if not isinstance(left, LEFT_RIGHT_TYPE):
+            raise ep_errors.WrongVisitError(left, LEFT_RIGHT_TYPE)
+        
+        if not isinstance(right, LEFT_RIGHT_TYPE):
+            raise ep_errors.WrongVisitError(right, LEFT_RIGHT_TYPE)
+
+        attr_name: NormStr = self.visit(right, None)
+        attr = attributes.get(attr_name)
+
+        if attr is None:
+            raise StructureNotFoundViaSynFeedbackError(attr_name, BaseAttribute)
+        
+        value: SlotTypeT = self.visit(left, attr)
+
+        return MappingProxyType({
+            i: tav 
+            for i, tav in favmc.items()
+            if op_func(value, tav[attr_name])
+        })
+
+    def visit_Constant(self, node: ast.Constant, attribute: AnyAttributeT | None) -> t.Any:
+        c = ep_utils.visit_Constant_and_validate_str(node, self)
+
+        if attribute is None:
+            return c
+        
+        return attribute.slot_type.type(c)
     
+
+FILTER_PARSER = ExpressionParser(
+    FilterVisitor(config=_CONFIG_VISITOR),
+    config=_CONFIG_PARSER
+)

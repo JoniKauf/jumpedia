@@ -1,7 +1,7 @@
 import ast
 import io
 import tokenize
-from dataclasses import KW_ONLY, dataclass
+from dataclasses import KW_ONLY, InitVar, dataclass
 import typing as t
 
 from . import errors
@@ -12,9 +12,10 @@ class ExpressionParserConfig(t.NamedTuple):
     SOURCE_LEN_MAX: int
     TOKEN_COUNT_MAX: int
 
+
 @dataclass(frozen=True, slots=True)
-class ExpressionParser[T]:
-    visitor: BaseExpressionVisitor[T]
+class ExpressionParser[T, **P]:
+    visitor: BaseExpressionVisitor[T, P]
     _: KW_ONLY
     config: ExpressionParserConfig
 
@@ -43,7 +44,7 @@ class ExpressionParser[T]:
 
             prev_tok = tok
 
-    def parse(self, s: str) -> T:
+    def parse(self, s: str, *args: P.args, **kwargs: P.kwargs) -> T:
         if not (s := s.strip()):
             raise errors.EmptySrcError()
 
@@ -56,7 +57,7 @@ class ExpressionParser[T]:
         # Throws TokenError when syntax wrong
         self._validate_tokens(s)
 
-        return self.visitor.start_visit(ast.parse(s, mode="eval"))
+        return self.visitor.start_visit(ast.parse(s, mode="eval"), *args, **kwargs)
 
 
 def __main():
@@ -107,4 +108,3 @@ def __main():
 
 if __name__ == '__main__':
     __main()
-

@@ -154,6 +154,15 @@ class SlotType:
 
         t.assert_never(self.type)
 
+    def slot_to_type(self, s: TypeStr) -> SlotTypeT:
+        return self.type(s)
+
+    def slot_to_norm(self, s: TypeStr) -> SlotTypeT:
+        if issubclass(self.type, str):
+            return text.real_to_norm(s)
+        
+        return self.type(s)
+
 
 SlotType._init()
 

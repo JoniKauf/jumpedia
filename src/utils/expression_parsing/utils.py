@@ -1,4 +1,5 @@
 
+import types
 import typing as t
 import ast
 
@@ -7,18 +8,21 @@ from . import errors
 if t.TYPE_CHECKING:
     from . import visitor
 
+type ExpectedAstT[T: ast.AST] = type[T] | tuple[type[T], ...] 
+
 def validate_children_type[T: ast.AST](
     children: t.Iterable[ast.AST], child_type: type[T]
-) -> t.Generator[T]:
+) -> tuple[T, ...]:
+    ch = tuple(children)
+
     if child_type is not ast.AST:
-        for child in children:
+        for child in ch:
             if not isinstance(child, child_type):
-                raise errors.WrongChildError(child, child_type)
+                raise errors.WrongVisitError(child, child_type)
 
-    yield from children  # type: ignore
+    return ch  # type: ignore
 
-
-def visit_Constant_str_and_validate_value(node: ast.Constant, visitor: visitor.BaseExpressionVisitor) -> str:
+def visit_Constant_and_validate_str(node: ast.Constant, visitor: visitor.BaseExpressionVisitor) -> str:
     if not isinstance(node.value, str):
         raise errors.NotStrConstantError(node.value)
 
