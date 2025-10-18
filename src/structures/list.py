@@ -1,22 +1,24 @@
+from collections import defaultdict
 import itertools
+from string.templatelib import Template
+from types import MappingProxyType
 import typing as t
 
-from structures.task.attribute_value_mapping import AttributeValueMapping
+from structures import errors
+from structures.task.attribute_value_mapping import AttributeValueMapping, AvmT
+from structures.user.community_user import CommunityUser
 
-from ..database import queries, typed
-from ..database.simple_orm import Arg, Raw, Rows
-from ..utils import text
-from . import BaseStructure
-from .attribute import (ANY_ATTRIBUTE, AnyAttributeT, BaseAttribute,
-                        BaseNonStaticAttribute, SimpleCollectionEntryItem)
-from .attribute.slot_type import SlotType, SlotTypeT, TypeStr
-from .attribute.static_attribute import StaticAttribute
-from .attribute.task_attribute import TaskAttribute
-from .attribute.user_attribute import UserAttribute
-from .task import Task
+from src.database import queries, typed
+from src.database.simple_orm import Arg, Raw, Rows
+from src.utils import text
+from src.structures import BaseStructure
+from src.structures.attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
+                        BaseNonStaticAttribute, SimpleCollectionEntryItem, StaticAttribute, TaskAttribute, UserAttribute)
+from src.structures.attribute.slot_type import SlotType, SlotTypeT, SlotStr
+from src.structures.task import Task
 
 if t.TYPE_CHECKING:
-    from .community import Community
+    from src.structures.community import Community
 
 
 STATIC_ATTRIBUTE_KIND_OF_ID: t.Final = 1
@@ -25,6 +27,9 @@ STATIC_ATTRIBUTE_KIND_OF_ALIASES: t.Final = 3
 
 type KindT = t.Literal[1, 2, 3]
 KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
+
+type _RawAvmT = dict[int, list[SlotStr]]
+
 
 class List(BaseStructure):
     community: 'Community'
@@ -86,39 +91,39 @@ class List(BaseStructure):
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
         return tuple(
             attr
-            for type in ANY_ATTRIBUTE()
+            for type in ALL_ATTRIBUTE_TYPES
                 for attr in self.get_attributes(type)
         )
     
     def get_all_attributes(self) -> tuple[list[StaticAttribute], list[TaskAttribute], list[UserAttribute]]:
         return tuple(
             self.get_attributes(type)
-            for type in ANY_ATTRIBUTE()
+            for type in ALL_ATTRIBUTE_TYPES
         )  # type: ignore
 
     def get_any_attribute_by_id(self, id: int) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE():
+        for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_id(type, id)
 
             if attr is not None:
                 return attr
         
     def get_any_attribute_by_name(self, norm_name: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE():
+        for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_name(type, norm_name)
             
             if attr is not None:
                 return attr
         
     def get_any_attribute_by_alias(self, norm_alias: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE():
+        for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_alias(type, norm_alias)
             
             if attr is not None:
                 return attr
 
     def get_any_attribute_by_syn(self, norm_syn: text.NormStr) -> AnyAttributeT | None:
-        for type in ANY_ATTRIBUTE():
+        for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_syn(type, norm_syn)
             
             if attr is not None:
@@ -319,7 +324,7 @@ class List(BaseStructure):
             attribute = self.get_attribute_by_id(type, id)
 
             if attribute is None:
-                raise StructureNotFoundError(type)
+                raise errors.StructureNotFoundError(type)
 
             if real_name == attribute.real_name:
                 return
@@ -453,7 +458,7 @@ class List(BaseStructure):
     def _cook_raw_task_attribute_value_mapping(
         self, 
         raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[str]]
-    ) -> dict[TaskAttribute, list[TypeStr]]:
+    ) -> dict[TaskAttribute, list[SlotStr]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
             
         # Check if all required attributes are given
@@ -464,12 +469,12 @@ class List(BaseStructure):
         if not raw_task_attribute_value_mapping:
             return {}
         
-        attribute_value_mapping: dict[TaskAttribute, list[TypeStr]] = {}
+        attribute_value_mapping: dict[TaskAttribute, list[SlotStr]] = {}
         
         # Convert ids to attributes and validate value
         for attr_id, v in raw_task_attribute_value_mapping.items():
             if attr_id not in id_to_attr:
-                raise feedbacks.temp("Attribute id not found")
+                raise errors.StructureNotFoundError(TaskAttribute)
             
             attr = id_to_attr[attr_id]
             val = attr.raw_to_slots(v)
@@ -549,38 +554,159 @@ class List(BaseStructure):
         )
     
 
-    def get_tasks_attribute_value_mapping(self, attribute_types: frozenset[type[AnyAttributeT]]) -> dict[Task, AttributeValueMapping]:
-        id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
-        task_to_avm: dict[Task, AttributeValueMapping] = {}
+    def _get_attributes_and_data_for_non_static_attribute_value_mapping[T: BaseNonStaticAttribute](self, c: queries.CursorWrapper, type: type[T], community_user_id: int) -> tuple[dict[tuple[int, int], T], dict[int, dict[int, _RawAvmT]]]:
+        task_attrs = self.get_attributes(type)
+        id_to_attr = {(attr.type_id, attr.id): attr for attr in task_attrs}
+        del task_attrs
+
+        AtvTable = type.tables.attribute_task_value
+
+        query_lambda: t.Callable[[Arg], Template]
         
-        data: list[tuple[int, AnyAttributeT, tuple[text.RealStr, ...]]] = []
+        if issubclass(AtvTable, typed.UserAttributeTaskValue):
+            query_lambda = lambda arg: t"""
+                SELECT 
+                    {AtvTable.task_id},
+                    {AtvTable.attribute_id},
+                    {AtvTable.slot_slot},
+                    {AtvTable.index}
+                FROM {AtvTable}
+                WHERE {AtvTable.list_id} = {arg(self.id)} AND {AtvTable.user_id} = {arg(community_user_id)}
+                ORDER BY 
+                    {AtvTable.task_id} ASC, 
+                    {AtvTable.attribute_id} ASC, 
+                    {AtvTable.index} ASC
+            """
+        else:
+            query_lambda = lambda arg: t"""
+                SELECT 
+                    {AtvTable.task_id},
+                    {AtvTable.attribute_id},
+                    {AtvTable.slot_slot},
+                    {AtvTable.index}
+                FROM {AtvTable}
+                WHERE {AtvTable.list_id} = {arg(self.id)}
+                ORDER BY 
+                    {AtvTable.task_id} ASC, 
+                    {AtvTable.attribute_id} ASC, 
+                    {AtvTable.index} ASC
+            """
+            
+        c.execute(query_lambda)
+
+        raw_data: dict[int, dict[int, _RawAvmT]] = {}
+        value: list[SlotStr] = []
+        prev_ta: tuple[int, int] = (-1, -1)
+
+        for row in c.fetchall(AtvTable):
+            ta = (row.task_id, row.attribute_id)
+
+            if prev_ta == ta:
+                value.append(row.slot_slot)
+            else:
+                raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = value
+                value = [row.slot_slot]  # DO NOT CLEAR (or at least copy for data if so), otherwise list is in data is affected
+                prev_ta = ta
+
+        if value:
+            raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = value
+
+        return (id_to_attr, raw_data)
+
+
+
+    def get_tasks_attribute_value_mapping(self, community_user_id: int | None) -> tuple[list[AnyAttributeT], list[AttributeValueMapping]]:
+        id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
+        type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
+
+        raw_data: dict[int, dict[int, _RawAvmT]] = {}
+
+        ATTRIBUTES_TYPES_TO_HANDLE = (StaticAttribute, TaskAttribute) if community_user_id is None else ALL_ATTRIBUTE_TYPES
 
         with queries.connected() as c:
-            for attr_type in attribute_types:
-                if issubclass(attr_type, StaticAttribute):
-                    id_attr, name_attr, aliases_attr = self.get_attributes(attr_type)
+            user: CommunityUser | None = None
 
-                    for id, task in id_to_task.items():
-                        data.append((id, id_attr, (text.RealStr(id),)))
-                        data.append((id, name_attr, (task.real_name,)))
+            if community_user_id is not None:
+                user = self.community.get_community_user(community_user_id)
 
-                    c.execute(lambda arg: t"""
-                        SELECT {typed.TaskAlias.real_alias}, {typed.TaskAlias.task_id}
-                        FROM {typed.TaskAlias}
-                        WHERE {typed.TaskAlias.list_id} = {arg(self.id)}
-                    """)
+                if user is None:
+                    raise errors.StructureNotFoundError(CommunityUser)
+            
+            del community_user_id
+                
+            # --- Static Attribute ---
+            static_attrs = self.get_attributes(StaticAttribute)
+            
+            type_id_and_id_to_attribute |= {(attr.type_id, attr.id): attr for attr in static_attrs}
 
-                    task_id_to_aliases = itertools.groupby(c.fetchall(typed.TaskAlias), lambda row: row.task_id)
+            id_attr, name_attr, aliases_attr = static_attrs
+            del static_attrs
 
-                    for task_id, aliases in task_id_to_aliases:
-                        data.append((task_id, aliases_attr, tuple(alias.real_alias for alias in aliases)))
+            for id, task in id_to_task.items():
+                # Set all nested dictionaries once here
+                raw_data[id] = {typ.type_id: {} for typ in ATTRIBUTES_TYPES_TO_HANDLE}
 
-                elif issubclass(attr_type, TaskAttribute):
-                    tbl = attr_type.tables.attribute_task_value
-                    c.execute(lambda arg: t"""
-                        SELECT {.}
-                    """)
-    
+                static_avm: _RawAvmT = raw_data[id][StaticAttribute.type_id]
+
+                static_avm[id_attr.id] = [SlotStr(task.id)]
+                static_avm[name_attr.id] = [task.slot_name]
+
+            c.execute(lambda arg: t"""
+                SELECT {typed.TaskAlias.slot_alias}, {typed.TaskAlias.task_id}
+                FROM {typed.TaskAlias}
+                WHERE {typed.TaskAlias.list_id} = {arg(self.id)}
+            """)
+
+            task_id_to_aliases = itertools.groupby(c.fetchall(typed.TaskAlias), lambda row: row.task_id)
+
+            for task_id, aliases in task_id_to_aliases:
+                raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = list(alias.slot_alias for alias in aliases)
+
+            # --- Task Attribute ---
+            
+            attr_mapping, new_data = self._get_attributes_and_data_for_non_static_attribute_value_mapping(c, TaskAttribute, -1)
+        
+            type_id_and_id_to_attribute |= attr_mapping
+            raw_data.update(new_data)
+
+            # --- User Attribute ---
+
+            if user is not None:
+                attr_mapping, new_data = self._get_attributes_and_data_for_non_static_attribute_value_mapping(c, UserAttribute, user.jumpedia_user.id)
+
+                type_id_and_id_to_attribute |= attr_mapping
+                raw_data.update(new_data)
+
+        # --- Final Conversion ---
+
+        final: list[AttributeValueMapping] = []
+
+        for task_id, data in raw_data.items():
+            avms = tuple(
+                MappingProxyType({
+                    type_id_and_id_to_attribute[(typ.type_id, attr_id)]: value 
+                    for attr_id, value in data[typ.type_id].items()
+                }) for typ in ATTRIBUTES_TYPES_TO_HANDLE
+            )
+            
+            static_and_task_avm: tuple[AvmT[StaticAttribute], AvmT[TaskAttribute]] = avms[:2] # pyright: ignore[reportAssignmentType]
+            user_avm: tuple[CommunityUser, AvmT[UserAttribute]] | None = None
+
+            if user is not None:
+                user_avm = (user, avms[2]) # pyright: ignore[reportAssignmentType]
+
+            final.append(AttributeValueMapping(
+                id_to_task[task_id],
+                *static_and_task_avm,
+                user_avm
+            ))
+        
+        return list(type_id_and_id_to_attribute.values()), final
+            
+                
+
+                
+
     def create_task(
         self, 
         raw_name: str, 
@@ -596,7 +722,7 @@ class List(BaseStructure):
             all_tasks = self.get_tasks()
 
             if len(all_tasks) >= self.community.limits.list_task_count_max:
-                raise feedbacks.temp("Task limit reached")
+                raise errors.LimitOfStructuresReachedError(self.community.limits.list_task_count_max, Task)
             
             task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(raw_task_attribute_value_mapping)
                 
@@ -605,7 +731,7 @@ class List(BaseStructure):
                     INSERT INTO {typed.Task} (
                         {typed.Task.list_id},
                         {typed.Task.norm_name},
-                        {typed.Task.real_name}
+                        {typed.Task.slot_name}
                     )
                     VALUES (
                         {arg(self.id)},
@@ -622,7 +748,7 @@ class List(BaseStructure):
             return Task(
                 list=self,
                 id=task_id,
-                real_name=real_name,
+                slot_name=real_name,
                 norm_name=norm_name
             )
         
@@ -656,7 +782,7 @@ class List(BaseStructure):
             if task is None:
                 raise errors.StructureNotFoundError(Task)
 
-            if real_name == task.real_name:
+            if real_name == task.slot_name:
                 return
             
             self._validate_task_syns(norm_name, allowed_tasks={task})
@@ -668,7 +794,7 @@ class List(BaseStructure):
                     UPDATE {TaskTbl}
                     SET
                         {TaskTbl.norm_name} = {arg(norm_name)},
-                        {TaskTbl.real_name} = {arg(real_name)}
+                        {TaskTbl.slot_name} = {arg(real_name)}
                     WHERE 
                         {TaskTbl.list_id} = {arg(self.id)}
                         AND {TaskTbl.id} = {arg(task.id)}
@@ -709,7 +835,7 @@ class List(BaseStructure):
                 allowed_tasks={task}
             )
             
-            norm_name = text.real_to_norm(task.real_name)
+            norm_name = text.real_to_norm(task.slot_name)
             
             # If an alias is the name already, remove it
             try:
@@ -781,7 +907,7 @@ class List(BaseStructure):
         return Task(
             list=self,
             id=row.id,
-            real_name=row.real_name,
+            slot_name=row.slot_name,
             norm_name=row.norm_name
         )
     
@@ -803,7 +929,7 @@ class List(BaseStructure):
                 {TaskAliasTbl.task_id},
                 {TaskAliasTbl.list_id},
                 {TaskAliasTbl.norm_alias},
-                {TaskAliasTbl.real_alias},
+                {TaskAliasTbl.slot_alias},
             ) 
             VALUES (
                 {args(itertools.repeat(task_id, count))}, 
@@ -817,7 +943,7 @@ class List(BaseStructure):
         self,
         c: queries.CursorWrapper,
         task_id: int,
-        task_attribute_value_mapping: dict[TaskAttribute, list[TypeStr]]
+        task_attribute_value_mapping: dict[TaskAttribute, list[SlotStr]]
     ) -> None:
         if not task_attribute_value_mapping:
             return

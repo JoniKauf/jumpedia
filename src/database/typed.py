@@ -5,10 +5,10 @@ from .simple_orm import SNAKE, BaseModel, column
 
 # Only way I found to *easily* remove cyclic imports in this case
 if t.TYPE_CHECKING:
-    from structures.attribute.slot_type import TypeStr
+    from structures.attribute.slot_type import SlotStr
     from structures.list import KindT
 else:
-    TypeStr = str
+    SlotStr = str
     KindT = int
 
 
@@ -176,8 +176,8 @@ class BaseAttributeCollectionEntry(BaseModel, table_name=None):
     def norm_slot(self):
         pass
 
-    @column(TypeStr)
-    def type_slot(self):
+    @column(SlotStr)
+    def slot_slot(self):
         pass
 
 
@@ -198,12 +198,16 @@ class BaseAttributeCollectionEntryAlias(BaseModel, table_name=None):
     def norm_alias(self):
         pass
 
-    @column(TypeStr)
-    def type_alias(self):
+    @column(SlotStr)
+    def slot_alias(self):
         pass
 
 
 class BaseAttributeTaskValue(BaseModel, table_name=None):
+    @column(int)
+    def list_id(self):
+        pass
+
     @column(int)
     def task_id(self):
         pass
@@ -216,8 +220,8 @@ class BaseAttributeTaskValue(BaseModel, table_name=None):
     def index(self):
         pass
 
-    @column(TypeStr)
-    def type_slot(self):
+    @column(SlotStr)
+    def slot_slot(self):
         pass
 
 
@@ -292,8 +296,8 @@ class Task(BaseModel, table_name=SNAKE):
     def norm_name(self):
         pass
 
-    @column(RealStr)
-    def real_name(self):
+    @column(SlotStr)
+    def slot_name(self):
         pass
 
 
@@ -314,8 +318,8 @@ class TaskAlias(BaseModel, table_name=SNAKE):
     def norm_alias(self):
         pass
 
-    @column(RealStr)
-    def real_alias(self):
+    @column(SlotStr)
+    def slot_alias(self):
         pass
 
 

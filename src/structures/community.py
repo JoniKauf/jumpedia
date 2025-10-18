@@ -260,14 +260,14 @@ class Community(BaseStructure):
             )
 
     
-    def get_community_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
+    def get_community_user(self, id: int) -> CommunityUser | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {CommunityUserTbl}
                 WHERE 
                     {CommunityUserTbl.community_id} = {arg(self.id)}
-                    AND {CommunityUserTbl.jumpedia_user_id} = {arg(jumpedia_user.id)}
+                    AND {CommunityUserTbl.jumpedia_user_id} = {arg(id)}
             """)
 
             result = c.fetchone(CommunityUserTbl)

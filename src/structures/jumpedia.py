@@ -318,7 +318,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.Task.id} INT AUTO_INCREMENT PRIMARY KEY,
                 {typed.Task.list_id} INT NOT NULL,
                 {typed.Task.norm_name} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
-                {typed.Task.real_name} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                {typed.Task.slot_name} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
 
                 FOREIGN KEY ({typed.Task.list_id})
                     REFERENCES {typed.List}({typed.List.id})
@@ -334,7 +334,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.TaskAlias.task_id} INT NOT NULL,
                 {typed.TaskAlias.list_id} INT NOT NULL,
                 {typed.TaskAlias.norm_alias} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
-                {typed.TaskAlias.real_alias} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                {typed.TaskAlias.slot_alias} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
 
                 FOREIGN KEY ({typed.TaskAlias.task_id})
                     REFERENCES {typed.Task}({typed.Task.id})

@@ -5,7 +5,7 @@ from typing_extensions import Sentinel
 
 from ...utils import text
 from .. import BaseStructure
-from .slot_type import TypeStr
+from .slot_type import SlotStr
 
 if t.TYPE_CHECKING:
     from . import BaseAttribute
@@ -17,8 +17,8 @@ MAX_ENTRIES: t.Final[int] = 1024
 class CollectionEntry(t.NamedTuple):
     id: int
     collection_index: int
-    value: TypeStr
-    aliases: frozenset[TypeStr]
+    value: SlotStr
+    aliases: frozenset[SlotStr]
 
 
 @dataclass(frozen=True, slots=True)

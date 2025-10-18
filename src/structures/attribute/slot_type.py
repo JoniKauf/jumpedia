@@ -41,7 +41,7 @@ def is_valid_number(v: object) -> bool:
     return NUMBER_MIN <= v <= NUMBER_MAX
 
 
-class TypeStr(text.RealStr):
+class SlotStr(text.RealStr):
     pass
 
 
@@ -49,7 +49,7 @@ class TypeStr(text.RealStr):
 class SlotType:
     id: int
     display_name: str
-    type: type
+    type: type[SlotTypeT]
 
     _slot_types: t.ClassVar[list[t.Self]] = []
     _slot_type_id_lookup: t.ClassVar[dict[int, t.Self]] = {}
@@ -102,7 +102,7 @@ class SlotType:
     def get_all(cls) -> list[t.Self]:
         return cls._slot_types.copy()
 
-    def raw_to_slot(self, s: str) -> TypeStr:
+    def raw_to_slot(self, s: str) -> SlotStr:
         if not isinstance(s, str):
             raise TypeError()
 
@@ -112,14 +112,21 @@ class SlotType:
             raise feedbacks.temp(
                 f"empty or only whitespace values like `{old_s}` are not allowed"
             )
+        
+        # String is definitely used most often, so check it first
+        if issubclass(self.type, str):
+            if not (STR_MIN_LEN <= len(s) <= STR_MAX_LEN):
+                raise feedbacks.temp("String length out of bounds")
+
+            return SlotStr(s)
 
         if issubclass(self.type, bool):
             s = s.lower()
 
             if s == "false":
-                return TypeStr(False)
+                return SlotStr(False)
             if s == "true":
-                return TypeStr(True)
+                return SlotStr(True)
 
             raise feedbacks.temp("Not a valid bool")
 
@@ -132,7 +139,7 @@ class SlotType:
             if not is_valid_number(n):
                 raise feedbacks.temp("Number out of range")
 
-            return TypeStr(s)
+            return SlotStr(s)
 
         elif issubclass(self.type, Decimal):
             try:
@@ -144,20 +151,14 @@ class SlotType:
             if not is_valid_number(n):
                 raise feedbacks.temp("Number out of range")
 
-            return TypeStr(s)
-
-        if issubclass(self.type, str):
-            if not STR_MIN_LEN <= len(s) <= STR_MAX_LEN:
-                raise feedbacks.temp("String length out of bounds")
-
-            return TypeStr(s)
-
+            return SlotStr(s)
+        
         t.assert_never(self.type)
 
-    def slot_to_type(self, s: TypeStr) -> SlotTypeT:
+    def slot_to_type(self, s: SlotStr) -> SlotTypeT:
         return self.type(s)
 
-    def slot_to_norm(self, s: TypeStr) -> SlotTypeT:
+    def slot_to_norm(self, s: SlotStr) -> SlotTypeT:
         if issubclass(self.type, str):
             return text.real_to_norm(s)
         

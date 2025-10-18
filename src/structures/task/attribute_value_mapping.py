@@ -1,12 +1,9 @@
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from structures.attribute.static_attribute import StaticAttribute
 
-from structures.attribute import AnyAttributeT
-from structures.attribute.slot_type import TypeStr
-from structures.attribute.task_attribute import TaskAttribute
-from structures.attribute.user_attribute import UserAttribute
+from structures.attribute import AnyAttributeT, StaticAttribute, TaskAttribute, UserAttribute
+from structures.attribute.slot_type import SlotStr
 import typing as t
 
 from structures.user.community_user import CommunityUser
@@ -14,18 +11,20 @@ from structures.user.community_user import CommunityUser
 if t.TYPE_CHECKING:
     from structures.task import Task
 
+type AvmT[T: AnyAttributeT] = MappingProxyType[T, tuple[SlotStr, ...]]
+
 @dataclass(frozen=True, slots=True)
 class AttributeValueMapping:
     task: Task
-    static_attribute_value_mapping: MappingProxyType[StaticAttribute, list[TypeStr]]
-    task_attribute_value_mapping: MappingProxyType[TaskAttribute, list[TypeStr]]
-    user_attribute_value_mapping: tuple[CommunityUser, MappingProxyType[UserAttribute, list[TypeStr]]] | None
+    static_attribute_value_mapping: AvmT[StaticAttribute]
+    task_attribute_value_mapping: AvmT[TaskAttribute]
+    user_attribute_value_mapping: tuple[CommunityUser, AvmT[UserAttribute]] | None
 
-    _combined_cache: dict[AnyAttributeT, list[TypeStr]] = field(init=False, default_factory=dict)
+    _combined_cache: dict[AnyAttributeT, tuple[SlotStr, ...]] = field(init=False, default_factory=dict)
     python_id: int = field(init=False)
 
     @property
-    def combined(self) -> MappingProxyType[AnyAttributeT, list[TypeStr]]:
+    def combined(self) -> MappingProxyType[AnyAttributeT, tuple[SlotStr, ...]]:
         if not self._combined_cache:
             self._combined_cache.update(
                 self.static_attribute_value_mapping.items()
