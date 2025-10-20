@@ -1,3 +1,4 @@
+import atexit
 import typing as t
 from contextlib import contextmanager
 from string.templatelib import Interpolation, Template
@@ -8,7 +9,6 @@ import mariadb
 from ..utils import text
 from . import secret, typed
 from .simple_orm import Arg, Args, BaseModel, BaseModelMeta, Column, Raw, Rows
-import atexit
 
 # CONVERTER: Final[dict[int, Callable[[Any], Any]]] = {
 #     # mariadb.FIELD_TYPE.JSON: lambda json_str: json.loads(json_str),
@@ -18,7 +18,7 @@ import atexit
 
 __CONNECTION_DATA: dict[str, t.Any] = {
     **secret.listen().DB_CONNECTION_INFO,
-    **{'autocommit': False}
+    **{"autocommit": False},
 }
 
 type InterpolationExecuteT = Interpolation[
@@ -99,11 +99,22 @@ class CursorWrapper:
         self._cursor.execute(statement)
 
 
-CONNECTION_POOL = mariadb.ConnectionPool(pool_name="pool", pool_size=5, pool_reset_connection=True, db=typed.DATABASE_NAME, **__CONNECTION_DATA)
+CONNECTION_POOL = mariadb.ConnectionPool(
+    pool_name="pool",
+    pool_size=5,
+    pool_reset_connection=True,
+    db=typed.DATABASE_NAME,
+    **__CONNECTION_DATA,
+)
 atexit.register(lambda **_: CONNECTION_POOL.close())
 
+
 @contextmanager
-def connected(*, no_db: bool = False) -> t.Iterator[CursorWrapper]:
+def connected(c: CursorWrapper | None = None, *, no_db: bool = False) -> t.Iterator[CursorWrapper]:
+    if c is not None:
+        yield c
+        return
+    
     if no_db:
         conn = mariadb.connect(**__CONNECTION_DATA)
     else:

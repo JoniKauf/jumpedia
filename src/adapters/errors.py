@@ -1,5 +1,6 @@
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
+
 from ..discord_.errors import FeedbackError
 from ..structures import BaseStructure, errors
 

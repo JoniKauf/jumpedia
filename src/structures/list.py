@@ -1,21 +1,21 @@
-from collections import defaultdict
 import itertools
+import typing as t
 from string.templatelib import Template
 from types import MappingProxyType
-import typing as t
-
-from structures import errors
-from structures.task.attribute_value_mapping import AttributeValueMapping, AvmT
-from structures.user.community_user import CommunityUser
 
 from src.database import queries, typed
 from src.database.simple_orm import Arg, Raw, Rows
-from src.utils import text
 from src.structures import BaseStructure
-from src.structures.attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
-                        BaseNonStaticAttribute, SimpleCollectionEntryItem, StaticAttribute, TaskAttribute, UserAttribute)
-from src.structures.attribute.slot_type import SlotType, SlotTypeT, SlotStr
+from src.structures.attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT,
+                                      BaseAttribute, BaseNonStaticAttribute,
+                                      RawCollectionEntryItem, StaticAttribute,
+                                      TaskAttribute, UserAttribute)
+from src.structures.attribute.slot_type import SlotStr, SlotType, SlotTypeT
 from src.structures.task import Task
+from src.utils.text import RealStr, NormStr
+from structures import errors
+from structures.task.attribute_value_mapping import AttributeValueMapping, AvmT
+from structures.user.community_user import CommunityUser
 
 if t.TYPE_CHECKING:
     from src.structures.community import Community
@@ -34,8 +34,8 @@ type _RawAvmT = dict[int, list[SlotStr]]
 class List(BaseStructure):
     community: 'Community'
     id: int
-    real_name: text.RealStr
-    norm_name: text.NormStr
+    real_name: RealStr
+    norm_name: NormStr
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -58,12 +58,12 @@ class List(BaseStructure):
         rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.id} = {arg(id)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
 
-    def get_attribute_by_name[T: BaseAttribute](self, type: type[T], norm_name: text.NormStr) -> T | None:
+    def get_attribute_by_name[T: BaseAttribute](self, type: type[T], norm_name: NormStr) -> T | None:
         table_type = type.tables.attribute
         rows = self._fetch_from_attribute_table(table_type, lambda arg: f"{table_type.norm_name} = {arg(norm_name)}")
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
     
-    def get_attribute_by_alias[T: BaseAttribute](self, type: type[T], norm_alias: text.NormStr) -> T | None:
+    def get_attribute_by_alias[T: BaseAttribute](self, type: type[T], norm_alias: NormStr) -> T | None:
         alias_table_type = type.tables.attribute_alias
 
         with queries.connected() as c:
@@ -82,7 +82,7 @@ class List(BaseStructure):
         
         return self.get_attribute_by_id(type, row.attribute_id)
     
-    def get_attribute_by_syn[T: BaseAttribute](self, type: type[T], norm_syn: text.NormStr) -> T | None:
+    def get_attribute_by_syn[T: BaseAttribute](self, type: type[T], norm_syn: NormStr) -> T | None:
         return (
             self.get_attribute_by_name(type, norm_syn)
             or self.get_attribute_by_alias(type, norm_syn)
@@ -108,21 +108,21 @@ class List(BaseStructure):
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_name(self, norm_name: text.NormStr) -> AnyAttributeT | None:
+    def get_any_attribute_by_name(self, norm_name: NormStr) -> AnyAttributeT | None:
         for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_name(type, norm_name)
             
             if attr is not None:
                 return attr
         
-    def get_any_attribute_by_alias(self, norm_alias: text.NormStr) -> AnyAttributeT | None:
+    def get_any_attribute_by_alias(self, norm_alias: NormStr) -> AnyAttributeT | None:
         for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_alias(type, norm_alias)
             
             if attr is not None:
                 return attr
 
-    def get_any_attribute_by_syn(self, norm_syn: text.NormStr) -> AnyAttributeT | None:
+    def get_any_attribute_by_syn(self, norm_syn: NormStr) -> AnyAttributeT | None:
         for type in ALL_ATTRIBUTE_TYPES:
             attr = self.get_attribute_by_syn(type, norm_syn)
             
@@ -154,8 +154,8 @@ class List(BaseStructure):
     def create_attribute[T: StaticAttribute](
         self, 
         type: type[T],
-        raw_name: str,
-        raw_aliases: t.Iterable[str],
+        real_name: RealStr,
+        real_aliases: t.Iterable[RealStr],
         slot_type: SlotType,
         max_slots: int,
         *,
@@ -168,36 +168,33 @@ class List(BaseStructure):
     def create_attribute[T: BaseNonStaticAttribute](
         self, 
         type: type[T],
-        raw_name: str,
-        raw_aliases: t.Iterable[str],
+        real_name: RealStr,
+        real_aliases: t.Iterable[RealStr],
         slot_type: SlotType,
         max_slots: int,
         *,
-        raw_collection: t.Sequence[tuple[str, t.Iterable[str]]]
+        collection: t.Iterable[tuple[RealStr, t.Iterable[RealStr]]] = ()
     ) -> T:
         pass
 
     def create_attribute[T: BaseAttribute](
         self, 
         type: type[T],
-        raw_name: str,
-        raw_aliases: t.Iterable[str],
+        real_name: RealStr,
+        real_aliases: t.Iterable[RealStr],
         slot_type: SlotType,
         max_slots: int,
         *,
         min_slots: int = 0,
         kind: KindT | None = None,
-        raw_collection: t.Sequence[tuple[str, t.Iterable[str]]] = ()
+        collection: t.Iterable[tuple[RealStr, t.Iterable[RealStr]]] = ()
     ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
         from . import errors
 
         assert (min_slots or kind) != issubclass(type, BaseNonStaticAttribute), "Typing not followed on attribute creation #1"
-        assert (not raw_collection) != issubclass(type, BaseNonStaticAttribute), "Typing not followed on attribute creation #2"
+        assert (not collection) != issubclass(type, BaseNonStaticAttribute), "Typing not followed on attribute creation #2"
 
-        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms({raw_name, *raw_aliases})
-
-        del raw_name
-        del raw_aliases
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = NormStr.unique_reals_and_norms((real_name, *real_aliases))
 
         with self.locked:
             attrs = self.get_all_attributes_flat()
@@ -288,11 +285,9 @@ class List(BaseStructure):
                     kind=kind
                 )
 
-                if raw_collection:
+                if collection:
                     assert isinstance(attribute, BaseNonStaticAttribute), "Typing not followed on attribute creation #3"
-                    attribute.set_collection([
-                        SimpleCollectionEntryItem(tup[0]) for tup in raw_collection
-                    ])
+                    attribute.set_collection(collection)
                     
                 return attribute
 
@@ -315,10 +310,9 @@ class List(BaseStructure):
         self, 
         type: type[BaseAttribute], 
         id: int, 
-        raw_name: str
+        real_name: RealStr
     ) -> None:
-        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-        del raw_name
+        norm_name = NormStr(real_name)
 
         with self.locked:
             attribute = self.get_attribute_by_id(type, id)
@@ -362,13 +356,10 @@ class List(BaseStructure):
         self,
         type: type[BaseAttribute],
         id: int, 
-        raw_aliases: t.Iterable[str]
+        aliases: t.Iterable[RealStr]
     ) -> None:
-        from . import errors
-
-        (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
-        del raw_aliases
-        
+        (*real_aliases,), (*norm_aliases,) = NormStr.unique_reals_and_norms(aliases)
+            
         with self.locked:
             attribute = self.get_attribute_by_id(type, id)
 
@@ -380,18 +371,14 @@ class List(BaseStructure):
                 allowed_attributes={attribute}
             )
             
-            norm_name = text.real_to_norm(attribute.real_name)
-            
             # If an alias is the name already, remove it
             try:
-                idx = norm_aliases.index(norm_name)
+                idx = norm_aliases.index(attribute.norm_name)
             except ValueError:
                 pass
             else:
                 real_aliases.pop(idx)
                 norm_aliases.pop(idx)
-            
-            del norm_name
             
             AttributeAliasTbl = type.tables.attribute_alias
 
@@ -477,7 +464,7 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(TaskAttribute)
             
             attr = id_to_attr[attr_id]
-            val = attr.raw_to_slots(v)
+            val = attr.raw_to_value(v)
 
             attribute_value_mapping[attr] = val
 
@@ -489,8 +476,8 @@ class List(BaseStructure):
         c: queries.CursorWrapper, 
         type: type[BaseAttribute], 
         attribute_id: int, 
-        real_aliases: t.Sequence[text.RealStr],
-        norm_aliases: t.Sequence[text.NormStr]
+        real_aliases: t.Sequence[RealStr],
+        norm_aliases: t.Sequence[NormStr]
     ) -> None:
         if not norm_aliases:
             return
@@ -526,11 +513,11 @@ class List(BaseStructure):
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.id} = {arg(id)}")
         return self._task_row_to_obj(data[0]) if data else None
     
-    def get_task_by_name(self, norm_name: text.NormStr) -> Task | None:
+    def get_task_by_name(self, norm_name: NormStr) -> Task | None:
         data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.norm_name} = {arg(norm_name)}")
         return self._task_row_to_obj(data[0]) if data else None
 
-    def get_task_by_alias(self, norm_alias: text.NormStr) -> Task | None:
+    def get_task_by_alias(self, norm_alias: NormStr) -> Task | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT {typed.TaskAlias.task_id}
@@ -547,7 +534,7 @@ class List(BaseStructure):
         
         return self.get_task_by_id(row.task_id)
     
-    def get_task_by_syn(self, norm_syn: text.NormStr) -> Task | None:
+    def get_task_by_syn(self, norm_syn: NormStr) -> Task | None:
         return (
             self.get_task_by_name(norm_syn) or
             self.get_task_by_alias(norm_syn)
@@ -613,26 +600,25 @@ class List(BaseStructure):
 
         return (id_to_attr, raw_data)
 
-
-
-    def get_tasks_attribute_value_mapping(self, community_user_id: int | None) -> tuple[list[AnyAttributeT], list[AttributeValueMapping]]:
+    def get_tasks_attribute_value_mapping(self, user_id: int | None) -> tuple[list[AnyAttributeT], list[AttributeValueMapping]]:
         id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
         type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
 
-        ATTRIBUTES_TYPES_TO_HANDLE = (StaticAttribute, TaskAttribute) if community_user_id is None else ALL_ATTRIBUTE_TYPES
+        ATTRIBUTES_TYPES_TO_HANDLE = (StaticAttribute, TaskAttribute) if user_id is None else ALL_ATTRIBUTE_TYPES
 
         with queries.connected() as c:
             user: CommunityUser | None = None
 
-            if community_user_id is not None:
-                user = self.community.get_community_user(community_user_id)
+            if user_id is not None:
+                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(user_id)
 
+                jumpedia_user.get_community_user_by_id(user_id)
                 if user is None:
                     raise errors.StructureNotFoundError(CommunityUser)
             
-            del community_user_id
+            del user_id
                 
             # --- Static Attribute ---
             static_attrs = self.get_attributes(StaticAttribute)
@@ -648,7 +634,7 @@ class List(BaseStructure):
 
                 static_avm: _RawAvmT = raw_data[id][StaticAttribute.type_id]
 
-                static_avm[id_attr.id] = [SlotStr(task.id)]
+                static_avm[id_attr.id] = id_attr.raw_to_value([str(id)])
                 static_avm[name_attr.id] = [task.slot_name]
 
             c.execute(lambda arg: t"""
@@ -701,20 +687,15 @@ class List(BaseStructure):
                 user_avm
             ))
         
-        return list(type_id_and_id_to_attribute.values()), final
-            
-                
-
-                
+        return list(type_id_and_id_to_attribute.values()), final      
 
     def create_task(
         self, 
-        raw_name: str, 
-        raw_aliases: t.Iterable[str], 
+        real_name: RealStr,
+        real_aliases: t.Iterable[RealStr],
         raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[str]]
     ) -> Task:
-        (real_name, *real_aliases), (norm_name, *norm_aliases) = text.raws_to_unique_reals_and_norms((raw_name, *raw_aliases))
-        del raw_name, raw_aliases
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = NormStr.unique_reals_and_norms((real_name, *real_aliases))
 
         with self.locked:
             self._validate_task_syns(norm_name, {*norm_aliases})
@@ -769,12 +750,9 @@ class List(BaseStructure):
     def edit_task_name(
         self,
         id: int,
-        raw_name: str
+        real_name: RealStr
     ) -> None:
-        from . import errors
-
-        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-        del raw_name
+        norm_name = NormStr(real_name)
 
         with self.locked:
             task = self.get_task_by_id(id)
@@ -816,14 +794,11 @@ class List(BaseStructure):
             
     def edit_task_aliases(
         self, 
-        id: int, 
-        raw_aliases: t.Iterable[str]
+        id: int,
+        slot_aliases: t.Iterable[SlotStr]
     ) -> None:
-        from . import errors
+        slot_aliases, norm_aliases = NormStr.unique_reals_and_norms(slot_aliases)
 
-        (*real_aliases,), (*norm_aliases,) = text.raws_to_unique_reals_and_norms(raw_aliases)
-        del raw_aliases
-        
         with self.locked:
             task = self.get_task_by_id(id)
 
@@ -831,11 +806,11 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(Task)
 
             self._validate_task_syns(
-                norm_aliases={*norm_aliases}, 
+                norm_aliases=set(norm_aliases), 
                 allowed_tasks={task}
             )
             
-            norm_name = text.real_to_norm(task.slot_name)
+            norm_name = task.norm_name
             
             # If an alias is the name already, remove it
             try:
@@ -843,8 +818,8 @@ class List(BaseStructure):
             except ValueError:
                 pass
             else:
-                real_aliases.pop(idx)
-                norm_aliases.pop(idx)
+                slot_aliases = slot_aliases[:idx] + slot_aliases[idx + 1:]
+                norm_aliases = norm_aliases[:idx] + norm_aliases[idx + 1:]
             
             del norm_name
             
@@ -859,7 +834,7 @@ class List(BaseStructure):
                         AND {TaskAliasTbl.task_id} = {arg(task.id)}
                 """)
 
-                self._insert_task_aliases(c, task.id, real_aliases, norm_aliases)
+                self._insert_task_aliases(c, task.id, slot_aliases, norm_aliases)
 
     def edit_task_attribute_value_mapping(
         self,
@@ -915,8 +890,8 @@ class List(BaseStructure):
         self, 
         c: queries.CursorWrapper, 
         task_id: int,
-        real_aliases: t.Sequence[text.RealStr], 
-        norm_aliases: t.Sequence[text.NormStr]
+        slot_aliases: t.Sequence[SlotStr], 
+        norm_aliases: t.Sequence[NormStr]
     ) -> None:
         if not norm_aliases:
             return
@@ -935,7 +910,7 @@ class List(BaseStructure):
                 {args(itertools.repeat(task_id, count))}, 
                 {args(itertools.repeat(self.id, count))}, 
                 {args(norm_aliases)},
-                {args(real_aliases)}
+                {args(slot_aliases)}
             )
         """)
 
@@ -966,7 +941,7 @@ class List(BaseStructure):
                 {TaskValueTbl.task_id},
                 {TaskValueTbl.attribute_id},
                 {TaskValueTbl.index},
-                {TaskValueTbl.type_slot}
+                {TaskValueTbl.slot_slot}
             )
             VALUES (
                 {args(itertools.repeat(task_id, len(attribute_id_args)))},
@@ -978,11 +953,11 @@ class List(BaseStructure):
 
     def _validate_task_syns(
         self, 
-        norm_name: text.NormStr | None = None, 
-        norm_aliases: t.AbstractSet[text.NormStr] = frozenset(), 
+        norm_name: NormStr | None = None, 
+        norm_aliases: t.AbstractSet[NormStr] = frozenset(), 
         allowed_tasks: t.AbstractSet[Task] = frozenset()
     ) -> None:
-        norm_syns: set[text.NormStr] = set()
+        norm_syns: set[NormStr] = set()
 
         if norm_name is not None:
             norm_syns.add(norm_name)
@@ -1004,11 +979,11 @@ class List(BaseStructure):
             
     def _validate_attribute_syns(
         self, 
-        norm_name: text.NormStr | None = None, 
-        norm_aliases: t.AbstractSet[text.NormStr] = frozenset(), 
+        norm_name: NormStr | None = None, 
+        norm_aliases: t.AbstractSet[NormStr] = frozenset(), 
         allowed_attributes: t.AbstractSet[BaseAttribute] = frozenset()
     ) -> None:
-        norm_syns: set[text.NormStr] = set()
+        norm_syns: set[NormStr] = set()
 
         if norm_name is not None:
             norm_syns.add(norm_name)

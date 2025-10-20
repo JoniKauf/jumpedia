@@ -43,16 +43,12 @@ class _StructureMeta(ABCMeta):
         v = getattr(self, "_type_name")
 
         if v is None:
-            v = text.pascal_to_snake(self.__name__.removeprefix('Base'), delim=" ")
+            v = text.pascal_to_snake(self.__name__.removeprefix("Base"), delim=" ")
 
         return v
 
+
 class BaseStructure(metaclass=_StructureMeta):
-    python_id: int = field(init=False, default=-1)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, 'python_id', id(self))
-
     @property
     def locked(self) -> _GeneratorContextManager[None]:
         return locked.equality_locked(self)

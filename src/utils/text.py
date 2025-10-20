@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field
 import re
 import string
 import typing as t
+from dataclasses import dataclass, field
 from string.templatelib import Interpolation, Template, convert
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
@@ -64,58 +64,58 @@ def shorten_many(
     yield more_elems
 
 
-# We don't use NewType just yet, because it has some drawbacks
-# Mostly for us it matters that it still isn't valid in TypeForm[...]
-# as of writing this.
 class RealStr(str):
-    pass
+    def __new__(cls, s: str) -> t.Self:
+        if isinstance(s, cls):
+            return s
+        
+        s = replace_whitespace_groups(s, " ", True)
+        s = replace_bad_chars(s)
+        s = "".join(c for c in s if c.isprintable())
 
-class NormStr(RealStr):
-    pass
+        if not s:
+            raise ValueError("empty result")
 
-
-def raw_to_real(raw: str, /) -> RealStr:
-    raw = replace_whitespace_groups(raw, " ", True)
-    raw = replace_bad_chars(raw)
-    raw = "".join(c for c in raw if c.isprintable())
-
-    if not raw:
-        raise ValueError("empty result")
-
-    return RealStr(raw)
+        return super().__new__(cls, s)
 
 
-def real_to_norm(real: RealStr, /) -> NormStr:
-    return NormStr(real.lower())
+class NormStr(str):
+    def __new__(cls, s: str) -> t.Self:
+        if not isinstance(s, RealStr):
+            s = RealStr(s)
 
+        return super().__new__(cls, s.lower())
+    
+    @t.overload
+    @classmethod
+    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[T], /) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+        pass
 
-def raw_to_norm(raw: str, /) -> NormStr:
-    return real_to_norm(raw_to_real(raw))
+    @t.overload
+    @classmethod
+    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+        pass
 
+    @classmethod
+    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+        mapping: dict[t.Self, T] = {}
 
-def raw_to_real_and_norm(raw: str, /) -> tuple[RealStr, NormStr]:
-    real = raw_to_real(raw)
-    return real, real_to_norm(real)
+        for s in iterable:
+            if not isinstance(s, real_type):
+                s = real_type(s)
 
+            norm = cls(s)
 
-def raws_to_unique_reals_and_norms(
-    raws: t.Iterable[str], /, strict: bool = False
-) -> tuple[tuple[RealStr, ...], tuple[NormStr, ...]]:
-    norm_to_real: dict[NormStr, RealStr] = {}
+            existing_norm = mapping.get(norm)
 
-    for raw in raws:
-        real, norm = raw_to_real_and_norm(raw)
+            if existing_norm is not None:
+                raise ValueError(s, existing_norm)
 
-        if norm in norm_to_real:
-            if strict and norm_to_real[norm] != real:
-                raise ValueError("normed equal strings are not equal when real")
-        else:
-            norm_to_real[norm] = real
-
-    # Dict guarantees order for python 3.8+
-    return (tuple(norm_to_real.values()), tuple(norm_to_real.keys()))
-
-
+            mapping[norm] = s
+        
+        # Dict order is preserved
+        return (tuple(mapping.values()), tuple(mapping))
+    
 def apply_f_to_interpolation_value(interpolation: Interpolation):
     value = convert(interpolation.value, interpolation.conversion)
     value = format(value, interpolation.format_spec)
@@ -130,9 +130,7 @@ def t_to_f_string(template: Template) -> str:
             case str() as s:
                 parts.append(s)
             case Interpolation() as interp:
-                parts.append(
-                    apply_f_to_interpolation_value(interp)
-                )
+                parts.append(apply_f_to_interpolation_value(interp))
             case _:
                 assert_never(item)
 

@@ -52,8 +52,8 @@ class JumpediaUser(BaseModel, table_name=SNAKE):
     def norm_name(self):
         pass
 
-    @column(RealStr)
-    def real_name(self):
+    @column(str)
+    def raw_name(self):
         pass
 
     @column(int)

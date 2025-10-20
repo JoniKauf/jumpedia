@@ -1,14 +1,14 @@
-
+import ast
 import types
 import typing as t
-import ast
 
 from . import errors
 
 if t.TYPE_CHECKING:
     from . import visitor
 
-type ExpectedAstT[T: ast.AST] = type[T] | tuple[type[T], ...] 
+type ExpectedAstT[T: ast.AST] = type[T] | tuple[type[T], ...]
+
 
 def validate_children_type[T: ast.AST](
     children: t.Iterable[ast.AST], child_type: type[T]
@@ -22,7 +22,10 @@ def validate_children_type[T: ast.AST](
 
     return ch  # type: ignore
 
-def visit_Constant_and_validate_str(node: ast.Constant, visitor: visitor.BaseExpressionVisitor) -> str:
+
+def visit_Constant_and_validate_str(
+    node: ast.Constant, visitor: visitor.BaseExpressionVisitor
+) -> str:
     if not isinstance(node.value, str):
         raise errors.NotStrConstantError(node.value)
 
@@ -39,7 +42,9 @@ def visit_List_and_validate_children(
     return [visitor.visit(n) for n in elts]
 
 
-def visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(node: ast.Dict, visitor: visitor.BaseExpressionVisitor) -> t.Any:
+def visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
+    node: ast.Dict, visitor: visitor.BaseExpressionVisitor
+) -> t.Any:
     if None in node.keys:
         raise errors.BaseExpressionParsingError
 

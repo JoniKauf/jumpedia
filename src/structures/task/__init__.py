@@ -1,10 +1,10 @@
-from dataclasses import field
 import typing as t
+from dataclasses import field
 
 from src.database import queries
 from src.database import typed as typed
-from src.utils import text
 from src.structures import BaseStructure
+from src.utils import text
 from structures.attribute.slot_type import SlotStr
 
 if t.TYPE_CHECKING:

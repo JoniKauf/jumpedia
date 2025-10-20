@@ -1,8 +1,8 @@
 import ast
 import io
 import tokenize
-from dataclasses import KW_ONLY, InitVar, dataclass
 import typing as t
+from dataclasses import KW_ONLY, InitVar, dataclass
 
 from . import errors
 from .visitor import BaseExpressionVisitor, ExpressionVisitorConfig
@@ -18,7 +18,6 @@ class ExpressionParser[T, **P]:
     visitor: BaseExpressionVisitor[T, P]
     _: KW_ONLY
     config: ExpressionParserConfig
-
 
     def _validate_tokens(self, s: str):
         tok_gen = tokenize.generate_tokens(io.StringIO(s).readline)
@@ -50,7 +49,7 @@ class ExpressionParser[T, **P]:
 
         if "\n" in s:
             raise errors.NewlineInSrcError()
-        
+
         if len(s) > self.config.SOURCE_LEN_MAX:
             raise errors.MaxSrcLengthExceededError()
 
@@ -61,25 +60,31 @@ class ExpressionParser[T, **P]:
 
 
 def __main():
-    from .visitor import ListOfTupleVisitor, DictOfStrToListOfTupleVisitor
+    from .visitor import DictOfStrToListOfTupleVisitor, ListOfTupleVisitor
+
     def visit_Tuple(node: ast.Tuple, visitor: BaseExpressionVisitor):
         if len(node.elts) != 2:
             raise ValueError("Not 2 elements in tuple")
-        
+
         first, second = node.elts
 
         if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
             raise ValueError("First element of tuple is not a str")
-        
-        if not isinstance(second, ast.List) or not all(isinstance(elem, ast.Constant) and isinstance(elem.value, str) for elem in second.elts):
+
+        if not isinstance(second, ast.List) or not all(
+            isinstance(elem, ast.Constant) and isinstance(elem.value, str)
+            for elem in second.elts
+        ):
             raise ValueError("Second element is not list of strings")
 
-        return first.value, list(map(lambda elem: elem.value ,second.elts))
-    
+        return first.value, list(map(lambda elem: elem.value, second.elts))
+
     while True:
         clss = BaseExpressionVisitor.__subclasses__()
-        
-        choice = input('\n'.join(f"[{i}] {cls.__name__}" for i, cls in enumerate(clss)) + "\n> ")
+
+        choice = input(
+            "\n".join(f"[{i}] {cls.__name__}" for i, cls in enumerate(clss)) + "\n> "
+        )
 
         try:
             choice = int(choice)
@@ -88,9 +93,9 @@ def __main():
             continue
 
         if choice < 0 or choice >= len(clss):
-            print("Integer out of range", end='\n\n\n')
+            print("Integer out of range", end="\n\n\n")
             continue
-        
+
         visitor_cls = clss[choice]
 
         if issubclass(visitor_cls, (ListOfTupleVisitor, DictOfStrToListOfTupleVisitor)):
@@ -106,5 +111,6 @@ def __main():
             except Exception as e:
                 print("Error:", repr(e))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     __main()

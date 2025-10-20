@@ -4,16 +4,11 @@ import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 
+from structures import errors
+
 from ...utils import text
 
-type SlotTypeT = (
-    bool
-    | int
-    | Decimal
-    |
-    # dt.time | dt.date | dt.datetime | dt.timedelta |
-    str
-)
+type SlotTypeT = (bool | int | Decimal | str)
 
 
 type_ = type
@@ -42,7 +37,57 @@ def is_valid_number(v: object) -> bool:
 
 
 class SlotStr(text.RealStr):
-    pass
+    def __new__(cls, s: str, type: type[SlotTypeT]) -> t.Self:
+        old_s, s = s, text.RealStr(s)
+
+        if not s:
+            raise feedbacks.temp(
+                f"empty or only whitespace values like `{old_s}` are not allowed"
+            )
+
+        del old_s
+
+        # String is definitely used most often, so check it first
+        if issubclass(type, str):
+            if not (STR_MIN_LEN <= len(s) <= STR_MAX_LEN):
+                raise errors.InvalidSlotStr(s, type)
+
+            return super().__new__(cls, s)
+
+        if issubclass(type, bool):
+            s = s.lower()
+
+            if s == "false":
+                return super().__new__(cls, str(False))
+            if s == "true":
+                return super().__new__(cls, str(True))
+            
+            raise errors.InvalidSlotStr(s, type)
+
+        if issubclass(type, int):
+            try:
+                n = int(s)
+            except Exception:
+                raise errors.InvalidSlotStr(s, type)
+
+            if not is_valid_number(n):
+                raise errors.InvalidSlotStr(s, type)
+
+            return super().__new__(cls, s)
+
+        elif issubclass(type, Decimal):
+            try:
+                n = Decimal(s)
+                n = n.quantize(Decimal(f"1E-{DECIMAL_DEC_PART_MAX_LEN}"))
+            except Exception:
+                raise errors.InvalidSlotStr(s, type)
+
+            if not is_valid_number(n):
+                raise errors.InvalidSlotStr(s, type)
+
+            return super().__new__(cls, s)
+
+        t.assert_never(type)
 
 
 @dataclass
@@ -103,57 +148,7 @@ class SlotType:
         return cls._slot_types.copy()
 
     def raw_to_slot(self, s: str) -> SlotStr:
-        if not isinstance(s, str):
-            raise TypeError()
-
-        old_s, s = s, text.raw_to_real(s)
-
-        if not s:
-            raise feedbacks.temp(
-                f"empty or only whitespace values like `{old_s}` are not allowed"
-            )
-        
-        # String is definitely used most often, so check it first
-        if issubclass(self.type, str):
-            if not (STR_MIN_LEN <= len(s) <= STR_MAX_LEN):
-                raise feedbacks.temp("String length out of bounds")
-
-            return SlotStr(s)
-
-        if issubclass(self.type, bool):
-            s = s.lower()
-
-            if s == "false":
-                return SlotStr(False)
-            if s == "true":
-                return SlotStr(True)
-
-            raise feedbacks.temp("Not a valid bool")
-
-        elif issubclass(self.type, int):
-            try:
-                n = int(s)
-            except Exception:
-                raise feedbacks.temp("Invalid int")
-
-            if not is_valid_number(n):
-                raise feedbacks.temp("Number out of range")
-
-            return SlotStr(s)
-
-        elif issubclass(self.type, Decimal):
-            try:
-                n = Decimal(s)
-                n = n.quantize(Decimal(f"1E-{DECIMAL_DEC_PART_MAX_LEN}"))
-            except Exception:
-                raise feedbacks.temp("Invalid decimal")
-
-            if not is_valid_number(n):
-                raise feedbacks.temp("Number out of range")
-
-            return SlotStr(s)
-        
-        t.assert_never(self.type)
+        return SlotStr(s, self.type)
 
     def slot_to_type(self, s: SlotStr) -> SlotTypeT:
         return self.type(s)
@@ -161,7 +156,7 @@ class SlotType:
     def slot_to_norm(self, s: SlotStr) -> SlotTypeT:
         if issubclass(self.type, str):
             return text.real_to_norm(s)
-        
+
         return self.type(s)
 
 

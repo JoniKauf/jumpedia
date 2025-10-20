@@ -51,8 +51,9 @@ class _InterpolationData(t.NamedTuple):
 
 MAX_DISCORD_CODE_UNITS: int = 2000
 
+
 def utf16_code_units(s: str) -> int:
-    return len(s.encode('utf-16-le')) // 2
+    return len(s.encode("utf-16-le")) // 2
 
 
 def layout(
@@ -84,7 +85,7 @@ def layout(
     interp_to_data: dict[int, _InterpolationData] = {}
 
     for i, interp in enumerate(final_templ.interpolations):
-        if interp.format_spec == 'p':
+        if interp.format_spec == "p":
             interp_to_data[id(interp)] = data = _InterpolationData(
                 str(interp.value.obj), False
             )

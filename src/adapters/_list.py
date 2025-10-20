@@ -1,6 +1,5 @@
 import typing as t
 
-from . import parsers
 from ..structures import attribute
 from ..structures.attribute import BaseAttribute
 from ..structures.attribute.static_attribute import StaticAttribute
@@ -9,7 +8,7 @@ from ..structures.attribute.user_attribute import UserAttribute
 from ..structures.list import List
 from ..structures.task import Task
 from ..utils import argparsing, text
-from . import BaseAdapter, errors
+from . import BaseAdapter, errors, parsers
 from ._attribute import AnyAttributeAdapterT
 from ._attribute.static_attribute import StaticAttributeAdapter
 from ._attribute.task_attribute import TaskAttributeAdapter

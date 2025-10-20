@@ -3,6 +3,8 @@ import time
 import typing as t
 from functools import cached_property
 
+from structures import errors
+
 from ..database import queries, typed
 from ..database.simple_orm import Arg, BaseModel, Raw, Rows, column
 from ..ranks.community_rank import CommunityRank
@@ -12,8 +14,7 @@ from . import BaseStructure, user
 from .attribute import slot_type
 from .community import Community, CommunityLimits
 from .errors import (ServerAlreadyConnectedToCommunityError,
-                     StructureNotFoundError,
-                     SynAlreadyTakenError)
+                     StructureNotFoundError, SynAlreadyTakenError)
 from .user import JumpediaUser
 
 
@@ -77,7 +78,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
             CREATE TABLE {typed.JumpediaUser} (
                 {typed.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
                 {typed.JumpediaUser.norm_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
-                {typed.JumpediaUser.real_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
+                {typed.JumpediaUser.raw_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
                 {typed.JumpediaUser.power} INT NOT NULL
             )
         """)
@@ -189,7 +190,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.TaskAttributeCollectionSlot.attribute_id} INT NOT NULL,
                 {typed.TaskAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
                 {typed.TaskAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                {typed.TaskAttributeCollectionSlot.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.TaskAttributeCollectionSlot.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 FOREIGN KEY ({typed.TaskAttributeCollectionSlot.attribute_id})
                     REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -212,7 +213,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.TaskAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
                 {typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
                 {typed.TaskAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                {typed.TaskAttributeCollectionSlotAlias.type_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.TaskAttributeCollectionSlotAlias.slot_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 FOREIGN KEY ({typed.TaskAttributeCollectionSlotAlias.attribute_collection_entry_id})
                     REFERENCES {typed.TaskAttributeCollectionSlot}({typed.TaskAttributeCollectionSlot.id})
@@ -274,7 +275,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.UserAttributeCollectionSlot.attribute_id} INT NOT NULL,
                 {typed.UserAttributeCollectionSlot.index} INT UNSIGNED NOT NULL,
                 {typed.UserAttributeCollectionSlot.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                {typed.UserAttributeCollectionSlot.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.UserAttributeCollectionSlot.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 FOREIGN KEY ({typed.UserAttributeCollectionSlot.attribute_id})
                     REFERENCES {typed.TaskAttribute}({typed.TaskAttribute.id})
@@ -297,7 +298,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.UserAttributeCollectionSlotAlias.attribute_id} INT NOT NULL,
                 {typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id} INT NOT NULL,
                 {typed.UserAttributeCollectionSlotAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                {typed.UserAttributeCollectionSlotAlias.type_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.UserAttributeCollectionSlotAlias.slot_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 FOREIGN KEY ({typed.UserAttributeCollectionSlotAlias.attribute_collection_entry_id})
                     REFERENCES {typed.UserAttributeCollectionSlot}({typed.UserAttributeCollectionSlot.id})
@@ -353,7 +354,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.TaskAttributeTaskValue.task_id} INT NOT NULL,
                 {typed.TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                 {typed.TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                {typed.TaskAttributeTaskValue.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.TaskAttributeTaskValue.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 PRIMARY KEY (
                     {typed.TaskAttributeTaskValue.task_id}, 
@@ -376,7 +377,7 @@ def _create_db_tables(j: Jumpedia, c: queries.CursorWrapper) -> None:
                 {typed.UserAttributeTaskValue.task_id} INT NOT NULL,
                 {typed.UserAttributeTaskValue.attribute_id} INT NOT NULL,
                 {typed.UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                {typed.UserAttributeTaskValue.type_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                {typed.UserAttributeTaskValue.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
 
                 PRIMARY KEY (
                     {typed.UserAttributeTaskValue.user_id},
@@ -451,14 +452,14 @@ class Jumpedia(BaseStructure):
 
     # --- Communities ---
 
-    def create_community(self, *, name: str, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
-        real_name, norm_name = text.raw_to_real_and_norm(name)
+    def create_community(self, *, real_name: text.RealStr, server_id: int, jumpedia_user: JumpediaUser) -> 'Community':
+        norm_name = text.NormStr(real_name)
         
         with self.locked:
             comm = self.get_community_by_server_id(server_id)
 
             if comm is not None:
-                raise ServerAlreadyConnectedToCommunityError(comm)
+                raise errors.ServerAlreadyConnectedToCommunityError(server_id, comm)
             
             comm = self.get_community_by_name(norm_name)
 
@@ -500,21 +501,16 @@ class Jumpedia(BaseStructure):
                         list_attribute_count_max=3,
                         list_task_count_max=2,
                         attribute_collection_entry_alias_count_max=2,
+                        attribute_collection_entry_count_max=2,
                         attribute_alias_count_max=2
                     )
                 )  
-
-                comm.get_or_create_community_user(
-                    self.create_or_get_jumpedia_user(
-                        jumpedia_user.id, 
-                        jumpedia_user.user_name,
-                        JumpediaRank.DEFAULT,
-                        True,
-                        False
-                    ), 
-                    CommunityRank.OWNER, 
+                
+                jumpedia_user.get_or_create_community_user(
+                    comm.id,
+                    CommunityRank.OWNER,
                     None,
-                    True, 
+                    True,
                     True
                 )
 
@@ -553,6 +549,7 @@ class Jumpedia(BaseStructure):
                 list_attribute_count_max=3,
                 list_task_count_max=2,
                 attribute_collection_entry_alias_count_max=2,
+                attribute_collection_entry_count_max=2,
                 attribute_alias_count_max=2
             )
         )
@@ -592,16 +589,15 @@ class Jumpedia(BaseStructure):
     def create_or_get_jumpedia_user(
         self, 
         id: int, 
-        raw_name: str, 
+        name: str, 
         jumpedia_rank: JumpediaRank, 
         override_name_if_user_exists: bool,
         override_jumpedia_rank_if_user_exists: bool
     ) -> JumpediaUser:
-        real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-        del raw_name
+        norm_name = text.NormStr(name)
 
         with self.locked:
-            user = self.get_user_by_id(id)
+            user = self.get_jumpedia_user_by_id(id)
 
             with queries.connected() as c:
                 if user is None:
@@ -610,26 +606,26 @@ class Jumpedia(BaseStructure):
                             {typed.JumpediaUser.id},
                             {typed.JumpediaUser.power},
                             {typed.JumpediaUser.norm_name},
-                            {typed.JumpediaUser.real_name}
+                            {typed.JumpediaUser.raw_name}
                         )
                         VALUES (
                             {arg(id)},
                             {arg(jumpedia_rank.power)},
                             {arg(norm_name)},
-                            {arg(real_name)}
+                            {arg(name)}
                         )
                     """)
 
                 else:
                     jumpedia_rank = jumpedia_rank if override_jumpedia_rank_if_user_exists else user.jumpedia_rank
-                    real_name = real_name if override_name_if_user_exists else user.user_name
+                    real_name = name if override_name_if_user_exists else user.user_name
 
                     if real_name != user.user_name or jumpedia_rank != user.jumpedia_rank:
                         c.execute(lambda arg: t"""
                             UPDATE {typed.JumpediaUser} 
                             SET 
                                 {typed.JumpediaUser.norm_name} = {arg(norm_name)},
-                                {typed.JumpediaUser.real_name} = {arg(real_name)},
+                                {typed.JumpediaUser.raw_name} = {arg(real_name)},
                                 {typed.JumpediaUser.power} = {arg(jumpedia_rank.power)}
                             WHERE 
                                 {typed.JumpediaUser.id} = {arg(user.id)}
@@ -657,7 +653,7 @@ class Jumpedia(BaseStructure):
     def _user_row_to_obj(self, row: typed.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
             jumpedia=self,
-            user_name=row.real_name,
+            user_name=row.raw_name,
             id=row.id,
             jumpedia_rank=JumpediaRank.get(row.power)
         )
@@ -668,7 +664,7 @@ class Jumpedia(BaseStructure):
             for data in self._fetch_from_user_table(where)
         ]
 
-    def get_user_by_id(self, id: int) -> JumpediaUser | None:
+    def get_jumpedia_user_by_id(self, id: int) -> JumpediaUser | None:
         data = self._fetch_from_user_table(lambda arg: f"{typed.JumpediaUser.id} = {arg(id)}")
         return self._user_row_to_obj(data[0]) if data else None
 
@@ -677,12 +673,7 @@ class Jumpedia(BaseStructure):
             existing_community = self.get_community_by_server_id(server_id)
 
             if existing_community is not None:
-                if community_id == existing_community.id:
-                    raise feedbacks.temp("Community is already in this server!")
-                
-                raise feedbacks.temp(
-                    "Server Already Connected To A Community",
-                )     
+                raise errors.ServerAlreadyConnectedToCommunityError(server_id, existing_community)     
             
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
@@ -714,7 +705,7 @@ class Jumpedia(BaseStructure):
                 row = c.fetchone(typed.Server)
 
             if row is None:
-                raise feedbacks.temp("Server has no community connected to it.")
+                raise errors.ServerNotConnectedToACommunityError(server_id)
 
             community = self.get_community_by_id(row.community_id)
             assert community is not None

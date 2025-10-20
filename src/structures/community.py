@@ -1,30 +1,26 @@
 import builtins
 import typing as t
 
-from ..database import queries, typed
-from ..database.simple_orm import Arg, Raw, Rows
-from ..ranks.community_rank import CommunityRank
-from ..utils import text
-from . import BaseStructure, list
-from .attribute.slot_type import SlotType
-from .attribute.static_attribute import StaticAttribute
-from .list import List
-from .user import JumpediaUser
-from .user.community_user import CommunityUser
+from src.database import queries, typed
+from src.database.simple_orm import Arg, Raw, Rows
+from src.ranks.community_rank import CommunityRank
+from src.structures import BaseStructure, errors, list
+from src.structures.attribute import StaticAttribute
+from src.structures.attribute.slot_type import SlotType
+from src.structures.list import List
+from src.structures.user import JumpediaUser
+from src.structures.user.community_user import CommunityUser
+from src.utils.text import RealStr, NormStr
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia
- 
-
-ListTbl = typed.List
-CommunityTbl = typed.Community
-CommunityUserTbl = typed.CommunityUser
 
 class CommunityLimits(t.NamedTuple):
     community_list_count_max: int
     list_attribute_count_max: int
     list_task_count_max: int
     attribute_alias_count_max: int
+    attribute_collection_entry_count_max: int
     attribute_collection_entry_alias_count_max: int
 
 class Community(BaseStructure):
@@ -32,8 +28,8 @@ class Community(BaseStructure):
 
     jumpedia: 'Jumpedia'
     id: int
-    real_name: text.RealStr
-    norm_name: text.NormStr
+    real_name: RealStr
+    norm_name: NormStr
     limits: CommunityLimits
 
     @property
@@ -58,29 +54,26 @@ class Community(BaseStructure):
 
         return frozenset(row.id for row in result)
     
-    def create_list(self, raw_name: str) -> 'List':
-        from . import errors
-
+    def create_list(self, real_name: RealStr) -> 'List':
+        norm_name = NormStr(real_name)
+        
         with self.locked:
-            real_name, norm_name = text.raw_to_real_and_norm(raw_name)
-            del raw_name
-
             list_ = self.get_list_by_name(norm_name)
 
             if list_ is not None:
-                raise errors.SynAlreadyTakenError(list_)
+                raise errors.SynAlreadyTakenError(real_name, list_)
             
             count = len(self.get_lists())
 
             if count >= self.limits.community_list_count_max:
                 raise errors.LimitOfStructuresReachedError(self.limits.community_list_count_max, List)
-            
+
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
-                    INSERT INTO {ListTbl} (
-                        {ListTbl.community_id},
-                        {ListTbl.norm_name},
-                        {ListTbl.real_name}
+                    INSERT INTO {typed.List} (
+                        {typed.List.community_id},
+                        {typed.List.norm_name},
+                        {typed.List.real_name}
                     ) 
                     VALUES (
                         {arg(self.id)},
@@ -100,7 +93,7 @@ class Community(BaseStructure):
 
                 list_.create_attribute(
                     StaticAttribute,
-                    'id',
+                    RealStr('Id'),
                     frozenset(),
                     SlotType.INT,
                     1,
@@ -110,7 +103,7 @@ class Community(BaseStructure):
 
                 list_.create_attribute(
                     StaticAttribute,
-                    'name',
+                    RealStr('Name'),
                     frozenset(),
                     SlotType.STR,
                     1,
@@ -120,7 +113,7 @@ class Community(BaseStructure):
 
                 list_.create_attribute(
                     StaticAttribute,
-                    'aliases',
+                    RealStr('Aliases'),
                     frozenset(),
                     SlotType.STR,
                     self.jumpedia.limits.attribute_task_value_slot_count_max,
@@ -135,30 +128,30 @@ class Community(BaseStructure):
 
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
-                DELETE FROM {ListTbl}
+                DELETE FROM {typed.List}
                 WHERE 
-                    {ListTbl.community_id} = {arg(self.id)}
-                    AND {ListTbl.id} = {arg(id)}
+                    {typed.List.community_id} = {arg(self.id)}
+                    AND {typed.List.id} = {arg(id)}
             """)
 
             if c.affected_row_count <= 0:
                 raise errors.StructureNotFoundError(List)
 
-    def _fetch_from_list_table(self, where: t.Callable[[Arg], str] | None) -> Rows[ListTbl]:
+    def _fetch_from_list_table(self, where: t.Callable[[Arg], str] | None) -> Rows[typed.List]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
-                FROM {ListTbl}
+                FROM {typed.List}
                 WHERE 
-                    {ListTbl.community_id} = {arg(self.id)}
+                    {typed.List.community_id} = {arg(self.id)}
                     {Raw(f"AND {where(arg)}" if where is not None else "")}
             """)
 
-            result = c.fetchall(ListTbl)
+            result = c.fetchall(typed.List)
 
         return result
     
-    def _list_row_to_obj(self, row: ListTbl) -> List:
+    def _list_row_to_obj(self, row: typed.List) -> List:
         return List(
             community=self,
             id=row.id,
@@ -173,11 +166,11 @@ class Community(BaseStructure):
         ]
 
     def get_list_by_id(self, id: int) -> List | None:
-        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.id} = {arg(id)}")
+        data = self._fetch_from_list_table(lambda arg: f"{typed.List.id} = {arg(id)}")
         return self._list_row_to_obj(data[0]) if data else None
     
-    def get_list_by_name(self, norm_name: text.NormStr) -> List | None:
-        data = self._fetch_from_list_table(lambda arg: f"{ListTbl.norm_name} = {arg(norm_name)}")
+    def get_list_by_name(self, norm_name: NormStr) -> List | None:
+        data = self._fetch_from_list_table(lambda arg: f"{typed.List.norm_name} = {arg(norm_name)}")
         return self._list_row_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
@@ -200,84 +193,10 @@ class Community(BaseStructure):
         from . import errors
         with queries.connected() as c:
             c.execute(lambda arg: t"""
-                UPDATE {CommunityTbl} 
-                SET {CommunityTbl.default_selected_list_id} = {arg(list_id)}
-                WHERE {CommunityTbl.id} = {arg(self.id)}
+                UPDATE {typed.Community} 
+                SET {typed.Community.default_selected_list_id} = {arg(list_id)}
+                WHERE {typed.Community.id} = {arg(self.id)}
             """)
 
             if c.affected_row_count < 1:
                 raise errors.StructureNotFoundError(Community)
-
-    def get_or_create_community_user(
-        self, 
-        jumpedia_user: JumpediaUser, 
-        community_rank: CommunityRank, 
-        selected_list_id: int | None, 
-        override_community_rank_if_user_exists: bool,
-        override_selected_list_if_user_exists: bool
-    ) -> CommunityUser:
-        with self.locked:
-            community_user = self.get_community_user(jumpedia_user)
-            
-            with queries.connected() as c:
-                # User doesn't exist yet
-                if community_user is None:
-                    c.execute(lambda arg: t"""
-                        INSERT INTO {CommunityUserTbl} (
-                            {CommunityUserTbl.community_id},
-                            {CommunityUserTbl.jumpedia_user_id},
-                            {CommunityUserTbl.power},
-                            {CommunityUserTbl.selected_list_id}
-                        )
-                        VALUES (
-                            {arg(self.id)},
-                            {arg(jumpedia_user.id)},
-                            {arg(community_rank.power)},
-                            {arg(selected_list_id)}
-                        )
-                    """)
-
-                else:
-                    community_rank = community_rank if override_community_rank_if_user_exists else community_user.community_rank
-                    selected_list_id = selected_list_id if override_selected_list_if_user_exists else community_user.selected_list_id
-
-                    if community_rank != community_user or selected_list_id != selected_list_id:
-                        c.execute(lambda arg: t"""
-                            UPDATE {CommunityUserTbl}
-                            SET 
-                                {CommunityUserTbl.power} = {arg(community_rank.power)}
-                                {CommunityUserTbl.selected_list_id} = {arg((None if selected_list_id is None else selected_list_id))}
-                            WHERE 
-                                {CommunityUserTbl.community_id} = {arg(self.id)}
-                                AND {CommunityUserTbl.jumpedia_user_id} = {arg(jumpedia_user.id)}
-                        """) 
-
-            return CommunityUser(
-                community=self,
-                jumpedia_user=jumpedia_user,
-                community_rank=community_rank,
-                selected_list_id=selected_list_id
-            )
-
-    
-    def get_community_user(self, id: int) -> CommunityUser | None:
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT *
-                FROM {CommunityUserTbl}
-                WHERE 
-                    {CommunityUserTbl.community_id} = {arg(self.id)}
-                    AND {CommunityUserTbl.jumpedia_user_id} = {arg(id)}
-            """)
-
-            result = c.fetchone(CommunityUserTbl)
-
-        if result is None:
-            return None
-        
-        return CommunityUser(
-            community=self,
-            jumpedia_user=jumpedia_user,
-            community_rank=CommunityRank.get(result.power),
-            selected_list_id=result.selected_list_id
-        )

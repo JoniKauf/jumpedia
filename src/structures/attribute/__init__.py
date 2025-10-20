@@ -4,11 +4,13 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from structures import utils
+
 from ...database import queries, typed
 from ...utils import text
 from .. import BaseStructure
 from .collection import Collection, CollectionEntry
-from .slot_type import SlotType, SlotStr
+from .slot_type import SlotStr, SlotType
 
 if t.TYPE_CHECKING:
     from src.structures.list import KindT, List
@@ -98,16 +100,16 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def raw_to_slots(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
+    def raw_to_value(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
         if not (self.min_slots <= (count := len(value)) <= self.max_slots):
             raise feedbacks.temp("Count of values not between limits", min=self.min_slots, count=count, max=self.max_slots)
         
         return [self.slot_type.raw_to_slot(slot) for slot in value]
 
 
-class SimpleCollectionEntryItem(t.TypedDict):
-    value: text.RealStr
-    aliases: frozenset[text.RealStr]
+class RawCollectionEntryItem(t.NamedTuple):
+    value: str
+    aliases: t.Iterable[str]
 
 
 class BaseNonStaticAttribute(BaseAttribute):
@@ -120,8 +122,8 @@ class BaseNonStaticAttribute(BaseAttribute):
             raise RuntimeError
     
 
-    def raw_to_slots(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
-        converted = super().raw_to_slots(value)
+    def raw_to_value(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
+        converted = super().raw_to_value(value)
         collection = self.get_collection()
 
         if not collection:
@@ -159,7 +161,7 @@ class BaseNonStaticAttribute(BaseAttribute):
             c.execute(lambda arg: t"""
                 SELECT 
                     {TblAlias.attribute_collection_entry_id},
-                    {TblAlias.type_alias}
+                    {TblAlias.slot_alias}
                 FROM
                     {TblAlias}
                 WHERE
@@ -172,13 +174,13 @@ class BaseNonStaticAttribute(BaseAttribute):
         entry_id_to_aliases: defaultdict[int, set[slot_type.SlotStr]] = defaultdict(set)
         
         for alias_row in alias_rows:
-            alias = self.slot_type.raw_to_slot(alias_row.type_alias)
+            alias = self.slot_type.raw_to_slot(alias_row.slot_alias)
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
         
         entries: tuple[CollectionEntry, ...] = tuple(
             CollectionEntry(
                 id=entry_row.id,
-                value=entry_row.type_slot,
+                value=entry_row.slot_slot,
                 collection_index=entry_row.index,
                 aliases=frozenset(entry_id_to_aliases[entry_row.id])
             ) 
@@ -192,14 +194,14 @@ class BaseNonStaticAttribute(BaseAttribute):
     
     def set_collection(
         self,
-        raw_collection: t.Sequence[SimpleCollectionEntryItem], 
+        collection: utils.UniqueRealStrContainer[text.RealStr, t.Literal[1]], 
     ) -> 'Collection':
-        count = len(raw_collection)
+        count = len(collection)
 
         if not count:
             return Collection(attribute=self, entries=())
 
-        if count > collection.MAX_ENTRIES:
+        if count > self.list.community.jumpedia.limits:
             raise feedbacks.temp(f"Limit fo {collection.MAX_ENTRIES} surpassed!")
         
         TblEntry = self.__class__.tables.attribute_collection_entry
@@ -216,11 +218,11 @@ class BaseNonStaticAttribute(BaseAttribute):
             type_slots: list[SlotStr] = []
             norm_slots: list[text.NormStr] = []
             
-            combined_real_aliases: tuple[set[text.RealStr], ...] = tuple(set() for _ in range(count))
+            combined_real_aliases: tuple[set[SlotStr], ...] = tuple(set() for _ in range(count))
             combined_norm_aliases: tuple[set[text.NormStr], ...] = tuple(set() for _ in range(count))
 
-            for i, entry in enumerate(raw_collection):
-                for j, syn_str in enumerate((entry['value'], *entry['aliases'])):
+            for i, entry in enumerate(collection):
+                for j, syn_str in enumerate((entry.value, *entry.aliases)):
                     type_syn = self.slot_type.raw_to_slot(syn_str)
                     norm_syn = text.real_to_norm(type_syn)
 
@@ -241,7 +243,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                     {TblEntry.attribute_id},
                     {TblEntry.index},
                     {TblEntry.norm_slot},
-                    {TblEntry.type_slot}
+                    {TblEntry.slot_slot}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, count))},
@@ -272,7 +274,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                     {TblAlias.attribute_id},
                     {TblAlias.attribute_collection_entry_id},
                     {TblAlias.norm_alias},
-                    {TblAlias.type_alias}
+                    {TblAlias.slot_alias}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, combined_aliases_count))},

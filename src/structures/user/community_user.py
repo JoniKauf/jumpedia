@@ -1,14 +1,12 @@
 import typing as t
-from dataclasses import dataclass
-
-from ...database import queries, typed
-from ...ranks.community_rank import CommunityRank
-from .. import BaseStructure
-from .jumpedia_user import JumpediaUser
+from src.database import queries, typed
+from src.structures import BaseStructure
+from src.ranks import CommunityRank
 
 if t.TYPE_CHECKING:
-    from ..community import Community
-    from ..list import List
+    from src.structures.community import Community
+    from src.structures.list import List
+    from src.structures.user.jumpedia_user import JumpediaUser
 
 class CommunityUser(BaseStructure):
     __structure_name__ = 'community user'

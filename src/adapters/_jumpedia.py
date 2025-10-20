@@ -1,16 +1,14 @@
 import typing as t
 from dataclasses import field
 
-from . import parsers
 from ..discord_.errors import FeedbackError
 from ..ranks.jumpedia_rank import JumpediaRank
 from ..structures.community import Community
 from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
                                  StructureFoundError, SynAlreadyTakenError)
-from . import errors
 from ..structures.jumpedia import JUMPEDIA, Jumpedia
 from ..utils import text
-from . import BaseAdapter
+from . import BaseAdapter, errors, parsers
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter
 from ._user.jumpedia_user import JumpediaUserAdapter

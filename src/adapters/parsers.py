@@ -1,20 +1,21 @@
 import ast
-from dataclasses import dataclass
-from functools import cached_property
-from types import MappingProxyType
 import typing as t
+from types import MappingProxyType
 
-import rexpr
-from src.discord_.errors import FeedbackError
-from src.adapters.errors import InvalidArgumentFeedbackError, StructureNotFoundViaSynFeedbackError
-from src.utils.expression_parsing.parser import ExpressionParser, ExpressionParserConfig
-from src.utils.expression_parsing.visitor import ListOfStrVisitor, ListOfTupleVisitor, DictOfStrToListOfStrVisitor, ExpressionVisitorConfig, BaseExpressionVisitor
-from src.utils.expression_parsing import utils as ep_utils, errors as ep_errors
+from src.adapters.errors import (InvalidArgumentFeedbackError,
+                                 StructureNotFoundViaSynFeedbackError)
+from src.utils.expression_parsing import errors as ep_errors
+from src.utils.expression_parsing import utils as ep_utils
+from src.utils.expression_parsing.parser import (ExpressionParser,
+                                                 ExpressionParserConfig)
+from src.utils.expression_parsing.visitor import (BaseExpressionVisitor,
+                                                  DictOfStrToListOfStrVisitor,
+                                                  ExpressionVisitorConfig,
+                                                  ListOfStrVisitor,
+                                                  ListOfTupleVisitor)
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_type import SlotTypeT
-from structures.task import Task
 from structures.task.attribute_value_mapping import AttributeValueMapping
-from utils import text
 from utils.text import NormStr
 
 _KIBIBYTE = 2 ** 10
@@ -79,10 +80,10 @@ type FilterAttributesT = MappingProxyType[NormStr, AnyAttributeT]
 _OP_TO_FUNC: dict[type[ast.AST], t.Callable[[SlotTypeT, frozenset[SlotTypeT]], bool]] = {
     ast.Eq:    lambda v, tav: v in tav, 
     ast.NotEq: lambda v, tav: v not in tav, 
-    ast.Lt:    lambda v, tav: any(v < s for s in tav), 
-    ast.LtE:   lambda v, tav: any(v <= s for s in tav), 
-    ast.Gt:    lambda v, tav: any(v > s for s in tav), 
-    ast.GtE:   lambda v, tav: any(v >= s for s in tav)
+    ast.Lt:    lambda v, tav: any(v < s for s in tav),  # pyright: ignore[reportOperatorIssue]
+    ast.LtE:   lambda v, tav: any(v <= s for s in tav), # pyright: ignore[reportOperatorIssue]
+    ast.Gt:    lambda v, tav: any(v > s for s in tav),  # pyright: ignore[reportOperatorIssue]
+    ast.GtE:   lambda v, tav: any(v >= s for s in tav)  # pyright: ignore[reportOperatorIssue]
 }
 
 class FilterVisitor(BaseExpressionVisitor[list[AttributeValueMapping], [t.Iterable[AttributeValueMapping]]], body_type=(ast.BoolOp, ast.Compare)):
