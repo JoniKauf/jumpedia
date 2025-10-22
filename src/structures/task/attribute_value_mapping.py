@@ -30,8 +30,8 @@ class AttributeValueMapping:
     python_id: int = field(init=False, default=-1)
 
     def __post_init__(self):
-        object.__setattr__(self, 'python_id', id(self))
-        
+        object.__setattr__(self, "python_id", id(self))
+
     @property
     def combined(self) -> MappingProxyType[AnyAttributeT, tuple[SlotStr, ...]]:
         if not self._combined_cache:

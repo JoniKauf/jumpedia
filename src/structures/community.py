@@ -10,7 +10,7 @@ from src.structures.attribute.slot_type import SlotType
 from src.structures.list import List
 from src.structures.user import JumpediaUser
 from src.structures.user.community_user import CommunityUser
-from src.utils.text import RealStr, NormStr
+from src.utils.text import NormStr, RealStr
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia

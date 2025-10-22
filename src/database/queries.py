@@ -110,11 +110,13 @@ atexit.register(lambda **_: CONNECTION_POOL.close())
 
 
 @contextmanager
-def connected(c: CursorWrapper | None = None, *, no_db: bool = False) -> t.Iterator[CursorWrapper]:
+def connected(
+    c: CursorWrapper | None = None, *, no_db: bool = False
+) -> t.Iterator[CursorWrapper]:
     if c is not None:
         yield c
         return
-    
+
     if no_db:
         conn = mariadb.connect(**__CONNECTION_DATA)
     else:

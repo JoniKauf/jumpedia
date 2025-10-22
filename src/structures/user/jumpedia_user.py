@@ -3,10 +3,9 @@ from typing import TYPE_CHECKING
 from database import typed
 from src.database import queries
 from src.ranks.community_rank import CommunityRank
-from src.structures.user.community_user import CommunityUser
-
 from src.ranks.jumpedia_rank import JumpediaRank
 from src.structures import BaseStructure
+from src.structures.user.community_user import CommunityUser
 from structures import errors
 from structures.community import Community
 

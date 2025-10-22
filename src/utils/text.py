@@ -68,7 +68,7 @@ class RealStr(str):
     def __new__(cls, s: str) -> t.Self:
         if isinstance(s, cls):
             return s
-        
+
         s = replace_whitespace_groups(s, " ", True)
         s = replace_bad_chars(s)
         s = "".join(c for c in s if c.isprintable())
@@ -85,19 +85,25 @@ class NormStr(str):
             s = RealStr(s)
 
         return super().__new__(cls, s.lower())
-    
+
     @t.overload
     @classmethod
-    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[T], /) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+    def unique_reals_and_norms[T: RealStr](
+        cls, iterable: t.Iterable[T], /
+    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
         pass
 
     @t.overload
     @classmethod
-    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+    def unique_reals_and_norms[T: RealStr](
+        cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr
+    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
         pass
 
     @classmethod
-    def unique_reals_and_norms[T: RealStr](cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
+    def unique_reals_and_norms[T: RealStr](
+        cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr
+    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
         mapping: dict[t.Self, T] = {}
 
         for s in iterable:
@@ -112,10 +118,11 @@ class NormStr(str):
                 raise ValueError(s, existing_norm)
 
             mapping[norm] = s
-        
+
         # Dict order is preserved
         return (tuple(mapping.values()), tuple(mapping))
-    
+
+
 def apply_f_to_interpolation_value(interpolation: Interpolation):
     value = convert(interpolation.value, interpolation.conversion)
     value = format(value, interpolation.format_spec)

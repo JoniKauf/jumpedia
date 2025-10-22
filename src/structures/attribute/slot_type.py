@@ -61,7 +61,7 @@ class SlotStr(text.RealStr):
                 return super().__new__(cls, str(False))
             if s == "true":
                 return super().__new__(cls, str(True))
-            
+
             raise errors.InvalidSlotStr(s, type)
 
         if issubclass(type, int):

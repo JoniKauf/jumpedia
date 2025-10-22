@@ -2,8 +2,8 @@ import typing as t
 
 if t.TYPE_CHECKING:
     from src.structures import BaseStructure
-    from src.structures.community import Community
     from src.structures.attribute.slot_type import SlotTypeT
+    from src.structures.community import Community
 
 
 class BaseStructureError(Exception):
@@ -69,6 +69,7 @@ class ElementCountOutOfRangeError(BaseStructureError):
         self.max = max
         self.structure_type = structure_type
         super().__init__(*args)
+
 
 class InvalidSlotStr(BaseStructureError):
     def __init__(self, s: str, expected_type: type[SlotTypeT], *args: object) -> None:

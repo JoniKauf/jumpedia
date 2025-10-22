@@ -1,7 +1,8 @@
 import typing as t
+
 from src.database import queries, typed
-from src.structures import BaseStructure
 from src.ranks import CommunityRank
+from src.structures import BaseStructure
 
 if t.TYPE_CHECKING:
     from src.structures.community import Community

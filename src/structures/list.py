@@ -12,7 +12,7 @@ from src.structures.attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT,
                                       TaskAttribute, UserAttribute)
 from src.structures.attribute.slot_type import SlotStr, SlotType, SlotTypeT
 from src.structures.task import Task
-from src.utils.text import RealStr, NormStr
+from src.utils.text import NormStr, RealStr
 from structures import errors
 from structures.task.attribute_value_mapping import AttributeValueMapping, AvmT
 from structures.user.community_user import CommunityUser
