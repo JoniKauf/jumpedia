@@ -2,7 +2,8 @@ from functools import cached_property
 
 import discord as dc
 
-from ...ranks import ServerRank
+from src.structures.user.ranks import ServerRank
+
 from .. import BaseAdapter
 from .server import ServerAdapter
 from .user import UserAdapter

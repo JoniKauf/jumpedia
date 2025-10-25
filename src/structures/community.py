@@ -1,16 +1,13 @@
 import builtins
 import typing as t
 
-from src.database import queries, typed
-from src.database.simple_orm import Arg, Raw, Rows
-from src.ranks.community_rank import CommunityRank
-from src.structures import BaseStructure, errors, list
-from src.structures.attribute import StaticAttribute
-from src.structures.attribute.slot_type import SlotType
-from src.structures.list import List
-from src.structures.user import JumpediaUser
-from src.structures.user.community_user import CommunityUser
-from src.utils.text import NormStr, RealStr
+from ..database import queries, typed
+from ..database.simple_orm import Arg, Raw, Rows
+from ..utils.text import NormStr, RealStr
+from . import BaseStructure, errors, list
+from .attribute import StaticAttribute
+from .attribute.slot_type import SlotType
+from .list import List
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia

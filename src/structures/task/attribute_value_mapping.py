@@ -2,14 +2,10 @@ import typing as t
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from structures.attribute import (
-    AnyAttributeT,
-    StaticAttribute,
-    TaskAttribute,
-    UserAttribute,
-)
-from structures.attribute.slot_type import SlotStr
-from structures.user.community_user import CommunityUser
+from ..attribute import (AnyAttributeT, StaticAttribute, TaskAttribute,
+                         UserAttribute)
+from ..attribute.slot_type import SlotStr
+from ..user.community_user import CommunityUser
 
 if t.TYPE_CHECKING:
     from structures.task import Task

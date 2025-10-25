@@ -2,7 +2,7 @@ import typing as t
 
 import requests
 
-from ..database import secret
+from ..utils import secret
 
 __TOKEN = secret.listen().GITHUB_GIST_TOKEN
 

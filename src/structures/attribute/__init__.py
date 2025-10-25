@@ -4,7 +4,7 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from structures import utils
+from src import utils
 
 from ...database import queries, typed
 from ...utils import text
@@ -13,7 +13,7 @@ from .collection import Collection, CollectionEntry
 from .slot_type import SlotStr, SlotType
 
 if t.TYPE_CHECKING:
-    from src.structures.list import KindT, List
+    from ..list import KindT, List
     
 # General
 SORT_KEY_NONE_NUMBER: t.Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1

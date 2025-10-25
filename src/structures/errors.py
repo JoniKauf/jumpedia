@@ -1,9 +1,9 @@
 import typing as t
 
 if t.TYPE_CHECKING:
-    from src.structures import BaseStructure
-    from src.structures.attribute.slot_type import SlotTypeT
-    from src.structures.community import Community
+    from . import BaseStructure
+    from .attribute.slot_type import SlotTypeT
+    from .community import Community
 
 
 class BaseStructureError(Exception):
@@ -23,8 +23,8 @@ class StructureFoundError(BaseStructureError):
         super().__init__(*args)
 
 
-class SynAlreadyTakenError[T: BaseStructure](BaseStructureError):
-    def __init__(self, syn: str, structure: T, *args: object) -> None:
+class SynAlreadyTakenError(BaseStructureError):
+    def __init__(self, syn: str, structure: BaseStructure, *args: object) -> None:
         self.syn = syn
         self.structure = structure
         super().__init__(*args)

@@ -1,14 +1,15 @@
 import typing as t
 from dataclasses import field
 
-from src.database import queries
-from src.database import typed as typed
-from src.structures import BaseStructure
 from src.utils import text
-from structures.attribute.slot_type import SlotStr
+
+from ...database import queries
+from ...database import typed as typed
+from .. import BaseStructure
+from ..attribute.slot_type import SlotStr
 
 if t.TYPE_CHECKING:
-    from src.structures.list import List
+    from ..list import List
 
 class Task(BaseStructure):
     list: List

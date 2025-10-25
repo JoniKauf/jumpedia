@@ -3,22 +3,20 @@ import typing as t
 from string.templatelib import Template
 from types import MappingProxyType
 
-from src.database import queries, typed
-from src.database.simple_orm import Arg, Raw, Rows
-from src.structures import BaseStructure
-from src.structures.attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT,
-                                      BaseAttribute, BaseNonStaticAttribute,
-                                      RawCollectionEntryItem, StaticAttribute,
-                                      TaskAttribute, UserAttribute)
-from src.structures.attribute.slot_type import SlotStr, SlotType, SlotTypeT
-from src.structures.task import Task
-from src.utils.text import NormStr, RealStr
-from structures import errors
-from structures.task.attribute_value_mapping import AttributeValueMapping, AvmT
-from structures.user.community_user import CommunityUser
+from ..database import queries
+from ..database.simple_orm import Arg, Raw, Rows
+from src.structures.jumpedia import db
+from ..utils.text import NormStr, RealStr
+from . import BaseStructure, errors
+from .attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
+                        BaseNonStaticAttribute, StaticAttribute, TaskAttribute,
+                        UserAttribute)
+from .attribute.slot_type import SlotStr, SlotType, SlotTypeT
+from .task import Task
+from .task.attribute_value_mapping import AttributeValueMapping, AvmT
 
 if t.TYPE_CHECKING:
-    from src.structures.community import Community
+    from .community import Community
 
 
 STATIC_ATTRIBUTE_KIND_OF_ID: t.Final = 1
@@ -130,7 +128,7 @@ class List(BaseStructure):
                 return attr
     
     def get_static_attribute_by_kind(self, kind: KindT) -> StaticAttribute:
-        StaticAttributeTbl = typed.StaticAttribute
+        StaticAttributeTbl = db.StaticAttribute
 
         if kind not in KINDS:
             raise ValueError(f"Kind {kind} is not valid")
@@ -218,7 +216,7 @@ class List(BaseStructure):
             AttributeTbl = type.tables.attribute
 
             with queries.connected() as c:
-                if issubclass(AttributeTbl, typed.StaticAttribute):
+                if issubclass(AttributeTbl, db.StaticAttribute):
                     c.execute(lambda arg: t"""
                         INSERT INTO {AttributeTbl} (
                             {AttributeTbl.list_id},
@@ -393,7 +391,7 @@ class List(BaseStructure):
 
                 self._insert_attribute_aliases(c, type, attribute.id, real_aliases, norm_aliases)
 
-    def _fetch_from_attribute_table[T: typed.BaseAttribute](
+    def _fetch_from_attribute_table[T: db.AnyAttributeTable](
         self, 
         table_type: type[T], 
         where: t.Callable[[Arg], str] | None
@@ -414,10 +412,10 @@ class List(BaseStructure):
     def _attribute_row_to_obj[T: BaseAttribute](
         self, 
         type: type[T], 
-        row: typed.BaseAttribute
+        row: db.AnyAttributeTable
     ) -> T:
         if issubclass(type, StaticAttribute):
-            assert isinstance(row, typed.StaticAttribute)
+            assert isinstance(row, db.StaticAttribute)
 
             return type(
                 list=self,
@@ -510,24 +508,24 @@ class List(BaseStructure):
         ]
 
     def get_task_by_id(self, id: int) -> Task | None:
-        data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.id} = {arg(id)}")
+        data = self._fetch_tasks_from_table(lambda arg: f"{db.Task.id} = {arg(id)}")
         return self._task_row_to_obj(data[0]) if data else None
     
     def get_task_by_name(self, norm_name: NormStr) -> Task | None:
-        data = self._fetch_tasks_from_table(lambda arg: f"{typed.Task.norm_name} = {arg(norm_name)}")
+        data = self._fetch_tasks_from_table(lambda arg: f"{db.Task.norm_name} = {arg(norm_name)}")
         return self._task_row_to_obj(data[0]) if data else None
 
     def get_task_by_alias(self, norm_alias: NormStr) -> Task | None:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
-                SELECT {typed.TaskAlias.task_id}
-                FROM {typed.TaskAlias}
+                SELECT {db.TaskAlias.task_id}
+                FROM {db.TaskAlias}
                 WHERE 
-                    {typed.TaskAlias.list_id} = {arg(self.id)}
-                    AND {typed.TaskAlias.norm_alias} = {arg(norm_alias)}
+                    {db.TaskAlias.list_id} = {arg(self.id)}
+                    AND {db.TaskAlias.norm_alias} = {arg(norm_alias)}
             """)
 
-            row = c.fetchone(typed.TaskAlias)
+            row = c.fetchone(db.TaskAlias)
 
         if row is None:
             return None
@@ -550,7 +548,7 @@ class List(BaseStructure):
 
         query_lambda: t.Callable[[Arg], Template]
         
-        if issubclass(AtvTable, typed.UserAttributeTaskValue):
+        if issubclass(AtvTable, db.UserAttributeTaskValue):
             query_lambda = lambda arg: t"""
                 SELECT 
                     {AtvTable.task_id},
@@ -638,12 +636,12 @@ class List(BaseStructure):
                 static_avm[name_attr.id] = [task.slot_name]
 
             c.execute(lambda arg: t"""
-                SELECT {typed.TaskAlias.slot_alias}, {typed.TaskAlias.task_id}
-                FROM {typed.TaskAlias}
-                WHERE {typed.TaskAlias.list_id} = {arg(self.id)}
+                SELECT {db.TaskAlias.slot_alias}, {db.TaskAlias.task_id}
+                FROM {db.TaskAlias}
+                WHERE {db.TaskAlias.list_id} = {arg(self.id)}
             """)
 
-            task_id_to_aliases = itertools.groupby(c.fetchall(typed.TaskAlias), lambda row: row.task_id)
+            task_id_to_aliases = itertools.groupby(c.fetchall(db.TaskAlias), lambda row: row.task_id)
 
             for task_id, aliases in task_id_to_aliases:
                 raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = list(alias.slot_alias for alias in aliases)
@@ -692,10 +690,10 @@ class List(BaseStructure):
     def create_task(
         self, 
         real_name: RealStr,
-        real_aliases: t.Iterable[RealStr],
+        slot_aliases: t.Iterable[RealStr],
         raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[str]]
     ) -> Task:
-        (real_name, *real_aliases), (norm_name, *norm_aliases) = NormStr.unique_reals_and_norms((real_name, *real_aliases))
+        (real_name, *slot_aliases), (norm_name, *norm_aliases) = NormStr.unique_reals_and_norms((real_name, *slot_aliases))
 
         with self.locked:
             self._validate_task_syns(norm_name, {*norm_aliases})
@@ -709,10 +707,10 @@ class List(BaseStructure):
                 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
-                    INSERT INTO {typed.Task} (
-                        {typed.Task.list_id},
-                        {typed.Task.norm_name},
-                        {typed.Task.slot_name}
+                    INSERT INTO {db.Task} (
+                        {db.Task.list_id},
+                        {db.Task.norm_name},
+                        {db.Task.slot_name}
                     )
                     VALUES (
                         {arg(self.id)},
@@ -723,7 +721,7 @@ class List(BaseStructure):
 
                 task_id = c.last_generated_id 
                 
-                self._insert_task_aliases(c, task_id, real_aliases, norm_aliases)
+                self._insert_task_aliases(c, task_id, slot_aliases, norm_aliases)
                 self._insert_task_attribute_value_mapping(c, task_id, task_attribute_value_mapping)
 
             return Task(
@@ -738,10 +736,10 @@ class List(BaseStructure):
 
         with self.locked, queries.connected() as c:
             c.execute(lambda arg: t"""
-                DELETE FROM {typed.Task}
+                DELETE FROM {db.Task}
                 WHERE 
-                    {typed.Task.list_id} = {arg(self.id)}
-                    AND {typed.Task.id} = {arg(id)}
+                    {db.Task.list_id} = {arg(self.id)}
+                    AND {db.Task.id} = {arg(id)}
             """)
 
             if c.affected_row_count < 1:
@@ -765,7 +763,7 @@ class List(BaseStructure):
             
             self._validate_task_syns(norm_name, allowed_tasks={task})
 
-            TaskTbl = typed.Task
+            TaskTbl = db.Task
 
             with queries.connected() as c:
                 c.execute(lambda arg: t"""
@@ -780,7 +778,7 @@ class List(BaseStructure):
                 
                 # If the new name is an alias, remove the alias
                 if norm_name in task.get_norm_aliases():
-                    TaskAliasTbl = typed.TaskAlias
+                    TaskAliasTbl = db.TaskAlias
 
                     c.execute(lambda arg: t"""
                         DELETE FROM {TaskAliasTbl}
@@ -823,7 +821,7 @@ class List(BaseStructure):
             
             del norm_name
             
-            TaskAliasTbl = typed.TaskAlias
+            TaskAliasTbl = db.TaskAlias
 
             with queries.connected() as c:
                 # Delete all aliases
@@ -864,21 +862,21 @@ class List(BaseStructure):
 
                 self._insert_task_attribute_value_mapping(c, task.id, task_attribute_value_mapping)
         
-    def _fetch_tasks_from_table(self, where: t.Callable[[Arg], str] | None) -> Rows[typed.Task]:
+    def _fetch_tasks_from_table(self, where: t.Callable[[Arg], str] | None) -> Rows[db.Task]:
         with queries.connected() as c:
             c.execute(lambda arg: t"""
                 SELECT *
-                FROM {typed.Task}
+                FROM {db.Task}
                 WHERE 
-                    {typed.Task.list_id} = {arg(self.id)}
+                    {db.Task.list_id} = {arg(self.id)}
                     {f"AND {where(arg)}" if where is not None else ""}
             """)
 
-            result = c.fetchall(typed.Task)
+            result = c.fetchall(db.Task)
 
         return result
     
-    def _task_row_to_obj(self, row: typed.Task) -> Task:
+    def _task_row_to_obj(self, row: db.Task) -> Task:
         return Task(
             list=self,
             id=row.id,
@@ -897,7 +895,7 @@ class List(BaseStructure):
             return
         
         count = len(norm_aliases)
-        TaskAliasTbl = typed.TaskAlias
+        TaskAliasTbl = db.TaskAlias
 
         c.executemany(lambda args: t"""
             INSERT INTO {TaskAliasTbl} (

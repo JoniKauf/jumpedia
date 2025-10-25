@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Callable
 
+
 def clear():
     os.system("cls" if platform.system() == "Windows" else "clear")
 

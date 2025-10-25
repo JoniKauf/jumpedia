@@ -10,7 +10,7 @@ import discord as dc
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from ..database import secret
+from ..utils import secret
 from .errors import BaseUserReturnableError
 
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())

@@ -1,9 +1,9 @@
+import annotationlib
 import string
 import typing as t
+from types import SimpleNamespace
 
-import annotationlib
-
-from .._utils import TagSafeSqlStr
+from .._utils import SqlString
 from .column import Column
 
 
@@ -12,12 +12,17 @@ class SNAKE:
     def __init__(self) -> t.Never:
         raise NotImplementedError()
 
+@t.final
+class EXACT:
+    def __init__(self) -> None:
+        raise NotImplementedError()
 
-class _ModelMeta(type, TagSafeSqlStr):
+
+class _ModelMeta(type, SqlString):
     _table_name: str
-    _columns: list[Column[t.Any]]
+    _columns: list[Column[t.Any, t.Any]]
 
-    def __str__(self) -> str:
+    def _sql_str(self) -> str:
         return f"`{self._table_name}`"
 
 
@@ -29,46 +34,24 @@ _SNAKE_TRANS_TABLE = str.maketrans(
 )
 
 
-class Model(metaclass=_ModelMeta):
+class Model(SimpleNamespace, metaclass=_ModelMeta):
     _columns_data: dict[str, t.Any]
 
     @t.final
-    def __init_subclass__(cls, table_name: str | type[SNAKE]) -> None:
+    def __init_subclass__(cls, table_name: str | type[SNAKE] | type[EXACT]) -> None:
+        if cls.__bases__ != (Model,):
+            raise RuntimeError
+        
         if table_name is SNAKE:
             table_name = cls.__name__.translate(_SNAKE_TRANS_TABLE).removeprefix("_")
-
+        elif table_name is EXACT:
+            table_name = cls.__name__
+            
         cls._table_name = table_name
-
-        new_annotations: dict[str, t.Any] = {}
-
-        mro = cls.mro()
-
-        # Iterate over mro in reverse, starting from direct subclass of Model to more specialized
-        for base in reversed((cls, *mro[:mro.index(Model)])):
-            new_annotations.update(
-                annotationlib.get_annotations(base, format=annotationlib.Format.VALUE)
-            )
-
-        cls.__annotations__ = new_annotations
-
-        for name, anno in new_annotations.items():
-            if (
-                t.get_origin(anno) is not Column
-                or len(anno_args := t.get_args(anno)) != 1
-            ):
-                raise ValueError(
-                    f"Field {name!r} of class {cls.__name__!r} is not annotated as {Column.__name__}[<type>]"
-                )
-
-            col = Column(cls, name, anno_args[0])
-            setattr(cls, name, col)
 
     @t.final
     def __init__(self, data: t.Mapping[str, t.Any]) -> None:
-        if data.keys() != self.__class__.__annotations__.keys():
-            raise ValueError
-
         self._columns_data = {**data}
 
 
-__all__ = ["Model", "SNAKE"]
+__all__ = ["Model", "SNAKE", "EXACT"]

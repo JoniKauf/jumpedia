@@ -1,7 +1,0 @@
-discord
-mariadb
-typing_extensions
-black
-isort
-requests
-rexpr

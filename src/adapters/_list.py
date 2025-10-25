@@ -1,14 +1,14 @@
 import typing as t
 
+from src.structures.attribute import (StaticAttribute, TaskAttribute,
+                                      UserAttribute)
+
 from ..structures import attribute
 from ..structures.attribute import BaseAttribute
-from ..structures.attribute.static_attribute import StaticAttribute
-from ..structures.attribute.task_attribute import TaskAttribute
-from ..structures.attribute.user_attribute import UserAttribute
 from ..structures.list import List
 from ..structures.task import Task
-from ..utils import argparsing, text
-from . import BaseAdapter, errors, parsers
+from ..utils import text
+from . import BaseAdapter, errors
 from ._attribute import AnyAttributeAdapterT
 from ._attribute.static_attribute import StaticAttributeAdapter
 from ._attribute.task_attribute import TaskAttributeAdapter
@@ -52,7 +52,7 @@ def _get_attribute_adapter(
     if isinstance(attribute, UserAttribute):
         return UserAttributeAdapter(attribute, list)
 
-    assert_never(attribute)
+    t.assert_never(attribute)
 
 
 def _require_task_with_syn(norm_syn: text.NormStr, list: List) -> Task:

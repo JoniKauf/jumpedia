@@ -1,14 +1,17 @@
+from curses import meta
 import typing as t
 from dataclasses import field
 
-from ..discord_.errors import FeedbackError
-from ..ranks.jumpedia_rank import JumpediaRank
+from src.discord_.errors import FeedbackError
+from src.utils import secret
+from src.utils.orm import Connector
+
 from ..structures.community import Community
 from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
-                                 StructureFoundError, SynAlreadyTakenError)
-from ..structures.jumpedia import JUMPEDIA, Jumpedia
+                                 SynAlreadyTakenError)
+from ..structures.jumpedia import Jumpedia, JumpediaLimits
 from ..utils import text
-from . import BaseAdapter, errors, parsers
+from . import BaseAdapter, errors
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter
 from ._user.jumpedia_user import JumpediaUserAdapter
@@ -16,6 +19,28 @@ from ._user.jumpedia_user import JumpediaUserAdapter
 if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
 
+
+__conn_data = secret.listen().DATABASE_CONNECTION_DATA
+
+_JUMPEDIA = Jumpedia(
+    id=1,
+    limits=JumpediaLimits(
+        community_name_length_max=64,
+        list_name_length_max=64,
+        user_name_length_max=32,  # Discord limit
+        attribute_syn_length_max=64,
+        attribute_task_value_slot_length_max=255,
+        attribute_task_value_slot_count_max=32
+    ),
+    connector=Connector(
+        **__conn_data,
+        database_name='jumpedia'
+    ),
+    meta_connector=Connector(
+        **__conn_data,
+        database_name=None
+    )
+)
 
 def _require_server_with_community(community: Community | None) -> Community:
     if community is None:
@@ -35,7 +60,7 @@ def _require_community_with_name(name: text.NormStr, jumpedia: Jumpedia) -> Comm
 
 class JumpediaAdapter(BaseAdapter):
     interaction: InteractionAdapter
-    _jumpedia: Jumpedia = field(init=False, default=JUMPEDIA)
+    _jumpedia: Jumpedia = field(init=False, default=_JUMPEDIA)
 
     # --- Community ---
 

@@ -2,7 +2,6 @@ import enum
 import typing as t
 from string.templatelib import Template
 
-import typing_extensions
 from discord.app_commands.errors import CheckFailure
 
 

@@ -1,5 +1,9 @@
+import typing as t
+
 type TupleOfOneOrMore[T] = tuple[T, *tuple[T, ...]]
 
 
-class TagSafeSqlStr:
-    pass
+@t.runtime_checkable
+class SqlString(t.Protocol):
+    def _sql_str(self) -> str:
+        ...

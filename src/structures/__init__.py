@@ -1,8 +1,7 @@
 import typing as t
 from abc import ABCMeta, abstractmethod
 from contextlib import _GeneratorContextManager
-from dataclasses import dataclass, field
-from threading import RLock
+from dataclasses import dataclass
 
 from ..utils import locked, text
 

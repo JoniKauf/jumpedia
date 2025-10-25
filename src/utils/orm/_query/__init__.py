@@ -65,12 +65,14 @@ class FetchableQuery[T: Model](Query[T]):
         return list(map(self._table, fetch))
 
 
+class ExecuteData:
+    def __init__(self) -> None:
+        pass
+
 class ExecutableQuery[T: Model](Query[T]):
     def execute(self) -> None:
         self._core_execute()
+        self._cursor._mariadb_cursor.
 
 
-__all__ = [
-    'Operator',
-    'Order'
-]
+__all__ = ["Operator", "Order"]

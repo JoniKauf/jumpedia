@@ -1,8 +1,6 @@
 import typing as t
 from dataclasses import dataclass, field
 
-from typing_extensions import Sentinel
-
 from ...utils import text
 from .. import BaseStructure
 from .slot_type import SlotStr

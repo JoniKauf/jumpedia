@@ -17,7 +17,7 @@ class InsertQuery[T: Model](ExecutableQuery[T]):
 
 class InsertReturningQuery[T: Model](FetchableQuery[T]):
     _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
-    _returning: TupleOfOneOrMore[Column[t.Any]]
+    _returning: TupleOfOneOrMore[Column[T, t.Any]]
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
         return utils.get_added_returning_sql(
@@ -27,7 +27,7 @@ class InsertReturningQuery[T: Model](FetchableQuery[T]):
 
 class Returning[T: Model](QueryData[T]):
     _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
-    _returning: TupleOfOneOrMore[Column[t.Any]]
+    _returning: TupleOfOneOrMore[Column[T, t.Any]]
 
     def query(self) -> InsertReturningQuery[T]:
         return InsertReturningQuery(
@@ -37,12 +37,12 @@ class Returning[T: Model](QueryData[T]):
 
 class Insert[T: Model](QueryData[T]):
     _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
-    
+
     def query(self) -> InsertQuery[T]:
         return InsertQuery(self._cursor, self._table, self._insert)
 
     def returning(
-        self, column: Column[t.Any], /, *columns: Column[t.Any]
+        self, column: Column[T, t.Any], /, *columns: Column[T, t.Any]
     ) -> Returning[T]:
         return Returning(self._cursor, self._table, self._insert, (column, *columns))
 

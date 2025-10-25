@@ -14,11 +14,11 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
 
 class SynAlreadyTakenFeedbackError(FeedbackError):
     def __init__(self, e: errors.SynAlreadyTakenError) -> None:
-        assert issubclass(e.structure_type, BaseStructure)
+        assert isinstance(e.structure, BaseStructure)
 
         super().__init__(
             "Name Or Alias Already Taken",
-            t"The name or alias `{e.syn}` is already taken by another {e.structure_type.type_name:p}!"
+            t"The name or alias `{e.syn}` is already taken by another {e.structure.__class__.type_name:p}!"
         )
 
 class InvalidArgumentFeedbackError(FeedbackError):
@@ -30,7 +30,7 @@ class InvalidArgumentFeedbackError(FeedbackError):
         related_documentation: Sequence[tuple[str, str]] = (),
         paragraphs: Sequence[Template] = (),
         msg_kwargs: Mapping[str, Any] | None = None,
-    ):
+    ) -> None:
         super().__init__(
             "Invalid Argument Error",
             core,
