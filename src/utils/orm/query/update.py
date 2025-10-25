@@ -4,12 +4,12 @@ from .._utils import TupleOfOneOrMore
 from . import ExecutableQuery, Operator, Order, QueryData, utils
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBindedSingle
-    from .._structures.model import Model
+    from ..structures.column import Column, ColumnBindedOne
+    from ..structures.model import Model
 
 
 class UpdateQuery[T: Model](ExecutableQuery[T]):
-    _update: tuple[TupleOfOneOrMore[ColumnBindedSingle], bool]
+    _update: tuple[TupleOfOneOrMore[ColumnBindedOne], bool]
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
     _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
     _limit: tuple[int, int] | None
@@ -41,7 +41,7 @@ class UpdateQuery[T: Model](ExecutableQuery[T]):
 
 
 class Limit[T: Model](QueryData[T]):
-    _update: tuple[TupleOfOneOrMore[ColumnBindedSingle], bool]
+    _update: tuple[TupleOfOneOrMore[ColumnBindedOne], bool]
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
     _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
     _limit: tuple[int, int] | None

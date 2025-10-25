@@ -5,8 +5,8 @@ from . import (ExecutableQuery, FetchableQuery, Operator, Order, QueryData,
                utils)
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column
-    from .._structures.model import Model
+    from ..structures.column import Column
+    from ..structures.model import Model
 
 
 class DeleteQuery[T: Model](ExecutableQuery[T]):

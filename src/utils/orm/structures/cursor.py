@@ -3,11 +3,11 @@ from types import TracebackType
 
 import mariadb
 
-from .._query.delete import Delete
-from .._query.insert import Insert
-from .._query.select import Select
-from .._query.update import Update
-from .column import Column, ColumnBindedSingle
+from ..query.delete import Delete
+from ..query.insert import Insert
+from ..query.select import Select
+from ..query.update import Update
+from .column import Column, ColumnBindedOne, ColumnBindedOne, ColumnBindedN
 
 if t.TYPE_CHECKING:
     from .model import Model
@@ -64,9 +64,9 @@ class Cursor:
 
     def insert[T: Model](
         self,
-        column_binded: ColumnBindedSingle[T, t.Any],
+        column_binded: ColumnBindedN[T, t.Any],
         /,
-        *columns_binded: ColumnBindedSingle[T, t.Any],
+        *columns_binded: ColumnBindedN[T, t.Any],
         into: type[T],
         ignore: bool = False,
     ) -> Insert[T]:
@@ -74,9 +74,9 @@ class Cursor:
 
     def update[T: Model](
         self,
-        column_binded: ColumnBindedSingle[T, t.Any],
+        column_binded: ColumnBindedOne[T, t.Any],
         /,
-        *columns_binded: ColumnBindedSingle[T, t.Any],
+        *columns_binded: ColumnBindedOne[T, t.Any],
         table: type[T],
         ignore: bool = False,
     ) -> Update[T]:

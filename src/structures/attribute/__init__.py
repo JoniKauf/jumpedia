@@ -4,10 +4,11 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from src import utils
+from src.utils.orm import Operator
 
-from ...database import queries, typed
-from ...utils import text
+from ..jumpedia import db
+
+from src.utils import text
 from .. import BaseStructure
 from .collection import Collection, CollectionEntry
 from .slot_type import SlotStr, SlotType
@@ -20,14 +21,14 @@ SORT_KEY_NONE_NUMBER: t.Final[int] = max(abs(slot_type.NUMBER_MIN), abs(slot_typ
 
 @dataclass(frozen=True, slots=True)
 class AttributeTables:
-    attribute: type[typed.BaseAttribute]
-    attribute_alias: type[typed.BaseAttributeAlias]
+    attribute: type[db.AnyAttributeTable]
+    attribute_alias: type[db.AnyAttributeAliasTable]
 
 @dataclass(frozen=True, slots=True)
 class BaseNonStaticAttributeTables(AttributeTables):
-    attribute_collection_entry: type[typed.BaseAttributeCollectionEntry]
-    attribute_collection_entry_alias: type[typed.BaseAttributeCollectionEntryAlias]
-    attribute_task_value: type[typed.BaseAttributeTaskValue]
+    attribute_collection_entry: type[db.AnyAttributeCollectionEntryTable]
+    attribute_collection_entry_alias: type[db.AnyAttributeCollectionEntryAliasTable]
+    attribute_task_value: type[db.AnyAttributeTaskValueTable]
 
 type AttributeTypeId = t.Literal[0, 1, 2]
 
@@ -70,23 +71,23 @@ class BaseAttribute(BaseStructure):
         return isinstance(value, self.__class__) and self.identity == value.identity
     
     def get_real_aliases(self) -> frozenset[text.RealStr]:
-        TblAlias = self.__class__.tables.attribute_alias
+        AttributeAliasTable = self.__class__.tables.attribute_alias
 
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT {TblAlias.real_alias}
-                FROM {TblAlias}
-                WHERE {TblAlias.attribute_id} = {arg(self.id)}
-            """)
-
-            rows = c.fetchall(TblAlias)
+        with self.list.community.jumpedia.connector.cursor() as c:
+            c.select(
+                '*',
+                from_=AttributeAliasTable
+            ).where(
+                (AttributeAliasTable.list_id, Operator.EQ, self.list.id),
+                (AttributeAliasTable.attribute_id, Operator.EQ, self.id)
+            ).fetchall()
         
         return frozenset(row.real_alias for row in rows)
     
     def get_norm_aliases(self) -> frozenset[text.NormStr]:
         TblAlias = self.__class__.tables.attribute_alias
 
-        with queries.connected() as c:
+        with self.list.community.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 SELECT {TblAlias.norm_alias}
                 FROM {TblAlias}
@@ -146,7 +147,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         TblEntry = self.__class__.tables.attribute_collection_entry
         TblAlias = self.__class__.tables.attribute_collection_entry_alias
 
-        with queries.connected() as c:
+        with self.list.community.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {TblEntry}
@@ -207,7 +208,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         TblEntry = self.__class__.tables.attribute_collection_entry
         TblAlias = self.__class__.tables.attribute_collection_entry_alias
         
-        with self.locked, queries.connected() as c:
+        with self.locked, self.list.community.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 DELETE FROM {TblEntry}
                 WHERE {TblEntry.attribute_id} = {arg(self.id)}
@@ -301,7 +302,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         
 
 class StaticAttribute(BaseAttribute):
-    tables = AttributeTables(typed.StaticAttribute, typed.StaticAttributeAlias)
+    tables = AttributeTables(db.StaticAttribute, db.StaticAttributeAlias)
     type_id = 0
     
     kind: KindT = field(default=None)  # pyright: ignore[reportAssignmentType]
@@ -317,22 +318,22 @@ class StaticAttribute(BaseAttribute):
 
 class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
-        typed.TaskAttribute,
-        typed.TaskAttributeAlias,
-        typed.TaskAttributeCollectionSlot,
-        typed.TaskAttributeCollectionSlotAlias,
-        typed.TaskAttributeTaskValue,
+        db.TaskAttribute,
+        db.TaskAttributeAlias,
+        db.TaskAttributeCollectionSlot,
+        db.TaskAttributeCollectionSlotAlias,
+        db.TaskAttributeTaskValue,
     )
     type_id = 1
 
 
 class UserAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
-        typed.UserAttribute,
-        typed.UserAttributeAlias,
-        typed.UserAttributeCollectionSlot,
-        typed.UserAttributeCollectionSlotAlias,
-        typed.UserAttributeTaskValue,
+        db.UserAttribute,
+        db.UserAttributeAlias,
+        db.UserAttributeCollectionSlot,
+        db.UserAttributeCollectionSlotAlias,
+        db.UserAttributeTaskValue,
     )
     type_id = 2
 

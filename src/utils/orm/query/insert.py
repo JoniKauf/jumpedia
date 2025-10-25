@@ -4,19 +4,19 @@ from .._utils import TupleOfOneOrMore
 from . import ExecutableQuery, FetchableQuery, QueryData, utils
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBindedMany
-    from .._structures.model import Model
+    from ..structures.column import Column, ColumnBindedN
+    from ..structures.model import Model
 
 
 class InsertQuery[T: Model](ExecutableQuery[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
+    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
         return utils.get_entire_insert_sql(self._table, self._insert)
 
 
 class InsertReturningQuery[T: Model](FetchableQuery[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
+    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
     _returning: TupleOfOneOrMore[Column[T, t.Any]]
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
@@ -26,7 +26,7 @@ class InsertReturningQuery[T: Model](FetchableQuery[T]):
 
 
 class Returning[T: Model](QueryData[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
+    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
     _returning: TupleOfOneOrMore[Column[T, t.Any]]
 
     def query(self) -> InsertReturningQuery[T]:
@@ -36,7 +36,7 @@ class Returning[T: Model](QueryData[T]):
 
 
 class Insert[T: Model](QueryData[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
+    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
 
     def query(self) -> InsertQuery[T]:
         return InsertQuery(self._cursor, self._table, self._insert)

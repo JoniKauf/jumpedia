@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 
-def clear():
+def clear() -> None:
     os.system("cls" if platform.system() == "Windows" else "clear")
 
 

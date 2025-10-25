@@ -1,5 +1,4 @@
 import ast
-import types
 import typing as t
 
 from . import errors

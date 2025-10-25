@@ -4,8 +4,8 @@ from .._utils import SqlString, TupleOfOneOrMore
 from . import Operator, Order
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBindedMany
-    from .._structures.model import Model
+    from ..structures.column import Column, ColumnBindedN
+    from ..structures.model import Model
 
 PLACEHOLDER: str = "?"
 
@@ -52,7 +52,7 @@ def handle_limit_sql(limit: tuple[int, int] | None, parts: list[str]) -> None:
 
 
 def get_entire_insert_sql(
-    table: type[Model], insert: tuple[TupleOfOneOrMore[ColumnBindedMany], bool]
+    table: type[Model], insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
 ) -> tuple[str, list[t.Any]]:
     parts: list[str] = ["INSERT"]
 

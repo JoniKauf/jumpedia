@@ -4,8 +4,8 @@ from .._utils import TupleOfOneOrMore
 from . import FetchableQuery, Operator, Order, QueryData, utils
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column
-    from .._structures.model import Model
+    from ..structures.column import Column
+    from ..structures.model import Model
 
 
 class SelectQuery[T: Model](FetchableQuery[T]):

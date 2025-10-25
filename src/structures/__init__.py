@@ -9,13 +9,6 @@ type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
 ]
 
-_cls_names: dict[str, type[BaseStructure]] = {}
-
-
-def get_structure_types() -> tuple[type["BaseStructure"], ...]:
-    return tuple(_cls_names.values())
-
-
 @t.dataclass_transform(frozen_default=True, kw_only_default=True)
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.
