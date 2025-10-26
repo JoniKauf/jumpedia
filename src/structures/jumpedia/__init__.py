@@ -113,7 +113,7 @@ class Jumpedia(BaseStructure):
                 from_=db.Community
             ).where(
                 (db.Community.id, Operator.EQ, id)
-            ).query().execute(
+            ).execute(
                 get_affected_row_count=True
             )
                 
@@ -127,11 +127,11 @@ class Jumpedia(BaseStructure):
             )
 
             if where is not None:
-                query = where(select).query()
+                query = where(select).query
             else:
-                query = select.query()
+                query = select.query
 
-            return query.fetchall()
+            return query.fetch_all()
     
     def _community_row_to_obj(self, row: db.Community) -> Community:
         return Community(
@@ -170,7 +170,7 @@ class Jumpedia(BaseStructure):
                 from_=db.Server
             ).where(
                 (db.Server.id, Operator.EQ, server_id)
-            ).query().fetchone()
+            ).fetch_one()
 
         if row is None:
             return None
@@ -215,7 +215,7 @@ class Jumpedia(BaseStructure):
                             table=db.JumpediaUser
                         ).where(
                             (db.JumpediaUser.id, Operator.EQ, user.id)
-                        ).query().execute()
+                        ).execute()
                         
                 return JumpediaUser(
                     jumpedia=self,
@@ -232,11 +232,11 @@ class Jumpedia(BaseStructure):
             )
 
             if where is not None:
-                query = where(select).query()
+                query = where(select).query
             else:
-                query = select.query()
+                query = select.query
 
-            result = query.fetchall()
+            result = query.fetch_all()
 
         return result
     
@@ -287,7 +287,7 @@ class Jumpedia(BaseStructure):
                     (db.Server.id, Operator.EQ, server_id)
                 ).returning(
                     db.Server.community_id
-                ).query().fetchone()
+                ).fetch_one()
 
             if row is None:
                 raise errors.ServerNotConnectedToACommunityError(server_id)

@@ -1,7 +1,7 @@
 import typing as t
 
 from .._utils import TupleOfOneOrMore
-from . import (ExecutableQuery, FetchableQuery, Operator, Order, QueryData,
+from . import (ExecutableQuery, FetchableQuery, Operator, Order,
                utils)
 
 if t.TYPE_CHECKING:
@@ -12,7 +12,7 @@ if t.TYPE_CHECKING:
 class DeleteQuery[T: Model](ExecutableQuery[T]):
     _delete: bool
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
+    _order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None
     _limit: tuple[int, int] | None
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
@@ -23,9 +23,9 @@ class DeleteQuery[T: Model](ExecutableQuery[T]):
 
 class DeleteReturningQuery[T: Model](FetchableQuery[T]):
     _delete: bool
-    _returning: TupleOfOneOrMore[Column[T, t.Any]]
+    _returning: TupleOfOneOrMore[Column[t.Any, t.Any]]
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
+    _order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None
     _limit: tuple[int, int] | None
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
@@ -37,13 +37,8 @@ class DeleteReturningQuery[T: Model](FetchableQuery[T]):
         )
 
 
-class Returning[T: Model](QueryData[T]):
-    _delete: bool
-    _returning: TupleOfOneOrMore[Column[T, t.Any]]
-    _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
-    _limit: tuple[int, int] | None
-
+class Returning[T: Model](DeleteReturningQuery[T]):
+    @property
     def query(self) -> DeleteReturningQuery[T]:
         return DeleteReturningQuery(
             self._cursor,
@@ -56,12 +51,8 @@ class Returning[T: Model](QueryData[T]):
         )
 
 
-class Limit[T: Model](QueryData[T]):
-    _delete: bool
-    _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
-    _limit: tuple[int, int] | None
-
+class Limit[T: Model](DeleteQuery[T]):
+    @property
     def query(self) -> DeleteQuery[T]:
         return DeleteQuery(
             self._cursor,
@@ -73,7 +64,7 @@ class Limit[T: Model](QueryData[T]):
         )
 
     def returning(
-        self, column: Column[T, t.Any], /, *columns: Column[T, t.Any]
+        self, column: Column[t.Any, t.Any], /, *columns: Column[t.Any, t.Any]
     ) -> Returning[T]:
         return Returning(
             self._cursor,
@@ -101,9 +92,9 @@ class OrderBy[T: Model](Limit[T]):
 class Where[T: Model](OrderBy[T]):
     def order_by(
         self,
-        column_order: tuple[Column[T, t.Any], Order],
+        column_order: tuple[Column[t.Any, t.Any], Order],
         /,
-        *column_orders: tuple[Column[T, t.Any], Order],
+        *column_orders: tuple[Column[t.Any, t.Any], Order],
     ) -> OrderBy[T]:
         return OrderBy(
             self._cursor,

@@ -1,8 +1,9 @@
 import builtins
 import typing as t
 
-from ..database import queries, typed
-from ..database.simple_orm import Arg, Raw, Rows
+from src.structures.jumpedia import db
+from src.utils.orm.query import Operator
+
 from ..utils.text import NormStr, RealStr
 from . import BaseStructure, errors, list
 from .attribute import StaticAttribute
@@ -38,18 +39,15 @@ class Community(BaseStructure):
         return self.real_name
     
     def get_server_ids(self) -> frozenset[int]:
-        ServerTbl = typed.Server
+        with self.jumpedia.connector.cursor() as c:
+            rows = c.select(
+                db.Server.id,
+                from_=db.Server
+            ).where(
+                (db.Server.community_id, Operator.EQ, self.id)
+            ).fetch_all()
         
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT {ServerTbl.id}
-                FROM {ServerTbl}
-                WHERE {ServerTbl.community_id} = {arg(self.id)}
-            """)
-
-            result = c.fetchall(ServerTbl)
-
-        return frozenset(row.id for row in result)
+        return frozenset(row.id for row in rows)
     
     def create_list(self, real_name: RealStr) -> 'List':
         norm_name = NormStr(real_name)
@@ -65,22 +63,19 @@ class Community(BaseStructure):
             if count >= self.limits.community_list_count_max:
                 raise errors.LimitOfStructuresReachedError(self.limits.community_list_count_max, List)
 
-            with queries.connected() as c:
-                c.execute(lambda arg: t"""
-                    INSERT INTO {typed.List} (
-                        {typed.List.community_id},
-                        {typed.List.norm_name},
-                        {typed.List.real_name}
-                    ) 
-                    VALUES (
-                        {arg(self.id)},
-                        {arg(norm_name)},
-                        {arg(real_name)}
-                    )
-                """)
+            with self.jumpedia.connector.cursor() as c:
+                execute_data = c.insert(
+                    db.List.community_id.bind_n(self.id),
+                    db.List.norm_name.bind_n(norm_name),
+                    db.List.real_name.bind_n(real_name),
+                    into=db.List
+                ).execute(
+                    get_last_generated_id=True
+                )
                 
-                list_id = c.last_generated_id
-
+                list_id = execute_data.last_generated_id
+                assert list_id is not None
+                
                 list_ = List(
                     community=self,
                     id=list_id,
@@ -123,7 +118,7 @@ class Community(BaseStructure):
     def delete_list(self, id: int) -> None:
         from . import errors
 
-        with self.locked, queries.connected() as c:
+        with self.locked, self.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 DELETE FROM {typed.List}
                 WHERE 
@@ -135,7 +130,7 @@ class Community(BaseStructure):
                 raise errors.StructureNotFoundError(List)
 
     def _fetch_from_list_table(self, where: t.Callable[[Arg], str] | None) -> Rows[typed.List]:
-        with queries.connected() as c:
+        with self.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {typed.List}
@@ -171,7 +166,7 @@ class Community(BaseStructure):
         return self._list_row_to_obj(data[0]) if data else None
     
     def get_default_selected_list(self) -> List | None:
-        with queries.connected() as c:
+        with self.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 SELECT {typed.Community.default_selected_list_id}
                 FROM {typed.Community}
@@ -188,7 +183,7 @@ class Community(BaseStructure):
     
     def set_default_selected_list(self, list_id: int | None) -> None:
         from . import errors
-        with queries.connected() as c:
+        with self.jumpedia.connector.cursor() as c:
             c.execute(lambda arg: t"""
                 UPDATE {typed.Community} 
                 SET {typed.Community.default_selected_list_id} = {arg(list_id)}

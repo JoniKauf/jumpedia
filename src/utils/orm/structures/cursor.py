@@ -42,18 +42,18 @@ class Cursor:
 
     @t.overload
     def select[T: Model](
-        self, column: Column[T, t.Any], /, *columns: Column[T, t.Any], from_: type[T]
+        self, column: Column[t.Any, t.Any], /, *columns: Column[t.Any, t.Any], from_: type[T]
     ) -> Select[T]:
         pass
 
     def select[T: Model](
         self,
-        all_or_column: Column[T, t.Any] | t.Literal["*"],
+        all_or_column: Column[t.Any, t.Any] | t.Literal["*"],
         /,
-        *columns: Column[T, t.Any],
+        *columns: Column[t.Any, t.Any],
         from_: type[T],
     ) -> Select[T]:
-        cols: tuple[Column[T, t.Any], ...] = ()
+        cols: tuple[Column[t.Any, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):
             cols = (all_or_column, *columns)

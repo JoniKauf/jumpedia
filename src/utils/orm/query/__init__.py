@@ -31,13 +31,10 @@ class _QueryMeta(ABCMeta):
         cls = super().__new__(mcls, name, bases, namespace, **kwds)
         return dataclass(eq=False, frozen=True)(cls)
 
-
-class QueryData[T: Model](metaclass=_QueryMeta):
+class Query[T: Model](metaclass=_QueryMeta):
     _cursor: Cursor
     _table: type[T]
 
-
-class Query[T: Model](QueryData[T]):
     @abstractmethod
     def _to_sql(self) -> tuple[str, list[t.Any]]:
         pass
@@ -47,7 +44,7 @@ class Query[T: Model](QueryData[T]):
 
 
 class FetchableQuery[T: Model](Query[T]):
-    def fetchone(self) -> T | None:
+    def fetch_one(self) -> T | None:
         self._core_execute()
 
         fetch = t.cast(dict[str, t.Any] | None, self._cursor._mariadb_cursor.fetchone())
@@ -57,7 +54,7 @@ class FetchableQuery[T: Model](Query[T]):
 
         return self._table(fetch)
 
-    def fetchall(self) -> list[T]:
+    def fetch_all(self) -> list[T]:
         self._core_execute()
 
         fetch = t.cast(list[dict[str, t.Any]], self._cursor._mariadb_cursor.fetchone())

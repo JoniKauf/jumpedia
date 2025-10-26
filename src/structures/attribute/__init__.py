@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from src.utils.orm import Operator
+from src.utils.orm.structures.column import Column
 
 from ..jumpedia import db
 
@@ -70,33 +71,23 @@ class BaseAttribute(BaseStructure):
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
+    def _get_aliases_rows[T: db.AnyAttributeAliasTable](self, table: type[T], column: Column[T, t.Any]) -> list[T]:
+        with self.list.community.jumpedia.connector.cursor() as c:
+            return c.select(
+                column,
+                from_=table
+            ).where(
+                (table.list_id, Operator.EQ, self.list.id),
+                (table.attribute_id, Operator.EQ, self.id)
+            ).fetch_all()
+        
     def get_real_aliases(self) -> frozenset[text.RealStr]:
         AttributeAliasTable = self.__class__.tables.attribute_alias
-
-        with self.list.community.jumpedia.connector.cursor() as c:
-            c.select(
-                '*',
-                from_=AttributeAliasTable
-            ).where(
-                (AttributeAliasTable.list_id, Operator.EQ, self.list.id),
-                (AttributeAliasTable.attribute_id, Operator.EQ, self.id)
-            ).fetchall()
-        
-        return frozenset(row.real_alias for row in rows)
+        return frozenset(row.real_alias for row in self._get_aliases_rows(AttributeAliasTable, AttributeAliasTable.real_alias))  # type: ignore
     
     def get_norm_aliases(self) -> frozenset[text.NormStr]:
-        TblAlias = self.__class__.tables.attribute_alias
-
-        with self.list.community.jumpedia.connector.cursor() as c:
-            c.execute(lambda arg: t"""
-                SELECT {TblAlias.norm_alias}
-                FROM {TblAlias}
-                WHERE {TblAlias.attribute_id} = {arg(self.id)}
-            """)
-
-            rows = c.fetchall(TblAlias)
-        
-        return frozenset(row.norm_alias for row in rows)
+        AttributeAliasTable = self.__class__.tables.attribute_alias
+        return frozenset(row.norm_alias for row in self._get_aliases_rows(AttributeAliasTable, AttributeAliasTable.norm_alias))  # type: ignore
     
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
@@ -144,33 +135,27 @@ class BaseNonStaticAttribute(BaseAttribute):
 
 
     def get_collection(self) -> Collection:
-        TblEntry = self.__class__.tables.attribute_collection_entry
-        TblAlias = self.__class__.tables.attribute_collection_entry_alias
+        AttributeCollectionEntryTable = self.__class__.tables.attribute_collection_entry
+        AttributeCollectionEntryAliasTable = self.__class__.tables.attribute_collection_entry_alias
 
         with self.list.community.jumpedia.connector.cursor() as c:
-            c.execute(lambda arg: t"""
-                SELECT *
-                FROM {TblEntry}
-                WHERE {TblEntry.attribute_id} = {arg(self.id)}
-            """)
-
-            entry_rows = c.fetchall(TblEntry)
+            entry_rows = c.select(
+                '*',
+                from_=AttributeCollectionEntryTable
+            ).where(
+                (AttributeCollectionEntryTable.attribute_id, Operator.EQ, self.id)
+            ).fetch_all()
 
             if not entry_rows:
                 return Collection(attribute=self, entries=())
             
-            c.execute(lambda arg: t"""
-                SELECT 
-                    {TblAlias.attribute_collection_entry_id},
-                    {TblAlias.slot_alias}
-                FROM
-                    {TblAlias}
-                WHERE
-                    {TblAlias.attribute_id} = {arg(self.id)}
-                ORDER
-            """)
-
-            alias_rows = c.fetchall(TblAlias)
+            alias_rows = c.select(
+                AttributeCollectionEntryAliasTable.attribute_collection_entry_id,  # type: ignore
+                AttributeCollectionEntryAliasTable.slot_alias,  # type: ignore
+                from_=AttributeCollectionEntryAliasTable
+            ).where(
+                (AttributeCollectionEntryAliasTable.attribute_id, Operator.EQ, self.id)
+            ).fetch_all()
 
         entry_id_to_aliases: defaultdict[int, set[slot_type.SlotStr]] = defaultdict(set)
         

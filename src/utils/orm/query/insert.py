@@ -1,7 +1,7 @@
 import typing as t
 
 from .._utils import TupleOfOneOrMore
-from . import ExecutableQuery, FetchableQuery, QueryData, utils
+from . import ExecutableQuery, FetchableQuery, utils
 
 if t.TYPE_CHECKING:
     from ..structures.column import Column, ColumnBindedN
@@ -17,7 +17,7 @@ class InsertQuery[T: Model](ExecutableQuery[T]):
 
 class InsertReturningQuery[T: Model](FetchableQuery[T]):
     _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
-    _returning: TupleOfOneOrMore[Column[T, t.Any]]
+    _returning: TupleOfOneOrMore[Column[t.Any, t.Any]]
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
         return utils.get_added_returning_sql(
@@ -25,49 +25,23 @@ class InsertReturningQuery[T: Model](FetchableQuery[T]):
         )
 
 
-class Returning[T: Model](QueryData[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
-    _returning: TupleOfOneOrMore[Column[T, t.Any]]
-
+class Returning[T: Model](InsertReturningQuery[T]):
+    @property
     def query(self) -> InsertReturningQuery[T]:
         return InsertReturningQuery(
             self._cursor, self._table, self._insert, self._returning
         )
 
 
-class Insert[T: Model](QueryData[T]):
-    _insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
-
+class Insert[T: Model](InsertQuery[T]):
+    @property
     def query(self) -> InsertQuery[T]:
         return InsertQuery(self._cursor, self._table, self._insert)
 
     def returning(
-        self, column: Column[T, t.Any], /, *columns: Column[T, t.Any]
+        self, column: Column[t.Any, t.Any], /, *columns: Column[t.Any, t.Any]
     ) -> Returning[T]:
         return Returning(self._cursor, self._table, self._insert, (column, *columns))
-
-
-def __main():
-    import textwrap
-
-    INSERT = textwrap.dedent(
-        """
-        @t.overload
-        def insert[T: Model](column_binded: ColumnBinded{0}, /, *columns_binded: ColumnBinded{0}, into: type[T], ignore: bool = False) -> Insert[T]:
-            pass
-    """
-    )
-
-    COUNT = 32
-
-    for i in range(1, COUNT + 1):
-        n = str(i).zfill(len(str(COUNT)))
-
-        print(INSERT.format(n))
-
-
-if __name__ == "__main__":
-    __main()
 
 
 __all__ = []

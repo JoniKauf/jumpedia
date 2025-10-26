@@ -1,7 +1,7 @@
 import typing as t
 
 from .._utils import TupleOfOneOrMore
-from . import ExecutableQuery, Operator, Order, QueryData, utils
+from . import ExecutableQuery, Operator, Order, utils
 
 if t.TYPE_CHECKING:
     from ..structures.column import Column, ColumnBindedOne
@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
 class UpdateQuery[T: Model](ExecutableQuery[T]):
     _update: tuple[TupleOfOneOrMore[ColumnBindedOne], bool]
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
+    _order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None
     _limit: tuple[int, int] | None
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
@@ -40,12 +40,8 @@ class UpdateQuery[T: Model](ExecutableQuery[T]):
         return (" ".join(parts), params)
 
 
-class Limit[T: Model](QueryData[T]):
-    _update: tuple[TupleOfOneOrMore[ColumnBindedOne], bool]
-    _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[T, t.Any], Order]] | None
-    _limit: tuple[int, int] | None
-
+class Limit[T: Model](UpdateQuery[T]):
+    @property
     def query(self) -> UpdateQuery[T]:
         return UpdateQuery(
             self._cursor,
@@ -72,9 +68,9 @@ class OrderBy[T: Model](Limit[T]):
 class Where[T: Model](OrderBy[T]):
     def order_by(
         self,
-        column_order: tuple[Column[T, t.Any], Order],
+        column_order: tuple[Column[t.Any, t.Any], Order],
         /,
-        *column_orders: tuple[Column[T, t.Any], Order],
+        *column_orders: tuple[Column[t.Any, t.Any], Order],
     ) -> OrderBy[T]:
         return OrderBy(
             self._cursor,
