@@ -1,12 +1,11 @@
 import typing as t
 
 from .._utils import TupleOfOneOrMore
-from . import (ExecutableQuery, FetchableQuery, Operator, Order,
-               utils)
+from . import ExecutableQuery, FetchableQuery, Operator, Order, _utils
 
 if t.TYPE_CHECKING:
-    from ..structures.column import Column
-    from ..structures.model import Model
+    from .._structures.column import Column
+    from .._structures.model import Model
 
 
 class DeleteQuery[T: Model](ExecutableQuery[T]):
@@ -16,22 +15,22 @@ class DeleteQuery[T: Model](ExecutableQuery[T]):
     _limit: tuple[int, int] | None
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
-        return utils.get_entire_delete_sql(
+        return _utils.get_entire_delete_sql(
             self._table, self._delete, self._where, self._order_by, self._limit
         )
 
 
 class DeleteReturningQuery[T: Model](FetchableQuery[T]):
     _delete: bool
-    _returning: TupleOfOneOrMore[Column[t.Any, t.Any]]
     _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
     _order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None
     _limit: tuple[int, int] | None
+    _returning: tuple[Column[t.Any, t.Any], ...]
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
-        return utils.get_added_returning_sql(
+        return _utils.get_added_returning_sql(
             self._returning,
-            *utils.get_entire_delete_sql(
+            *_utils.get_entire_delete_sql(
                 self._table, self._delete, self._where, self._order_by, self._limit
             ),
         )
@@ -44,10 +43,10 @@ class Returning[T: Model](DeleteReturningQuery[T]):
             self._cursor,
             self._table,
             self._delete,
-            self._returning,
             self._where,
             self._order_by,
             self._limit,
+            self._returning
         )
 
 
@@ -63,17 +62,36 @@ class Limit[T: Model](DeleteQuery[T]):
             self._limit,
         )
 
+    @t.overload
+    def returning(
+        self, all: t.Literal['*'], /
+    ) -> Returning[T]:
+        pass
+
+    @t.overload
     def returning(
         self, column: Column[t.Any, t.Any], /, *columns: Column[t.Any, t.Any]
     ) -> Returning[T]:
+        pass
+
+    def returning(
+        self, all_or_column: Column[t.Any, t.Any] | t.Literal["*"], /, *columns: Column[t.Any, t.Any]
+    ) -> Returning[T]:
+        cols: tuple[Column[t.Any, t.Any], ...] = ()
+
+        if isinstance(all_or_column, Column):
+            cols = (all_or_column, *columns)
+        elif all_or_column != "*":
+            raise ValueError
+        
         return Returning(
-            self._cursor,
-            self._table,
-            self._delete,
-            (column, *columns),
+            self._cursor, 
+            self._table, 
+            self._delete, 
             self._where,
             self._order_by,
             self._limit,
+            cols
         )
 
 
@@ -121,6 +139,3 @@ class Delete[T: Model](Where[T]):
             None,
             None,
         )
-
-
-__all__ = []

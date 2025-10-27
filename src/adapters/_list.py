@@ -1,7 +1,6 @@
 import typing as t
 
-from src.structures.attribute import (StaticAttribute, TaskAttribute,
-                                      UserAttribute)
+from src.structures.attribute import StaticAttribute, TaskAttribute, UserAttribute
 
 from ..structures import attribute
 from ..structures.attribute import BaseAttribute

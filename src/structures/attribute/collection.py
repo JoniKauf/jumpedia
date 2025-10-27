@@ -1,6 +1,8 @@
 import typing as t
 from dataclasses import dataclass, field
 
+from typing_extensions import Sentinel
+
 from ...utils import text
 from .. import BaseStructure
 from .slot_type import SlotStr
@@ -35,14 +37,14 @@ class Collection(t.Sequence[CollectionEntry]):
                 )
 
             for syn in (entry.value, *entry.aliases):
-                norm = text.raw_to_norm(syn)
+                norm_syn = text.NormStr(syn)
 
-                if norm in self._syn_to_entry:
+                if norm_syn in self._syn_to_entry:
                     raise ValueError(
-                        f"Normed value {norm!r} appeared twice in {self.entries!r}"
+                        f"Normed value {norm_syn!r} appeared twice in {self.entries!r}"
                     )
 
-                self._syn_to_entry[norm] = entry
+                self._syn_to_entry[norm_syn] = entry
 
     def __len__(self) -> int:
         return self.entries.__len__()
@@ -61,19 +63,17 @@ class Collection(t.Sequence[CollectionEntry]):
     _NO_DEFAULT = Sentinel("_NO_DEFAULT")
 
     @t.overload
-    def get_entry_by_syn(self, syn: str, /) -> CollectionEntry: ...
+    def get_entry_by_syn(self, norm_syn: text.NormStr, /) -> CollectionEntry: ...
 
     @t.overload
     def get_entry_by_syn[TDefault](
-        self, syn: str, /, default: TDefault
+        self, norm_syn: text.NormStr, /, default: TDefault
     ) -> CollectionEntry | TDefault: ...
 
     def get_entry_by_syn[TDefault](
-        self, syn: str, /, default: TDefault = _NO_DEFAULT
+        self, norm_syn: text.NormStr, /, default: TDefault = _NO_DEFAULT
     ) -> CollectionEntry | TDefault:
-        norm = text.raw_to_norm(syn)
-
         if default is self.__class__._NO_DEFAULT:
-            return self._syn_to_entry[norm]
+            return self._syn_to_entry[norm_syn]
 
-        return self._syn_to_entry.get(norm, default)
+        return self._syn_to_entry.get(norm_syn, default)

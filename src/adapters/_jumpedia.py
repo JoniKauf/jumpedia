@@ -1,5 +1,5 @@
-from curses import meta
 import typing as t
+from curses import meta
 from dataclasses import field
 
 from src.discord_.errors import FeedbackError
@@ -142,7 +142,7 @@ class JumpediaAdapter(BaseAdapter):
     def get_or_create_jumpedia_user(
         self, user: UserAdapter, override_jumpedia_rank: JumpediaRank | None = None
     ) -> JumpediaUserAdapter:
-        jumpedia_user = self._jumpedia.create_or_get_jumpedia_user(
+        jumpedia_user = self._jumpedia.get_or_create_jumpedia_user(
             user.id,
             user.name,
             override_jumpedia_rank or JumpediaRank.DEFAULT,

@@ -2,13 +2,12 @@ import typing as t
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from ..attribute import (AnyAttributeT, StaticAttribute, TaskAttribute,
-                         UserAttribute)
+from ..attribute import AnyAttributeT, StaticAttribute, TaskAttribute, UserAttribute
 from ..attribute.slot_type import SlotStr
-from ..user.community_user import CommunityUser
+from ..list import CommunityUser
 
 if t.TYPE_CHECKING:
-    from structures.task import Task
+    from ..task import Task
 
 type AvmT[T: AnyAttributeT] = MappingProxyType[T, tuple[SlotStr, ...]]
 

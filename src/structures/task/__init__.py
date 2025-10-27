@@ -1,15 +1,15 @@
 import typing as t
 from dataclasses import field
 
-from src.utils import text
+from src.utils import orm, text
 
-from ...database import queries
-from ...database import typed as typed
 from .. import BaseStructure
 from ..attribute.slot_type import SlotStr
+from ..jumpedia import db
 
 if t.TYPE_CHECKING:
     from ..list import List
+
 
 class Task(BaseStructure):
     list: List
@@ -20,35 +20,37 @@ class Task(BaseStructure):
     @property
     def identity(self) -> tuple[int, ...]:
         return (self.id,) + self.list.identity
-    
+
     @property
     def name(self) -> str:
         return self.slot_name
-    
-    def get_real_aliases(self) -> frozenset[text.RealStr]:
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT {typed.TaskAlias.slot_alias}
-                FROM {typed.TaskAlias}
-                WHERE 
-                    {typed.TaskAlias.list_id} = {arg(self.list.id)}
-                    AND {typed.TaskAlias.task_id} = {arg(self.id)}
-            """)
 
-            rows = c.fetchall(typed.TaskAlias)
+    @property
+    def connector(self) -> orm.Connector:
+        return self.list.connector
+
+    def get_real_aliases(self) -> frozenset[text.RealStr]:
+        with self.connector.cursor() as c:
+            rows = (
+                c.select(db.TaskAlias.slot_alias, from_=db.TaskAlias)
+                .where(
+                    (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
+                    (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
+                )
+                .fetch_all()
+            )
 
         return frozenset(row.slot_alias for row in rows)
-    
-    def get_norm_aliases(self) -> frozenset[text.NormStr]:
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT {typed.TaskAlias.norm_alias}
-                FROM {typed.TaskAlias}
-                WHERE 
-                    {typed.TaskAlias.list_id} = {arg(self.list.id)}
-                    AND {typed.TaskAlias.task_id} = {arg(self.id)}
-            """)
 
-            rows = c.fetchall(typed.TaskAlias)
+    def get_norm_aliases(self) -> frozenset[text.NormStr]:
+        with self.connector.cursor() as c:
+            rows = (
+                c.select(db.TaskAlias.norm_alias, from_=db.TaskAlias)
+                .where(
+                    (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
+                    (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
+                )
+                .fetch_all()
+            )
 
         return frozenset(row.norm_alias for row in rows)

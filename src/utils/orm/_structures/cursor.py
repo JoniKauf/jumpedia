@@ -3,14 +3,15 @@ from types import TracebackType
 
 import mariadb
 
-from ..query.delete import Delete
-from ..query.insert import Insert
-from ..query.select import Select
-from ..query.update import Update
-from .column import Column, ColumnBindedOne, ColumnBindedOne, ColumnBindedN
+from .._query.delete import Delete
+from .._query.insert import Insert
+from .._query.select import Select
+from .._query.update import Update
+from .column import Column, ColumnBindedN, ColumnSet
 
 if t.TYPE_CHECKING:
     from .model import Model
+
 
 class Cursor:
     def __init__(self, cursor: mariadb.Cursor) -> None:
@@ -35,14 +36,17 @@ class Cursor:
 
         # Re-raise exception if occurred implicitly
 
-
     @t.overload
     def select[T: Model](self, all: t.Literal["*"], /, *, from_: type[T]) -> Select[T]:
         pass
 
     @t.overload
     def select[T: Model](
-        self, column: Column[t.Any, t.Any], /, *columns: Column[t.Any, t.Any], from_: type[T]
+        self,
+        column: Column[t.Any, t.Any],
+        /,
+        *columns: Column[t.Any, t.Any],
+        from_: type[T],
     ) -> Select[T]:
         pass
 
@@ -64,9 +68,9 @@ class Cursor:
 
     def insert[T: Model](
         self,
-        column_binded: ColumnBindedN[T, t.Any],
+        column_binded: ColumnBindedN[t.Any, t.Any],
         /,
-        *columns_binded: ColumnBindedN[T, t.Any],
+        *columns_binded: ColumnBindedN[t.Any, t.Any],
         into: type[T],
         ignore: bool = False,
     ) -> Insert[T]:
@@ -74,9 +78,9 @@ class Cursor:
 
     def update[T: Model](
         self,
-        column_binded: ColumnBindedOne[T, t.Any],
+        column_binded: ColumnSet[t.Any, t.Any],
         /,
-        *columns_binded: ColumnBindedOne[T, t.Any],
+        *columns_binded: ColumnSet[t.Any, t.Any],
         table: type[T],
         ignore: bool = False,
     ) -> Update[T]:
@@ -95,6 +99,3 @@ class Cursor:
 
     def raw_fetchall(self) -> list[dict[str, t.Any]]:
         return self._mariadb_cursor.fetchall()
-
-
-__all__ = ["Cursor"]

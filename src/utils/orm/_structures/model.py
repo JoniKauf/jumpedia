@@ -12,6 +12,7 @@ class SNAKE:
     def __init__(self) -> t.Never:
         raise NotImplementedError()
 
+
 @t.final
 class EXACT:
     def __init__(self) -> None:
@@ -38,6 +39,7 @@ if t.TYPE_CHECKING:
 else:
     _ModelBase = object
 
+
 class Model(_ModelBase, metaclass=_ModelMeta):
     _columns_data: dict[str, t.Any]
 
@@ -45,17 +47,14 @@ class Model(_ModelBase, metaclass=_ModelMeta):
     def __init_subclass__(cls, table_name: str | type[SNAKE] | type[EXACT]) -> None:
         if cls.__bases__ != (Model,):
             raise RuntimeError
-        
+
         if table_name is SNAKE:
             table_name = cls.__name__.translate(_SNAKE_TRANS_TABLE).removeprefix("_")
         elif table_name is EXACT:
             table_name = cls.__name__
-            
+
         cls._table_name = table_name
 
     @t.final
     def __init__(self, data: t.Mapping[str, t.Any]) -> None:
         self._columns_data = {**data}
-
-
-__all__ = ["Model", "SNAKE", "EXACT"]

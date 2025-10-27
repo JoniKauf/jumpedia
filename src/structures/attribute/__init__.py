@@ -4,13 +4,10 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from src.utils.orm import Operator
-from src.utils.orm.structures.column import Column
+from src.utils import orm, text
 
-from ..jumpedia import db
-
-from src.utils import text
 from .. import BaseStructure
+from ..jumpedia import db
 from .collection import Collection, CollectionEntry
 from .slot_type import SlotStr, SlotType
 
@@ -59,6 +56,10 @@ class BaseAttribute(BaseStructure):
     def required(self) -> bool:
         return self.min_slots > 0
     
+    @property
+    def connector(self) -> orm.Connector:
+        return self.list.connector
+    
     # --- Methods ---
 
     def __post_init__(self) -> None:
@@ -71,14 +72,14 @@ class BaseAttribute(BaseStructure):
     def __eq__(self, value: object) -> bool:
         return isinstance(value, self.__class__) and self.identity == value.identity
     
-    def _get_aliases_rows[T: db.AnyAttributeAliasTable](self, table: type[T], column: Column[T, t.Any]) -> list[T]:
-        with self.list.community.jumpedia.connector.cursor() as c:
+    def _get_aliases_rows[T: db.AnyAttributeAliasTable](self, table: type[T], column: orm.Column[T, t.Any]) -> list[T]:
+        with self.connector.cursor() as c:
             return c.select(
                 column,
                 from_=table
             ).where(
-                (table.list_id, Operator.EQ, self.list.id),
-                (table.attribute_id, Operator.EQ, self.id)
+                (table.list_id, orm.Operator.EQ, self.list.id),
+                (table.attribute_id, orm.Operator.EQ, self.id)
             ).fetch_all()
         
     def get_real_aliases(self) -> frozenset[text.RealStr]:
@@ -138,12 +139,12 @@ class BaseNonStaticAttribute(BaseAttribute):
         AttributeCollectionEntryTable = self.__class__.tables.attribute_collection_entry
         AttributeCollectionEntryAliasTable = self.__class__.tables.attribute_collection_entry_alias
 
-        with self.list.community.jumpedia.connector.cursor() as c:
+        with self.connector.cursor() as c:
             entry_rows = c.select(
                 '*',
                 from_=AttributeCollectionEntryTable
             ).where(
-                (AttributeCollectionEntryTable.attribute_id, Operator.EQ, self.id)
+                (AttributeCollectionEntryTable.attribute_id, orm.Operator.EQ, self.id)
             ).fetch_all()
 
             if not entry_rows:
@@ -154,7 +155,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                 AttributeCollectionEntryAliasTable.slot_alias,  # type: ignore
                 from_=AttributeCollectionEntryAliasTable
             ).where(
-                (AttributeCollectionEntryAliasTable.attribute_id, Operator.EQ, self.id)
+                (AttributeCollectionEntryAliasTable.attribute_id, orm.Operator.EQ, self.id)
             ).fetch_all()
 
         entry_id_to_aliases: defaultdict[int, set[slot_type.SlotStr]] = defaultdict(set)
@@ -180,7 +181,7 @@ class BaseNonStaticAttribute(BaseAttribute):
     
     def set_collection(
         self,
-        collection: utils.UniqueRealStrContainer[text.RealStr, t.Literal[1]], 
+        collection: t.Sequence[text.RealStr], 
     ) -> 'Collection':
         count = len(collection)
 
@@ -190,14 +191,15 @@ class BaseNonStaticAttribute(BaseAttribute):
         if count > self.list.community.jumpedia.limits:
             raise feedbacks.temp(f"Limit fo {collection.MAX_ENTRIES} surpassed!")
         
-        TblEntry = self.__class__.tables.attribute_collection_entry
-        TblAlias = self.__class__.tables.attribute_collection_entry_alias
+        AttributeCollectionEntryTable = self.__class__.tables.attribute_collection_entry
+        AttributeCollectionEntryAliasTable = self.__class__.tables.attribute_collection_entry_alias
         
-        with self.locked, self.list.community.jumpedia.connector.cursor() as c:
-            c.execute(lambda arg: t"""
-                DELETE FROM {TblEntry}
-                WHERE {TblEntry.attribute_id} = {arg(self.id)}
-            """)
+        with self.locked, self.connector.cursor() as c:
+            c.delete(
+                from_=AttributeCollectionEntryTable
+            ).where(
+                (AttributeCollectionEntryTable.attribute_id, orm.Operator.EQ, self.id)
+            ).execute()
 
             norm_syns: set[text.NormStr] = set()
             
@@ -225,11 +227,11 @@ class BaseNonStaticAttribute(BaseAttribute):
                         combined_norm_aliases[i].add(norm_syn)
 
             c.executemany(lambda args: t"""
-                INSERT INTO {TblEntry} (
-                    {TblEntry.attribute_id},
-                    {TblEntry.index},
-                    {TblEntry.norm_slot},
-                    {TblEntry.slot_slot}
+                INSERT INTO {AttributeCollectionEntryTable} (
+                    {AttributeCollectionEntryTable.attribute_id},
+                    {AttributeCollectionEntryTable.index},
+                    {AttributeCollectionEntryTable.norm_slot},
+                    {AttributeCollectionEntryTable.slot_slot}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, count))},
@@ -237,12 +239,12 @@ class BaseNonStaticAttribute(BaseAttribute):
                     {args(norm_slots)},
                     {args(type_slots)}
                 )
-                RETURNING {TblEntry.index}, {TblEntry.id}
+                RETURNING {AttributeCollectionEntryTable.index}, {AttributeCollectionEntryTable.id}
             """)
 
             idx_to_id: list[int] = [0 for _ in range(count)]
             
-            for row in c.fetchall(TblEntry):
+            for row in c.fetchall(AttributeCollectionEntryTable):
                 idx_to_id[row.index] = row.id
 
             combined_aliases_count = 0
@@ -256,11 +258,11 @@ class BaseNonStaticAttribute(BaseAttribute):
                 entry_ids.extend(itertools.repeat(entry_id, aliases_count))
 
             c.executemany(lambda args: t"""
-                INSERT INTO {TblAlias} (
-                    {TblAlias.attribute_id},
-                    {TblAlias.attribute_collection_entry_id},
-                    {TblAlias.norm_alias},
-                    {TblAlias.slot_alias}
+                INSERT INTO {AttributeCollectionEntryAliasTable} (
+                    {AttributeCollectionEntryAliasTable.attribute_id},
+                    {AttributeCollectionEntryAliasTable.attribute_collection_entry_id},
+                    {AttributeCollectionEntryAliasTable.norm_alias},
+                    {AttributeCollectionEntryAliasTable.slot_alias}
                 )
                 VALUES (
                     {args(itertools.repeat(self.id, combined_aliases_count))},
@@ -305,8 +307,8 @@ class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         db.TaskAttribute,
         db.TaskAttributeAlias,
-        db.TaskAttributeCollectionSlot,
-        db.TaskAttributeCollectionSlotAlias,
+        db.TaskAttributeCollectionEntry,
+        db.TaskAttributeCollectionEntryAlias,
         db.TaskAttributeTaskValue,
     )
     type_id = 1
@@ -316,8 +318,8 @@ class UserAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         db.UserAttribute,
         db.UserAttributeAlias,
-        db.UserAttributeCollectionSlot,
-        db.UserAttributeCollectionSlotAlias,
+        db.UserAttributeCollectionEntry,
+        db.UserAttributeCollectionEntryAlias,
         db.UserAttributeTaskValue,
     )
     type_id = 2

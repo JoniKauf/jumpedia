@@ -1,12 +1,13 @@
 import functools
 import typing as t
 from dataclasses import dataclass
+
 from typing_extensions import TypeForm
 
 from .._utils import SqlString, TupleOfOneOrMore
 
 if t.TYPE_CHECKING:
-    from ..query import *
+    from .._query import *
     from .model import Model
 
 
@@ -27,9 +28,7 @@ class Column[TOwner: Model, TValue](SqlString):
         pass
 
     @t.overload
-    def __get__(
-        self, instance: _ColBinded, owner: type[_ColBinded]
-    ) -> t.Self:
+    def __get__(self, instance: _ColBinded, owner: type[_ColBinded]) -> t.Self:
         pass
 
     def __get__(
@@ -37,7 +36,7 @@ class Column[TOwner: Model, TValue](SqlString):
         instance: _ColBinded | TOwner | None,
         owner: type[_ColBinded | TOwner],
     ) -> t.Self | TValue:
-        if instance is None or isinstance(instance, ColumnBindedOne | ColumnBindedN):
+        if instance is None or isinstance(instance, ColumnSet | ColumnBindedN):
             return self
 
         return instance._columns_data[self._name]
@@ -45,25 +44,27 @@ class Column[TOwner: Model, TValue](SqlString):
     def _sql_str(self) -> str:
         return f"{self._owner}.`{self._name}`"
 
-    def bind_one(self, value: TValue, /) -> ColumnBindedOne[TOwner, TValue]:
-        return ColumnBindedOne(self, value)
+    def set(self, value: TValue, /) -> ColumnSet[TOwner, TValue]:
+        return ColumnSet(self, value)
 
-    def bind_n(self, value: TValue, /, *values: TValue) -> ColumnBindedN[TOwner, TValue]:
+    def bind(self, value: TValue, /, *values: TValue) -> ColumnBindedN[TOwner, TValue]:
         return ColumnBindedN(self, (value, *values))
 
 
-def column[TOwner: Model, TValue](*fetch_types: TypeForm[TValue]) -> t.Callable[[t.Callable[[TOwner], None]], Column[TOwner, TValue]]:
+def column[TOwner: Model, TValue](
+    *fetch_types: TypeForm[TValue],
+) -> t.Callable[[t.Callable[[TOwner], None]], Column[TOwner, TValue]]:
     def decorator(_: t.Callable[[TOwner], None]) -> Column[TOwner, TValue]:
         return Column(fetch_types)
-    
+
     return decorator
 
-    
 
-type _ColBinded = ColumnBindedOne[t.Any, t.Any] | ColumnBindedN[t.Any, t.Any]
+type _ColBinded = ColumnSet[t.Any, t.Any] | ColumnBindedN[t.Any, t.Any]
+
 
 @dataclass(frozen=True, slots=True)
-class ColumnBindedOne[TOwner: Model, TValue]():
+class ColumnSet[TOwner: Model, TValue]():
     column: Column[TOwner, TValue]
     value: TValue
 
@@ -78,6 +79,3 @@ class ColumnBindedN[TOwner: Model, TValue]:
 
     def __iter__(self) -> t.Iterator[Column[TOwner, TValue] | TupleOfOneOrMore[TValue]]:
         return iter((self.column, self.values))
-
-
-__all__ = ["column"]

@@ -4,8 +4,8 @@ from .._utils import SqlString, TupleOfOneOrMore
 from . import Operator, Order
 
 if t.TYPE_CHECKING:
-    from ..structures.column import Column, ColumnBindedN
-    from ..structures.model import Model
+    from .._structures.column import Column, ColumnBindedN
+    from .._structures.model import Model
 
 PLACEHOLDER: str = "?"
 
@@ -34,7 +34,8 @@ def handle_where_sql(
 
 
 def handle_order_by_sql(
-    order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None, parts: list[str]
+    order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None,
+    parts: list[str],
 ) -> None:
     if order_by is not None:
         parts.append("ORDER BY")
@@ -103,9 +104,11 @@ def get_entire_delete_sql(
 
 
 def get_added_returning_sql(
-    returning: TupleOfOneOrMore[Column[t.Any, t.Any]], sql: str, params: list[t.Any]
+    returning: tuple[Column[t.Any, t.Any], ...], sql: str, params: list[t.Any]
 ) -> tuple[str, list[t.Any]]:
-    return (f"{sql} RETURNING {','.join(col._sql_str() for col in returning)}", params)
-
-
-__all__ = []
+    return (
+        f"{sql} RETURNING {
+            '*' if not returning 
+            else (','.join(col._sql_str() for col in returning))
+        }", params
+    )

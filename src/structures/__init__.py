@@ -9,6 +9,7 @@ type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
 ]
 
+
 @t.dataclass_transform(frozen_default=True, kw_only_default=True)
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.

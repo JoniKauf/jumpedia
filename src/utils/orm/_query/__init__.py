@@ -4,8 +4,8 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
 if t.TYPE_CHECKING:
-    from ..structures.cursor import Cursor
-    from ..structures.model import Model
+    from .._structures.cursor import Cursor
+    from .._structures.model import Model
 
 
 class Operator(enum.StrEnum):
@@ -30,6 +30,7 @@ class _QueryMeta(ABCMeta):
     ):
         cls = super().__new__(mcls, name, bases, namespace, **kwds)
         return dataclass(eq=False, frozen=True)(cls)
+
 
 class Query[T: Model](metaclass=_QueryMeta):
     _cursor: Cursor
@@ -70,22 +71,41 @@ class ExecuteData[T1: int | None, T2: int | None]:
 
 class ExecutableQuery[T: Model](Query[T]):
     @t.overload
-    def execute(self, *, get_last_generated_id: t.Literal[False] = False, get_affected_row_count: t.Literal[False] = False) -> ExecuteData[None, None]:
+    def execute(
+        self,
+        *,
+        get_last_generated_id: t.Literal[False] = False,
+        get_affected_row_count: t.Literal[False] = False,
+    ) -> ExecuteData[None, None]:
         pass
 
     @t.overload
-    def execute(self, *, get_last_generated_id: t.Literal[True]) -> ExecuteData[int | None, None]:
+    def execute(
+        self, *, get_last_generated_id: t.Literal[True]
+    ) -> ExecuteData[int | None, None]:
         pass
 
     @t.overload
-    def execute(self, *, get_affected_row_count: t.Literal[True]) -> ExecuteData[None, int]:
+    def execute(
+        self, *, get_affected_row_count: t.Literal[True]
+    ) -> ExecuteData[None, int]:
         pass
 
     @t.overload
-    def execute(self, *, get_last_generated_id: t.Literal[True], get_affected_row_count: t.Literal[True]) -> ExecuteData[int | None, int]:
+    def execute(
+        self,
+        *,
+        get_last_generated_id: t.Literal[True],
+        get_affected_row_count: t.Literal[True],
+    ) -> ExecuteData[int | None, int]:
         pass
 
-    def execute(self, *, get_last_generated_id: bool = False, get_affected_row_count: bool = False) -> ExecuteData[t.Any, t.Any]:
+    def execute(
+        self,
+        *,
+        get_last_generated_id: bool = False,
+        get_affected_row_count: bool = False,
+    ) -> ExecuteData[t.Any, t.Any]:
         self._core_execute()
 
         match (get_last_generated_id, get_affected_row_count):
@@ -98,10 +118,7 @@ class ExecutableQuery[T: Model](Query[T]):
             case True, True:
                 return ExecuteData(
                     self._cursor._mariadb_cursor.lastrowid,
-                    self._cursor._mariadb_cursor.rowcount
+                    self._cursor._mariadb_cursor.rowcount,
                 )
             case _:
                 t.assert_never((get_last_generated_id, get_affected_row_count))
-
-
-__all__ = ["Operator", "Order"]
