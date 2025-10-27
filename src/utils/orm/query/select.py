@@ -20,7 +20,7 @@ class SelectQuery[T: Model](FetchableQuery[T]):
             "SELECT",
             "*" if not self._select else ",".join(col._sql_str() for col in self._select),
             "FROM",
-            str(self._table),
+            self._table._sql_str(),
         ]
 
         utils.handle_where_sql(self._where, parts, params)
