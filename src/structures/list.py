@@ -62,19 +62,17 @@ class List(BaseStructure):
         return self._attribute_row_to_obj(type, rows[0]) if rows else None
     
     def get_attribute_by_alias[T: BaseAttribute](self, type: type[T], norm_alias: NormStr) -> T | None:
-        alias_table_type = type.tables.attribute_alias
+        AttributeAliasTable = type.tables.attribute_alias
 
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT {alias_table_type.attribute_id}
-                FROM {alias_table_type}
-                WHERE 
-                    {alias_table_type.list_id} = {arg(self.id)}
-                    AND {alias_table_type.norm_alias} = {arg(norm_alias)}
-            """)
-
-            row = c.fetchone(alias_table_type)
-
+        with self.community.jumpedia.connector.cursor() as c:
+            row = c.select(
+                AttributeAliasTable.attribute_id
+                from_=AttributeAliasTable
+            ).where(
+                (AttributeAliasTable.list_id, Operator.EQ, self.id),
+                (AttributeAliasTable.norm_alias, Operator.EQ, norm_alias)
+            ).fetchone()
+            
         if row is None:
             return None
         
@@ -128,20 +126,19 @@ class List(BaseStructure):
                 return attr
     
     def get_static_attribute_by_kind(self, kind: KindT) -> StaticAttribute:
-        StaticAttributeTbl = db.StaticAttribute
-
         if kind not in KINDS:
             raise ValueError(f"Kind {kind} is not valid")
-        
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT * FROM {StaticAttributeTbl}
-                WHERE
-                    {StaticAttributeTbl.list_id} = {arg(self.id)}
-                    AND {StaticAttributeTbl.kind} = {arg(kind)}
-            """)
 
-            row = c.fetchone(StaticAttributeTbl)
+        StaticAttributeTable = db.StaticAttribute
+        
+        with self.community.jumpedia.connector.cursor() as c:
+            row = c.select(
+                '*',
+                from_=StaticAttributeTable
+            ).where(
+                (StaticAttributeTable.list_id, Operator.EQ, self.id),
+                (StaticAttributeTable.kind, Operator.EQ, kind)
+            ).fetchone()
 
         if row is None:
             raise RuntimeError(f"Critical error! Could not find static attribute with kind {kind}")
@@ -213,55 +210,27 @@ class List(BaseStructure):
             
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
-            AttributeTbl = type.tables.attribute
+            AttributeTable = type.tables.attribute
 
-            with queries.connected() as c:
+            with self.community.jumpedia.connector.cursor() as c:
+                additional: tuple[ColumnBindedN[t.Any, t.Any], ...] = ()
+                
                 if issubclass(AttributeTbl, db.StaticAttribute):
-                    c.execute(lambda arg: t"""
-                        INSERT INTO {AttributeTbl} (
-                            {AttributeTbl.list_id},
-                            {AttributeTbl.norm_name},
-                            {AttributeTbl.real_name},
-                            {AttributeTbl.slot_type},
-                            {AttributeTbl.position},
-                            {AttributeTbl.min_slots},
-                            {AttributeTbl.max_slots},
-                            {AttributeTbl.kind}
-                        )
-                        VALUES (
-                            {arg(self.id)},
-                            {arg(norm_name)},
-                            {arg(real_name)},
-                            {arg(slot_type.id)},
-                            {arg(position)},
-                            {arg(min_slots)},
-                            {arg(max_slots)},
-                            {arg(kind)}
-                        )
-                    """)
-                else:
-                    c.execute(lambda arg: t"""
-                        INSERT INTO {AttributeTbl} (
-                            {AttributeTbl.list_id},
-                            {AttributeTbl.norm_name},
-                            {AttributeTbl.real_name},
-                            {AttributeTbl.slot_type},
-                            {AttributeTbl.position},
-                            {AttributeTbl.min_slots},
-                            {AttributeTbl.max_slots}
-                        )
-                        VALUES (
-                            {arg(self.id)},
-                            {arg(norm_name)},
-                            {arg(real_name)},
-                            {arg(slot_type.id)},
-                            {arg(position)},
-                            {arg(min_slots)},
-                            {arg(max_slots)}
-                        )
-                    """)
+                    additional = (AttributeTable.kind.bind_n(kind),)
+                    
+                execute_data = c.insert(
+                    AttributeTable.list_id.bind_n(self.id),
+                    AttributeTable.norm_name.bind_n(norm_name),
+                    AttributeTable.real_name.bind_n(real_name),
+                    AttributeTable.slot_type.bind_n(slot_type.id),
+                    AttributeTable.position.bind_n(position),
+                    AttributeTable.min_slots.bind_n(min_slots),
+                    AttributeTable.max_slots.bind_n(max_slots),
+                    *additional
+                    into=AttributeTable
+                ).execute(get_last_generated_id=True)
 
-                attribute_id = c.last_generated_id
+                attribute_id = execute_data.last_generated_id
 
                 self._insert_attribute_aliases(
                     c,
@@ -292,17 +261,18 @@ class List(BaseStructure):
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
         from . import errors
 
-        AttributeTbl = type.tables.attribute
+        AttributeTable = type.tables.attribute
 
-        with self.locked, queries.connected() as c:
-            c.execute(lambda arg: t"""
-                DELETE FROM {AttributeTbl}
-                WHERE {AttributeTbl.list_id} = {arg(self.id)}
-                AND {AttributeTbl.id} = {arg(id)}
-            """)
+        with self.locked, self.community.jumpedia.connector.cursor() as c:
+            execute_data = c.delete(
+                from_=AttributeTable
+            ).where(
+                (AttributeTable.list_id, Operator.EQ, self.id),
+                (AttributeTable.id, Operator.EQ, id)
+            ).execute(get_affected_row_count=True)
 
-            if c.affected_row_count <= 0:
-                raise errors.StructureNotFoundError(type)
+        if execute_data.affected_row_count < 1:
+            raise errors.StructureNotFoundError(type)
 
     def edit_attribute_name(
         self, 
@@ -323,30 +293,29 @@ class List(BaseStructure):
             
             self._validate_attribute_syns(norm_name, allowed_attributes={attribute})
             
-            AttributeTbl = type.tables.attribute
+            AttributeTable = type.tables.attribute
 
-            with queries.connected() as c:
-                c.execute(lambda arg: t"""
-                    UPDATE {AttributeTbl}
-                    SET
-                        {AttributeTbl.norm_name} = {arg(norm_name)},
-                        {AttributeTbl.real_name} = {arg(real_name)}
-                    WHERE 
-                        {AttributeTbl.list_id} = {arg(self.id)}
-                        AND {AttributeTbl.id} = {arg(attribute.id)}
-                """)
-                
+            with self.community.jumpedia.connector.cursor() as c:
+                c.update(
+                    AttributeTable.norm_name.bind_one(norm_name),
+                    AttributeTable.real_name.bind_one(real_name),
+                    table=AttributeTable
+                ).where(
+                    (AttributeTable.list_id, Operator.EQ, self.id),
+                    (AttributeTable.id, Operator.EQ, attribute_id)
+                ).execute()
+                    
                 # If the new name is an alias, remove the alias
-                if norm_name in attribute.get_real_aliases():
-                    AttributeAliasTbl = attribute.__class__.tables.attribute_alias
+                if norm_name in attribute.get_norm_aliases():
+                    AttributeAliasTable = attribute.__class__.tables.attribute_alias
 
-                    c.execute(lambda arg: t"""
-                        DELETE FROM {AttributeAliasTbl}
-                        WHERE
-                            {AttributeAliasTbl.list_id} = {arg(self.id)}
-                            AND {AttributeAliasTbl.attribute_id} = {arg(attribute.id)}
-                            AND {AttributeAliasTbl.norm_alias} = {arg(norm_name)}
-                    """)
+                    c.delete(
+                        from_=AttributeAliasTable
+                    ).where(
+                        (AttributeAliasTable.list_id, Operator.EQ, self.id),
+                        (AttributeAliasTable.attribute_id, Operator.EQ, attribute.id),
+                        (AttributeAliasTable.norm_alias, Operator.EQ, norm_name)
+                    ).execute()
 
                     assert c.affected_row_count == 1
     
@@ -378,27 +347,35 @@ class List(BaseStructure):
                 real_aliases.pop(idx)
                 norm_aliases.pop(idx)
             
-            AttributeAliasTbl = type.tables.attribute_alias
+            AttributeAliasTable = type.tables.attribute_alias
 
-            with queries.connected() as c:
+            with self.community.jumpedia.connector.cursor() as c:
                 # Delete all aliases
-                c.execute(lambda arg: t"""
-                    DELETE FROM {AttributeAliasTbl}
-                    WHERE 
-                        {AttributeAliasTbl.list_id} = {arg(self.id)}
-                        AND {AttributeAliasTbl.attribute_id} = {arg(attribute.id)}
-                """)
+                c.delete(
+                    from_=AttributeAliasTable
+                ).where(
+                    (AttributeAliasTable.list_id, Operator.EQ, self.id),
+                    (AttributeAliasTable.attribute_id, Operator.EQ, attribute.id)
+                ).execute()
 
                 self._insert_attribute_aliases(c, type, attribute.id, real_aliases, norm_aliases)
 
     def _fetch_from_attribute_table[T: db.AnyAttributeTable](
         self, 
         table_type: type[T], 
-        where: t.Callable[[Arg], str] | None
+        where: t.Callable[[Select[T]], Where[T] | None
     ) -> Rows[T]:
         order = t"ORDER BY {table_type.kind}" if issubclass(table_type, StaticAttribute) else t""
 
-        with queries.connected() as c:
+        with self.community.jumpedia.connector.cursor() as c:
+            c.select(
+                '*',
+                from_=table_type
+            ).where(
+                (table_type.list_id, Operator.EQ, self.id),
+                ...
+            )
+            
             c.execute(lambda arg: t"""
                 SELECT *
                 FROM {table_type}
