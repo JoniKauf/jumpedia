@@ -38,7 +38,7 @@ def handle_order_by_sql(
 ) -> None:
     if order_by is not None:
         parts.append("ORDER BY")
-        parts.append(",".join(f"{col} {order}" for col, order in order_by))
+        parts.append(",".join(f"{col._sql_str()} {order}" for col, order in order_by))
 
 
 def handle_limit_sql(limit: tuple[int, int] | None, parts: list[str]) -> None:
@@ -65,9 +65,9 @@ def get_entire_insert_sql(
     if ignore:
         parts.append("IGNORE")
 
-    parts.append(str(table))
+    parts.append(table._sql_str())
 
-    parts.append(f"({','.join(map(str, cols))})")
+    parts.append(f"({','.join(col._sql_str() for col in cols)})")
     parts.append("VALUES")
 
     rows = list(zip(*binded, strict=True))
@@ -91,7 +91,7 @@ def get_entire_delete_sql(
         parts.append("IGNORE")
 
     parts.append("FROM")
-    parts.append(str(table))
+    parts.append(table._sql_str())
 
     handle_where_sql(where, parts, params)
 
@@ -105,7 +105,7 @@ def get_entire_delete_sql(
 def get_added_returning_sql(
     returning: TupleOfOneOrMore[Column[t.Any, t.Any]], sql: str, params: list[t.Any]
 ) -> tuple[str, list[t.Any]]:
-    return (f"{sql} RETURNING {','.join(map(str, returning))}", params)
+    return (f"{sql} RETURNING {','.join(col._sql_str() for col in returning)}", params)
 
 
 __all__ = []
