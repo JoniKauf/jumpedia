@@ -33,8 +33,12 @@ _SNAKE_TRANS_TABLE = str.maketrans(
     }
 )
 
+if t.TYPE_CHECKING:
+    _ModelBase = SimpleNamespace
+else:
+    _ModelBase = object
 
-class Model(SimpleNamespace, metaclass=_ModelMeta):
+class Model(_ModelBase, metaclass=_ModelMeta):
     _columns_data: dict[str, t.Any]
 
     @t.final
