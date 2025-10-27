@@ -18,7 +18,7 @@ class SelectQuery[T: Model](FetchableQuery[T]):
         params: list[t.Any] = []
         parts: list[str] = [
             "SELECT",
-            "*" if not self._select else ",".join(map(str, self._select)),
+            "*" if not self._select else ",".join(col._sql_str() for col in self._select),
             "FROM",
             str(self._table),
         ]
