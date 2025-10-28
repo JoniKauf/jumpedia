@@ -226,25 +226,20 @@ class BaseNonStaticAttribute(BaseAttribute):
                         combined_real_aliases[i].add(type_syn)
                         combined_norm_aliases[i].add(norm_syn)
 
-            c.executemany(lambda args: t"""
-                INSERT INTO {AttributeCollectionEntryTable} (
-                    {AttributeCollectionEntryTable.attribute_id},
-                    {AttributeCollectionEntryTable.index},
-                    {AttributeCollectionEntryTable.norm_slot},
-                    {AttributeCollectionEntryTable.slot_slot}
-                )
-                VALUES (
-                    {args(itertools.repeat(self.id, count))},
-                    {args(range(0, count))},
-                    {args(norm_slots)},
-                    {args(type_slots)}
-                )
-                RETURNING {AttributeCollectionEntryTable.index}, {AttributeCollectionEntryTable.id}
-            """)
-
+            rows = c.insert(
+                AttributeCollectionEntryTable.attribute_id.bind(*itertools.repeat(self.id, count)),
+                AttributeCollectionEntryTable.index.bind(*range(0, count)),
+                AttributeCollectionEntryTable.norm_slot.bind(*norm_slots),
+                AttributeCollectionEntryTable.slot_slot.bind(*type_slots),
+                into=AttributeCollectionEntryTable
+            ).returning(
+                AttributeCollectionEntryTable.index,
+                AttributeCollectionEntryTable.id
+            ).fetchall()
+            
             idx_to_id: list[int] = [0 for _ in range(count)]
             
-            for row in c.fetchall(AttributeCollectionEntryTable):
+            for row in rows:
                 idx_to_id[row.index] = row.id
 
             combined_aliases_count = 0
@@ -257,20 +252,13 @@ class BaseNonStaticAttribute(BaseAttribute):
                 combined_aliases_count += aliases_count
                 entry_ids.extend(itertools.repeat(entry_id, aliases_count))
 
-            c.executemany(lambda args: t"""
-                INSERT INTO {AttributeCollectionEntryAliasTable} (
-                    {AttributeCollectionEntryAliasTable.attribute_id},
-                    {AttributeCollectionEntryAliasTable.attribute_collection_entry_id},
-                    {AttributeCollectionEntryAliasTable.norm_alias},
-                    {AttributeCollectionEntryAliasTable.slot_alias}
-                )
-                VALUES (
-                    {args(itertools.repeat(self.id, combined_aliases_count))},
-                    {args(entry_ids)},
-                    {args(itertools.chain(*combined_norm_aliases))},
-                    {args(itertools.chain(*combined_real_aliases))}
-                )
-            """)
+            c.insert(
+                AttributeCollectionEntryAliasTable.attribute_id.bind(*itertools.repeat(self.id, combined_aliases_count)),
+                AttributeCollectionEntryAliasTable.attribute_collection_entry_id.bind(*entry_ids),
+                AttributeCollectionEntryAliasTable.norm_alias.bind(*itertools.chain(*combined_norm_aliases)),
+                AttributeCollectionEntryAliasTable.slot_alias.bind(*itertools.chain(*combined_real_aliases)),
+                into=AttributeCollectionEntryAliasTable
+            ).execute()
             
             entries: tuple[CollectionEntry, ...] = tuple(
                 CollectionEntry(
