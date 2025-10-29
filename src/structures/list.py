@@ -82,16 +82,16 @@ class List(BaseStructure):
     def get_attribute_by_alias[T: BaseAttribute](
         self, type: type[T], norm_alias: NormStr
     ) -> T | None:
-        AttributeAliasTable = type.tables.attribute_alias
+        AttributeAliasTable: t.Any = type.tables.attribute_alias
 
         with self.connector.cursor() as c:
-            row = (
-                c.select(AttributeAliasTable.attribute_id, from_=AttributeAliasTable)
-                .where(
+            row = c.fetch_one(
+                AttributeAliasTable.select(
+                    "*",
+                ).where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
                     (AttributeAliasTable.norm_alias, orm.Operator.EQ, norm_alias),
                 )
-                .fetch_one()
             )
 
         if row is None:
@@ -153,13 +153,11 @@ class List(BaseStructure):
         StaticAttributeTable = db.StaticAttribute
 
         with self.connector.cursor() as c:
-            row = (
-                c.select("*", from_=StaticAttributeTable)
-                .where(
+            row = c.fetch_one(
+                StaticAttributeTable.select("*").where(
                     (StaticAttributeTable.list_id, orm.Operator.EQ, self.id),
                     (StaticAttributeTable.kind, orm.Operator.EQ, kind),
                 )
-                .fetch_one()
             )
 
         if row is None:
@@ -254,25 +252,29 @@ class List(BaseStructure):
 
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
-            AttributeTable = type.tables.attribute
+            AttributeTable = t.cast(
+                type[db.AbstractAttributeTable], type.tables.attribute
+            )
 
             with self.connector.cursor() as c:
-                additional: tuple[orm.ColumnBindedN[t.Any, t.Any], ...] = ()
+                additional: tuple[orm.ColumnBind[t.Any, t.Any], ...] = ()
 
                 if issubclass(AttributeTable, db.StaticAttribute):
                     additional = (AttributeTable.kind.bind(kind),)
 
-                execute_data = c.insert(
-                    AttributeTable.list_id.bind(self.id),
-                    AttributeTable.norm_name.bind(norm_name),
-                    AttributeTable.real_name.bind(real_name),
-                    AttributeTable.slot_type.bind(slot_type.id),
-                    AttributeTable.position.bind(position),
-                    AttributeTable.min_slots.bind(min_slots),
-                    AttributeTable.max_slots.bind(max_slots),
-                    *additional,
-                    into=AttributeTable,
-                ).execute(get_last_generated_id=True)
+                execute_data = c.execute(
+                    AttributeTable.insert(
+                        AttributeTable.list_id.bind(self.id),
+                        AttributeTable.norm_name.bind(norm_name),
+                        AttributeTable.real_name.bind(real_name),
+                        AttributeTable.slot_type.bind(slot_type.id),
+                        AttributeTable.position.bind(position),
+                        AttributeTable.min_slots.bind(min_slots),
+                        AttributeTable.max_slots.bind(max_slots),
+                        *additional,
+                    ),
+                    get_last_generated_id=True,
+                )
 
                 attribute_id = execute_data.last_generated_id
                 assert attribute_id is not None
@@ -304,16 +306,15 @@ class List(BaseStructure):
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
         from . import errors
 
-        AttributeTable = type.tables.attribute
+        AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
 
         with self.locked, self.connector.cursor() as c:
-            execute_data = (
-                c.delete(from_=AttributeTable)
-                .where(
+            execute_data = c.execute(
+                AttributeTable.delete().where(
                     (AttributeTable.list_id, orm.Operator.EQ, self.id),
                     (AttributeTable.id, orm.Operator.EQ, id),
-                )
-                .execute(get_affected_row_count=True)
+                ),
+                get_affected_row_count=True,
             )
 
         if execute_data.affected_row_count < 1:
@@ -335,37 +336,43 @@ class List(BaseStructure):
 
             self._validate_attribute_syns(norm_name, allowed_attributes={attribute})
 
-            AttributeTable = type.tables.attribute
+            AttributeTable = t.cast(
+                type[db.AbstractAttributeTable], type.tables.attribute
+            )
 
             with self.connector.cursor() as c:
-                execute_data = (
-                    c.update(
+                execute_data = c.execute(
+                    AttributeTable.update(
                         AttributeTable.norm_name.set(norm_name),
                         AttributeTable.real_name.set(real_name),
-                        table=AttributeTable,
-                    )
-                    .where(
+                    ).where(
                         (AttributeTable.list_id, orm.Operator.EQ, self.id),
                         (AttributeTable.id, orm.Operator.EQ, attribute.id),
-                    )
-                    .execute(get_affected_row_count=True)
+                    ),
+                    get_affected_row_count=True,
                 )
+
+                assert execute_data.affected_row_count == 1
 
                 # If the new name is an alias, remove the alias
                 if norm_name in attribute.get_norm_aliases():
                     AttributeAliasTable = attribute.__class__.tables.attribute_alias
 
-                    c.delete(from_=AttributeAliasTable).where(
-                        (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                        (
-                            AttributeAliasTable.attribute_id,
-                            orm.Operator.EQ,
-                            attribute.id,
-                        ),
-                        (AttributeAliasTable.norm_alias, orm.Operator.EQ, norm_name),
-                    ).execute()
-
-                    assert execute_data.affected_row_count == 1
+                    c.execute(
+                        AttributeAliasTable.delete().where(
+                            (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                            (
+                                AttributeAliasTable.attribute_id,
+                                orm.Operator.EQ,
+                                attribute.id,
+                            ),
+                            (
+                                AttributeAliasTable.norm_alias,
+                                orm.Operator.EQ,
+                                norm_name,
+                            ),
+                        )
+                    )
 
     def edit_attribute_aliases(
         self, type: type[BaseAttribute], id: int, aliases: t.Iterable[RealStr]
@@ -395,10 +402,16 @@ class List(BaseStructure):
 
             with self.connector.cursor() as c:
                 # Delete all aliases
-                c.delete(from_=AttributeAliasTable).where(
-                    (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                    (AttributeAliasTable.attribute_id, orm.Operator.EQ, attribute.id),
-                ).execute()
+                c.execute(
+                    AttributeAliasTable.delete().where(
+                        (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                        (
+                            AttributeAliasTable.attribute_id,
+                            orm.Operator.EQ,
+                            attribute.id,
+                        ),
+                    )
+                )
 
                 self._insert_attribute_aliases(
                     c, type, attribute.id, real_aliases, norm_aliases
@@ -408,16 +421,14 @@ class List(BaseStructure):
         self, table_type: type[T], *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[T]:
         with self.connector.cursor() as c:
-            where_step = c.select("*", from_=table_type).where(
+            query = table_type.select("*").where(
                 (table_type.list_id, orm.Operator.EQ, self.id), *where
             )
 
             if issubclass(table_type, db.StaticAttribute):
-                query = where_step.order_by((table_type.kind, orm.Order.ASC)).query
-            else:
-                query = where_step.query
+                query = query.order_by((table_type.kind, orm.Order.ASC))  # type: ignore
 
-            return query.fetch_all()
+            return c.fetch_all(query)  # type: ignore
 
     def _attribute_row_to_obj[T: BaseAttribute](
         self, type: type[T], row: db.AnyAttributeTable
@@ -488,18 +499,19 @@ class List(BaseStructure):
         if not norm_aliases:
             return
 
-        AttributeAliasTable = type.tables.attribute_alias
+        AttributeAliasTable: type[db.AllAttributeAliasTable] = type.tables.attribute_alias  # type: ignore
         count = len(norm_aliases)
 
-        c.insert(
-            AttributeAliasTable.attribute_id.bind(
-                *itertools.repeat(attribute_id, count)
-            ),
-            AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
-            AttributeAliasTable.norm_alias.bind(*norm_aliases),
-            AttributeAliasTable.real_alias.bind(*real_aliases),
-            into=AttributeAliasTable,
-        ).execute()
+        c.execute(
+            AttributeAliasTable.insert(
+                AttributeAliasTable.attribute_id.bind(
+                    *itertools.repeat(attribute_id, count)
+                ),
+                AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
+                AttributeAliasTable.norm_alias.bind(*norm_aliases),
+                AttributeAliasTable.real_alias.bind(*real_aliases),
+            )
+        )
 
     # --- Tasks ---
 
@@ -520,13 +532,11 @@ class List(BaseStructure):
 
     def get_task_by_alias(self, norm_alias: NormStr) -> Task | None:
         with self.connector.cursor() as c:
-            row = (
-                c.select(db.TaskAlias.task_id, from_=db.TaskAlias)
-                .where(
+            row = c.fetch_one(
+                db.TaskAlias.select(db.TaskAlias.task_id).where(
                     (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
                     (db.TaskAlias.norm_alias, orm.Operator.EQ, norm_alias),
                 )
-                .fetch_one()
             )
 
         if row is None:
@@ -546,7 +556,9 @@ class List(BaseStructure):
         id_to_attr = {(attr.type_id, attr.id): attr for attr in task_attrs}
         del task_attrs
 
-        AttributeTaskValueTable = type.tables.attribute_task_value
+        AttributeTaskValueTable = t.cast(
+            type[db.AbstractAttributeTaskValueTable], type.tables.attribute_task_value
+        )
 
         additional_where: tuple[tuple[t.Any, orm.Operator, t.Any], ...] = ()
 
@@ -555,13 +567,12 @@ class List(BaseStructure):
                 (AttributeTaskValueTable.user_id, orm.Operator.EQ, community_user_id),
             )
 
-        rows = (
-            c.select(
+        rows = c.fetch_all(
+            AttributeTaskValueTable.select(
                 AttributeTaskValueTable.task_id,
                 AttributeTaskValueTable.attribute_id,
                 AttributeTaskValueTable.slot_slot,
                 AttributeTaskValueTable.index,
-                from_=AttributeTaskValueTable,
             )
             .where(
                 (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
@@ -572,7 +583,6 @@ class List(BaseStructure):
                 (AttributeTaskValueTable.attribute_id, orm.Order.ASC),
                 (AttributeTaskValueTable.index, orm.Order.ASC),
             )
-            .fetch_all()
         )
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
@@ -643,12 +653,10 @@ class List(BaseStructure):
                 static_avm[id_attr.id] = id_attr.raw_to_value([str(id)])
                 static_avm[name_attr.id] = [task.slot_name]
 
-            rows = (
-                c.select(
-                    db.TaskAlias.slot_alias, db.TaskAlias.task_id, from_=db.TaskAlias
-                )
-                .where((db.TaskAlias.list_id, orm.Operator.EQ, self.id))
-                .fetch_all()
+            rows = c.fetch_all(
+                db.TaskAlias.select(
+                    db.TaskAlias.slot_alias, db.TaskAlias.task_id
+                ).where((db.TaskAlias.list_id, orm.Operator.EQ, self.id))
             )
 
             task_id_to_aliases = itertools.groupby(rows, lambda row: row.task_id)
@@ -674,7 +682,7 @@ class List(BaseStructure):
             if community_user is not None:
                 attr_mapping, new_data = (
                     self._get_attributes_and_data_for_non_static_attribute_value_mapping(
-                        c, UserAttribute, community_user.jumpedia_user_id.id
+                        c, UserAttribute, community_user.jumpedia_user_id
                     )
                 )
 
@@ -740,12 +748,14 @@ class List(BaseStructure):
             )
 
             with self.connector.cursor() as c:
-                execute_data = c.insert(
-                    db.Task.list_id.bind(self.id),
-                    db.Task.norm_name.bind(norm_name),
-                    db.Task.slot_name.bind(slot_name),
-                    into=db.Task,
-                ).execute(get_last_generated_id=True)
+                execute_data = c.execute(
+                    db.Task.insert(
+                        db.Task.list_id.bind(self.id),
+                        db.Task.norm_name.bind(norm_name),
+                        db.Task.slot_name.bind(slot_name),
+                    ),
+                    get_last_generated_id=True,
+                )
 
                 task_id = execute_data.last_generated_id
                 assert task_id is not None
@@ -761,13 +771,12 @@ class List(BaseStructure):
         from . import errors
 
         with self.locked, self.connector.cursor() as c:
-            execute_data = (
-                c.delete(from_=db.Task)
-                .where(
+            execute_data = c.execute(
+                db.Task.delete().where(
                     (db.Task.list_id, orm.Operator.EQ, self.id),
                     (db.Task.id, orm.Operator.EQ, id),
-                )
-                .execute(get_affected_row_count=True)
+                ),
+                get_affected_row_count=True,
             )
 
             if execute_data.affected_row_count == 0:
@@ -790,24 +799,24 @@ class List(BaseStructure):
             self._validate_task_syns(norm_name, allowed_tasks={task})
 
             with self.connector.cursor() as c:
-                c.update(
-                    db.Task.norm_name.set(norm_name),
-                    db.Task.slot_name.set(slot_name),
-                    table=db.Task,
-                ).where(
-                    (db.Task.list_id, orm.Operator.EQ, self.id),
-                    (db.Task.id, orm.Operator.EQ, task.id),
-                ).execute()
+                c.execute(
+                    db.Task.update(
+                        db.Task.norm_name.set(norm_name),
+                        db.Task.slot_name.set(slot_name),
+                    ).where(
+                        (db.Task.list_id, orm.Operator.EQ, self.id),
+                        (db.Task.id, orm.Operator.EQ, task.id),
+                    )
+                )
 
                 # If the new name is an alias, remove the alias
-                execute_data = (
-                    c.delete(from_=db.TaskAlias)
-                    .where(
+                execute_data = c.execute(
+                    db.TaskAlias.delete().where(
                         (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
                         (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
                         (db.TaskAlias.norm_alias, orm.Operator.EQ, norm_name),
-                    )
-                    .execute(get_affected_row_count=True)
+                    ),
+                    get_affected_row_count=True,
                 )
 
                 assert execute_data.affected_row_count in (0, 1)
@@ -840,10 +849,12 @@ class List(BaseStructure):
 
             with self.connector.cursor() as c:
                 # Delete all aliases
-                c.delete(from_=db.TaskAlias).where(
-                    (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
-                    (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
-                ).execute()
+                c.execute(
+                    db.TaskAlias.delete().where(
+                        (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
+                        (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
+                    )
+                )
 
                 self._insert_task_aliases(c, task.id, slot_aliases, norm_aliases)
 
@@ -867,9 +878,11 @@ class List(BaseStructure):
             AttributeTaskValueTable = TaskAttribute.tables.attribute_task_value
 
             with self.connector.cursor() as c:
-                c.delete(from_=AttributeTaskValueTable).where(
-                    (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
-                    (AttributeTaskValueTable.task_id, orm.Operator.EQ, task.id),
+                c.execute(
+                    AttributeTaskValueTable.delete().where(
+                        (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
+                        (AttributeTaskValueTable.task_id, orm.Operator.EQ, task.id),
+                    )
                 )
 
                 self._insert_task_attribute_value_mapping(
@@ -880,10 +893,10 @@ class List(BaseStructure):
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[db.Task]:
         with self.connector.cursor() as c:
-            return (
-                c.select("*", from_=db.Task)
-                .where((db.Task.list_id, orm.Operator.EQ, self.id), *where)
-                .fetch_all()
+            return c.fetch_all(
+                db.Task.select("*").where(
+                    (db.Task.list_id, orm.Operator.EQ, self.id), *where
+                )
             )
 
     def _task_row_to_obj(self, row: db.Task) -> Task:
@@ -903,13 +916,14 @@ class List(BaseStructure):
 
         count = len(norm_aliases)
 
-        c.insert(
-            db.TaskAlias.task_id.bind(*itertools.repeat(task_id, count)),
-            db.TaskAlias.list_id.bind(*itertools.repeat(self.id, count)),
-            db.TaskAlias.norm_alias.bind(*norm_aliases),
-            db.TaskAlias.slot_alias.bind(*slot_aliases),
-            into=db.TaskAlias,
-        ).execute()
+        c.execute(
+            db.TaskAlias.insert(
+                db.TaskAlias.task_id.bind(*itertools.repeat(task_id, count)),
+                db.TaskAlias.list_id.bind(*itertools.repeat(self.id, count)),
+                db.TaskAlias.norm_alias.bind(*norm_aliases),
+                db.TaskAlias.slot_alias.bind(*slot_aliases),
+            )
+        )
 
     def _insert_task_attribute_value_mapping(
         self,
@@ -931,17 +945,21 @@ class List(BaseStructure):
                 index_args.append(i)
                 slot_args.append(slot)
 
-        AttributeTaskValueTable = TaskAttribute.tables.attribute_task_value
+        AttributeTaskValueTable = t.cast(
+            type[db.AbstractAttributeTaskValueTable],
+            TaskAttribute.tables.attribute_task_value,
+        )
 
-        c.insert(
-            AttributeTaskValueTable.task_id.bind(
-                *itertools.repeat(task_id, len(attribute_id_args))
-            ),
-            AttributeTaskValueTable.attribute_id.bind(*attribute_id_args),
-            AttributeTaskValueTable.index.bind(*index_args),
-            AttributeTaskValueTable.slot_slot.bind(*slot_args),
-            into=AttributeTaskValueTable,
-        ).execute()
+        c.execute(
+            AttributeTaskValueTable.insert(
+                AttributeTaskValueTable.task_id.bind(
+                    *itertools.repeat(task_id, len(attribute_id_args))
+                ),
+                AttributeTaskValueTable.attribute_id.bind(*attribute_id_args),
+                AttributeTaskValueTable.index.bind(*index_args),
+                AttributeTaskValueTable.slot_slot.bind(*slot_args),
+            )
+        )
 
     def _validate_task_syns(
         self,

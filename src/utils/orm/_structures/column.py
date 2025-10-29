@@ -1,23 +1,29 @@
-import functools
 import typing as t
 from dataclasses import dataclass
 
+from orm._query.select import Join
 from typing_extensions import TypeForm
 
-from .._utils import SqlString, TupleOfOneOrMore
+from .. import _utils
 
 if t.TYPE_CHECKING:
     from .._query import *
     from .model import Model
 
 
-class Column[TOwner: Model, TValue](SqlString):
+class Column[TOwner: Model, TValue](_utils.SqlString):
+    _type: t.Final[tuple[TypeForm[TValue], ...]]
+    _owner: t.Final[type[TOwner]]
+    _name: t.Final[str]
+
     def __init__(self, types: tuple[TypeForm[TValue], ...]) -> None:
         self._type = types
 
     def __set_name__(self, owner: type[TOwner], name: str) -> None:
-        self._owner = owner
-        self._name = name
+        _utils.validate_identifier(name)
+
+        self._owner = owner  # type: ignore
+        self._name = name  # type: ignore
 
     @t.overload
     def __get__(self, instance: TOwner, owner: type[TOwner]) -> TValue:
@@ -28,15 +34,17 @@ class Column[TOwner: Model, TValue](SqlString):
         pass
 
     @t.overload
-    def __get__(self, instance: _ColBinded, owner: type[_ColBinded]) -> t.Self:
+    def __get__(
+        self, instance: _NonDescriptorTypes, owner: type[_NonDescriptorTypes]
+    ) -> t.Self:
         pass
 
     def __get__(
         self,
-        instance: _ColBinded | TOwner | None,
-        owner: type[_ColBinded | TOwner],
+        instance: _NonDescriptorTypes | TOwner | None,
+        owner: type[_NonDescriptorTypes | TOwner],
     ) -> t.Self | TValue:
-        if instance is None or isinstance(instance, ColumnSet | ColumnBindedN):
+        if instance is None or isinstance(instance, _NON_DESCRIPTOR_TYPES):
             return self
 
         return instance._columns_data[self._name]
@@ -47,8 +55,8 @@ class Column[TOwner: Model, TValue](SqlString):
     def set(self, value: TValue, /) -> ColumnSet[TOwner, TValue]:
         return ColumnSet(self, value)
 
-    def bind(self, value: TValue, /, *values: TValue) -> ColumnBindedN[TOwner, TValue]:
-        return ColumnBindedN(self, (value, *values))
+    def bind(self, value: TValue, /, *values: TValue) -> ColumnBind[TOwner, TValue]:
+        return ColumnBind(self, (value, *values))
 
 
 def column[TOwner: Model, TValue](
@@ -58,9 +66,6 @@ def column[TOwner: Model, TValue](
         return Column(fetch_types)
 
     return decorator
-
-
-type _ColBinded = ColumnSet[t.Any, t.Any] | ColumnBindedN[t.Any, t.Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,9 +78,19 @@ class ColumnSet[TOwner: Model, TValue]():
 
 
 @dataclass(frozen=True, slots=True)
-class ColumnBindedN[TOwner: Model, TValue]:
+class ColumnBind[TOwner: Model, TValue]:
     column: Column[TOwner, TValue]
-    values: TupleOfOneOrMore[TValue]  # type: ignore
+    values: _utils.TupleOfOneOrMore[TValue]
 
-    def __iter__(self) -> t.Iterator[Column[TOwner, TValue] | TupleOfOneOrMore[TValue]]:
+    def __iter__(
+        self,
+    ) -> t.Iterator[Column[TOwner, TValue] | _utils.TupleOfOneOrMore[TValue]]:
         return iter((self.column, self.values))
+
+
+type _NonDescriptorTypes = ColumnSet[t.Any, t.Any] | ColumnBind[t.Any, t.Any] | Join[
+    t.Any, t.Any
+]
+_NON_DESCRIPTOR_TYPES = (ColumnSet, ColumnBind, Join)
+
+__all__ = ["Column", "column", "ColumnSet", "ColumnBind"]

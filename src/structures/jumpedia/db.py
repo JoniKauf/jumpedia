@@ -11,13 +11,6 @@ if t.TYPE_CHECKING:
     from . import Jumpedia
 
 
-type AnyAttributeTable = StaticAttribute | TaskAttribute | UserAttribute
-type AnyAttributeAliasTable = StaticAttributeAlias | TaskAttributeAlias | UserAttributeAlias
-type AnyAttributeCollectionEntryTable = TaskAttributeCollectionEntry | UserAttributeCollectionEntry
-type AnyAttributeCollectionEntryAliasTable = TaskAttributeCollectionEntryAlias | UserAttributeCollectionEntryAlias
-type AnyAttributeTaskValueTable = TaskAttributeTaskValue | UserAttributeTaskValue
-
-
 class Community(Model, table_name=SNAKE):
     @column(int)
     def id(self):
@@ -460,6 +453,44 @@ class UserAttributeTaskValue(Model, table_name=SNAKE):
 
     @column(SlotStr)
     def slot_slot(self):
+        pass
+
+
+# Union types to represent attribute tables
+type AnyAttributeTable = StaticAttribute | TaskAttribute | UserAttribute
+type AnyAttributeAliasTable = StaticAttributeAlias | TaskAttributeAlias | UserAttributeAlias
+type AnyAttributeCollectionEntryTable = TaskAttributeCollectionEntry | UserAttributeCollectionEntry
+type AnyAttributeCollectionEntryAliasTable = TaskAttributeCollectionEntryAlias | UserAttributeCollectionEntryAlias
+type AnyAttributeTaskValueTable = TaskAttributeTaskValue | UserAttributeTaskValue
+
+
+if t.TYPE_CHECKING:
+    # Intersection types to be type safe and make type checker shut up for queries
+    class AbstractAttributeTable(
+        StaticAttribute, TaskAttribute, UserAttribute, table_name=""
+    ):
+        pass
+
+    class AbstractAttributeAliasTable(
+        StaticAttributeAlias, TaskAttributeAlias, UserAttributeAlias, table_name=""
+    ):
+        pass
+
+    class AbstractAttributeCollectionEntryTable(
+        TaskAttributeCollectionEntry, UserAttributeCollectionEntry, table_name=""
+    ):
+        pass
+
+    class AbstractAttributeCollectionEntryAliasTable(
+        TaskAttributeCollectionEntryAlias,
+        UserAttributeCollectionEntryAlias,
+        table_name="",
+    ):
+        pass
+
+    class AbstractAttributeTaskValueTable(
+        TaskAttributeTaskValue, UserAttributeTaskValue, table_name=""
+    ):
         pass
 
 

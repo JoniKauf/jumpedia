@@ -1,7 +1,6 @@
 import typing as t
 
-from .._utils import TupleOfOneOrMore
-from . import ExecutableQuery, Operator, Order, _utils
+from . import ExecutableQuery, Operator, Order, utils
 
 if t.TYPE_CHECKING:
     from .._structures.column import Column, ColumnSet
@@ -9,9 +8,9 @@ if t.TYPE_CHECKING:
 
 
 class UpdateQuery[T: Model](ExecutableQuery[T]):
-    _update: tuple[TupleOfOneOrMore[ColumnSet], bool]
-    _where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None
-    _order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None
+    _update: tuple[tuple[ColumnSet[T, t.Any], ...], bool]
+    _where: list[tuple[tuple[t.Any, Operator, t.Any], ...]]
+    _order_by: tuple[tuple[Column[T, t.Any], Order], ...]
     _limit: tuple[int, int] | None
 
     def _to_sql(self) -> tuple[str, list[t.Any]]:
@@ -29,37 +28,23 @@ class UpdateQuery[T: Model](ExecutableQuery[T]):
 
         parts.append(
             ",".join(
-                f"{col._sql_str()}={_utils.placehold(v, params)}"
+                f"{col._sql_str()}={utils.placehold(v, params)}"
                 for col, v in cols_binded
             )
         )
 
-        _utils.handle_where_sql(self._where, parts, params)
+        utils.handle_where_sql(self._where, parts, params)
 
-        _utils.handle_order_by_sql(self._order_by, parts)
+        utils.handle_order_by_sql(self._order_by, parts)
 
-        _utils.handle_limit_sql(self._limit, parts)
+        utils.handle_limit_sql(self._limit, parts)
 
         return (" ".join(parts), params)
 
 
-class Limit[T: Model](UpdateQuery[T]):
-    @property
-    def query(self) -> UpdateQuery[T]:
-        return UpdateQuery(
-            self._cursor,
-            self._table,
-            self._update,
-            self._where,
-            self._order_by,
-            self._limit,
-        )
-
-
-class OrderBy[T: Model](Limit[T]):
+class _LimitAndLater[T: Model](UpdateQuery[T]):
     def limit(self, limit: int, /, *, offset: int = 0) -> Limit[T]:
         return Limit(
-            self._cursor,
             self._table,
             self._update,
             self._where,
@@ -68,15 +53,14 @@ class OrderBy[T: Model](Limit[T]):
         )
 
 
-class Where[T: Model](OrderBy[T]):
+class _OrderByAndLater[T: Model](_LimitAndLater[T]):
     def order_by(
         self,
-        column_order: tuple[Column[t.Any, t.Any], Order],
+        column_order: tuple[Column[T, t.Any], Order],
         /,
-        *column_orders: tuple[Column[t.Any, t.Any], Order],
+        *column_orders: tuple[Column[T, t.Any], Order],
     ) -> OrderBy[T]:
         return OrderBy(
-            self._cursor,
             self._table,
             self._update,
             self._where,
@@ -85,18 +69,46 @@ class Where[T: Model](OrderBy[T]):
         )
 
 
-class Update[T: Model](Where[T]):
+class _WhereAndLater[T: Model](_OrderByAndLater[T]):
     def where(
         self,
         comparison: tuple[t.Any, Operator, t.Any],
         /,
-        *comparisons: tuple[t.Any, Operator, t.Any],
+        *and_comparisons: tuple[t.Any, Operator, t.Any],
     ) -> Where[T]:
         return Where(
-            self._cursor,
             self._table,
             self._update,
-            (comparison, *comparisons),
-            None,
-            None,
+            [(comparison, *and_comparisons)],
+            self._order_by,
+            self._limit,
         )
+
+
+class Limit[T: Model](UpdateQuery[T]):
+    pass
+
+
+class OrderBy[T: Model](_LimitAndLater[T]):
+    pass
+
+
+class Where[T: Model](_OrderByAndLater[T]):
+    def or_where(
+        self,
+        comparison: tuple[t.Any, Operator, t.Any],
+        /,
+        *and_comparisons: tuple[t.Any, Operator, t.Any],
+    ) -> Where[T]:
+        self._where.append((comparison, *and_comparisons))
+
+        return Where(
+            self._table, self._update, self._where, self._order_by, self._limit
+        )
+
+
+class Update[T: Model](_WhereAndLater[T]):
+    pass
+
+
+__all__ = ["UpdateQuery"]

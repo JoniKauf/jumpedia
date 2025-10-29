@@ -31,26 +31,22 @@ class Task(BaseStructure):
 
     def get_real_aliases(self) -> frozenset[text.RealStr]:
         with self.connector.cursor() as c:
-            rows = (
-                c.select(db.TaskAlias.slot_alias, from_=db.TaskAlias)
-                .where(
+            rows = c.fetch_all(
+                db.TaskAlias.select(db.TaskAlias.slot_alias).where(
                     (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
                     (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
                 )
-                .fetch_all()
             )
 
         return frozenset(row.slot_alias for row in rows)
 
     def get_norm_aliases(self) -> frozenset[text.NormStr]:
         with self.connector.cursor() as c:
-            rows = (
-                c.select(db.TaskAlias.norm_alias, from_=db.TaskAlias)
-                .where(
+            rows = c.fetch_all(
+                db.TaskAlias.select(db.TaskAlias.norm_alias).where(
                     (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
                     (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
                 )
-                .fetch_all()
             )
 
         return frozenset(row.norm_alias for row in rows)

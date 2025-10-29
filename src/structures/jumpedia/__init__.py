@@ -63,21 +63,24 @@ class Jumpedia(BaseStructure):
                 raise SynAlreadyTakenError(norm_name, comm)
 
             with self.connector.cursor() as c:
-                execute_data = c.insert(
-                    db.Community.norm_name.bind(norm_name),
-                    db.Community.real_name.bind(real_name),
-                    into=db.Community,
-                ).execute(get_last_generated_id=True)
+                execute_data = c.execute(
+                    db.Community.insert(
+                        db.Community.norm_name.bind(norm_name),
+                        db.Community.real_name.bind(real_name),
+                    ),
+                    get_last_generated_id=True,
+                )
 
                 community_id = execute_data.last_generated_id
 
                 assert community_id is not None
 
-                c.insert(
-                    db.Server.id.bind(server_id),
-                    db.Server.community_id.bind(community_id),
-                    into=db.Server,
-                ).execute()
+                c.execute(
+                    db.Server.insert(
+                        db.Server.id.bind(server_id),
+                        db.Server.community_id.bind(community_id),
+                    )
+                )
 
                 comm = Community(
                     jumpedia=self,
@@ -94,18 +97,17 @@ class Jumpedia(BaseStructure):
                     ),
                 )
 
-                jumpedia_user.get_or_create_community_user(
-                    comm.id, CommunityRank.OWNER, None, True, True
+                comm.get_or_create_community_user(
+                    jumpedia_user, CommunityRank.OWNER, None, True, True
                 )
 
                 return comm
 
     def delete_community(self, id: int) -> None:
         with self.locked, self.connector.cursor() as c:
-            execute_data = (
-                c.delete(from_=db.Community)
-                .where((db.Community.id, orm.Operator.EQ, id))
-                .execute(get_affected_row_count=True)
+            execute_data = c.execute(
+                (db.Community.delete().where((db.Community.id, orm.Operator.EQ, id))),
+                get_affected_row_count=True,
             )
 
             if execute_data.affected_row_count < 1:
@@ -115,14 +117,12 @@ class Jumpedia(BaseStructure):
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[db.Community]:
         with self.connector.cursor() as c:
-            select = c.select("*", from_=db.Community)
+            query = db.Community.select("*")
 
             if where is not None:
-                query = select.where(*where).query
-            else:
-                query = select.query
+                query = query.where(*where)
 
-            return query.fetch_all()
+            return c.fetch_all(query)
 
     def _community_row_to_obj(self, row: db.Community) -> Community:
         return Community(
@@ -160,10 +160,10 @@ class Jumpedia(BaseStructure):
 
     def get_community_by_server_id(self, server_id: int) -> Community | None:
         with self.connector.cursor() as c:
-            row = (
-                c.select(db.Server.community_id, from_=db.Server)
-                .where((db.Server.id, orm.Operator.EQ, server_id))
-                .fetch_one()
+            row = c.fetch_one(
+                db.Server.select(db.Server.community_id).where(
+                    (db.Server.id, orm.Operator.EQ, server_id)
+                )
             )
 
         if row is None:
@@ -188,13 +188,14 @@ class Jumpedia(BaseStructure):
 
             with self.connector.cursor() as c:
                 if user is None:
-                    c.insert(
-                        db.JumpediaUser.id.bind(id),
-                        db.JumpediaUser.power.bind(jumpedia_rank.power),
-                        db.JumpediaUser.norm_name.bind(norm_name),
-                        db.JumpediaUser.raw_name.bind(name),
-                        into=db.JumpediaUser,
-                    ).execute()
+                    c.execute(
+                        db.JumpediaUser.insert(
+                            db.JumpediaUser.id.bind(id),
+                            db.JumpediaUser.power.bind(jumpedia_rank.power),
+                            db.JumpediaUser.norm_name.bind(norm_name),
+                            db.JumpediaUser.raw_name.bind(name),
+                        )
+                    )
 
                 else:
                     jumpedia_rank = (
@@ -205,14 +206,13 @@ class Jumpedia(BaseStructure):
                     name = name if override_name_if_user_exists else user.user_name
 
                     if name != user.user_name or jumpedia_rank != user.jumpedia_rank:
-                        c.update(
-                            db.JumpediaUser.norm_name.set(norm_name),
-                            db.JumpediaUser.raw_name.set(name),
-                            db.JumpediaUser.power.set(jumpedia_rank.power),
-                            table=db.JumpediaUser,
-                        ).where(
-                            (db.JumpediaUser.id, orm.Operator.EQ, user.id)
-                        ).execute()
+                        c.execute(
+                            db.JumpediaUser.update(
+                                db.JumpediaUser.norm_name.set(norm_name),
+                                db.JumpediaUser.raw_name.set(name),
+                                db.JumpediaUser.power.set(jumpedia_rank.power),
+                            ).where((db.JumpediaUser.id, orm.Operator.EQ, user.id))
+                        )
 
                 return JumpediaUser(
                     jumpedia=self, id=id, user_name=name, jumpedia_rank=jumpedia_rank
@@ -222,16 +222,12 @@ class Jumpedia(BaseStructure):
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[db.JumpediaUser]:
         with self.connector.cursor() as c:
-            select = c.select("*", from_=db.JumpediaUser)
+            query = db.JumpediaUser.select("*")
 
             if where:
-                query = select.where(*where).query
-            else:
-                query = select.query
+                query = query.where(*where)
 
-            result = query.fetch_all()
-
-        return result
+            return c.fetch_all(query)
 
     def _user_row_to_obj(self, row: db.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
@@ -262,11 +258,12 @@ class Jumpedia(BaseStructure):
                 )
 
             with self.connector.cursor() as c:
-                c.insert(
-                    db.Server.id.bind(server_id),
-                    db.Server.community_id.bind(community_id),
-                    into=db.Server,
-                ).execute()
+                c.execute(
+                    db.Server.insert(
+                        db.Server.id.bind(server_id),
+                        db.Server.community_id.bind(community_id),
+                    )
+                )
 
             # Community must now be connected
             community = self.get_community_by_server_id(server_id)
@@ -277,11 +274,10 @@ class Jumpedia(BaseStructure):
     def remove_community_from_server(self, server_id: int) -> Community:
         with self.locked:
             with self.connector.cursor() as c:
-                row = (
-                    c.delete(from_=db.Server)
+                row = c.fetch_one(
+                    db.Server.delete()
                     .where((db.Server.id, orm.Operator.EQ, server_id))
                     .returning(db.Server.community_id)
-                    .fetch_one()
                 )
 
             if row is None:

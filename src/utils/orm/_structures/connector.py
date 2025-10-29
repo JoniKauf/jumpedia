@@ -54,3 +54,6 @@ class Connector:
         c = self.pool.get_connection().cursor(dictionary=True)
         c.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         return Cursor(c)
+
+
+__all__ = ["Connector"]

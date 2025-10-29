@@ -1,11 +1,11 @@
 import re
 import typing as t
 
-from ..jumpedia import db
 from src.utils import orm
-from ..community import Community
+
 from .. import BaseStructure
-from ..jumpedia import Jumpedia
+from ..community import Community
+from ..jumpedia import Jumpedia, db
 from .ranks import CommunityRank, JumpediaRank
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
@@ -86,17 +86,17 @@ class CommunityUser(BaseStructure):
     __structure_name__ = 'community user'
 
     community: Community
-    jumpedia_user_id: int
+    jumpedia_user: JumpediaUser
     community_rank: CommunityRank
     selected_list_id: int | None
     
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.community.id, *self.jumpedia_user_id.identity)
+        return (self.jumpedia_user.id, *self.community.identity)
     
     @property
     def name(self) -> str:
-        return self.jumpedia_user_id.user_name
+        return self.jumpedia_user.name
     
     def get_selected_list(self) -> List | None:
         with queries.connected() as c:

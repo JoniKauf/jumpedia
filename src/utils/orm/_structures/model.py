@@ -1,10 +1,13 @@
-import annotationlib
 import string
 import typing as t
 from types import SimpleNamespace
 
-from .._utils import SqlString
-from .column import Column
+from .. import _utils
+from .._query.delete import Delete
+from .._query.insert import Insert
+from .._query.select import Join, Select
+from .._query.update import Update
+from .column import Column, ColumnBind, ColumnSet
 
 
 @t.final
@@ -19,7 +22,7 @@ class EXACT:
         raise NotImplementedError()
 
 
-class _ModelMeta(type, SqlString):
+class _ModelMeta(type, _utils.SqlString):
     _table_name: str
     _columns: list[Column[t.Any, t.Any]]
 
@@ -41,7 +44,7 @@ else:
 
 
 class Model(_ModelBase, metaclass=_ModelMeta):
-    _columns_data: dict[str, t.Any]
+    _columns_data: t.Final[dict[str, t.Any]]
 
     @t.final
     def __init_subclass__(cls, table_name: str | type[SNAKE] | type[EXACT]) -> None:
@@ -53,8 +56,84 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         elif table_name is EXACT:
             table_name = cls.__name__
 
+        _utils.validate_identifier(table_name)
+
         cls._table_name = table_name
 
     @t.final
     def __init__(self, data: t.Mapping[str, t.Any]) -> None:
         self._columns_data = {**data}
+
+    # --- Queries ---
+
+    @t.overload
+    @classmethod
+    def select(cls, all: t.Literal["*"], /) -> Select[t.Self]:
+        pass
+
+    @t.overload
+    @classmethod
+    def select[T: Model](
+        cls, all: t.Literal["*"], /, *, join: Join[t.Self, T]
+    ) -> Select[t.Self | T]:
+        pass
+
+    @t.overload
+    @classmethod
+    def select(
+        cls, column: Column[t.Self, t.Any], /, *columns: Column[t.Self, t.Any]
+    ) -> Select[t.Self]:
+        pass
+
+    @t.overload
+    @classmethod
+    def select[T: Model](
+        cls,
+        column: Column[t.Self | T, t.Any],
+        /,
+        *columns: Column[t.Self | T, t.Any],
+        join: Join[t.Self, T],
+    ) -> Select[t.Self | T]:
+        pass
+
+    @classmethod
+    def select[T: Model](
+        cls,
+        all_or_column: Column[t.Self | T, t.Any] | t.Literal["*"],
+        /,
+        *columns: Column[t.Self | T, t.Any],
+        join: Join[t.Self, T] | None = None,
+    ) -> Select[t.Self | T]:
+        cols: tuple[Column[t.Self | T, t.Any], ...] = ()
+
+        if isinstance(all_or_column, Column):
+            cols = (all_or_column, *columns)
+
+        return Select(cls, (cols, () if join is None else (join,)), [], (), None)  # type: ignore
+
+    @classmethod
+    def insert(
+        cls,
+        column_binded: ColumnBind[t.Self, t.Any],
+        /,
+        *columns_binded: ColumnBind[t.Self, t.Any],
+        ignore: bool = False,
+    ) -> Insert[t.Self]:
+        return Insert(cls, ((column_binded, *columns_binded), ignore))
+
+    @classmethod
+    def update(
+        cls,
+        column_set: ColumnSet[t.Self, t.Any],
+        /,
+        *columns_set: ColumnSet[t.Self, t.Any],
+        ignore: bool = False,
+    ) -> Update[t.Self]:
+        return Update(cls, ((column_set, *columns_set), ignore), [], (), None)
+
+    @classmethod
+    def delete(cls, *, ignore: bool = False) -> Delete[t.Self]:
+        return Delete(cls, ignore, [], (), None)
+
+
+__all__ = ["SNAKE", "EXACT", "Model"]

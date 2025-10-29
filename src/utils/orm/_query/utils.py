@@ -4,7 +4,7 @@ from .._utils import SqlString, TupleOfOneOrMore
 from . import Operator, Order
 
 if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBindedN
+    from .._structures.column import Column, ColumnBind
     from .._structures.model import Model
 
 PLACEHOLDER: str = "?"
@@ -19,27 +19,37 @@ def placehold(o: object, params: list[t.Any]) -> str:
 
 
 def handle_where_sql(
-    where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None,
+    where: list[tuple[tuple[t.Any, Operator, t.Any], ...]],
     parts: list[str],
     params: list[t.Any],
 ) -> None:
-    if where is not None:
+    if where:
         parts.append("WHERE")
         parts.append(
-            " AND ".join(
-                f"{placehold(left, params)} {comp} {placehold(right, params)}"
-                for left, comp, right in where
+            " OR ".join(
+                " AND ".join(
+                    f"{placehold(left, params)} {comp} {placehold(right, params)}"
+                    for left, comp, right in and_where
+                )
+                for and_where in where
             )
         )
 
 
 def handle_order_by_sql(
-    order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None,
+    order_by: tuple[Column[t.Any, t.Any] | tuple[Column[t.Any, t.Any], Order], ...],
     parts: list[str],
 ) -> None:
-    if order_by is not None:
+    if order_by:
+        order_by_fixed = (
+            (col_order, Order.ASC) if isinstance(col_order, Column) else col_order
+            for col_order in order_by
+        )
+
         parts.append("ORDER BY")
-        parts.append(",".join(f"{col._sql_str()} {order}" for col, order in order_by))
+        parts.append(
+            ",".join(f"{col._sql_str()} {order}" for col, order in order_by_fixed)
+        )
 
 
 def handle_limit_sql(limit: tuple[int, int] | None, parts: list[str]) -> None:
@@ -53,7 +63,7 @@ def handle_limit_sql(limit: tuple[int, int] | None, parts: list[str]) -> None:
 
 
 def get_entire_insert_sql(
-    table: type[Model], insert: tuple[TupleOfOneOrMore[ColumnBindedN], bool]
+    table: type[Model], insert: tuple[tuple[ColumnBind[t.Any, t.Any], ...], bool]
 ) -> tuple[str, list[t.Any]]:
     parts: list[str] = ["INSERT"]
 
@@ -81,8 +91,8 @@ def get_entire_insert_sql(
 def get_entire_delete_sql(
     table: type[Model],
     delete: bool,
-    where: TupleOfOneOrMore[tuple[t.Any, Operator, t.Any]] | None,
-    order_by: TupleOfOneOrMore[tuple[Column[t.Any, t.Any], Order]] | None,
+    where: list[tuple[tuple[t.Any, Operator, t.Any], ...]],
+    order_by: tuple[Column[t.Any, t.Any] | tuple[Column[t.Any, t.Any], Order], ...],
     limit: tuple[int, int] | None,
 ) -> tuple[str, list[t.Any]]:
     params: list[t.Any] = []
@@ -110,5 +120,6 @@ def get_added_returning_sql(
         f"{sql} RETURNING {
             '*' if not returning 
             else (','.join(col._sql_str() for col in returning))
-        }", params
+        }",
+        params,
     )
