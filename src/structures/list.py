@@ -627,7 +627,7 @@ class List(BaseStructure):
                 if jumpedia_user is None:
                     raise errors.StructureNotFoundError(JumpediaUser)
 
-                community_user = self.community.get_community_user_by_id(user_id)
+                community_user = self.community.get_community_user_by_jumpedia_user(user_id)
 
                 if community_user is None:
                     raise errors.StructureNotFoundError(CommunityUser)

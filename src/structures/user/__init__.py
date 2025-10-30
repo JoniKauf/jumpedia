@@ -6,10 +6,13 @@ from src.utils import orm
 from .. import BaseStructure
 from ..community import Community
 from ..jumpedia import Jumpedia, db
-from .ranks import CommunityRank, JumpediaRank
+from .rank import CommunityRank, JumpediaRank
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 
+
+if t.TYPE_CHECKING:
+    from ..list import List
 
 MAX_NAME_LENGTH: t.Final[int] = 32
 
@@ -55,7 +58,7 @@ def extract_id(identifier: UserIdentifierT) -> int:
         return identifier.id
 
     if isinstance(identifier, CommunityUser):
-        return identifier.jumpedia_user_id
+        return identifier.jumpedia_user.id
 
     t.assert_never(identifier)
 
@@ -98,17 +101,20 @@ class CommunityUser(BaseStructure):
     def name(self) -> str:
         return self.jumpedia_user.name
     
+    @property
+    def connector(self) -> orm.Connector:
+        return self.jumpedia_user.connector
+    
     def get_selected_list(self) -> List | None:
-        with queries.connected() as c:
-            c.execute(lambda arg: t"""
-                SELECT *
-                FROM {typed.List}
-                WHERE 
-                    {typed.List.community_id} = {arg(self.community.id)}
-                    AND {typed.List.id} = {arg(self.selected_list_id)}
-            """)
-
-            row = c.fetchone(typed.List)
+        with self.connector.cursor() as c:
+            row = c.fetch_one(
+                db.List.select(
+                    '*'
+                ).where(
+                    (db.List.community_id, orm.Operator.EQ, self.community.id),
+                    (db.List.id, orm.Operator.EQ, self.selected_list_id)
+                )
+            )
 
         if row is None:
             return None

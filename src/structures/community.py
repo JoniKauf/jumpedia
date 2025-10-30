@@ -2,7 +2,7 @@ import builtins
 import typing as t
 
 from src.structures.user import CommunityUser, JumpediaUser
-from src.structures.user.ranks import CommunityRank
+from src.structures.user.rank import CommunityRank
 from src.utils import orm
 
 from ..utils.text import NormStr, RealStr
@@ -204,10 +204,7 @@ class Community(BaseStructure):
         override_selected_list_if_user_exists: bool,
     ) -> CommunityUser:
         with self.locked:
-            if self.jumpedia.get_jumpedia_user_by_id(jumpedia_user_id) is None:
-                raise StructureNotFoundError(JumpediaUser)
-
-            community_user = self.get_community_user_by_id(jumpedia_user_id)
+            community_user = self.get_community_user_by_jumpedia_user(jumpedia_user)
 
             with self.connector.cursor() as c:
                 # Community user doesn't exist yet
@@ -215,7 +212,7 @@ class Community(BaseStructure):
                     row = c.fetch_one(
                         db.CommunityUser.insert(
                             db.CommunityUser.community_id.bind(self.id),
-                            db.CommunityUser.jumpedia_user_id.bind(jumpedia_user_id),
+                            db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
                             db.CommunityUser.power.bind(community_rank.power),
                             db.CommunityUser.selected_list_id.bind(selected_list_id),
                         ).returning("*")
@@ -225,7 +222,7 @@ class Community(BaseStructure):
 
                     community_user = CommunityUser(
                         community=self,
-                        jumpedia_user_id=jumpedia_user_id,
+                        jumpedia_user=jumpedia_user,
                         community_rank=community_rank,
                         selected_list_id=selected_list_id,
                     )
@@ -259,7 +256,7 @@ class Community(BaseStructure):
                                 (
                                     db.CommunityUser.jumpedia_user_id,
                                     orm.Operator.EQ,
-                                    jumpedia_user_id,
+                                    jumpedia_user.id,
                                 ),
                             ),
                             get_affected_row_count=True,
@@ -269,14 +266,15 @@ class Community(BaseStructure):
 
             return CommunityUser(
                 community=community_user.community,
-                jumpedia_user_id=jumpedia_user_id,
+                jumpedia_user=jumpedia_user,
                 community_rank=community_rank,
                 selected_list_id=selected_list_id,
             )
 
     # TODO synchronize both cursors so data could in theory not have dirty reads
-    def get_community_user_by_id(self, jumpedia_user_id: int) -> CommunityUser | None:
+    def get_community_user_by_jumpedia_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
         with self.connector.cursor() as c:
+            self.jumpedia
             row = c.fetch_one(
                 db.CommunityUser.select(
                     "*",
@@ -285,7 +283,7 @@ class Community(BaseStructure):
                     (
                         db.CommunityUser.jumpedia_user_id,
                         orm.Operator.EQ,
-                        jumpedia_user_id,
+                        jumpedia_user.id,
                     ),
                 )
             )
@@ -295,7 +293,7 @@ class Community(BaseStructure):
 
         return CommunityUser(
             community=self,
-            jumpedia_user_id=jumpedia_user_id,
+            jumpedia_user=jumpedia_user,
             community_rank=CommunityRank.get(row.power),
             selected_list_id=row.selected_list_id,
         )

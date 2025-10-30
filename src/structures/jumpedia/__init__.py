@@ -8,16 +8,23 @@ from ..attribute import slot_type
 from ..community import Community, CommunityLimits
 from ..errors import StructureNotFoundError, SynAlreadyTakenError
 from ..user import JumpediaUser
-from ..user.ranks import CommunityRank, JumpediaRank
+from ..user.rank import CommunityRank, JumpediaRank
 from . import db
 
 
 class JumpediaLimits(t.NamedTuple):
-    community_name_length_max: int
+    """Global limits for Jumpedia.
+    
+    A limit should only be a Jumpedia limit if it has
+    a good reason to be so, otherwise it should be a
+    community wide limit.
+    """
+    # All here are currently length limits, simply because it is one giant shared table
+    # and so they share the same VARCHAR(N)
+    community_name_length_max: int  # By nature a Jumpedia limit
     list_name_length_max: int
     user_name_length_max: int  # Discord limit
     attribute_syn_length_max: int
-    attribute_task_value_slot_count_max: int
     attribute_task_value_slot_length_max: int
 
 

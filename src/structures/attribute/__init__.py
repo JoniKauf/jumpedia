@@ -204,14 +204,14 @@ class BaseNonStaticAttribute(BaseAttribute):
 
     def set_collection(
         self,
-        collection: t.Sequence[text.RealStr],
+        collection: t.Sequence[tuple[text.RealStr, t.Iterable[text.RealStr]]],
     ) -> "Collection":
         count = len(collection)
 
         if not count:
             return Collection(attribute=self, entries=())
 
-        if count > self.list.community.jumpedia.limits:
+        if count > self.list.community.limits.attribute_collection_entry_count_max:
             raise feedbacks.temp(f"Limit fo {collection.MAX_ENTRIES} surpassed!")
 
         AttributeCollectionEntryTable = t.cast(
@@ -223,6 +223,38 @@ class BaseNonStaticAttribute(BaseAttribute):
             self.__class__.tables.attribute_collection_entry_alias,
         )
 
+        norm_syns: set[text.NormStr] = set()
+
+        type_slots: list[SlotStr] = []
+        norm_slots: list[text.NormStr] = []
+
+        combined_real_aliases: tuple[set[SlotStr], ...] = tuple(
+            set() for _ in range(count)
+        )
+        combined_norm_aliases: tuple[set[text.NormStr], ...] = tuple(
+            set() for _ in range(count)
+        )
+
+        for i, (value, aliases) in enumerate(collection):
+            for j, syn_str in enumerate((value, *aliases)):
+                type_syn = self.slot_type.raw_to_slot(syn_str)
+                norm_syn = text.NormStr(type_syn)
+
+                if norm_syn in norm_syns:
+                    raise feedbacks.temp(
+                        f"Slot or alias {norm_syn} seen twice in collection. Must be unique!"
+                    )
+
+                norm_syns.add(norm_syn)
+
+                if j == 0:
+                    type_slots.append(type_syn)
+                    norm_slots.append(norm_syn)
+                else:
+                    combined_real_aliases[i].add(type_syn)
+                    combined_norm_aliases[i].add(norm_syn)
+
+
         with self.locked, self.connector.cursor() as c:
             c.execute(
                 AttributeCollectionEntryTable.delete().where(
@@ -233,37 +265,6 @@ class BaseNonStaticAttribute(BaseAttribute):
                     )
                 )
             )
-
-            norm_syns: set[text.NormStr] = set()
-
-            type_slots: list[SlotStr] = []
-            norm_slots: list[text.NormStr] = []
-
-            combined_real_aliases: tuple[set[SlotStr], ...] = tuple(
-                set() for _ in range(count)
-            )
-            combined_norm_aliases: tuple[set[text.NormStr], ...] = tuple(
-                set() for _ in range(count)
-            )
-
-            for i, entry in enumerate(collection):
-                for j, syn_str in enumerate((entry.value, *entry.aliases)):
-                    type_syn = self.slot_type.raw_to_slot(syn_str)
-                    norm_syn = text.real_to_norm(type_syn)
-
-                    if norm_syn in norm_syns:
-                        raise feedbacks.temp(
-                            f"Slot or alias {norm_syn} seen twice in collection. Must be unique!"
-                        )
-
-                    norm_syns.add(norm_syn)
-
-                    if j == 0:
-                        type_slots.append(type_syn)
-                        norm_slots.append(norm_syn)
-                    else:
-                        combined_real_aliases[i].add(type_syn)
-                        combined_norm_aliases[i].add(norm_syn)
 
             rows = c.fetch_all(
                 AttributeCollectionEntryTable.insert(
