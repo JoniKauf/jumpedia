@@ -4,7 +4,7 @@ import typing as t
 from src.utils import orm, text
 
 from .. import BaseStructure, errors, user
-from ..attribute import slot_type
+from ..attribute import slot_str
 from ..community import Community, CommunityLimits
 from ..errors import StructureNotFoundError, SynAlreadyTakenError
 from ..user import JumpediaUser

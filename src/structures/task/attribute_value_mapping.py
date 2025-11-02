@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from ..attribute import AnyAttributeT, StaticAttribute, TaskAttribute, UserAttribute
-from ..attribute.slot_type import SlotStr
+from ..attribute.slot_str import SlotStr
 from ..list import CommunityUser
 
 if t.TYPE_CHECKING:

@@ -1,12 +1,24 @@
+from dataclasses import dataclass
 import typing as t
+
+from src.structures.attribute import SlotStr
+from src.utils.text import RealStr
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
-    from .attribute.slot_type import SlotTypeT
+    from .attribute.slot_str import SlotTypeT
     from .community import Community
+    from .attribute import BaseAttribute
+    from .attribute.collection import Collection
 
 
-class BaseStructureError(Exception):
+@t.dataclass_transform(eq_default=False)
+class _BaseStructureErrorMeta(type):
+    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, t.Any], **kwds: t.Any):
+        cls = super().__new__(cls, name, bases, namespace, **kwds)
+        return dataclass(eq=False)(cls)
+
+class BaseStructureError(Exception, metaclass=_BaseStructureErrorMeta):
     def __init_subclass__(cls) -> None:
         if cls is BaseStructureError:
             raise RuntimeError
@@ -14,65 +26,49 @@ class BaseStructureError(Exception):
 
 
 class StructureNotFoundError(BaseStructureError):
-    pass
+    structure_type: type[BaseStructure]
 
 
 class StructureFoundError(BaseStructureError):
-    def __init__(self, structure: BaseStructure, *args: object) -> None:
-        self.structure = structure
-        super().__init__(*args)
-
+    structure: BaseStructure
 
 class SynAlreadyTakenError(BaseStructureError):
-    def __init__(self, syn: str, structure: BaseStructure, *args: object) -> None:
-        self.syn = syn
-        self.structure = structure
-        super().__init__(*args)
-
+    syn: str
+    structure: BaseStructure
 
 class ServerAlreadyConnectedToCommunityError(BaseStructureError):
-    def __init__(self, server_id: int, structure: Community, *args: object) -> None:
-        self.server_id = server_id
-        self.structure = structure
-        super().__init__(*args)
+    server_id: int
+    structure: Community
 
 
 class ServerNotConnectedToACommunityError(BaseStructureError):
-    def __init__(self, server_id: int, *args: object) -> None:
-        self.server_id = server_id
-        super().__init__(*args)
+    server_id: int
 
-
-class LimitOfStructuresReachedError(BaseStructureError):
-    def __init__(self, limit: int, *args: object) -> None:
-        self.limit = limit
-        super().__init__(*args)
-
+class LimitReachedError(BaseStructureError):
+    limit: int
+    type: type
 
 class SynTooLongError(BaseStructureError):
-    def __init__(
-        self,
-        length: int,
-        limit: int,
-        structure_type: type[BaseStructure],
-        *args: object,
-    ) -> None:
-        self.length = length
-        self.limit = limit
-        self.structure_type = structure_type
-        super().__init__(*args)
+    length: int
+    limit: int
+    structure_type: type[BaseStructure]
 
+class AttributeValueSlotCountOutOfValidRange(BaseStructureError):
+    raw_value: t.Sequence[str]
+    attribute: BaseAttribute
 
+class CollectionEntryNotFound(BaseStructureError):
+    real_slot: RealStr
+    collection: Collection
+
+class CollectionEntryDuplicate(BaseStructureError):
+    duplicate: SlotStr
+    
 class ElementCountOutOfRangeError(BaseStructureError):
-    def __init__(self, min: int, max: int, structure_type: type, *args: object) -> None:
-        self.min = min
-        self.max = max
-        self.structure_type = structure_type
-        super().__init__(*args)
-
+    min: int
+    max: int
+    structure_type: type[BaseStructure]
 
 class InvalidSlotStr(BaseStructureError):
-    def __init__(self, s: str, expected_type: type[SlotTypeT], *args: object) -> None:
-        self.s = s
-        self.expected_type = expected_type
-        super().__init__(*args)
+    s: str
+    expected_type: type[SlotTypeT]

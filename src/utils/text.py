@@ -101,8 +101,8 @@ class NormStr(str):
         pass
 
     @classmethod
-    def unique_reals_and_norms[T: RealStr](
-        cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr
+    def unique_reals_and_norms[T: t.Callable[[str], RealStr]](
+        cls, iterable: t.Iterable[str], /, real_type: T = RealStr
     ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
         mapping: dict[t.Self, T] = {}
 

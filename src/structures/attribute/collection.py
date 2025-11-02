@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 
 from typing_extensions import Sentinel
 
-from ...utils import text
+from src.utils import text
 from .. import BaseStructure
-from .slot_type import SlotStr
+from .slot_str import SlotStr
 
 if t.TYPE_CHECKING:
     from . import BaseAttribute

@@ -1,15 +1,16 @@
 import builtins
 import typing as t
 
-from src.structures.user import CommunityUser, JumpediaUser
-from src.structures.user.rank import CommunityRank
-from src.utils import orm
+from src.structures.attribute import slot_str
 
-from ..utils.text import NormStr, RealStr
+from .user import CommunityUser, JumpediaUser
+from .user.rank import CommunityRank
+
+from src.utils import orm
+from src.utils.text import NormStr, RealStr
 from . import BaseStructure, errors, list
 from .attribute import StaticAttribute
-from .attribute.slot_type import SlotType
-from .jumpedia import StructureNotFoundError, db
+from .jumpedia import db
 from .list import List
 
 if t.TYPE_CHECKING:
@@ -21,6 +22,7 @@ class CommunityLimits(t.NamedTuple):
     list_attribute_count_max: int
     list_task_count_max: int
     attribute_alias_count_max: int
+    attribute_task_value_slot_count_max: int
     attribute_collection_entry_count_max: int
     attribute_collection_entry_alias_count_max: int
 
@@ -68,7 +70,7 @@ class Community(BaseStructure):
             count = len(self.get_lists())
 
             if count >= self.limits.community_list_count_max:
-                raise errors.LimitOfStructuresReachedError(
+                raise errors.LimitReachedError(
                     self.limits.community_list_count_max, List
                 )
 
@@ -93,7 +95,7 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Id"),
                     frozenset(),
-                    SlotType.INT,
+                    slot_str.get_slot_type_id(int),
                     1,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_ID,
@@ -103,7 +105,7 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Name"),
                     frozenset(),
-                    SlotType.STR,
+                    slot_str.get_slot_type_id(str),
                     1,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_NAME,
@@ -113,8 +115,8 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Aliases"),
                     frozenset(),
-                    SlotType.STR,
-                    self.jumpedia.limits.attribute_task_value_slot_count_max,
+                    slot_str.get_slot_type_id(str),
+                    self.limits.attribute_task_value_slot_count_max,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_ALIASES,
                 )

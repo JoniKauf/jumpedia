@@ -14,7 +14,7 @@ from src.utils.expression_parsing.visitor import (BaseExpressionVisitor,
                                                   ListOfStrVisitor,
                                                   ListOfTupleVisitor)
 from structures.attribute import AnyAttributeT, BaseAttribute
-from structures.attribute.slot_type import SlotTypeT
+from src.structures.attribute.slot_str import SlotTypeT
 from structures.task.attribute_value_mapping import AttributeValueMapping
 from utils.text import NormStr
 

@@ -1,4 +1,3 @@
-import builtins
 import itertools
 import typing as t
 from collections import defaultdict
@@ -6,17 +5,19 @@ from dataclasses import dataclass, field
 
 from src.utils import orm, text
 
+from .. import errors
+
 from .. import BaseStructure
 from ..jumpedia import db
 from .collection import Collection, CollectionEntry
-from .slot_type import SlotStr, SlotType
+from .slot_str import SlotStr, SlotTypeT
 
 if t.TYPE_CHECKING:
     from ..list import KindT, List
 
 # General
 SORT_KEY_NONE_NUMBER: t.Final[int] = (
-    max(abs(slot_type.NUMBER_MIN), abs(slot_type.NUMBER_MAX)) + 1
+    max(abs(slot_str.NUMBER_MIN), abs(slot_str.NUMBER_MAX)) + 1
 )
 
 
@@ -44,7 +45,7 @@ class BaseAttribute(BaseStructure):
     id: int
     real_name: text.RealStr
     norm_name: text.NormStr
-    slot_type: SlotType
+    slot_type: type[SlotTypeT]
     position: int
     min_slots: int
     max_slots: int
@@ -102,16 +103,14 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def raw_to_value(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
-        if not (self.min_slots <= (count := len(value)) <= self.max_slots):
-            raise feedbacks.temp(
-                "Count of values not between limits",
-                min=self.min_slots,
-                count=count,
-                max=self.max_slots,
+    def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+        if not (self.min_slots <= len(value) <= self.max_slots):
+            raise errors.AttributeValueSlotCountOutOfValidRange(
+                value,
+                self
             )
 
-        return [self.slot_type.raw_to_slot(slot) for slot in value]
+        return tuple(SlotStr(slot, self.slot_type) for slot in value)
 
 
 class RawCollectionEntryItem(t.NamedTuple):
@@ -128,8 +127,8 @@ class BaseNonStaticAttribute(BaseAttribute):
         if self.__class__ == BaseNonStaticAttribute:
             raise RuntimeError
 
-    def raw_to_value(self, value: t.Sequence[str]) -> builtins.list[SlotStr]:
-        converted = super().raw_to_value(value)
+    def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+        converted = super().real_to_slot(value)
         collection = self.get_collection()
 
         if not collection:
@@ -138,14 +137,18 @@ class BaseNonStaticAttribute(BaseAttribute):
         result: list[SlotStr] = []
 
         for slot in value:
-            node = collection.get_entry_by_syn(slot)
+            real_slot = text.RealStr(slot)
+            node = collection.get_entry_by_syn(text.NormStr(real_slot))
 
             if node is None:
-                raise feedbacks.temp("Collection node not found")
+                raise errors.CollectionEntryNotFound(
+                    real_slot,
+                    collection
+                )
 
             result.append(node.value)
 
-        return result
+        return tuple(result)
 
     def get_collection(self) -> Collection:
         AttributeCollectionEntryTable = t.cast(
@@ -184,10 +187,10 @@ class BaseNonStaticAttribute(BaseAttribute):
                 )
             )
 
-        entry_id_to_aliases: defaultdict[int, set[slot_type.SlotStr]] = defaultdict(set)
+        entry_id_to_aliases: defaultdict[int, set[slot_str.SlotStr]] = defaultdict(set)
 
         for alias_row in alias_rows:
-            alias = self.slot_type.raw_to_slot(alias_row.slot_alias)
+            alias = SlotStr(alias_row.slot_alias, self.slot_type)
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
 
         entries: tuple[CollectionEntry, ...] = tuple(
@@ -212,7 +215,10 @@ class BaseNonStaticAttribute(BaseAttribute):
             return Collection(attribute=self, entries=())
 
         if count > self.list.community.limits.attribute_collection_entry_count_max:
-            raise feedbacks.temp(f"Limit fo {collection.MAX_ENTRIES} surpassed!")
+            raise errors.LimitReachedError(
+                self.list.community.limits.attribute_collection_entry_count_max,
+                Collection
+            )
 
         AttributeCollectionEntryTable = t.cast(
             type[db.AbstractAttributeCollectionEntryTable],
@@ -237,21 +243,19 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         for i, (value, aliases) in enumerate(collection):
             for j, syn_str in enumerate((value, *aliases)):
-                type_syn = self.slot_type.raw_to_slot(syn_str)
-                norm_syn = text.NormStr(type_syn)
+                slot_syn = SlotStr(syn_str, self.slot_type)
+                norm_syn = text.NormStr(slot_syn)
 
                 if norm_syn in norm_syns:
-                    raise feedbacks.temp(
-                        f"Slot or alias {norm_syn} seen twice in collection. Must be unique!"
-                    )
+                    raise errors.CollectionEntryDuplicate(slot_syn)
 
                 norm_syns.add(norm_syn)
 
                 if j == 0:
-                    type_slots.append(type_syn)
+                    type_slots.append(slot_syn)
                     norm_slots.append(norm_syn)
                 else:
-                    combined_real_aliases[i].add(type_syn)
+                    combined_real_aliases[i].add(slot_syn)
                     combined_norm_aliases[i].add(norm_syn)
 
 

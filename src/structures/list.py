@@ -1,12 +1,9 @@
 import itertools
 import typing as t
 from types import MappingProxyType
-
-from requests import delete
-
 from src.utils import orm
 
-from ..utils.text import NormStr, RealStr
+from src.utils.text import NormStr, RealStr
 from . import BaseStructure, errors
 from .attribute import (
     ALL_ATTRIBUTE_TYPES,
@@ -17,7 +14,7 @@ from .attribute import (
     TaskAttribute,
     UserAttribute,
 )
-from .attribute.slot_type import SlotStr, SlotType
+from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
 from .jumpedia import db
 from .task import Task
 from .task.attribute_value_mapping import AttributeValueMapping, AvmT
@@ -34,7 +31,7 @@ STATIC_ATTRIBUTE_KIND_OF_ALIASES: t.Final = 3
 type KindT = t.Literal[1, 2, 3]
 KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
 
-type _RawAvmT = dict[int, list[SlotStr]]
+type _RawAvmT = dict[int, tuple[SlotStr, ...]]
 
 
 class List(BaseStructure):
@@ -173,7 +170,7 @@ class List(BaseStructure):
         type: type[T],
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
-        slot_type: SlotType,
+        slot_type: type[SlotTypeT],
         max_slots: int,
         *,
         min_slots: int,
@@ -187,7 +184,7 @@ class List(BaseStructure):
         type: type[T],
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
-        slot_type: SlotType,
+        slot_type: type[SlotTypeT],
         max_slots: int,
         *,
         collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
@@ -199,7 +196,7 @@ class List(BaseStructure):
         type: type[T],
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
-        slot_type: SlotType,
+        slot_type: type[SlotTypeT],
         max_slots: int,
         *,
         min_slots: int = 0,
@@ -223,7 +220,7 @@ class List(BaseStructure):
             attrs = self.get_all_attributes_flat()
 
             if len(attrs) >= self.community.limits.list_attribute_count_max:
-                raise errors.LimitOfStructuresReachedError(
+                raise errors.LimitReachedError(
                     self.community.limits.list_attribute_count_max, type
                 )
 
@@ -242,11 +239,11 @@ class List(BaseStructure):
             if not (
                 min_slots
                 <= max_slots
-                <= self.community.jumpedia.limits.attribute_task_value_slot_count_max
+                <= self.community.limits.attribute_task_value_slot_count_max
             ):
                 raise errors.ElementCountOutOfRangeError(
                     min_slots,
-                    self.community.jumpedia.limits.attribute_task_value_slot_count_max,
+                    self.community.limits.attribute_task_value_slot_count_max,
                     type,
                 )
 
@@ -267,7 +264,7 @@ class List(BaseStructure):
                         AttributeTable.list_id.bind(self.id),
                         AttributeTable.norm_name.bind(norm_name),
                         AttributeTable.real_name.bind(real_name),
-                        AttributeTable.slot_type.bind(slot_type.id),
+                        AttributeTable.slot_type.bind(SLOT_TYPES.index(slot_type)),
                         AttributeTable.position.bind(position),
                         AttributeTable.min_slots.bind(min_slots),
                         AttributeTable.max_slots.bind(max_slots),
@@ -441,7 +438,7 @@ class List(BaseStructure):
                 id=row.id,
                 real_name=row.real_name,
                 norm_name=row.norm_name,
-                slot_type=SlotType.get_by_id(row.slot_type),
+                slot_type=SLOT_TYPES[row.slot_type],
                 position=row.position,
                 min_slots=row.min_slots,
                 max_slots=row.max_slots,
@@ -453,28 +450,25 @@ class List(BaseStructure):
             id=row.id,
             real_name=row.real_name,
             norm_name=row.norm_name,
-            slot_type=SlotType.get_by_id(row.slot_type),
+            slot_type=SLOT_TYPES[row.slot_type],
             position=row.position,
             min_slots=row.min_slots,
             max_slots=row.max_slots,
         )
 
     def _cook_raw_task_attribute_value_mapping(
-        self, task_attribute_value_mapping: t.Mapping[int, t.Sequence[SlotStr]]
-    ) -> dict[TaskAttribute, list[SlotStr]]:
+        self, task_attribute_value_mapping: dict[int, t.Sequence[SlotStr]]
+    ) -> dict[TaskAttribute, tuple[SlotStr, ...]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
 
         # Check if all required attributes are given
         for attr in id_to_attr.values():
-            if attr.required and attr.id not in task_attribute_value_mapping:
-                raise feedbacks.temp(
-                    f"Attribute {attr} is required (min >= 1 slots) but it received no values"
-                )
+            task_attribute_value_mapping.setdefault(attr.id, ())
 
         if not task_attribute_value_mapping:
             return {}
 
-        attribute_value_mapping: dict[TaskAttribute, list[SlotStr]] = {}
+        attribute_value_mapping: dict[TaskAttribute, tuple[SlotStr, ...]] = {}
 
         # Convert ids to attributes and validate value
         for attr_id, v in task_attribute_value_mapping.items():
@@ -482,7 +476,7 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(TaskAttribute)
 
             attr = id_to_attr[attr_id]
-            val = attr.raw_to_value(v)
+            val = attr.real_to_slot(v)
 
             attribute_value_mapping[attr] = val
 
@@ -595,19 +589,19 @@ class List(BaseStructure):
             if prev_ta == ta:
                 value.append(row.slot_slot)
             else:
-                raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = value
+                raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = tuple(value)
                 value = [
                     row.slot_slot
                 ]  # DO NOT CLEAR (or at least copy for data if so), otherwise list is in data is affected
                 prev_ta = ta
 
         if value:
-            raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = value
+            raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = tuple(value)
 
         return (id_to_attr, raw_data)
 
     def get_tasks_attribute_value_mapping(
-        self, user_id: int | None
+        self, jumpedia_user_id: int | None
     ) -> tuple[list[AnyAttributeT], list[AttributeValueMapping]]:
         id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
         type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
@@ -615,24 +609,24 @@ class List(BaseStructure):
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
 
         ATTRIBUTES_TYPES_TO_HANDLE = (
-            (StaticAttribute, TaskAttribute) if user_id is None else ALL_ATTRIBUTE_TYPES
+            (StaticAttribute, TaskAttribute) if jumpedia_user_id is None else ALL_ATTRIBUTE_TYPES
         )
 
         with self.connector.cursor() as c:
             community_user: CommunityUser | None = None
 
-            if user_id is not None:
-                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(user_id)
+            if jumpedia_user_id is not None:
+                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(jumpedia_user_id)
 
                 if jumpedia_user is None:
                     raise errors.StructureNotFoundError(JumpediaUser)
 
-                community_user = self.community.get_community_user_by_jumpedia_user(user_id)
+                community_user = self.community.get_community_user_by_jumpedia_user(jumpedia_user)
 
                 if community_user is None:
                     raise errors.StructureNotFoundError(CommunityUser)
 
-            del user_id
+            del jumpedia_user_id
 
             # --- Static Attribute ---
             static_attrs = self.get_attributes(StaticAttribute)
@@ -650,8 +644,8 @@ class List(BaseStructure):
 
                 static_avm: _RawAvmT = raw_data[id][StaticAttribute.type_id]
 
-                static_avm[id_attr.id] = id_attr.raw_to_value([str(id)])
-                static_avm[name_attr.id] = [task.slot_name]
+                static_avm[id_attr.id] = (SlotStr(RealStr(str(id)), int),)
+                static_avm[name_attr.id] = (task.slot_name,)
 
             rows = c.fetch_all(
                 db.TaskAlias.select(
@@ -662,7 +656,7 @@ class List(BaseStructure):
             task_id_to_aliases = itertools.groupby(rows, lambda row: row.task_id)
 
             for task_id, aliases in task_id_to_aliases:
-                raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = list(
+                raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = tuple(
                     alias.slot_alias for alias in aliases
                 )
 
@@ -682,7 +676,7 @@ class List(BaseStructure):
             if community_user is not None:
                 attr_mapping, new_data = (
                     self._get_attributes_and_data_for_non_static_attribute_value_mapping(
-                        c, UserAttribute, community_user.jumpedia_user_id
+                        c, UserAttribute, community_user.jumpedia_user.id
                     )
                 )
 
@@ -739,7 +733,7 @@ class List(BaseStructure):
             all_tasks = self.get_tasks()
 
             if len(all_tasks) >= self.community.limits.list_task_count_max:
-                raise errors.LimitOfStructuresReachedError(
+                raise errors.LimitReachedError(
                     self.community.limits.list_task_count_max, Task
                 )
 
@@ -977,7 +971,7 @@ class List(BaseStructure):
 
         if (
             len(norm_aliases)
-            > self.community.jumpedia.limits.attribute_task_value_slot_count_max
+            > self.community.limits.attribute_task_value_slot_count_max
         ):
             raise feedbacks.temp("Too many aliases")
 

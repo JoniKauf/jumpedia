@@ -4,7 +4,7 @@ from dataclasses import field
 from src.utils import orm, text
 
 from .. import BaseStructure
-from ..attribute.slot_type import SlotStr
+from ..attribute.slot_str import SlotStr
 from ..jumpedia import db
 
 if t.TYPE_CHECKING:

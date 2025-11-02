@@ -1,7 +1,7 @@
 import typing as t
 
 from ...structures.attribute import BaseAttribute
-from ...structures.attribute.slot_type import SlotType
+from ...structures.attribute.slot_str import SlotType
 from ...utils import text
 from .. import BaseAdapter
 

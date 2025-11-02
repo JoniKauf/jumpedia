@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 from contextlib import _GeneratorContextManager
 from dataclasses import dataclass
 
-from ..utils import locked, text
+from src.utils import locked, text
 
 type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]

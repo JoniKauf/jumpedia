@@ -1,11 +1,11 @@
 import types
 import typing as t
 
-from src.structures.attribute import KindT
+from ..attribute import KindT
 from src.utils.orm import *
 from src.utils.text import NormStr, RealStr
 
-from ..attribute.slot_type import SlotStr
+from ..attribute.slot_str import SlotStr
 
 if t.TYPE_CHECKING:
     from . import Jumpedia
@@ -698,7 +698,7 @@ def create_database(j: Jumpedia) -> None:
             """
             )
 
-            from ..attribute import slot_type
+            from ..attribute import slot_str
 
             c.raw_execute(
                 f"""
@@ -706,8 +706,8 @@ def create_database(j: Jumpedia) -> None:
                     {TaskAttributeCollectionEntry.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {TaskAttributeCollectionEntry.attribute_id} INT NOT NULL,
                     {TaskAttributeCollectionEntry.index} INT UNSIGNED NOT NULL,
-                    {TaskAttributeCollectionEntry.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                    {TaskAttributeCollectionEntry.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {TaskAttributeCollectionEntry.norm_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {TaskAttributeCollectionEntry.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     FOREIGN KEY ({TaskAttributeCollectionEntry.attribute_id})
                         REFERENCES {TaskAttribute}({TaskAttribute.id})
@@ -731,8 +731,8 @@ def create_database(j: Jumpedia) -> None:
                     {TaskAttributeCollectionEntryAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {TaskAttributeCollectionEntryAlias.attribute_id} INT NOT NULL,
                     {TaskAttributeCollectionEntryAlias.attribute_collection_entry_id} INT NOT NULL,
-                    {TaskAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                    {TaskAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {TaskAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {TaskAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     FOREIGN KEY ({TaskAttributeCollectionEntryAlias.attribute_collection_entry_id})
                         REFERENCES {TaskAttributeCollectionEntry}({TaskAttributeCollectionEntry.id})
@@ -798,8 +798,8 @@ def create_database(j: Jumpedia) -> None:
                     {UserAttributeCollectionEntry.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {UserAttributeCollectionEntry.attribute_id} INT NOT NULL,
                     {UserAttributeCollectionEntry.index} INT UNSIGNED NOT NULL,
-                    {UserAttributeCollectionEntry.norm_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                    {UserAttributeCollectionEntry.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {UserAttributeCollectionEntry.norm_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {UserAttributeCollectionEntry.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     FOREIGN KEY ({UserAttributeCollectionEntry.attribute_id})
                         REFERENCES {TaskAttribute}({TaskAttribute.id})
@@ -823,8 +823,8 @@ def create_database(j: Jumpedia) -> None:
                     {UserAttributeCollectionEntryAlias.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {UserAttributeCollectionEntryAlias.attribute_id} INT NOT NULL,
                     {UserAttributeCollectionEntryAlias.attribute_collection_entry_id} INT NOT NULL,
-                    {UserAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
-                    {UserAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {UserAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {UserAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     FOREIGN KEY ({UserAttributeCollectionEntryAlias.attribute_collection_entry_id})
                         REFERENCES {UserAttributeCollectionEntry}({UserAttributeCollectionEntry.id})
@@ -886,7 +886,7 @@ def create_database(j: Jumpedia) -> None:
                     {TaskAttributeTaskValue.task_id} INT NOT NULL,
                     {TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                     {TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                    {TaskAttributeTaskValue.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {TaskAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
                         {TaskAttributeTaskValue.task_id}, 
@@ -911,7 +911,7 @@ def create_database(j: Jumpedia) -> None:
                     {UserAttributeTaskValue.task_id} INT NOT NULL,
                     {UserAttributeTaskValue.attribute_id} INT NOT NULL,
                     {UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                    {UserAttributeTaskValue.slot_slot} VARCHAR({slot_type.STR_MAX_LEN}) NOT NULL,
+                    {UserAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
                         {UserAttributeTaskValue.user_id},
