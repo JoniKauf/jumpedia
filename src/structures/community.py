@@ -18,13 +18,12 @@ if t.TYPE_CHECKING:
 
 
 class CommunityLimits(t.NamedTuple):
-    community_list_count_max: int
-    list_attribute_count_max: int
-    list_task_count_max: int
-    attribute_alias_count_max: int
-    attribute_task_value_slot_count_max: int
-    attribute_collection_entry_count_max: int
-    attribute_collection_entry_alias_count_max: int
+    community_list_count_max: int = 1
+    list_attribute_count_max: int = 16
+    list_task_count_max: int = 100
+    attribute_task_value_slot_count_max: int = 32
+    attribute_collection_entry_count_max: int = 32
+    attribute_collection_entry_alias_count_max: int = 8
 
 
 class Community(BaseStructure):
@@ -95,7 +94,7 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Id"),
                     frozenset(),
-                    slot_str.get_slot_type_id(int),
+                    int,
                     1,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_ID,
@@ -105,7 +104,7 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Name"),
                     frozenset(),
-                    slot_str.get_slot_type_id(str),
+                    str,
                     1,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_NAME,
@@ -115,7 +114,7 @@ class Community(BaseStructure):
                     StaticAttribute,
                     RealStr("Aliases"),
                     frozenset(),
-                    slot_str.get_slot_type_id(str),
+                    str,
                     self.limits.attribute_task_value_slot_count_max,
                     min_slots=1,
                     kind=list.STATIC_ATTRIBUTE_KIND_OF_ALIASES,
@@ -274,7 +273,9 @@ class Community(BaseStructure):
             )
 
     # TODO synchronize both cursors so data could in theory not have dirty reads
-    def get_community_user_by_jumpedia_user(self, jumpedia_user: JumpediaUser) -> CommunityUser | None:
+    def get_community_user_by_jumpedia_user(
+        self, jumpedia_user: JumpediaUser
+    ) -> CommunityUser | None:
         with self.connector.cursor() as c:
             self.jumpedia
             row = c.fetch_one(

@@ -7,7 +7,7 @@ type TupleOfOneOrMore[T] = tuple[T, *tuple[T, ...]]
 
 class SqlString(ABC):
     @abstractmethod
-    def _sql_str(self) -> str:
+    def __str__(self) -> str:
         pass
 
 

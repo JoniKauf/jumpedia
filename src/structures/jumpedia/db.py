@@ -1,3 +1,4 @@
+from email.policy import default
 import types
 import typing as t
 
@@ -26,6 +27,36 @@ class Community(Model, table_name=SNAKE):
 
     @column(int, types.NoneType)
     def default_selected_list_id(self):
+        pass
+
+
+class CommunityLimits(Model, table_name=SNAKE):
+    @column(int)
+    def community_id(self):
+        pass
+
+    @column(int)
+    def community_list_count_max(self):
+        pass
+
+    @column(int)
+    def list_attribute_count_max(self):
+        pass
+
+    @column(int)
+    def list_task_count_max(self):
+        pass
+
+    @column(int)
+    def attribute_task_value_slot_count_max(self):
+        pass
+
+    @column(int)
+    def attribute_collection_entry_count_max(self):
+        pass
+
+    @column(int)
+    def attribute_collection_entry_alias_count_max(self):
         pass
 
 
@@ -132,7 +163,7 @@ class StaticAttribute(Model, table_name=SNAKE):
     def max_slots(self):
         pass
 
-    @column(KindT)
+    @column(KindT)  # type: ignore
     def kind(self):
         pass
 
@@ -529,6 +560,19 @@ def create_database(j: Jumpedia) -> None:
                     {Community.norm_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
                     {Community.real_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
                     {Community.default_selected_list_id} INT DEFAULT NULL
+                )
+            """
+            )
+
+            c.raw_execute(
+                f"""
+                CREATE TABLE {CommunityLimits} (
+                    {CommunityLimits.community_id} INT PRIMARY KEY,
+                    {', '.join(f"{col.name} INT" for col in CommunityLimits._columns)},
+
+                    FOREIGN KEY ({CommunityLimits.community_id})
+                        REFERENCES {Community}({Community.id})
+                        ON DELETE CASCADE
                 )
             """
             )

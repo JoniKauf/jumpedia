@@ -41,7 +41,7 @@ class SlotStr(text.RealStr):
         # String is definitely used most often, so check it first
         if issubclass(type, str):
             if not (STR_MIN_LEN <= len(s) <= STR_MAX_LEN):
-                raise errors.InvalidSlotStr(s, type)
+                raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s)
 
@@ -53,16 +53,16 @@ class SlotStr(text.RealStr):
             if s_low == "true":
                 return super().__new__(cls, str(True))
 
-            raise errors.InvalidSlotStr(s, type)
+            raise errors.InvalidSlotStrError(s, type)
 
         if issubclass(type, int):
             try:
                 n = int(s)
             except Exception:
-                raise errors.InvalidSlotStr(s, type)
+                raise errors.InvalidSlotStrError(s, type)
 
             if not is_valid_number(n):
-                raise errors.InvalidSlotStr(s, type)
+                raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s)
 
@@ -71,10 +71,10 @@ class SlotStr(text.RealStr):
                 n = Decimal(s)
                 n = n.quantize(Decimal(f"1E-{DECIMAL_DEC_PART_MAX_LEN}"))
             except Exception:
-                raise errors.InvalidSlotStr(s, type)
+                raise errors.InvalidSlotStrError(s, type)
 
             if not is_valid_number(n):
-                raise errors.InvalidSlotStr(s, type)
+                raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s)
 
@@ -88,5 +88,6 @@ class SlotStr(text.RealStr):
 def get_slot_type_by_id(id: int, /) -> type[SlotTypeT]:
     return SLOT_TYPES[id]
 
-def get_slot_type_id(slot_type: type[SlotTypeT]) -> int:
+
+def get_slot_type_id(slot_type: type[SlotTypeT], /) -> int:
     return SLOT_TYPES.index(slot_type)

@@ -49,8 +49,20 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
 
         return instance._columns_data[self._name]
 
-    def _sql_str(self) -> str:
+    def __str__(self) -> str:
         return f"{self._owner}.`{self._name}`"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def owner(self) -> type[TOwner]:
+        return self._owner
+
+    @property
+    def type(self) -> tuple[TypeForm[TValue], ...]:
+        return self._type
 
     def set(self, value: TValue, /) -> ColumnSet[TOwner, TValue]:
         return ColumnSet(self, value)

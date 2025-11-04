@@ -24,15 +24,12 @@ if t.TYPE_CHECKING:
     from .community import Community
 
 
-STATIC_ATTRIBUTE_KIND_OF_ID: t.Final = 1
-STATIC_ATTRIBUTE_KIND_OF_NAME: t.Final = 2
-STATIC_ATTRIBUTE_KIND_OF_ALIASES: t.Final = 3
 
-type KindT = t.Literal[1, 2, 3]
-KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
 
 type _RawAvmT = dict[int, tuple[SlotStr, ...]]
-
+ 
+type KindT = t.Literal[1, 2, 3]
+KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
 
 class List(BaseStructure):
     community: "Community"
@@ -164,6 +161,55 @@ class List(BaseStructure):
 
         return self._attribute_row_to_obj(StaticAttribute, row)
 
+    def get_default_static_attribute(self, kind: KindT, id: int) -> StaticAttribute:
+        if kind == 1:
+            real_name = RealStr('Id')
+
+            return StaticAttribute(
+                list=self,
+                id=id,
+                real_name=real_name,
+                norm_name=NormStr(real_name),
+                slot_type=int,
+                position=0,
+                min_slots=1,
+                max_slots=1,
+                kind=kind
+            )
+        
+        if kind == 2:
+            real_name = RealStr('Name')
+
+            return StaticAttribute(
+                list=self,
+                id=id,
+                real_name=real_name,
+                norm_name=NormStr(real_name),
+                slot_type=str,
+                position=1,
+                min_slots=1,
+                max_slots=1,
+                kind=kind
+            )
+        
+        if kind == 3:
+            real_name = RealStr('Alias')
+
+            return StaticAttribute(
+                list=self,
+                id=id,
+                real_name=real_name,
+                norm_name=NormStr(real_name),
+                slot_type=str,
+                position=1,
+                min_slots=0,
+                max_slots=self.community.limits.attribute_task_value_slot_count_max,
+                kind=kind
+            )
+        
+        t.assert_never(kind)
+        
+        
     @t.overload
     def create_attribute[T: StaticAttribute](
         self,
@@ -202,7 +248,7 @@ class List(BaseStructure):
         min_slots: int = 0,
         kind: KindT | None = None,
         collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
-    ) -> T:  # Higher kinded attributes not supported yet, otherwise T[TSlot]
+    ) -> T:
         from . import errors
 
         assert (min_slots or kind) != issubclass(
@@ -226,10 +272,10 @@ class List(BaseStructure):
 
             for syn in (norm_name, *norm_aliases):
                 if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
-                    raise errors.SynTooLongError(
-                        len(syn),
+                    raise errors.TooLongSynError(
+                        syn,
                         self.community.jumpedia.limits.attribute_syn_length_max,
-                        type,
+                        type
                     )
 
                 attr_ = self.get_any_attribute_by_syn(syn)
@@ -609,19 +655,25 @@ class List(BaseStructure):
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
 
         ATTRIBUTES_TYPES_TO_HANDLE = (
-            (StaticAttribute, TaskAttribute) if jumpedia_user_id is None else ALL_ATTRIBUTE_TYPES
+            (StaticAttribute, TaskAttribute)
+            if jumpedia_user_id is None
+            else ALL_ATTRIBUTE_TYPES
         )
 
         with self.connector.cursor() as c:
             community_user: CommunityUser | None = None
 
             if jumpedia_user_id is not None:
-                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(jumpedia_user_id)
+                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(
+                    jumpedia_user_id
+                )
 
                 if jumpedia_user is None:
                     raise errors.StructureNotFoundError(JumpediaUser)
 
-                community_user = self.community.get_community_user_by_jumpedia_user(jumpedia_user)
+                community_user = self.community.get_community_user_by_jumpedia_user(
+                    jumpedia_user
+                )
 
                 if community_user is None:
                     raise errors.StructureNotFoundError(CommunityUser)
@@ -923,7 +975,7 @@ class List(BaseStructure):
         self,
         c: orm.Cursor,
         task_id: int,
-        task_attribute_value_mapping: dict[TaskAttribute, list[SlotStr]],
+        task_attribute_value_mapping: dict[TaskAttribute, tuple[SlotStr, ...]],
     ) -> None:
         if not task_attribute_value_mapping:
             return
@@ -958,8 +1010,8 @@ class List(BaseStructure):
     def _validate_task_syns(
         self,
         norm_name: NormStr | None = None,
-        norm_aliases: t.AbstractSet[NormStr] = frozenset(),
-        allowed_tasks: t.AbstractSet[Task] = frozenset(),
+        norm_aliases: frozenset[NormStr] = frozenset(),
+        allowed_tasks: frozenset[Task] = frozenset(),
     ) -> None:
         norm_syns: set[NormStr] = set()
 
@@ -971,16 +1023,23 @@ class List(BaseStructure):
 
         if (
             len(norm_aliases)
-            > self.community.limits.attribute_task_value_slot_count_max
+            > self.community.limits.attribute_alias_count_max
         ):
-            raise feedbacks.temp("Too many aliases")
+            raise errors.TooManyAliasesError(
+                norm_aliases,
+                self.community.limits.attribute_alias_count_max,
+                Task
+            )
 
         for normed_syn in norm_syns:
             if (
                 len(normed_syn)
                 > self.community.jumpedia.limits.attribute_task_value_slot_length_max
             ):
-                raise feedbacks.temp("Too long syn")
+                raise errors.TooLongSynError(
+                    normed_syn,
+                    self.community.jumpedia.limits.attribute_task_value_slot_length_max
+                )
 
             task = self.get_task_by_syn(normed_syn)
 

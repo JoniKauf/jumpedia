@@ -24,9 +24,8 @@ class EXACT:
 
 class _ModelMeta(type, _utils.SqlString):
     _table_name: str
-    _columns: list[Column[t.Any, t.Any]]
 
-    def _sql_str(self) -> str:
+    def __str__(self) -> str:
         return f"`{self._table_name}`"
 
 
@@ -44,6 +43,7 @@ else:
 
 
 class Model(_ModelBase, metaclass=_ModelMeta):
+    _columns: t.ClassVar[tuple[Column[t.Self, t.Any], ...]]
     _columns_data: t.Final[dict[str, t.Any]]
 
     @t.final
@@ -59,6 +59,9 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         _utils.validate_identifier(table_name)
 
         cls._table_name = table_name
+        cls._columns = tuple(
+            obj for obj in cls.__dict__.values() if isinstance(obj, Column)
+        )
 
     @t.final
     def __init__(self, data: t.Mapping[str, t.Any]) -> None:

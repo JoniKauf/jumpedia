@@ -89,7 +89,7 @@ class JumpediaAdapter(BaseAdapter):
         try:
             comm = self._jumpedia.create_community(
                 raw_name=name,
-                jumpedia_user=jumpedia_user,
+                creator=jumpedia_user,
                 server_id=self.interaction.current_server.id,
             )
         except ServerAlreadyConnectedToCommunityError as e:

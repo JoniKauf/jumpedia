@@ -1,3 +1,4 @@
+import json
 import time
 import typing as t
 
@@ -14,11 +15,12 @@ from . import db
 
 class JumpediaLimits(t.NamedTuple):
     """Global limits for Jumpedia.
-    
+
     A limit should only be a Jumpedia limit if it has
     a good reason to be so, otherwise it should be a
     community wide limit.
     """
+
     # All here are currently length limits, simply because it is one giant shared table
     # and so they share the same VARCHAR(N)
     community_name_length_max: int  # By nature a Jumpedia limit
@@ -54,9 +56,13 @@ class Jumpedia(BaseStructure):
     # --- Communities ---
 
     def create_community(
-        self, real_name: text.RealStr, server_id: int, jumpedia_user: JumpediaUser
+        self,
+        name: text.RealStr,
+        server_id: int,
+        creator: JumpediaUser,
+        limits: CommunityLimits,
     ) -> Community:
-        norm_name = text.NormStr(real_name)
+        norm_name = text.NormStr(name)
 
         with self.locked:
             comm = self.get_community_by_server_id(server_id)
@@ -73,7 +79,7 @@ class Jumpedia(BaseStructure):
                 execute_data = c.execute(
                     db.Community.insert(
                         db.Community.norm_name.bind(norm_name),
-                        db.Community.real_name.bind(real_name),
+                        db.Community.real_name.bind(name),
                     ),
                     get_last_generated_id=True,
                 )
@@ -89,23 +95,26 @@ class Jumpedia(BaseStructure):
                     )
                 )
 
+                if limits != CommunityLimits():
+                    c.execute(
+                        db.CommunityLimits.insert(
+                            *(
+                                limit_col.bind(getattr(limits, limit_col.name))
+                                for limit_col in db.CommunityLimits._columns
+                            )
+                        )
+                    )
+
                 comm = Community(
                     jumpedia=self,
                     id=community_id,
-                    real_name=real_name,
+                    real_name=name,
                     norm_name=norm_name,
-                    limits=CommunityLimits(
-                        community_list_count_max=2,
-                        list_attribute_count_max=3,
-                        list_task_count_max=2,
-                        attribute_collection_entry_alias_count_max=2,
-                        attribute_collection_entry_count_max=2,
-                        attribute_alias_count_max=2,
-                    ),
+                    limits=limits,
                 )
 
                 comm.get_or_create_community_user(
-                    jumpedia_user, CommunityRank.OWNER, None, True, True
+                    creator, CommunityRank.OWNER, None, True, True
                 )
 
                 return comm
@@ -137,14 +146,7 @@ class Jumpedia(BaseStructure):
             id=row.id,
             real_name=row.real_name,
             norm_name=row.norm_name,
-            limits=CommunityLimits(
-                community_list_count_max=2,
-                list_attribute_count_max=3,
-                list_task_count_max=2,
-                attribute_collection_entry_alias_count_max=2,
-                attribute_collection_entry_count_max=2,
-                attribute_alias_count_max=2,
-            ),
+            limits=row.limits,
         )
 
     def get_communities(

@@ -12,7 +12,7 @@ PLACEHOLDER: str = "?"
 
 def placehold(o: object, params: list[t.Any]) -> str:
     if isinstance(o, SqlString):
-        return o._sql_str()
+        return str(o)
 
     params.append(o)
     return PLACEHOLDER
@@ -47,9 +47,7 @@ def handle_order_by_sql(
         )
 
         parts.append("ORDER BY")
-        parts.append(
-            ",".join(f"{col._sql_str()} {order}" for col, order in order_by_fixed)
-        )
+        parts.append(",".join(f"{col} {order}" for col, order in order_by_fixed))
 
 
 def handle_limit_sql(limit: tuple[int, int] | None, parts: list[str]) -> None:
@@ -76,9 +74,9 @@ def get_entire_insert_sql(
     if ignore:
         parts.append("IGNORE")
 
-    parts.append(table._sql_str())
+    parts.append(str(table))
 
-    parts.append(f"({','.join(col._sql_str() for col in cols)})")
+    parts.append(f"({','.join(map(str, cols))})")
     parts.append("VALUES")
 
     rows = list(zip(*binded, strict=True))
@@ -102,7 +100,7 @@ def get_entire_delete_sql(
         parts.append("IGNORE")
 
     parts.append("FROM")
-    parts.append(table._sql_str())
+    parts.append(str(table))
 
     handle_where_sql(where, parts, params)
 
@@ -119,7 +117,7 @@ def get_added_returning_sql(
     return (
         f"{sql} RETURNING {
             '*' if not returning 
-            else (','.join(col._sql_str() for col in returning))
+            else (','.join(map(str, returning)))
         }",
         params,
     )

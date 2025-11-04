@@ -41,7 +41,7 @@ class BaseAttribute(BaseStructure):
     tables: t.ClassVar[AttributeTables]
     type_id: t.ClassVar[AttributeTypeId]
 
-    list: "List"
+    list: List
     id: int
     real_name: text.RealStr
     norm_name: text.NormStr
@@ -105,10 +105,7 @@ class BaseAttribute(BaseStructure):
 
     def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
-            raise errors.AttributeValueSlotCountOutOfValidRange(
-                value,
-                self
-            )
+            raise errors.AttributeValueSlotCountOutOfValidRangeError(value, self)
 
         return tuple(SlotStr(slot, self.slot_type) for slot in value)
 
@@ -141,10 +138,7 @@ class BaseNonStaticAttribute(BaseAttribute):
             node = collection.get_entry_by_syn(text.NormStr(real_slot))
 
             if node is None:
-                raise errors.CollectionEntryNotFound(
-                    real_slot,
-                    collection
-                )
+                raise errors.CollectionEntryNotFoundError(real_slot, collection)
 
             result.append(node.value)
 
@@ -217,7 +211,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         if count > self.list.community.limits.attribute_collection_entry_count_max:
             raise errors.LimitReachedError(
                 self.list.community.limits.attribute_collection_entry_count_max,
-                Collection
+                Collection,
             )
 
         AttributeCollectionEntryTable = t.cast(
@@ -247,7 +241,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                 norm_syn = text.NormStr(slot_syn)
 
                 if norm_syn in norm_syns:
-                    raise errors.CollectionEntryDuplicate(slot_syn)
+                    raise errors.CollectionEntryDuplicateError(slot_syn)
 
                 norm_syns.add(norm_syn)
 
@@ -257,7 +251,6 @@ class BaseNonStaticAttribute(BaseAttribute):
                 else:
                     combined_real_aliases[i].add(slot_syn)
                     combined_norm_aliases[i].add(norm_syn)
-
 
         with self.locked, self.connector.cursor() as c:
             c.execute(

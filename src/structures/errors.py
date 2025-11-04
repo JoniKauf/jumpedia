@@ -2,7 +2,9 @@ from dataclasses import dataclass
 import typing as t
 
 from src.structures.attribute import SlotStr
+from src.utils import text
 from src.utils.text import RealStr
+from src.utils.types import SetLike
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
@@ -14,9 +16,16 @@ if t.TYPE_CHECKING:
 
 @t.dataclass_transform(eq_default=False)
 class _BaseStructureErrorMeta(type):
-    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, t.Any], **kwds: t.Any):
+    def __new__(
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, t.Any],
+        **kwds: t.Any,
+    ):
         cls = super().__new__(cls, name, bases, namespace, **kwds)
         return dataclass(eq=False)(cls)
+
 
 class BaseStructureError(Exception, metaclass=_BaseStructureErrorMeta):
     def __init_subclass__(cls) -> None:
@@ -32,9 +41,11 @@ class StructureNotFoundError(BaseStructureError):
 class StructureFoundError(BaseStructureError):
     structure: BaseStructure
 
+
 class SynAlreadyTakenError(BaseStructureError):
     syn: str
     structure: BaseStructure
+
 
 class ServerAlreadyConnectedToCommunityError(BaseStructureError):
     server_id: int
@@ -44,31 +55,37 @@ class ServerAlreadyConnectedToCommunityError(BaseStructureError):
 class ServerNotConnectedToACommunityError(BaseStructureError):
     server_id: int
 
+
 class LimitReachedError(BaseStructureError):
     limit: int
     type: type
 
-class SynTooLongError(BaseStructureError):
-    length: int
-    limit: int
-    structure_type: type[BaseStructure]
 
-class AttributeValueSlotCountOutOfValidRange(BaseStructureError):
-    raw_value: t.Sequence[str]
-    attribute: BaseAttribute
-
-class CollectionEntryNotFound(BaseStructureError):
+class CollectionEntryNotFoundError(BaseStructureError):
     real_slot: RealStr
     collection: Collection
 
-class CollectionEntryDuplicate(BaseStructureError):
+
+class CollectionEntryDuplicateError(BaseStructureError):
     duplicate: SlotStr
-    
+
+
+class TooManyAliasesError(BaseStructureError):
+    aliases: SetLike[text.NormStr]
+    limit: int
+    structure_type: type[BaseStructure]
+
+class TooLongSynError(BaseStructureError):
+    syn: str
+    limit: int
+    structure_type: type[BaseStructure]
+
 class ElementCountOutOfRangeError(BaseStructureError):
     min: int
     max: int
     structure_type: type[BaseStructure]
 
-class InvalidSlotStr(BaseStructureError):
+
+class InvalidSlotStrError(BaseStructureError):
     s: str
     expected_type: type[SlotTypeT]

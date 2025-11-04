@@ -22,15 +22,12 @@ class UpdateQuery[T: Model](ExecutableQuery[T]):
         if ignore:
             parts.append("IGNORE")
 
-        parts.append(self._table._sql_str())
+        parts.append(str(self._table))
 
         parts.append("SET")
 
         parts.append(
-            ",".join(
-                f"{col._sql_str()}={utils.placehold(v, params)}"
-                for col, v in cols_binded
-            )
+            ",".join(f"{col}={utils.placehold(v, params)}" for col, v in cols_binded)
         )
 
         utils.handle_where_sql(self._where, parts, params)
