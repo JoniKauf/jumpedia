@@ -4,7 +4,6 @@ import typing as t
 from src.structures.attribute import SlotStr
 from src.utils import text
 from src.utils.text import RealStr
-from src.utils.types import SetLike
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
@@ -38,12 +37,7 @@ class StructureNotFoundError(BaseStructureError):
     structure_type: type[BaseStructure]
 
 
-class StructureFoundError(BaseStructureError):
-    structure: BaseStructure
-
-
 class SynAlreadyTakenError(BaseStructureError):
-    syn: str
     structure: BaseStructure
 
 
@@ -70,21 +64,27 @@ class CollectionEntryDuplicateError(BaseStructureError):
     duplicate: SlotStr
 
 
-class TooManyAliasesError(BaseStructureError):
-    aliases: SetLike[text.NormStr]
-    limit: int
-    structure_type: type[BaseStructure]
-
 class TooLongSynError(BaseStructureError):
     syn: str
     limit: int
     structure_type: type[BaseStructure]
 
-class ElementCountOutOfRangeError(BaseStructureError):
-    min: int
-    max: int
+class TooManyAliasesError(BaseStructureError):
+    aliases: frozenset[text.NormStr]
+    limit: int
     structure_type: type[BaseStructure]
 
+class AttributeValueSlotCountOutOfRangeError(BaseStructureError):
+    value: tuple[text.RealStr, ...]
+    min: int
+    max: int
+    attribute: BaseAttribute
+
+class AttributeMinSlotsOrMaxSlotsOutOfRange(BaseStructureError):
+    min: int
+    max: int
+    min_min: int
+    max_max: int
 
 class InvalidSlotStrError(BaseStructureError):
     s: str

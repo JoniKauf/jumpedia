@@ -1,3 +1,4 @@
+from numbers import Real
 import re
 import string
 import typing as t
@@ -86,38 +87,25 @@ class NormStr(str):
 
         return super().__new__(cls, s.lower())
 
-    @t.overload
-    @classmethod
-    def unique_reals_and_norms[T: RealStr](
-        cls, iterable: t.Iterable[T], /
-    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
-        pass
-
-    @t.overload
-    @classmethod
-    def unique_reals_and_norms[T: RealStr](
-        cls, iterable: t.Iterable[str], /, real_type: type[T] = RealStr
-    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
-        pass
 
     @classmethod
-    def unique_reals_and_norms[T: t.Callable[[str], RealStr]](
-        cls, iterable: t.Iterable[str], /, real_type: T = RealStr
-    ) -> tuple[tuple[T, ...], tuple[t.Self, ...]]:
-        mapping: dict[t.Self, T] = {}
+    def unique_reals_and_norms(
+        cls, iterable: t.Iterable[str], /
+    ) -> tuple[tuple[RealStr, ...], tuple[t.Self, ...]]:
+        mapping: dict[t.Self, RealStr] = {}
 
         for s in iterable:
-            if not isinstance(s, real_type):
-                s = real_type(s)
+            real_s = RealStr(s)
+            norm = cls(real_s)
 
-            norm = cls(s)
+            del s
 
             existing_norm = mapping.get(norm)
 
             if existing_norm is not None:
-                raise ValueError(s, existing_norm)
+                raise ValueError(real_s, existing_norm)
 
-            mapping[norm] = s
+            mapping[norm] = real_s
 
         # Dict order is preserved
         return (tuple(mapping.values()), tuple(mapping))

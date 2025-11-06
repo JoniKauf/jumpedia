@@ -73,7 +73,7 @@ class Jumpedia(BaseStructure):
             comm = self.get_community_by_name(norm_name)
 
             if comm is not None:
-                raise SynAlreadyTakenError(norm_name, comm)
+                raise SynAlreadyTakenError(comm)
 
             with self.connector.cursor() as c:
                 execute_data = c.execute(

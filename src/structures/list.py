@@ -1,4 +1,6 @@
+import enum
 import itertools
+from pydoc import text
 import typing as t
 from types import MappingProxyType
 from src.utils import orm
@@ -25,11 +27,13 @@ if t.TYPE_CHECKING:
 
 
 
+class Kind(enum.IntEnum):
+    ID = 1
+    NAME = 2
+    ALIAS = 3
 
 type _RawAvmT = dict[int, tuple[SlotStr, ...]]
  
-type KindT = t.Literal[1, 2, 3]
-KINDS: tuple[t.Literal[1], t.Literal[2], t.Literal[3]] = t.get_args(KindT.__value__)
 
 class List(BaseStructure):
     community: "Community"
@@ -140,8 +144,8 @@ class List(BaseStructure):
             if attr is not None:
                 return attr
 
-    def get_static_attribute_by_kind(self, kind: KindT) -> StaticAttribute:
-        if kind not in KINDS:
+    def get_static_attribute_by_kind(self, kind: Kind) -> StaticAttribute:
+        if kind not in Kind:
             raise ValueError(f"Kind {kind} is not valid")
 
         StaticAttributeTable = db.StaticAttribute
@@ -161,8 +165,8 @@ class List(BaseStructure):
 
         return self._attribute_row_to_obj(StaticAttribute, row)
 
-    def get_default_static_attribute(self, kind: KindT, id: int) -> StaticAttribute:
-        if kind == 1:
+    def get_default_static_attribute(self, kind: Kind, id: int) -> StaticAttribute:
+        if kind.value == 1:
             real_name = RealStr('Id')
 
             return StaticAttribute(
@@ -177,7 +181,7 @@ class List(BaseStructure):
                 kind=kind
             )
         
-        if kind == 2:
+        if kind.value == 2:
             real_name = RealStr('Name')
 
             return StaticAttribute(
@@ -192,7 +196,7 @@ class List(BaseStructure):
                 kind=kind
             )
         
-        if kind == 3:
+        if kind.value == 3:
             real_name = RealStr('Alias')
 
             return StaticAttribute(
@@ -207,7 +211,7 @@ class List(BaseStructure):
                 kind=kind
             )
         
-        t.assert_never(kind)
+        t.assert_never(kind.value)
         
         
     @t.overload
@@ -220,7 +224,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int,
-        kind: KindT,
+        kind: Kind,
     ) -> T:
         pass
 
@@ -246,7 +250,7 @@ class List(BaseStructure):
         max_slots: int,
         *,
         min_slots: int = 0,
-        kind: KindT | None = None,
+        kind: Kind | None = None,
         collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
     ) -> T:
         from . import errors
@@ -279,20 +283,18 @@ class List(BaseStructure):
                     )
 
                 attr_ = self.get_any_attribute_by_syn(syn)
+
                 if attr_ is not None:
-                    raise errors.SynAlreadyTakenError(syn, attr_)
+                    raise errors.SynAlreadyTakenError(attr_)
 
-            if not (
-                min_slots
-                <= max_slots
-                <= self.community.limits.attribute_task_value_slot_count_max
-            ):
-                raise errors.ElementCountOutOfRangeError(
+            if not (0 <= min_slots <= max_slots <= self.community.limits.attribute_task_value_slot_count_max):
+                raise errors.AttributeMinSlotsOrMaxSlotsOutOfRange(
                     min_slots,
-                    self.community.limits.attribute_task_value_slot_count_max,
-                    type,
+                    max_slots,
+                    0,
+                    self.community.limits.attribute_task_value_slot_count_max
                 )
-
+            
             position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
             AttributeTable = t.cast(
@@ -377,7 +379,7 @@ class List(BaseStructure):
             if real_name == attribute.real_name:
                 return
 
-            self._validate_attribute_syns(norm_name, allowed_attributes={attribute})
+            self._validate_attribute_syns(type, norm_name, allowed_attributes=frozenset([attribute]))
 
             AttributeTable = t.cast(
                 type[db.AbstractAttributeTable], type.tables.attribute
@@ -429,7 +431,8 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(type)
 
             self._validate_attribute_syns(
-                norm_aliases={*norm_aliases}, allowed_attributes={attribute}
+                type,
+                norm_aliases=frozenset(norm_aliases), allowed_attributes=frozenset([attribute])
             )
 
             # If an alias is the name already, remove it
@@ -503,7 +506,7 @@ class List(BaseStructure):
         )
 
     def _cook_raw_task_attribute_value_mapping(
-        self, task_attribute_value_mapping: dict[int, t.Sequence[SlotStr]]
+        self, task_attribute_value_mapping: dict[int, t.Sequence[RealStr]]
     ) -> dict[TaskAttribute, tuple[SlotStr, ...]]:
         id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
 
@@ -771,16 +774,16 @@ class List(BaseStructure):
 
     def create_task(
         self,
-        slot_name: SlotStr,
-        slot_aliases: t.Iterable[SlotStr],
-        raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[RealStr]],
+        real_name: RealStr,
+        real_aliases: t.Iterable[RealStr],
+        task_attribute_value_mapping: dict[int, t.Sequence[RealStr]],
     ) -> Task:
-        (slot_name, *slot_aliases), (norm_name, *norm_aliases) = (
-            NormStr.unique_reals_and_norms((slot_name, *slot_aliases))
+        (real_name, *real_aliases), (norm_name, *norm_aliases) = (
+            NormStr.unique_reals_and_norms((real_name, *real_aliases))
         )
 
         with self.locked:
-            self._validate_task_syns(norm_name, {*norm_aliases})
+            self._validate_task_syns(norm_name, frozenset(norm_aliases))
 
             all_tasks = self.get_tasks()
 
@@ -789,16 +792,20 @@ class List(BaseStructure):
                     self.community.limits.list_task_count_max, Task
                 )
 
-            task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(
-                raw_task_attribute_value_mapping
+            cooked = self._cook_raw_task_attribute_value_mapping(
+                task_attribute_value_mapping
             )
 
+            del task_attribute_value_mapping
+
+            slot_name = self.get_default_static_attribute(Kind.NAME, -1).real_to_slot([real_name])
+            
             with self.connector.cursor() as c:
                 execute_data = c.execute(
                     db.Task.insert(
                         db.Task.list_id.bind(self.id),
                         db.Task.norm_name.bind(norm_name),
-                        db.Task.slot_name.bind(slot_name),
+                        db.Task.slot_name.bind(real_name),
                     ),
                     get_last_generated_id=True,
                 )
@@ -806,12 +813,12 @@ class List(BaseStructure):
                 task_id = execute_data.last_generated_id
                 assert task_id is not None
 
-                self._insert_task_aliases(c, task_id, slot_aliases, norm_aliases)
+                self._insert_task_aliases(c, task_id, real_aliases, norm_aliases)
                 self._insert_task_attribute_value_mapping(
-                    c, task_id, task_attribute_value_mapping
+                    c, task_id, cooked
                 )
 
-            return Task(list=self, id=task_id, slot_name=slot_name, norm_name=norm_name)
+            return Task(list=self, id=task_id, slot_name=real_name, norm_name=norm_name)
 
     def delete_task(self, id: int) -> None:
         from . import errors
@@ -842,7 +849,7 @@ class List(BaseStructure):
             if slot_name == task.slot_name:
                 return
 
-            self._validate_task_syns(norm_name, allowed_tasks={task})
+            self._validate_task_syns(norm_name, allowed_tasks=frozenset([task]))
 
             with self.connector.cursor() as c:
                 c.execute(
@@ -877,7 +884,7 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(Task)
 
             self._validate_task_syns(
-                norm_aliases=set(norm_aliases), allowed_tasks={task}
+                norm_aliases=frozenset(norm_aliases), allowed_tasks=frozenset([task])
             )
 
             norm_name = task.norm_name
@@ -907,7 +914,7 @@ class List(BaseStructure):
     def edit_task_attribute_value_mapping(
         self,
         id: int,
-        raw_task_attribute_value_mapping: t.Mapping[int, t.Sequence[SlotStr]],
+        task_attribute_value_mapping: dict[int, t.Sequence[SlotStr]],
     ) -> None:
         from . import errors
 
@@ -917,9 +924,11 @@ class List(BaseStructure):
             if task is None:
                 raise errors.StructureNotFoundError(Task)
 
-            task_attribute_value_mapping = self._cook_raw_task_attribute_value_mapping(
-                raw_task_attribute_value_mapping
+            tavm = self._cook_raw_task_attribute_value_mapping(
+                task_attribute_value_mapping
             )
+            
+            del task_attribute_value_mapping
 
             AttributeTaskValueTable = TaskAttribute.tables.attribute_task_value
 
@@ -932,7 +941,7 @@ class List(BaseStructure):
                 )
 
                 self._insert_task_attribute_value_mapping(
-                    c, task.id, task_attribute_value_mapping
+                    c, task.id, tavm
                 )
 
     def _fetch_tasks_from_table(
@@ -1020,14 +1029,16 @@ class List(BaseStructure):
 
         if norm_aliases:
             norm_syns.update(norm_aliases)
+        
+        alias_copycat = self.get_default_static_attribute(Kind.ALIAS, -1)
 
         if (
             len(norm_aliases)
-            > self.community.limits.attribute_alias_count_max
+            > alias_copycat.max_slots
         ):
             raise errors.TooManyAliasesError(
                 norm_aliases,
-                self.community.limits.attribute_alias_count_max,
+                alias_copycat.max_slots,
                 Task
             )
 
@@ -1038,19 +1049,23 @@ class List(BaseStructure):
             ):
                 raise errors.TooLongSynError(
                     normed_syn,
-                    self.community.jumpedia.limits.attribute_task_value_slot_length_max
+                    self.community.jumpedia.limits.attribute_task_value_slot_length_max,
+                    Task
                 )
 
             task = self.get_task_by_syn(normed_syn)
 
-            if task not in allowed_tasks:
-                raise feedbacks.temp(f"Task syn {normed_syn!r} already taken!")
+            if task is not None and task not in allowed_tasks:
+                raise errors.SynAlreadyTakenError(
+                    task
+                )
 
     def _validate_attribute_syns(
         self,
+        type: type[BaseAttribute],
         norm_name: NormStr | None = None,
-        norm_aliases: t.AbstractSet[NormStr] = frozenset(),
-        allowed_attributes: t.AbstractSet[BaseAttribute] = frozenset(),
+        norm_aliases: frozenset[NormStr] = frozenset(),
+        allowed_attributes: frozenset[BaseAttribute] = frozenset(),
     ) -> None:
         norm_syns: set[NormStr] = set()
 
@@ -1060,17 +1075,23 @@ class List(BaseStructure):
         if norm_aliases:
             norm_syns.update(norm_aliases)
 
+        
         if len(norm_aliases) > self.community.limits.attribute_alias_count_max:
-            raise feedbacks.temp("Too many aliases")
+            raise errors.TooManyAliasesError(
+                norm_aliases, self.community.limits.attribute_alias_count_max,
+                type
+            )
 
         for normed_syn in norm_syns:
             if (
                 len(normed_syn)
                 > self.community.jumpedia.limits.attribute_syn_length_max
             ):
-                raise feedbacks.temp("Too long syn")
+                raise errors.TooLongSynError(normed_syn, self.community.jumpedia.limits.attribute_syn_length_max, type)
 
             attribute = self.get_any_attribute_by_syn(normed_syn)
 
-            if attribute not in allowed_attributes:
-                raise feedbacks.temp(f"Attribute syn {normed_syn!r} already taken!")
+            if attribute is not None and attribute not in allowed_attributes:
+                raise errors.SynAlreadyTakenError(
+                    attribute
+                )

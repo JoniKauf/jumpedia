@@ -3,6 +3,7 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from src.structures.community import Kind
 from src.utils import orm, text
 
 from .. import errors
@@ -13,7 +14,7 @@ from .collection import Collection, CollectionEntry
 from .slot_str import SlotStr, SlotTypeT
 
 if t.TYPE_CHECKING:
-    from ..list import KindT, List
+    from ..list import Kind, List
 
 # General
 SORT_KEY_NONE_NUMBER: t.Final[int] = (
@@ -49,7 +50,7 @@ class BaseAttribute(BaseStructure):
     position: int
     min_slots: int
     max_slots: int
-    kind: KindT | None = None
+    kind: Kind | None = None
 
     @property
     def identity(self) -> tuple[int, ...]:
@@ -105,7 +106,7 @@ class BaseAttribute(BaseStructure):
 
     def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
-            raise errors.AttributeValueSlotCountOutOfValidRangeError(value, self)
+            raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self.min_slots, self.max_slots, self)
 
         return tuple(SlotStr(slot, self.slot_type) for slot in value)
 
@@ -326,17 +327,14 @@ class StaticAttribute(BaseAttribute):
     tables = AttributeTables(db.StaticAttribute, db.StaticAttributeAlias)
     type_id = 0
 
-    kind: KindT = field(default=None)  # pyright: ignore[reportAssignmentType]
+    kind: Kind = field(default=None)  # pyright: ignore[reportAssignmentType]
 
     def __post_init__(self) -> None:
-        from structures.list import KINDS
+        super().__post_init__()
 
-        if self.kind not in KINDS:
-            raise TypeError(f"kind {self.kind} not in {KINDS}")
-
-        return super().__post_init__()
-
-
+        if self.kind is None:
+            raise ValueError('Kind not set')
+        
 class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         db.TaskAttribute,

@@ -11,7 +11,7 @@ from src.utils.text import NormStr, RealStr
 from . import BaseStructure, errors, list
 from .attribute import StaticAttribute
 from .jumpedia import db
-from .list import List
+from .list import Kind, List
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia
@@ -21,6 +21,7 @@ class CommunityLimits(t.NamedTuple):
     community_list_count_max: int = 1
     list_attribute_count_max: int = 16
     list_task_count_max: int = 100
+    attribute_alias_count_max: int = 8  # Don't confuse with task alias count max, which is retrieved via the static attribute
     attribute_task_value_slot_count_max: int = 32
     attribute_collection_entry_count_max: int = 32
     attribute_collection_entry_alias_count_max: int = 8
@@ -57,14 +58,14 @@ class Community(BaseStructure):
 
         return frozenset(row.id for row in rows)
 
-    def create_list(self, real_name: RealStr) -> "List":
+    def create_list(self, real_name: RealStr) -> List:
         norm_name = NormStr(real_name)
 
         with self.locked:
-            list_ = self.get_list_by_name(norm_name)
+            list_obj = self.get_list_by_name(norm_name)
 
-            if list_ is not None:
-                raise errors.SynAlreadyTakenError(real_name, list_)
+            if list_obj is not None:
+                raise errors.SynAlreadyTakenError(list_obj)
 
             count = len(self.get_lists())
 
@@ -86,41 +87,53 @@ class Community(BaseStructure):
                 list_id = execute_data.last_generated_id
                 assert list_id is not None
 
-                list_ = List(
+                list_obj = List(
                     community=self, id=list_id, real_name=real_name, norm_name=norm_name
                 )
 
-                list_.create_attribute(
+                static_attr_id = list_obj.get_default_static_attribute(Kind.ID, -1)
+
+                list_obj.create_attribute(
                     StaticAttribute,
-                    RealStr("Id"),
-                    frozenset(),
-                    int,
-                    1,
-                    min_slots=1,
-                    kind=list.STATIC_ATTRIBUTE_KIND_OF_ID,
+                    static_attr_id.real_name,
+                    (),
+                    static_attr_id.slot_type,
+                    static_attr_id.max_slots,
+                    min_slots=static_attr_id.min_slots,
+                    kind=static_attr_id.kind,
                 )
 
-                list_.create_attribute(
+                del static_attr_id
+
+                static_attr_name = list_obj.get_default_static_attribute(Kind.NAME, -1)
+
+                list_obj.create_attribute(
                     StaticAttribute,
-                    RealStr("Name"),
-                    frozenset(),
-                    str,
-                    1,
-                    min_slots=1,
-                    kind=list.STATIC_ATTRIBUTE_KIND_OF_NAME,
+                    static_attr_name.real_name,
+                    (),
+                    static_attr_name.slot_type,
+                    static_attr_name.max_slots,
+                    min_slots=static_attr_name.min_slots,
+                    kind=static_attr_name.kind,
                 )
 
-                list_.create_attribute(
+                del static_attr_name
+
+                static_attr_alias = list_obj.get_default_static_attribute(Kind.NAME, -1)
+
+                list_obj.create_attribute(
                     StaticAttribute,
-                    RealStr("Aliases"),
-                    frozenset(),
-                    str,
-                    self.limits.attribute_task_value_slot_count_max,
-                    min_slots=1,
-                    kind=list.STATIC_ATTRIBUTE_KIND_OF_ALIASES,
+                    static_attr_alias.real_name,
+                    (),
+                    static_attr_alias.slot_type,
+                    static_attr_alias.max_slots,
+                    min_slots=static_attr_alias.min_slots,
+                    kind=static_attr_alias.kind,
                 )
 
-            return list_
+                del static_attr_alias
+
+            return list_obj
 
     def delete_list(self, id: int) -> None:
         with self.locked, self.connector.cursor() as c:
