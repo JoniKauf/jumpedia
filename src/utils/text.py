@@ -75,7 +75,7 @@ class RealStr(str):
         s = "".join(c for c in s if c.isprintable())
 
         if not s:
-            raise ValueError("empty result")
+            raise ValueError()
 
         return super().__new__(cls, s)
 
@@ -99,10 +99,10 @@ class NormStr(str):
 
             del s
 
-            existing_norm = mapping.get(norm)
+            existing_real = mapping.get(norm)
 
-            if existing_norm is not None:
-                raise ValueError(real_s, existing_norm)
+            if existing_real is not None:
+                raise ValueError(real_s, existing_real)
 
             mapping[norm] = real_s
 

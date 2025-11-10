@@ -1,11 +1,12 @@
 import decimal
-import enum
 import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 
 from src.utils import text
-from structures import errors
+
+from .. import errors
+from ..jumpedia import Jumpedia
 
 type SlotTypeT = (bool | int | Decimal | str)
 SLOT_TYPES = (bool, int, Decimal, str)
@@ -36,10 +37,12 @@ def is_valid_number(v: object) -> bool:
 
 
 class SlotStr(text.RealStr):
-    def __new__(cls, s: text.RealStr, type: type[SlotTypeT]) -> t.Self:
+    def __new__(
+        cls, s: text.RealStr, type: type[SlotTypeT], jumpedia: Jumpedia
+    ) -> t.Self:
         # String is definitely used most often, so check it first
         if issubclass(type, str):
-            if not (STR_MIN_LEN <= len(s) <= STR_MAX_LEN):
+            if len(s) > jumpedia.limits.attribute_task_value_slot_length_max:
                 raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s)
@@ -79,8 +82,11 @@ class SlotStr(text.RealStr):
 
         t.assert_never(type)
 
-    def __init__(self, s: text.RealStr, type: type[SlotTypeT]) -> None:
+    def __init__(
+        self, s: text.RealStr, type: type[SlotTypeT], jumpedia: Jumpedia
+    ) -> None:
         self.type = type
+        self.jumpedia = jumpedia
         super().__init__()
 
 

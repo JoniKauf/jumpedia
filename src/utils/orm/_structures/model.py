@@ -71,9 +71,7 @@ class Model(_ModelBase, metaclass=_ModelMeta):
 
     @t.overload
     @classmethod
-    def select(
-        cls, all: t.Literal["*"], /
-    ) -> Select[t.Self]:
+    def select(cls, all: t.Literal["*"], /) -> Select[t.Self]:
         pass
 
     @t.overload
@@ -88,7 +86,7 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         cls,
         all_or_column: Column[t.Self | T, t.Any] | t.Literal["*"],
         /,
-        *columns: Column[t.Self | T, t.Any]
+        *columns: Column[t.Self | T, t.Any],
     ) -> Select[t.Self | T]:
         cols: tuple[Column[t.Self | T, t.Any], ...] = ()
 

@@ -1,11 +1,12 @@
 import typing as t
 
-from ..errors.feedback import feedbacks
-from ..ranks.community_rank import CommunityRank
+from src.discord_.errors import FeedbackError
+from src.structures.user.rank import CommunityRank
+
 from ..structures.community import Community
 from ..structures.list import List
 from ..utils import text
-from . import BaseAdapter
+from . import BaseAdapter, errors
 from ._list import ListAdapter
 from ._user.community_user import CommunityUserAdapter
 from ._user.jumpedia_user import JumpediaUserAdapter
@@ -18,7 +19,9 @@ def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     list = community.get_list_by_name(name)
 
     if list is None:
-        raise feedbacks.temp(f"List with the name `{name}` could not be found!")
+        raise errors.StructureNotFoundViaSynFeedbackError(
+            name, List, True
+        )
 
     return list
 
@@ -38,17 +41,15 @@ class CommunityAdapter(BaseAdapter):
 
     def get_list(self, name: str) -> ListAdapter:
         return ListAdapter(
-            _require_list_with_name(text.raw_to_norm(name), self._community), self
+            _require_list_with_name(text.NormStr(name), self._community), self
         )
 
     def create_list(self, name: str) -> ListAdapter:
-        return ListAdapter(self._community.create_list(name), self)
+        return ListAdapter(self._community.create_list(text.RealStr(name)), self)
 
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(text.raw_to_norm(name), self._community)
-
-        if not self._community.delete_list(list.id):
-            raise feedbacks.temp("The community or list was just deleted!")
+        list = _require_list_with_name(text.NormStr(name), self._community)
+        self._community.delete_list(list.id)
 
     @t.overload
     def get_default_selected_list(self) -> ListAdapter:
@@ -67,7 +68,10 @@ class CommunityAdapter(BaseAdapter):
             if default is not self.__class__._MISSING:
                 return default
 
-            raise feedbacks.temp("No default selected list on server")
+            raise FeedbackError(
+                "No Default Selected List",
+                t"The community `{self.name}` has no default selected list!"
+            )
 
         return ListAdapter(list, self)
 
@@ -76,7 +80,7 @@ class CommunityAdapter(BaseAdapter):
             list_id = None
         else:
             list_id = _require_list_with_name(
-                text.raw_to_norm(name), self._community
+                text.NormStr(name), self._community
             ).id
 
         self._community.set_default_selected_list(list_id)

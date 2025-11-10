@@ -29,9 +29,7 @@ class CommunityLimits(t.NamedTuple):
 
 
 class Community(BaseStructure):
-    __structure_name__ = "community"
-
-    jumpedia: "Jumpedia"
+    jumpedia: Jumpedia
     id: int
     real_name: RealStr
     norm_name: NormStr
@@ -70,9 +68,7 @@ class Community(BaseStructure):
         count = len(self.get_lists())
 
         if count >= self.limits.community_list_count_max:
-            raise errors.LimitReachedError(
-                self.limits.community_list_count_max, List
-            )
+            raise errors.LimitReachedError(self.limits.community_list_count_max, List)
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -91,7 +87,7 @@ class Community(BaseStructure):
                 community=self, id=list_id, real_name=name, norm_name=norm_name
             )
 
-            static_attr_id = list_obj.get_default_static_attribute(Kind.ID, -1)
+            static_attr_id = list_obj._get_default_static_attribute(Kind.ID, -1)
 
             list_obj.create_attribute(
                 StaticAttribute,
@@ -105,7 +101,7 @@ class Community(BaseStructure):
 
             del static_attr_id
 
-            static_attr_name = list_obj.get_default_static_attribute(Kind.NAME, -1)
+            static_attr_name = list_obj._get_default_static_attribute(Kind.NAME, -1)
 
             list_obj.create_attribute(
                 StaticAttribute,
@@ -119,7 +115,7 @@ class Community(BaseStructure):
 
             del static_attr_name
 
-            static_attr_alias = list_obj.get_default_static_attribute(Kind.NAME, -1)
+            static_attr_alias = list_obj._get_default_static_attribute(Kind.NAME, -1)
 
             list_obj.create_attribute(
                 StaticAttribute,
@@ -228,7 +224,8 @@ class Community(BaseStructure):
                         db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
                         db.CommunityUser.power.bind(community_rank.power),
                         db.CommunityUser.selected_list_id.bind(selected_list_id),
-                    ), get_last_generated_id=True
+                    ),
+                    get_last_generated_id=True,
                 )
 
                 assert execute_data.last_generated_id is not None
@@ -246,7 +243,7 @@ class Community(BaseStructure):
                 if override_community_rank_if_user_exists
                 else community_user.community_rank
             )
-            
+
             selected_list_id = (
                 selected_list_id
                 if override_selected_list_if_user_exists
@@ -273,7 +270,7 @@ class Community(BaseStructure):
                             jumpedia_user.id,
                         ),
                     ),
-                    get_affected_row_count=True
+                    get_affected_row_count=True,
                 )
 
                 assert execute_data.affected_row_count == 1
@@ -313,4 +310,30 @@ class Community(BaseStructure):
             id=row.id,
             community_rank=CommunityRank.get(row.power),
             selected_list_id=row.selected_list_id,
+        )
+
+    def get_community_user_by_id(self, id: int, /) -> CommunityUser | None:
+        with self.connector.cursor() as c:
+            community_user_row = c.fetch_one(
+                db.CommunityUser.select("*").where(
+                    (db.CommunityUser.id, orm.Operator.EQ, id)
+                )
+            )
+
+            if community_user_row is None:
+                return None
+
+            jumpedia_user = self.jumpedia.get_jumpedia_user_by_id(
+                community_user_row.jumpedia_user_id
+            )
+
+            if jumpedia_user is None:  # Should not be the case due to foreign key
+                return None
+
+        return CommunityUser(
+            jumpedia_user=jumpedia_user,
+            community=self,
+            id=community_user_row.id,
+            community_rank=CommunityRank.get(community_user_row.power),
+            selected_list_id=community_user_row.selected_list_id,
         )

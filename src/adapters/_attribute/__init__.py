@@ -1,5 +1,8 @@
 import typing as t
 
+from src.structures.community import StaticAttribute
+from src.structures.list import TaskAttribute, UserAttribute
+
 from ...structures.attribute import BaseAttribute
 from ...structures.attribute.slot_str import SlotType
 from ...utils import text
@@ -46,3 +49,17 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
 
 
 type AnyAttributeAdapterT = StaticAttributeAdapter | TaskAttributeAdapter | UserAttributeAdapter
+
+
+class StaticAttributeAdapter(BaseAttributeAdapter[StaticAttribute]):
+    @property
+    def kind(self) -> int:
+        return self._attribute.kind
+
+
+class TaskAttributeAdapter(BaseAttributeAdapter[TaskAttribute]):
+    pass
+
+
+class UserAttributeAdapter(BaseAttributeAdapter[UserAttribute]):
+    pass

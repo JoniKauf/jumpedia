@@ -23,7 +23,9 @@ class AttributeValueMapping:
     )
 
     @property
-    def combined(self) -> MappingProxyType[StaticAttribute | TaskAttribute, tuple[SlotStr, ...]]:
+    def combined(
+        self,
+    ) -> MappingProxyType[StaticAttribute | TaskAttribute, tuple[SlotStr, ...]]:
         if not self._combined_cache:
             self._combined_cache.update(self.static_attribute_value_mapping.items())
             self._combined_cache.update(self.task_attribute_value_mapping.items())

@@ -89,12 +89,12 @@ _OP_TO_FUNC: dict[type[ast.AST], t.Callable[[SlotTypeT, frozenset[SlotTypeT]], b
 class FilterVisitor(BaseExpressionVisitor[list[AttributeValueMapping], [t.Iterable[AttributeValueMapping]]], body_type=(ast.BoolOp, ast.Compare)):
     def start_visit(self, node: ast.AST, avms: t.Iterable[AttributeValueMapping]) -> list[AttributeValueMapping]:
         attribute_value_mappings: dict[int, AttributeValueMapping] = {
-            avm.python_id: avm for avm in avms
+            id(avm): avm for avm in avms
         }
 
         favmc: FilterAvmCollectionT = MappingProxyType({
-            avm.python_id: {
-                attr.norm_name: frozenset(map(attr.slot_type.slot_to_norm, val))
+            id(avm): {
+                attr.norm_name: frozenset(map(attr.slot_type, val))
                 for attr, val in avm.combined.items()
             } for avm in attribute_value_mappings.values()
         })
@@ -166,7 +166,7 @@ class FilterVisitor(BaseExpressionVisitor[list[AttributeValueMapping], [t.Iterab
         attr = attributes.get(attr_name)
 
         if attr is None:
-            raise StructureNotFoundViaSynFeedbackError(attr_name, BaseAttribute)
+            raise StructureNotFoundViaSynFeedbackError(attr_name, BaseAttribute, False)
         
         value: SlotTypeT = self.visit(left, attr)
 
@@ -182,7 +182,7 @@ class FilterVisitor(BaseExpressionVisitor[list[AttributeValueMapping], [t.Iterab
         if attribute is None:
             return c
         
-        return attribute.slot_type.type(c)
+        return attribute.slot_type(c)
     
 
 FILTER_PARSER = ExpressionParser(

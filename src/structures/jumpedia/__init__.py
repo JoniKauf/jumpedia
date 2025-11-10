@@ -64,63 +64,62 @@ class Jumpedia(BaseStructure):
     ) -> Community:
         norm_name = text.NormStr(name)
 
-        with self.locked:
-            comm = self.get_community_by_server_id(server_id)
+        comm = self.get_community_by_server_id(server_id)
 
-            if comm is not None:
-                raise errors.ServerAlreadyConnectedToCommunityError(server_id, comm)
+        if comm is not None:
+            raise errors.ServerAlreadyConnectedToCommunityError(server_id, comm)
 
-            comm = self.get_community_by_name(norm_name)
+        comm = self.get_community_by_name(norm_name)
 
-            if comm is not None:
-                raise SynsAlreadyTakenError(frozenset((comm,)))
+        if comm is not None:
+            raise SynsAlreadyTakenError(frozenset((comm,)))
 
-            with self.connector.cursor() as c:
-                execute_data = c.execute(
-                    db.Community.insert(
-                        db.Community.norm_name.bind(norm_name),
-                        db.Community.real_name.bind(name),
-                    ),
-                    get_last_generated_id=True,
+        with self.connector.cursor() as c:
+            execute_data = c.execute(
+                db.Community.insert(
+                    db.Community.norm_name.bind(norm_name),
+                    db.Community.real_name.bind(name),
+                ),
+                get_last_generated_id=True,
+            )
+
+            community_id = execute_data.last_generated_id
+
+            assert community_id is not None
+
+            c.execute(
+                db.Server.insert(
+                    db.Server.id.bind(server_id),
+                    db.Server.community_id.bind(community_id),
                 )
+            )
 
-                community_id = execute_data.last_generated_id
-
-                assert community_id is not None
-
+            if limits != CommunityLimits():
                 c.execute(
-                    db.Server.insert(
-                        db.Server.id.bind(server_id),
-                        db.Server.community_id.bind(community_id),
-                    )
-                )
-
-                if limits != CommunityLimits():
-                    c.execute(
-                        db.CommunityLimits.insert(
-                            *(
-                                limit_col.bind(getattr(limits, limit_col.name))
-                                for limit_col in db.CommunityLimits._columns
-                            )
+                    db.CommunityLimits.insert(
+                        *(
+                            limit_col.bind(getattr(limits, limit_col.name))
+                            for limit_col in db.CommunityLimits._columns
                         )
                     )
-
-                comm = Community(
-                    jumpedia=self,
-                    id=community_id,
-                    real_name=name,
-                    norm_name=norm_name,
-                    limits=limits,
                 )
 
-                comm.get_or_create_community_user(
-                    creator, CommunityRank.OWNER, None, True, True
-                )
+            comm = Community(
+                jumpedia=self,
+                id=community_id,
+                real_name=name,
+                norm_name=norm_name,
+                limits=limits,
+            )
 
-                return comm
+            comm.get_or_create_community_user(
+                creator, CommunityRank.OWNER, None, True, True
+            )
+
+            return comm
 
     def delete_community(self, id: int) -> None:
-        with self.locked, self.connector.cursor() as c:
+        with self.connector.cursor() as c:
             execute_data = c.execute(
                 (db.Community.delete().where((db.Community.id, orm.Operator.EQ, id))),
                 get_affected_row_count=True,
@@ -192,42 +191,41 @@ class Jumpedia(BaseStructure):
     ) -> JumpediaUser:
         norm_name = text.NormStr(name)
 
-        with self.locked:
-            user = self.get_jumpedia_user_by_id(id)
+        user = self.get_jumpedia_user_by_id(id)
 
-            with self.connector.cursor() as c:
-                if user is None:
-                    c.execute(
-                        db.JumpediaUser.insert(
-                            db.JumpediaUser.id.bind(id),
-                            db.JumpediaUser.power.bind(jumpedia_rank.power),
-                            db.JumpediaUser.norm_name.bind(norm_name),
-                            db.JumpediaUser.raw_name.bind(name),
-                        )
+        with self.connector.cursor() as c:
+            if user is None:
+                c.execute(
+                    db.JumpediaUser.insert(
+                        db.JumpediaUser.id.bind(id),
+                        db.JumpediaUser.power.bind(jumpedia_rank.power),
+                        db.JumpediaUser.norm_name.bind(norm_name),
+                        db.JumpediaUser.raw_name.bind(name),
                     )
-
-                else:
-                    jumpedia_rank = (
-                        jumpedia_rank
-                        if override_jumpedia_rank_if_user_exists
-                        else user.jumpedia_rank
-                    )
-                    name = name if override_name_if_user_exists else user.user_name
-
-                    if name != user.user_name or jumpedia_rank != user.jumpedia_rank:
-                        c.execute(
-                            db.JumpediaUser.update(
-                                db.JumpediaUser.norm_name.set(norm_name),
-                                db.JumpediaUser.raw_name.set(name),
-                                db.JumpediaUser.power.set(jumpedia_rank.power),
-                            ).where((db.JumpediaUser.id, orm.Operator.EQ, user.id))
-                        )
-
-                return JumpediaUser(
-                    jumpedia=self, id=id, user_name=name, jumpedia_rank=jumpedia_rank
                 )
 
-    def _fetch_from_user_table(
+            else:
+                jumpedia_rank = (
+                    jumpedia_rank
+                    if override_jumpedia_rank_if_user_exists
+                    else user.jumpedia_rank
+                )
+                name = name if override_name_if_user_exists else user.user_name
+
+                if name != user.user_name or jumpedia_rank != user.jumpedia_rank:
+                    c.execute(
+                        db.JumpediaUser.update(
+                            db.JumpediaUser.norm_name.set(norm_name),
+                            db.JumpediaUser.raw_name.set(name),
+                            db.JumpediaUser.power.set(jumpedia_rank.power),
+                        ).where((db.JumpediaUser.id, orm.Operator.EQ, user.id))
+                    )
+
+            return JumpediaUser(
+                jumpedia=self, id=id, user_name=name, jumpedia_rank=jumpedia_rank
+            )
+
+    def _fetch_from_jumpedia_user_table(
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[db.JumpediaUser]:
         with self.connector.cursor() as c:
@@ -238,7 +236,7 @@ class Jumpedia(BaseStructure):
 
             return c.fetch_all(query)
 
-    def _user_row_to_obj(self, row: db.JumpediaUser) -> JumpediaUser:
+    def _jumpedia_user_row_to_obj(self, row: db.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
             jumpedia=self,
             user_name=row.raw_name,
@@ -250,49 +248,50 @@ class Jumpedia(BaseStructure):
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[JumpediaUser]:
         return [
-            self._user_row_to_obj(data) for data in self._fetch_from_user_table(*where)
+            self._jumpedia_user_row_to_obj(data)
+            for data in self._fetch_from_jumpedia_user_table(*where)
         ]
 
     def get_jumpedia_user_by_id(self, id: int) -> JumpediaUser | None:
-        data = self._fetch_from_user_table((db.JumpediaUser.id, orm.Operator.EQ, id))
-        return self._user_row_to_obj(data[0]) if data else None
+        data = self._fetch_from_jumpedia_user_table(
+            (db.JumpediaUser.id, orm.Operator.EQ, id)
+        )
+        return self._jumpedia_user_row_to_obj(data[0]) if data else None
 
     def add_community_to_server(self, community_id: int, server_id: int) -> Community:
-        with self.locked:
-            existing_community = self.get_community_by_server_id(server_id)
+        existing_community = self.get_community_by_server_id(server_id)
 
-            if existing_community is not None:
-                raise errors.ServerAlreadyConnectedToCommunityError(
-                    server_id, existing_community
+        if existing_community is not None:
+            raise errors.ServerAlreadyConnectedToCommunityError(
+                server_id, existing_community
+            )
+
+        with self.connector.cursor() as c:
+            c.execute(
+                db.Server.insert(
+                    db.Server.id.bind(server_id),
+                    db.Server.community_id.bind(community_id),
                 )
+            )
 
-            with self.connector.cursor() as c:
-                c.execute(
-                    db.Server.insert(
-                        db.Server.id.bind(server_id),
-                        db.Server.community_id.bind(community_id),
-                    )
-                )
+        # Community must now be connected
+        community = self.get_community_by_server_id(server_id)
+        assert community is not None
 
-            # Community must now be connected
-            community = self.get_community_by_server_id(server_id)
-            assert community is not None
-
-            return community
+        return community
 
     def remove_community_from_server(self, server_id: int) -> Community:
-        with self.locked:
-            with self.connector.cursor() as c:
-                row = c.fetch_one(
-                    db.Server.delete()
-                    .where((db.Server.id, orm.Operator.EQ, server_id))
-                    .returning(db.Server.community_id)
-                )
+        with self.connector.cursor() as c:
+            row = c.fetch_one(
+                db.Server.delete()
+                .where((db.Server.id, orm.Operator.EQ, server_id))
+                .returning(db.Server.community_id)
+            )
 
-            if row is None:
-                raise errors.ServerNotConnectedToACommunityError(server_id)
+        if row is None:
+            raise errors.ServerNotConnectedToACommunityError(server_id)
 
-            community = self.get_community_by_id(row.community_id)
-            assert community is not None
+        community = self.get_community_by_id(row.community_id)
+        assert community is not None
 
-            return community
+        return community

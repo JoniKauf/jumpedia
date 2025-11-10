@@ -65,8 +65,6 @@ def extract_id(identifier: UserIdentifierT) -> int:
 
 
 class JumpediaUser(BaseStructure):
-    __structure_name__ = "jumpedia user"
-
     jumpedia: Jumpedia
     id: int
     user_name: str
@@ -86,8 +84,6 @@ class JumpediaUser(BaseStructure):
 
 
 class CommunityUser(BaseStructure):
-    __structure_name__ = "community user"
-
     jumpedia_user: JumpediaUser
     community: Community
     id: int
@@ -109,7 +105,7 @@ class CommunityUser(BaseStructure):
     def get_selected_list(self) -> List | None:
         if self.selected_list_id is None:
             return None
-        
+
         with self.connector.cursor() as c:
             row = c.fetch_one(
                 db.List.select("*").where(
@@ -121,4 +117,7 @@ class CommunityUser(BaseStructure):
         if row is None:
             return None
 
-        return self.community._list_row_to_obj(row)
+        return (
+            self.community._list_row_to_obj(row)
+            or self.community.get_default_selected_list()
+        )

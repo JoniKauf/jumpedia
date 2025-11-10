@@ -1,17 +1,20 @@
+import collections
+import itertools
 import typing as t
 
-from src.structures.attribute import StaticAttribute, TaskAttribute, UserAttribute
+from src.adapters import parsers
+from src.discord_.errors import FeedbackError
+from src.structures.attribute import (StaticAttribute, TaskAttribute,
+                                      UserAttribute)
 
 from ..structures import attribute
-from ..structures.attribute import BaseAttribute
+from ..structures.attribute import AnyAttributeT, BaseAttribute
 from ..structures.list import List
 from ..structures.task import Task
 from ..utils import text
 from . import BaseAdapter, errors
-from ._attribute import AnyAttributeAdapterT
-from ._attribute.static_attribute import StaticAttributeAdapter
-from ._attribute.task_attribute import TaskAttributeAdapter
-from ._attribute.user_attribute import UserAttributeAdapter
+from ._attribute import (AnyAttributeAdapterT, StaticAttributeAdapter,
+                         TaskAttributeAdapter, UserAttributeAdapter)
 from ._task import TaskAdapter
 
 if t.TYPE_CHECKING:
@@ -55,22 +58,43 @@ def _get_attribute_adapter(
 
 
 def _require_task_with_syn(norm_syn: text.NormStr, list: List) -> Task:
-    try:
-        return list.get_tasks_by_syn(norm_syn)[0]
-    except IndexError:
-        raise errors.StructureNotFoundViaSynFeedbackError(norm_syn, Task)
+    task = list.get_single_task_by_syn(norm_syn)
+    
+    if task is None:
+        raise errors.StructureNotFoundViaSynFeedbackError(norm_syn, Task, False)
 
+    return task
 
-def _require_attribute_with_syn[T: BaseAttribute](
+def _require_attribute_with_syn[T: AnyAttributeT](
     norm_syn: text.NormStr, attribute_type: type[T], list: List
 ) -> T:
-    attribute = list.get_attribute_by_syn(attribute_type, norm_syn)
+    attribute = list.get_single_attribute_by_syn(attribute_type, norm_syn)
 
     if attribute is None:
-        raise errors.StructureNotFoundViaSynFeedbackError(norm_syn, TaskAttribute)
+        raise errors.StructureNotFoundViaSynFeedbackError(norm_syn, TaskAttribute, False)
 
     return attribute
 
+
+def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](raw_avm: str | None, attribute_type: type[T], list: List) -> dict[int, t.Sequence[text.RealStr]]:
+    avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
+        text.NormStr(k): tuple(map(text.RealStr, v)) for k, v in
+        parsers.MAPPING_PARSER.parse(raw_avm or "").items()
+    }
+
+    found_attrs = list.get_attributes_by_syn(attribute_type, *avm)
+
+    for k, count in collections.Counter(found_attrs).items():
+        if count > 1:
+            raise FeedbackError(
+                "Attributes Not Unique",
+                t"The attribute `{k.name}` was specified multiple times in the attribute value mapping, probably by different aliases!"
+            )
+
+    return {
+        attr.id: avm[attr.norm_name] 
+        for attr in found_attrs
+    }
 
 class ListAdapter(BaseAdapter):
     _list: List
@@ -88,44 +112,43 @@ class ListAdapter(BaseAdapter):
 
     def get_task(self, syn: str) -> TaskAdapter:
         return TaskAdapter(
-            _require_task_with_syn(text.raw_to_norm(syn), self._list), self
+            _require_task_with_syn(text.NormStr(syn), self._list), self
         )
 
     def create_task(
         self, name: str, aliases: str, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
-        aliases_set = frozenset()
+        real_name = text.RealStr(name)
+        real_aliases = tuple(map(text.RealStr, parsers.LIST_PARSER.parse(aliases)))
 
-        avm = {
-            self.get_attribute(k).id: v
-            for k, v in _parse_kwargs(task_attribute_value_mapping or "").items()
-        }
-
-        return TaskAdapter(self._list.create_task(name, aliases_set, avm), self)
+        avm = _validate_and_convert_attribute_value_mapping(task_attribute_value_mapping, TaskAttribute, self._list)
+        
+        return TaskAdapter(self._list.create_task(
+            real_name,
+            real_aliases,
+            avm
+        ), self)
 
     def delete_task(self, syn: str) -> None:
         task = self.get_task(syn)
         self._list.delete_task(task._task.id)
 
-    def edit_task_name(self, syn: str, new_name: str) -> None:
+    def edit_task_name(self, syn: str, name: str) -> None:
         task = self.get_task(syn)
-        self._list.edit_task_name(task._task.id, new_name)
+        self._list.edit_task_name(task._task.id, text.RealStr(name))
 
-    def edit_task_aliases(self, syn: str, new_aliases: str) -> None:
-        aliases_set = frozenset(_parse_args(new_aliases))
+    def edit_task_aliases(self, syn: str, aliases: str) -> None:
+        real_aliases = tuple(map(text.RealStr, parsers.LIST_PARSER.parse(aliases)))
 
         task = self.get_task(syn)
-        self._list.edit_task_aliases(task._task.id, aliases_set)
+        self._list.edit_task_aliases(task._task.id, real_aliases)
 
     def edit_task_attribute_value_mapping(
-        self, syn: str, new_task_attribute_value_mapping: str
+        self, syn: str, task_attribute_value_mapping: str | None
     ) -> None:
         task = self.get_task(syn)
 
-        avm = {
-            self.get_attribute(k).id: v
-            for k, v in _parse_kwargs(new_task_attribute_value_mapping).items()
-        }
+        avm = _validate_and_convert_attribute_value_mapping(task_attribute_value_mapping, TaskAttribute, self._list)
 
         self._list.edit_task_attribute_value_mapping(task._task.id, avm)
 
@@ -137,13 +160,19 @@ class ListAdapter(BaseAdapter):
             for attr in self._list.get_all_attributes_flat()
         ]
 
-    def get_attribute(self, syn: str) -> AnyAttributeAdapterT:
-        attribute = _require_attribute_with_syn(text.raw_to_norm(syn), self._list)
+    @t.overload
+    def get_attribute(self, syn: str, type: type[StaticAttribute]) -> StaticAttributeAdapter:
+        pass
+
+    @t.overload
+    def get_attribute(self, syn: str, type: type[TaskAttribute]) -> TaskAttributeAdapter:
+        pass
+
+    @t.overload
+    def get_attribute(self, syn: str, type: type[UserAttribute]) -> UserAttributeAdapter:
+        pass
+
+    def get_attribute(self, syn: str, type: type[AnyAttributeT]) -> AnyAttributeAdapterT:
+        attribute = _require_attribute_with_syn(text.NormStr(syn), type, self._list)
 
         return _get_attribute_adapter(attribute, self)
-
-    def get_task_attribute(self, syn: str) -> TaskAttributeAdapter:
-        task_attribute = _require_task_attribute_with_syn(
-            text.raw_to_norm(syn), self._list
-        )
-        return TaskAttributeAdapter(task_attribute, self)

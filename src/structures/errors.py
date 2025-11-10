@@ -6,13 +6,11 @@ from src.utils.text import RealStr
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
-    from .attribute import BaseAttribute
+    from .attribute import BaseAttribute, SlotStr
     from .attribute.collection import Collection
     from .attribute.slot_str import SlotTypeT
     from .community import Community
-    from .task import Task
-    from .attribute import SlotStr
-    from .user import CommunityUser
+
 
 @t.dataclass_transform(eq_default=False)
 class _BaseStructureErrorMeta(type):
@@ -96,6 +94,20 @@ class InvalidSlotStrError(BaseStructureError):
     expected_type: type[SlotTypeT]
 
 
-class TaskAlreadyGivenToUserError(BaseStructureError):
+class CommunityUserAlreadyHasTaskError(BaseStructureError):
     task_id: int
     community_user_id: int
+
+
+class CommunityUserDoesNotHaveTaskError(BaseStructureError):
+    task_id: int
+    community_user_id: int
+
+
+class EmptyStringError(BaseStructureError):
+    pass
+
+
+class NotUniqueStringError(BaseStructureError):
+    given: text.RealStr
+    existing: text.RealStr

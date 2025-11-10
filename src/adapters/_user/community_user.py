@@ -1,9 +1,9 @@
 import typing as t
 
-from ...errors.feedback import feedbacks
-from ...ranks.community_rank import CommunityRank
-from ...ranks.jumpedia_rank import JumpediaRank
-from ...structures.user.community_user import CommunityUser
+from src.discord_.errors import FeedbackError
+from src.structures.community import CommunityUser
+from src.structures.user.rank import CommunityRank, JumpediaRank
+
 from .. import BaseAdapter
 from .jumpedia_user import JumpediaUserAdapter
 
@@ -30,19 +30,10 @@ class CommunityUserAdapter(BaseAdapter):
         list = self._community_user.get_selected_list()
 
         if list is None:
-            raise feedbacks.temp("No list selected")
-
-        return ListAdapter(list, self.community)
-
-    def get_selected_list_or_default(self) -> ListAdapter:
-        list = (
-            self._community_user.get_selected_list()
-            or self._community_user.community.get_default_selected_list()
-        )
-
-        if list is None:
-            raise feedbacks.temp(
-                "Neither you, nor the community you are in has a default list selected."
+            raise FeedbackError(
+                "No Default Selected List",
+                t"Neither the user `{self.jumpedia_user.name}`, nor the community `{self.community.name}` have a default selected list!"
             )
 
         return ListAdapter(list, self.community)
+

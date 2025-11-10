@@ -1,7 +1,8 @@
 import typing as t
 
-from ...ranks.jumpedia_rank import JumpediaRank
-from ...structures.user.jumpedia_user import JumpediaUser
+from src.structures.community import JumpediaUser
+from src.structures.user.rank import JumpediaRank
+
 from .. import BaseAdapter
 
 if t.TYPE_CHECKING:

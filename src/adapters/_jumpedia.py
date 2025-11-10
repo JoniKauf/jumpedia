@@ -3,10 +3,11 @@ from curses import meta
 from dataclasses import field
 
 from src.discord_.errors import FeedbackError
+from src.structures.user.rank import JumpediaRank
 from src.utils import secret
 from src.utils.orm import Connector
 
-from ..structures.community import Community
+from ..structures.community import Community, CommunityLimits
 from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
                                  SynsAlreadyTakenError)
 from ..structures.jumpedia import Jumpedia, JumpediaLimits
@@ -29,8 +30,7 @@ _JUMPEDIA = Jumpedia(
         list_name_length_max=64,
         user_name_length_max=32,  # Discord limit
         attribute_syn_length_max=64,
-        attribute_task_value_slot_length_max=255,
-        attribute_task_value_slot_count_max=32
+        attribute_task_value_slot_length_max=255
     ),
     connector=Connector(
         **__conn_data,
@@ -44,7 +44,10 @@ _JUMPEDIA = Jumpedia(
 
 def _require_server_with_community(community: Community | None) -> Community:
     if community is None:
-        raise feedbacks.temp("Server isnt connected ot community")
+        raise FeedbackError(
+            "Server Not Connected To Community",
+            t"This server is not connected to a community!"
+        )
 
     return community
 
@@ -53,7 +56,10 @@ def _require_community_with_name(name: text.NormStr, jumpedia: Jumpedia) -> Comm
     community = jumpedia.get_community_by_name(name)
 
     if community is None:
-        raise feedbacks.temp(f"Community with the name `{name}` could not be found!")
+        raise FeedbackError(
+            "Community Not Found",
+            t"A community with the name `{name}` could not be found!"
+        )
 
     return community
 
@@ -69,7 +75,7 @@ class JumpediaAdapter(BaseAdapter):
 
     def get_community(self, name: str) -> CommunityAdapter:
         return CommunityAdapter(
-            _require_community_with_name(text.raw_to_norm(name), self._jumpedia), self
+            _require_community_with_name(text.NormStr(name), self._jumpedia), self
         )
 
     def get_current_community(self) -> CommunityAdapter:
@@ -88,9 +94,10 @@ class JumpediaAdapter(BaseAdapter):
 
         try:
             comm = self._jumpedia.create_community(
-                raw_name=name,
-                creator=jumpedia_user,
+                name=text.RealStr(name),
                 server_id=self.interaction.current_server.id,
+                creator=jumpedia_user,
+                limits=CommunityLimits()
             )
         except ServerAlreadyConnectedToCommunityError as e:
             raise FeedbackError(
@@ -114,7 +121,7 @@ class JumpediaAdapter(BaseAdapter):
         return community
 
     def delete_community(self, name: str) -> None:
-        community = _require_community_with_name(text.raw_to_norm(name), self._jumpedia)
+        community = _require_community_with_name(text.NormStr(name), self._jumpedia)
         self._jumpedia.delete_community(community.id)
 
     def delete_current_community(self) -> None:

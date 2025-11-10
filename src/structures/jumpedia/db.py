@@ -442,7 +442,7 @@ class TaskAlias(Model, table_name=SNAKE):
         pass
 
 
-class  TaskAttributeTaskValue(Model, table_name=SNAKE):
+class TaskTaskAttributeValue(Model, table_name=SNAKE):
     @column(int)
     def list_id(self):
         pass
@@ -464,15 +464,29 @@ class  TaskAttributeTaskValue(Model, table_name=SNAKE):
         pass
 
 
-class CommunityUserListTask(Model, table_name=SNAKE):
+class ListTaskCommunityUser(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
 
     @column(int)
+    def list_id(self):
+        pass
+
+    @column(int)
+    def task_id(self):
+        pass
+
+    @column(int)
     def community_user_id(self):
         pass
-    
+
+
+class TaskUserAttributeValue(Model, table_name=SNAKE):
+    @column(int)
+    def list_task_community_user_id(self):
+        pass
+
     @column(int)
     def list_id(self):
         pass
@@ -481,21 +495,8 @@ class CommunityUserListTask(Model, table_name=SNAKE):
     def task_id(self):
         pass
 
-class UserAttributeTaskValue(Model, table_name=SNAKE):
-    @column(int)
-    def community_user_list_task_id(self):
-        pass
-    
     @column(int)
     def community_user_id(self):
-        pass
-
-    @column(int)
-    def list_id(self):
-        pass
-    
-    @column(int)
-    def task_id(self):
         pass
 
     @column(int)
@@ -516,7 +517,7 @@ type AnyAttributeTable = StaticAttribute | TaskAttribute | UserAttribute
 type AnyAttributeAliasTable = StaticAttributeAlias | TaskAttributeAlias | UserAttributeAlias
 type AnyAttributeCollectionEntryTable = TaskAttributeCollectionEntry | UserAttributeCollectionEntry
 type AnyAttributeCollectionEntryAliasTable = TaskAttributeCollectionEntryAlias | UserAttributeCollectionEntryAlias
-type AnyAttributeTaskValueTable = TaskAttributeTaskValue | UserAttributeTaskValue
+type AnyTaskAttributeValueTable = TaskTaskAttributeValue | TaskUserAttributeValue
 
 
 if t.TYPE_CHECKING:
@@ -543,8 +544,8 @@ if t.TYPE_CHECKING:
     ):
         pass
 
-    class AbstractAttributeTaskValueTable(
-        TaskAttributeTaskValue, UserAttributeTaskValue, table_name=""
+    class AbstractTaskAttributeValueTable(
+        TaskTaskAttributeValue, TaskUserAttributeValue, table_name=""
     ):
         pass
 
@@ -949,27 +950,27 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {TaskAttributeTaskValue} (
-                    {TaskAttributeTaskValue.list_id} INT NOT NULL,
-                    {TaskAttributeTaskValue.task_id} INT NOT NULL,
-                    {TaskAttributeTaskValue.attribute_id} INT NOT NULL,
-                    {TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                    {TaskAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {TaskTaskAttributeValue} (
+                    {TaskTaskAttributeValue.list_id} INT NOT NULL,
+                    {TaskTaskAttributeValue.task_id} INT NOT NULL,
+                    {TaskTaskAttributeValue.attribute_id} INT NOT NULL,
+                    {TaskTaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
+                    {TaskTaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
-                        {TaskAttributeTaskValue.list_id},
-                        {TaskAttributeTaskValue.task_id}, 
-                        {TaskAttributeTaskValue.attribute_id},
-                        {TaskAttributeTaskValue.index}
+                        {TaskTaskAttributeValue.list_id},
+                        {TaskTaskAttributeValue.task_id}, 
+                        {TaskTaskAttributeValue.attribute_id},
+                        {TaskTaskAttributeValue.index}
                     ),
                     
-                    FOREIGN KEY ({TaskAttributeTaskValue.list_id})
+                    FOREIGN KEY ({TaskTaskAttributeValue.list_id})
                         REFERENCES {List}({List.id})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskAttributeTaskValue.task_id})
+                    FOREIGN KEY ({TaskTaskAttributeValue.task_id})
                         REFERENCES {Task}({Task.id})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskAttributeTaskValue.attribute_id})
+                    FOREIGN KEY ({TaskTaskAttributeValue.attribute_id})
                         REFERENCES {TaskAttribute}({TaskAttribute.id})
                         ON DELETE CASCADE
                 )
@@ -978,64 +979,70 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {CommunityUserListTask} (
-                    {CommunityUserListTask.id} BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    {CommunityUserListTask.community_user_id} INT NOT NULL,
-                    {CommunityUserListTask.list_id} INT NOT NULL,
-                    {CommunityUserListTask.task_id} INT NOT NULL,
+                CREATE TABLE {ListTaskCommunityUser} (
+                    {ListTaskCommunityUser.id} BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    {ListTaskCommunityUser.list_id} INT NOT NULL,
+                    {ListTaskCommunityUser.task_id} INT NOT NULL,
+                    {ListTaskCommunityUser.community_user_id} INT NOT NULL,
 
-                    FOREIGN KEY ({CommunityUserListTask.community_user_id})
-                        REFERENCES {CommunityUser}({CommunityUser.id})
-                        ON DELETE CASCADE,
-                    FOREIGN KEY ({CommunityUserListTask.list_id})
+                    FOREIGN KEY ({ListTaskCommunityUser.list_id})
                         REFERENCES {List}({List.id})
                         ON DELETE CASCADE,
                     FOREIGN KEY ({Task.id})
                         REFERENCES {Task}({Task.id})
                         ON DELETE CASCADE,
+                    FOREIGN KEY ({ListTaskCommunityUser.community_user_id})
+                        REFERENCES {CommunityUser}({CommunityUser.id})
+                        ON DELETE CASCADE,
 
                     UNIQUE (
-                        {CommunityUserListTask.community_user_id}, 
-                        {CommunityUserListTask.list_id}, 
-                        {CommunityUserListTask.task_id}
+                        {ListTaskCommunityUser.list_id}, 
+                        {ListTaskCommunityUser.task_id},
+                        {ListTaskCommunityUser.community_user_id}
                     )
                 )
                 """
             )
             c.raw_execute(
                 f"""
-                CREATE TABLE {UserAttributeTaskValue} (
-                    {UserAttributeTaskValue.community_user_list_task_id} BIGINT NOT NULL,
-                    {UserAttributeTaskValue.community_user_id} INT NOT NULL,
-                    {UserAttributeTaskValue.list_id} INT NOT NULL,
-                    {UserAttributeTaskValue.task_id} INT NOT NULL,
-                    {UserAttributeTaskValue.attribute_id} INT NOT NULL,
-                    {UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
-                    {UserAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {TaskUserAttributeValue} (
+                    {TaskUserAttributeValue.list_task_community_user_id} BIGINT NOT NULL,
+                    {TaskUserAttributeValue.list_id} INT NOT NULL,
+                    {TaskUserAttributeValue.task_id} INT NOT NULL,
+                    {TaskUserAttributeValue.community_user_id} INT NOT NULL,
+                    {TaskUserAttributeValue.attribute_id} INT NOT NULL,
+                    {TaskUserAttributeValue.index} TINYINT UNSIGNED NOT NULL,
+                    {TaskUserAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
-                        {UserAttributeTaskValue.community_user_id}, 
-                        {UserAttributeTaskValue.list_id},
-                        {UserAttributeTaskValue.task_id},
-                        {UserAttributeTaskValue.attribute_id},
-                        {UserAttributeTaskValue.index}
+                        {TaskUserAttributeValue.list_id},
+                        {TaskUserAttributeValue.task_id},
+                        {TaskUserAttributeValue.community_user_id}, 
+                        {TaskUserAttributeValue.attribute_id},
+                        {TaskUserAttributeValue.index}
                     ),
 
-                    FOREIGN KEY ({UserAttributeTaskValue.community_user_list_task_id})
-                        REFERENCES {CommunityUserListTask}({CommunityUserListTask.id})
+                    FOREIGN KEY ({TaskUserAttributeValue.list_task_community_user_id})
+                        REFERENCES {ListTaskCommunityUser}({ListTaskCommunityUser.id})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeTaskValue.community_user_id})
-                        REFERENCES {CommunityUser}({CommunityUser.id})
-                        ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeTaskValue.list_id})
+                    FOREIGN KEY ({TaskUserAttributeValue.list_id})
                         REFERENCES {List}({List.id})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeTaskValue.task_id})
+                    FOREIGN KEY ({TaskUserAttributeValue.task_id})
                         REFERENCES {Task}({Task.id})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeTaskValue.attribute_id})
+                    FOREIGN KEY ({TaskUserAttributeValue.community_user_id})
+                        REFERENCES {CommunityUser}({CommunityUser.id})
+                        ON DELETE CASCADE,
+                    FOREIGN KEY ({TaskUserAttributeValue.attribute_id})
                         REFERENCES {UserAttribute}({UserAttribute.id})
-                        ON DELETE CASCADE
+                        ON DELETE CASCADE,
+
+                    UNIQUE (
+                        {TaskUserAttributeValue.list_task_community_user_id},
+                        {TaskUserAttributeValue.attribute_id},
+                        {TaskUserAttributeValue.index}
+                    )
                 )
             """
             )
@@ -1048,7 +1055,7 @@ def create_database(j: Jumpedia) -> None:
                 )
             except Exception as e2:
                 raise e2
-            
+
             raise e
         else:
             print("Jumpedia database successfully created!")

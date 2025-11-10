@@ -30,7 +30,7 @@ class AttributeTables:
 class BaseNonStaticAttributeTables(AttributeTables):
     attribute_collection_entry: type[db.AnyAttributeCollectionEntryTable]
     attribute_collection_entry_alias: type[db.AnyAttributeCollectionEntryAliasTable]
-    attribute_task_value: type[db.AnyAttributeTaskValueTable]
+    task_attribute_value: type[db.AnyTaskAttributeValueTable]
 
 
 type AttributeTypeId = t.Literal[0, 1, 2]
@@ -102,13 +102,18 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def real_to_slot_value(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+    def real_to_slot_value(
+        self, value: t.Sequence[text.RealStr]
+    ) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
             raise errors.AttributeValueSlotCountOutOfRangeError(
                 tuple(value), self.min_slots, self.max_slots, self
             )
 
-        return tuple(SlotStr(slot, self.slot_type) for slot in value)
+        return tuple(
+            SlotStr(slot, self.slot_type, self.list.community.jumpedia)
+            for slot in value
+        )
 
 
 class RawCollectionEntryItem(t.NamedTuple):
@@ -125,7 +130,9 @@ class BaseNonStaticAttribute(BaseAttribute):
         if self.__class__ == BaseNonStaticAttribute:
             raise RuntimeError
 
-    def real_to_slot_value(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+    def real_to_slot_value(
+        self, value: t.Sequence[text.RealStr]
+    ) -> tuple[SlotStr, ...]:
         converted = super().real_to_slot_value(value)
         collection = self.get_collection()
 
@@ -185,7 +192,9 @@ class BaseNonStaticAttribute(BaseAttribute):
         entry_id_to_aliases: defaultdict[int, set[slot_str.SlotStr]] = defaultdict(set)
 
         for alias_row in alias_rows:
-            alias = SlotStr(alias_row.slot_alias, self.slot_type)
+            alias = SlotStr(
+                alias_row.slot_alias, self.slot_type, self.list.community.jumpedia
+            )
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
 
         entries: tuple[CollectionEntry, ...] = tuple(
@@ -238,7 +247,9 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         for i, (value, aliases) in enumerate(collection):
             for j, syn_str in enumerate((value, *aliases)):
-                slot_syn = SlotStr(syn_str, self.slot_type)
+                slot_syn = SlotStr(
+                    syn_str, self.slot_type, self.list.community.jumpedia
+                )
                 norm_syn = text.NormStr(slot_syn)
 
                 if norm_syn in norm_syns:
@@ -342,7 +353,7 @@ class TaskAttribute(BaseNonStaticAttribute):
         db.TaskAttributeAlias,
         db.TaskAttributeCollectionEntry,
         db.TaskAttributeCollectionEntryAlias,
-        db.TaskAttributeTaskValue,
+        db.TaskTaskAttributeValue,
     )
     type_id = 1
 
@@ -353,7 +364,7 @@ class UserAttribute(BaseNonStaticAttribute):
         db.UserAttributeAlias,
         db.UserAttributeCollectionEntry,
         db.UserAttributeCollectionEntryAlias,
-        db.UserAttributeTaskValue,
+        db.TaskUserAttributeValue,
     )
     type_id = 2
 
