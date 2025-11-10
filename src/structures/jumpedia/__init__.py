@@ -7,7 +7,7 @@ from src.utils import orm, text
 from .. import BaseStructure, errors, user
 from ..attribute import slot_str
 from ..community import Community, CommunityLimits
-from ..errors import StructureNotFoundError, SynAlreadyTakenError
+from ..errors import StructureNotFoundError, SynsAlreadyTakenError
 from ..user import JumpediaUser
 from ..user.rank import CommunityRank, JumpediaRank
 from . import db
@@ -73,7 +73,7 @@ class Jumpedia(BaseStructure):
             comm = self.get_community_by_name(norm_name)
 
             if comm is not None:
-                raise SynAlreadyTakenError(comm)
+                raise SynsAlreadyTakenError(frozenset((comm,)))
 
             with self.connector.cursor() as c:
                 execute_data = c.execute(

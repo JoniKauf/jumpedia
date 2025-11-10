@@ -1,6 +1,7 @@
 import re
 import typing as t
 
+from src.adapters._user import community_user
 from src.utils import orm
 
 from .. import BaseStructure
@@ -87,14 +88,15 @@ class JumpediaUser(BaseStructure):
 class CommunityUser(BaseStructure):
     __structure_name__ = "community user"
 
-    community: Community
     jumpedia_user: JumpediaUser
+    community: Community
+    id: int
     community_rank: CommunityRank
     selected_list_id: int | None
 
     @property
     def identity(self) -> tuple[int, ...]:
-        return (self.jumpedia_user.id, *self.community.identity)
+        return (self.id, *self.community.identity)
 
     @property
     def name(self) -> str:
@@ -105,6 +107,9 @@ class CommunityUser(BaseStructure):
         return self.jumpedia_user.connector
 
     def get_selected_list(self) -> List | None:
+        if self.selected_list_id is None:
+            return None
+        
         with self.connector.cursor() as c:
             row = c.fetch_one(
                 db.List.select("*").where(

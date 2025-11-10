@@ -1,8 +1,7 @@
-from email.policy import default
 import types
 import typing as t
+from email.policy import default
 
-from ..attribute import KindT
 from src.utils.orm import *
 from src.utils.text import NormStr, RealStr
 
@@ -111,6 +110,10 @@ class List(Model, table_name=SNAKE):
 
 class CommunityUser(Model, table_name=SNAKE):
     @column(int)
+    def id(self):
+        pass
+
+    @column(int)
     def community_id(self):
         pass
 
@@ -163,7 +166,7 @@ class StaticAttribute(Model, table_name=SNAKE):
     def max_slots(self):
         pass
 
-    @column(KindT)  # type: ignore
+    @column(int)
     def kind(self):
         pass
 
@@ -439,7 +442,7 @@ class TaskAlias(Model, table_name=SNAKE):
         pass
 
 
-class TaskAttributeTaskValue(Model, table_name=SNAKE):
+class  TaskAttributeTaskValue(Model, table_name=SNAKE):
     @column(int)
     def list_id(self):
         pass
@@ -461,7 +464,15 @@ class TaskAttributeTaskValue(Model, table_name=SNAKE):
         pass
 
 
-class UserAttributeTaskValue(Model, table_name=SNAKE):
+class CommunityUserListTask(Model, table_name=SNAKE):
+    @column(int)
+    def id(self):
+        pass
+
+    @column(int)
+    def community_user_id(self):
+        pass
+    
     @column(int)
     def list_id(self):
         pass
@@ -470,8 +481,21 @@ class UserAttributeTaskValue(Model, table_name=SNAKE):
     def task_id(self):
         pass
 
+class UserAttributeTaskValue(Model, table_name=SNAKE):
     @column(int)
-    def user_id(self):
+    def community_user_list_task_id(self):
+        pass
+    
+    @column(int)
+    def community_user_id(self):
+        pass
+
+    @column(int)
+    def list_id(self):
+        pass
+    
+    @column(int)
+    def task_id(self):
         pass
 
     @column(int)
@@ -559,7 +583,7 @@ def create_database(j: Jumpedia) -> None:
                     {Community.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {Community.norm_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
                     {Community.real_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
-                    {Community.default_selected_list_id} INT DEFAULT NULL
+                    {Community.default_selected_list_id} BIGINT DEFAULT NULL
                 )
             """
             )
@@ -568,7 +592,7 @@ def create_database(j: Jumpedia) -> None:
                 f"""
                 CREATE TABLE {CommunityLimits} (
                     {CommunityLimits.community_id} INT PRIMARY KEY,
-                    {', '.join(f"{col.name} INT" for col in CommunityLimits._columns)},
+                    {', '.join(f"{col.name} BIGINT" for col in CommunityLimits._columns)},
 
                     FOREIGN KEY ({CommunityLimits.community_id})
                         REFERENCES {Community}({Community.id})
@@ -634,12 +658,11 @@ def create_database(j: Jumpedia) -> None:
             c.raw_execute(
                 f"""
                 CREATE TABLE {CommunityUser} (
+                    {CommunityUser.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {CommunityUser.community_id} INT NOT NULL,
                     {CommunityUser.jumpedia_user_id} BIGINT UNSIGNED NOT NULL,
                     {CommunityUser.power} INT NOT NULL,
-                    {CommunityUser.selected_list_id} INT,
-
-                    PRIMARY KEY ({CommunityUser.community_id}, {CommunityUser.jumpedia_user_id}),
+                    {CommunityUser.selected_list_id} BIGINT,
 
                     FOREIGN KEY ({CommunityUser.community_id})
                         REFERENCES {Community}({Community.id})
@@ -662,10 +685,10 @@ def create_database(j: Jumpedia) -> None:
                     {StaticAttribute.kind} TINYINT NOT NULL,
                     {StaticAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
                     {StaticAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {StaticAttribute.slot_type} INT NOT NULL,
-                    {StaticAttribute.position} INT NOT NULL,
-                    {StaticAttribute.min_slots} INT NOT NULL,
-                    {StaticAttribute.max_slots} INT NOT NULL,
+                    {StaticAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
+                    {StaticAttribute.position} TINYINT UNSIGNED NOT NULL,
+                    {StaticAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
+                    {StaticAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
 
                     FOREIGN KEY ({StaticAttribute.list_id})
                         REFERENCES {List}({List.id})
@@ -702,14 +725,14 @@ def create_database(j: Jumpedia) -> None:
             c.raw_execute(
                 f"""
                 CREATE TABLE {TaskAttribute} (
-                    {TaskAttribute.id} INT AUTO_INCREMENT PRIMARY KEY,
+                    {TaskAttribute.id} BIGINT AUTO_INCREMENT PRIMARY KEY,
                     {TaskAttribute.list_id} INT NOT NULL,
                     {TaskAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
                     {TaskAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {TaskAttribute.slot_type} INT NOT NULL,
-                    {TaskAttribute.position} INT NOT NULL,
-                    {TaskAttribute.min_slots} INT NOT NULL,
-                    {TaskAttribute.max_slots} INT NOT NULL,
+                    {TaskAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
+                    {TaskAttribute.position} TINYINT UNSIGNED NOT NULL,
+                    {TaskAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
+                    {TaskAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
 
                     FOREIGN KEY ({TaskAttribute.list_id})
                         REFERENCES {List}({List.id})
@@ -800,10 +823,10 @@ def create_database(j: Jumpedia) -> None:
                     {UserAttribute.list_id} INT NOT NULL,
                     {UserAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
                     {UserAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {UserAttribute.position} INT NOT NULL,
-                    {UserAttribute.slot_type} INT NOT NULL,
-                    {UserAttribute.min_slots} INT NOT NULL,
-                    {UserAttribute.max_slots} INT NOT NULL,
+                    {UserAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
+                    {UserAttribute.position} TINYINT UNSIGNED NOT NULL,
+                    {UserAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
+                    {UserAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
 
                     FOREIGN KEY ({UserAttribute.list_id})
                         REFERENCES {List}({List.id})
@@ -927,17 +950,22 @@ def create_database(j: Jumpedia) -> None:
             c.raw_execute(
                 f"""
                 CREATE TABLE {TaskAttributeTaskValue} (
+                    {TaskAttributeTaskValue.list_id} INT NOT NULL,
                     {TaskAttributeTaskValue.task_id} INT NOT NULL,
                     {TaskAttributeTaskValue.attribute_id} INT NOT NULL,
                     {TaskAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
                     {TaskAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
+                        {TaskAttributeTaskValue.list_id},
                         {TaskAttributeTaskValue.task_id}, 
                         {TaskAttributeTaskValue.attribute_id},
                         {TaskAttributeTaskValue.index}
                     ),
                     
+                    FOREIGN KEY ({TaskAttributeTaskValue.list_id})
+                        REFERENCES {List}({List.id})
+                        ON DELETE CASCADE,
                     FOREIGN KEY ({TaskAttributeTaskValue.task_id})
                         REFERENCES {Task}({Task.id})
                         ON DELETE CASCADE,
@@ -950,22 +978,57 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
+                CREATE TABLE {CommunityUserListTask} (
+                    {CommunityUserListTask.id} BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    {CommunityUserListTask.community_user_id} INT NOT NULL,
+                    {CommunityUserListTask.list_id} INT NOT NULL,
+                    {CommunityUserListTask.task_id} INT NOT NULL,
+
+                    FOREIGN KEY ({CommunityUserListTask.community_user_id})
+                        REFERENCES {CommunityUser}({CommunityUser.id})
+                        ON DELETE CASCADE,
+                    FOREIGN KEY ({CommunityUserListTask.list_id})
+                        REFERENCES {List}({List.id})
+                        ON DELETE CASCADE,
+                    FOREIGN KEY ({Task.id})
+                        REFERENCES {Task}({Task.id})
+                        ON DELETE CASCADE,
+
+                    UNIQUE (
+                        {CommunityUserListTask.community_user_id}, 
+                        {CommunityUserListTask.list_id}, 
+                        {CommunityUserListTask.task_id}
+                    )
+                )
+                """
+            )
+            c.raw_execute(
+                f"""
                 CREATE TABLE {UserAttributeTaskValue} (
-                    {UserAttributeTaskValue.user_id} BIGINT UNSIGNED NOT NULL,
+                    {UserAttributeTaskValue.community_user_list_task_id} BIGINT NOT NULL,
+                    {UserAttributeTaskValue.community_user_id} INT NOT NULL,
+                    {UserAttributeTaskValue.list_id} INT NOT NULL,
                     {UserAttributeTaskValue.task_id} INT NOT NULL,
                     {UserAttributeTaskValue.attribute_id} INT NOT NULL,
                     {UserAttributeTaskValue.index} TINYINT UNSIGNED NOT NULL,
                     {UserAttributeTaskValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
-                        {UserAttributeTaskValue.user_id},
-                        {UserAttributeTaskValue.task_id}, 
+                        {UserAttributeTaskValue.community_user_id}, 
+                        {UserAttributeTaskValue.list_id},
+                        {UserAttributeTaskValue.task_id},
                         {UserAttributeTaskValue.attribute_id},
                         {UserAttributeTaskValue.index}
                     ),
 
-                    FOREIGN KEY ({UserAttributeTaskValue.user_id})
-                        REFERENCES {JumpediaUser}({JumpediaUser.id})
+                    FOREIGN KEY ({UserAttributeTaskValue.community_user_list_task_id})
+                        REFERENCES {CommunityUserListTask}({CommunityUserListTask.id})
+                        ON DELETE CASCADE,
+                    FOREIGN KEY ({UserAttributeTaskValue.community_user_id})
+                        REFERENCES {CommunityUser}({CommunityUser.id})
+                        ON DELETE CASCADE,
+                    FOREIGN KEY ({UserAttributeTaskValue.list_id})
+                        REFERENCES {List}({List.id})
                         ON DELETE CASCADE,
                     FOREIGN KEY ({UserAttributeTaskValue.task_id})
                         REFERENCES {Task}({Task.id})
@@ -983,7 +1046,9 @@ def create_database(j: Jumpedia) -> None:
                     DROP DATABASE `{j.connector.database_name}`
                 """
                 )
-            finally:
-                raise e
-
-        print("Jumpedia database successfully created!")
+            except Exception as e2:
+                raise e2
+            
+            raise e
+        else:
+            print("Jumpedia database successfully created!")

@@ -1,11 +1,15 @@
+import itertools
 import typing as t
 from dataclasses import field
 
+from src.structures.attribute import UserAttribute
+from src.structures.user import CommunityUser
 from src.utils import orm, text
 
 from .. import BaseStructure
 from ..attribute.slot_str import SlotStr
 from ..jumpedia import db
+from .. import errors
 
 if t.TYPE_CHECKING:
     from ..list import List

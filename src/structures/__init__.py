@@ -33,7 +33,7 @@ class _StructureMeta(ABCMeta):
 
     @property
     def type_name(self) -> str:
-        v = getattr(self, "_type_name")
+        v = getattr(self, "_type_name", None)
 
         if v is None:
             v = text.pascal_to_snake(self.__name__.removeprefix("Base"), delim=" ")
@@ -42,9 +42,9 @@ class _StructureMeta(ABCMeta):
 
 
 class BaseStructure(metaclass=_StructureMeta):
-    @property
-    def locked(self) -> _GeneratorContextManager[None]:
-        return locked.equality_locked(self)
+    # @property
+    # def locked(self) -> _GeneratorContextManager[None]:
+    #     return locked.equality_locked(self)
 
     @property
     @abstractmethod

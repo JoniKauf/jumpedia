@@ -10,6 +10,7 @@ if t.TYPE_CHECKING:
 class Operator(enum.StrEnum):
     EQ = "="
     NEQ = "<>"
+    IN = "in"
 
 
 class Order(enum.StrEnum):

@@ -13,7 +13,7 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
         )
 
 class SynAlreadyTakenFeedbackError(FeedbackError):
-    def __init__(self, e: errors.SynAlreadyTakenError) -> None:
+    def __init__(self, e: errors.SynsAlreadyTakenError) -> None:
         assert isinstance(e.structure, BaseStructure)
 
         super().__init__(

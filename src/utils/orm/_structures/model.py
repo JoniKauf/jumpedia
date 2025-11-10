@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from .. import _utils
 from .._query.delete import Delete
 from .._query.insert import Insert
-from .._query.select import Join, Select
+from .._query.select import Select
 from .._query.update import Update
 from .column import Column, ColumnBind, ColumnSet
 
@@ -71,14 +71,9 @@ class Model(_ModelBase, metaclass=_ModelMeta):
 
     @t.overload
     @classmethod
-    def select(cls, all: t.Literal["*"], /) -> Select[t.Self]:
-        pass
-
-    @t.overload
-    @classmethod
-    def select[T: Model](
-        cls, all: t.Literal["*"], /, *, join: Join[t.Self, T]
-    ) -> Select[t.Self | T]:
+    def select(
+        cls, all: t.Literal["*"], /
+    ) -> Select[t.Self]:
         pass
 
     @t.overload
@@ -88,31 +83,19 @@ class Model(_ModelBase, metaclass=_ModelMeta):
     ) -> Select[t.Self]:
         pass
 
-    @t.overload
-    @classmethod
-    def select[T: Model](
-        cls,
-        column: Column[t.Self | T, t.Any],
-        /,
-        *columns: Column[t.Self | T, t.Any],
-        join: Join[t.Self, T],
-    ) -> Select[t.Self | T]:
-        pass
-
     @classmethod
     def select[T: Model](
         cls,
         all_or_column: Column[t.Self | T, t.Any] | t.Literal["*"],
         /,
-        *columns: Column[t.Self | T, t.Any],
-        join: Join[t.Self, T] | None = None,
+        *columns: Column[t.Self | T, t.Any]
     ) -> Select[t.Self | T]:
         cols: tuple[Column[t.Self | T, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):
             cols = (all_or_column, *columns)
 
-        return Select(cls, (cols, () if join is None else (join,)), [], (), None)  # type: ignore
+        return Select(cls, cols, [], (), None)  # type: ignore
 
     @classmethod
     def insert(

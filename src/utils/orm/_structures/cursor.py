@@ -4,7 +4,7 @@ from types import TracebackType
 
 import mariadb
 
-from .._query import Query
+from .._query import ExecutableQuery, FetchableQuery, Query
 from .._query.delete import Delete
 from .._query.insert import Insert
 from .._query.select import Select
@@ -50,7 +50,7 @@ class Cursor:
     @t.overload
     def execute(
         self,
-        query: Query,
+        query: ExecutableQuery,
         /,
         *,
         get_last_generated_id: t.Literal[False] = False,
@@ -60,20 +60,20 @@ class Cursor:
 
     @t.overload
     def execute(
-        self, query: Query, /, *, get_last_generated_id: t.Literal[True]
+        self, query: ExecutableQuery, /, *, get_last_generated_id: t.Literal[True]
     ) -> ExecuteData[int | None, None]:
         pass
 
     @t.overload
     def execute(
-        self, query: Query, /, *, get_affected_row_count: t.Literal[True]
+        self, query: ExecutableQuery, /, *, get_affected_row_count: t.Literal[True]
     ) -> ExecuteData[None, int]:
         pass
 
     @t.overload
     def execute(
         self,
-        query: Query,
+        query: ExecutableQuery,
         /,
         *,
         get_last_generated_id: t.Literal[True],
@@ -83,7 +83,7 @@ class Cursor:
 
     def execute(
         self,
-        query: Query,
+        query: ExecutableQuery,
         /,
         *,
         get_last_generated_id: bool = False,
@@ -106,7 +106,7 @@ class Cursor:
             case _:
                 t.assert_never((get_last_generated_id, get_affected_row_count))
 
-    def fetch_one[T: Model](self, query: Query[T], /) -> T | None:
+    def fetch_one[T: Model](self, query: FetchableQuery[T], /) -> T | None:
         self._core_execute(query)
 
         fetch = t.cast(dict[str, t.Any] | None, self._mariadb_cursor.fetchone())
@@ -116,7 +116,7 @@ class Cursor:
 
         return query._table(fetch)
 
-    def fetch_all[T: Model](self, query: Query[T], /) -> list[T]:
+    def fetch_all[T: Model](self, query: FetchableQuery[T], /) -> list[T]:
         self._core_execute(query)
 
         fetch = t.cast(list[dict[str, t.Any]], self._mariadb_cursor.fetchall())

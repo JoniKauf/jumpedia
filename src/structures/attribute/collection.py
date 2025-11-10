@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing_extensions import Sentinel
 
 from src.utils import text
+
 from .. import BaseStructure
 from .slot_str import SlotStr
 

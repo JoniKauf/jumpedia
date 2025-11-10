@@ -6,9 +6,7 @@ from dataclasses import dataclass, field
 from src.structures.community import Kind
 from src.utils import orm, text
 
-from .. import errors
-
-from .. import BaseStructure
+from .. import BaseStructure, errors
 from ..jumpedia import db
 from .collection import Collection, CollectionEntry
 from .slot_str import SlotStr, SlotTypeT
@@ -104,9 +102,11 @@ class BaseAttribute(BaseStructure):
     def get_collection(self) -> Collection:
         return Collection(attribute=self, entries=())
 
-    def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+    def real_to_slot_value(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
-            raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self.min_slots, self.max_slots, self)
+            raise errors.AttributeValueSlotCountOutOfRangeError(
+                tuple(value), self.min_slots, self.max_slots, self
+            )
 
         return tuple(SlotStr(slot, self.slot_type) for slot in value)
 
@@ -125,8 +125,8 @@ class BaseNonStaticAttribute(BaseAttribute):
         if self.__class__ == BaseNonStaticAttribute:
             raise RuntimeError
 
-    def real_to_slot(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
-        converted = super().real_to_slot(value)
+    def real_to_slot_value(self, value: t.Sequence[text.RealStr]) -> tuple[SlotStr, ...]:
+        converted = super().real_to_slot_value(value)
         collection = self.get_collection()
 
         if not collection:
@@ -253,7 +253,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                     combined_real_aliases[i].add(slot_syn)
                     combined_norm_aliases[i].add(norm_syn)
 
-        with self.locked, self.connector.cursor() as c:
+        with self.connector.cursor() as c:
             c.execute(
                 AttributeCollectionEntryTable.delete().where(
                     (
@@ -333,8 +333,9 @@ class StaticAttribute(BaseAttribute):
         super().__post_init__()
 
         if self.kind is None:
-            raise ValueError('Kind not set')
-        
+            raise ValueError("Kind not set")
+
+
 class TaskAttribute(BaseNonStaticAttribute):
     tables = BaseNonStaticAttributeTables(
         db.TaskAttribute,

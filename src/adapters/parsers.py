@@ -4,6 +4,7 @@ from types import MappingProxyType
 
 from src.adapters.errors import (InvalidArgumentFeedbackError,
                                  StructureNotFoundViaSynFeedbackError)
+from src.structures.attribute.slot_str import SlotTypeT
 from src.utils.expression_parsing import errors as ep_errors
 from src.utils.expression_parsing import utils as ep_utils
 from src.utils.expression_parsing.parser import (ExpressionParser,
@@ -14,7 +15,6 @@ from src.utils.expression_parsing.visitor import (BaseExpressionVisitor,
                                                   ListOfStrVisitor,
                                                   ListOfTupleVisitor)
 from structures.attribute import AnyAttributeT, BaseAttribute
-from src.structures.attribute.slot_str import SlotTypeT
 from structures.task.attribute_value_mapping import AttributeValueMapping
 from utils.text import NormStr
 

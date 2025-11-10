@@ -2,16 +2,15 @@ import builtins
 import typing as t
 
 from src.structures.attribute import slot_str
-
-from .user import CommunityUser, JumpediaUser
-from .user.rank import CommunityRank
-
 from src.utils import orm
 from src.utils.text import NormStr, RealStr
+
 from . import BaseStructure, errors, list
 from .attribute import StaticAttribute
 from .jumpedia import db
 from .list import Kind, List
+from .user import CommunityUser, JumpediaUser
+from .user.rank import CommunityRank
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia
@@ -21,7 +20,9 @@ class CommunityLimits(t.NamedTuple):
     community_list_count_max: int = 1
     list_attribute_count_max: int = 16
     list_task_count_max: int = 100
-    attribute_alias_count_max: int = 8  # Don't confuse with task alias count max, which is retrieved via the static attribute
+    attribute_alias_count_max: int = (
+        8  # Don't confuse with task alias count max, which is retrieved via the static attribute
+    )
     attribute_task_value_slot_count_max: int = 32
     attribute_collection_entry_count_max: int = 32
     attribute_collection_entry_alias_count_max: int = 8
@@ -58,85 +59,84 @@ class Community(BaseStructure):
 
         return frozenset(row.id for row in rows)
 
-    def create_list(self, real_name: RealStr) -> List:
-        norm_name = NormStr(real_name)
+    def create_list(self, name: RealStr) -> List:
+        norm_name = NormStr(name)
 
-        with self.locked:
-            list_obj = self.get_list_by_name(norm_name)
+        list_obj = self.get_list_by_name(norm_name)
 
-            if list_obj is not None:
-                raise errors.SynAlreadyTakenError(list_obj)
+        if list_obj is not None:
+            raise errors.SynsAlreadyTakenError(frozenset((list_obj,)))
 
-            count = len(self.get_lists())
+        count = len(self.get_lists())
 
-            if count >= self.limits.community_list_count_max:
-                raise errors.LimitReachedError(
-                    self.limits.community_list_count_max, List
-                )
+        if count >= self.limits.community_list_count_max:
+            raise errors.LimitReachedError(
+                self.limits.community_list_count_max, List
+            )
 
-            with self.connector.cursor() as c:
-                execute_data = c.execute(
-                    db.List.insert(
-                        db.List.community_id.bind(self.id),
-                        db.List.norm_name.bind(norm_name),
-                        db.List.real_name.bind(real_name),
-                    ),
-                    get_last_generated_id=True,
-                )
+        with self.connector.cursor() as c:
+            execute_data = c.execute(
+                db.List.insert(
+                    db.List.community_id.bind(self.id),
+                    db.List.norm_name.bind(norm_name),
+                    db.List.real_name.bind(name),
+                ),
+                get_last_generated_id=True,
+            )
 
-                list_id = execute_data.last_generated_id
-                assert list_id is not None
+            list_id = execute_data.last_generated_id
+            assert list_id is not None
 
-                list_obj = List(
-                    community=self, id=list_id, real_name=real_name, norm_name=norm_name
-                )
+            list_obj = List(
+                community=self, id=list_id, real_name=name, norm_name=norm_name
+            )
 
-                static_attr_id = list_obj.get_default_static_attribute(Kind.ID, -1)
+            static_attr_id = list_obj.get_default_static_attribute(Kind.ID, -1)
 
-                list_obj.create_attribute(
-                    StaticAttribute,
-                    static_attr_id.real_name,
-                    (),
-                    static_attr_id.slot_type,
-                    static_attr_id.max_slots,
-                    min_slots=static_attr_id.min_slots,
-                    kind=static_attr_id.kind,
-                )
+            list_obj.create_attribute(
+                StaticAttribute,
+                static_attr_id.real_name,
+                (),
+                static_attr_id.slot_type,
+                static_attr_id.max_slots,
+                min_slots=static_attr_id.min_slots,
+                kind=static_attr_id.kind,
+            )
 
-                del static_attr_id
+            del static_attr_id
 
-                static_attr_name = list_obj.get_default_static_attribute(Kind.NAME, -1)
+            static_attr_name = list_obj.get_default_static_attribute(Kind.NAME, -1)
 
-                list_obj.create_attribute(
-                    StaticAttribute,
-                    static_attr_name.real_name,
-                    (),
-                    static_attr_name.slot_type,
-                    static_attr_name.max_slots,
-                    min_slots=static_attr_name.min_slots,
-                    kind=static_attr_name.kind,
-                )
+            list_obj.create_attribute(
+                StaticAttribute,
+                static_attr_name.real_name,
+                (),
+                static_attr_name.slot_type,
+                static_attr_name.max_slots,
+                min_slots=static_attr_name.min_slots,
+                kind=static_attr_name.kind,
+            )
 
-                del static_attr_name
+            del static_attr_name
 
-                static_attr_alias = list_obj.get_default_static_attribute(Kind.NAME, -1)
+            static_attr_alias = list_obj.get_default_static_attribute(Kind.NAME, -1)
 
-                list_obj.create_attribute(
-                    StaticAttribute,
-                    static_attr_alias.real_name,
-                    (),
-                    static_attr_alias.slot_type,
-                    static_attr_alias.max_slots,
-                    min_slots=static_attr_alias.min_slots,
-                    kind=static_attr_alias.kind,
-                )
+            list_obj.create_attribute(
+                StaticAttribute,
+                static_attr_alias.real_name,
+                (),
+                static_attr_alias.slot_type,
+                static_attr_alias.max_slots,
+                min_slots=static_attr_alias.min_slots,
+                kind=static_attr_alias.kind,
+            )
 
-                del static_attr_alias
+            del static_attr_alias
 
-            return list_obj
+        return list_obj
 
     def delete_list(self, id: int) -> None:
-        with self.locked, self.connector.cursor() as c:
+        with self.connector.cursor() as c:
             execute_data = c.execute(
                 db.List.delete().where(
                     (db.List.community_id, orm.Operator.EQ, self.id),
@@ -217,75 +217,75 @@ class Community(BaseStructure):
         override_community_rank_if_user_exists: bool,
         override_selected_list_if_user_exists: bool,
     ) -> CommunityUser:
-        with self.locked:
-            community_user = self.get_community_user_by_jumpedia_user(jumpedia_user)
+        community_user = self.get_community_user_by_jumpedia_user(jumpedia_user)
 
-            with self.connector.cursor() as c:
-                # Community user doesn't exist yet
-                if community_user is None:
-                    row = c.fetch_one(
-                        db.CommunityUser.insert(
-                            db.CommunityUser.community_id.bind(self.id),
-                            db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
-                            db.CommunityUser.power.bind(community_rank.power),
-                            db.CommunityUser.selected_list_id.bind(selected_list_id),
-                        ).returning("*")
-                    )
+        with self.connector.cursor() as c:
+            # Community user doesn't exist yet
+            if community_user is None:
+                execute_data = c.execute(
+                    db.CommunityUser.insert(
+                        db.CommunityUser.community_id.bind(self.id),
+                        db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
+                        db.CommunityUser.power.bind(community_rank.power),
+                        db.CommunityUser.selected_list_id.bind(selected_list_id),
+                    ), get_last_generated_id=True
+                )
 
-                    assert row is not None
+                assert execute_data.last_generated_id is not None
 
-                    community_user = CommunityUser(
-                        community=self,
-                        jumpedia_user=jumpedia_user,
-                        community_rank=community_rank,
-                        selected_list_id=selected_list_id,
-                    )
+                return CommunityUser(
+                    id=execute_data.last_generated_id,
+                    community=self,
+                    jumpedia_user=jumpedia_user,
+                    community_rank=community_rank,
+                    selected_list_id=selected_list_id,
+                )
 
-                else:
-                    community_rank = (
-                        community_rank
-                        if override_community_rank_if_user_exists
-                        else community_user.community_rank
-                    )
-                    selected_list_id = (
-                        selected_list_id
-                        if override_selected_list_if_user_exists
-                        else community_user.selected_list_id
-                    )
-
-                    if (
-                        community_rank != community_user.community_rank
-                        or selected_list_id != selected_list_id
-                    ):
-                        execute_data = c.execute(
-                            db.CommunityUser.update(
-                                db.CommunityUser.power.set(community_rank.power),
-                                db.CommunityUser.selected_list_id.set(selected_list_id),
-                            ).where(
-                                (
-                                    db.CommunityUser.community_id,
-                                    orm.Operator.EQ,
-                                    self.id,
-                                ),
-                                (
-                                    db.CommunityUser.jumpedia_user_id,
-                                    orm.Operator.EQ,
-                                    jumpedia_user.id,
-                                ),
-                            ),
-                            get_affected_row_count=True,
-                        )
-
-                        assert execute_data.affected_row_count == 1
-
-            return CommunityUser(
-                community=community_user.community,
-                jumpedia_user=jumpedia_user,
-                community_rank=community_rank,
-                selected_list_id=selected_list_id,
+            community_rank = (
+                community_rank
+                if override_community_rank_if_user_exists
+                else community_user.community_rank
+            )
+            
+            selected_list_id = (
+                selected_list_id
+                if override_selected_list_if_user_exists
+                else community_user.selected_list_id
             )
 
-    # TODO synchronize both cursors so data could in theory not have dirty reads
+            if (
+                community_rank != community_user.community_rank
+                or selected_list_id != selected_list_id
+            ):
+                execute_data = c.execute(
+                    db.CommunityUser.update(
+                        db.CommunityUser.power.set(community_rank.power),
+                        db.CommunityUser.selected_list_id.set(selected_list_id),
+                    ).where(
+                        (
+                            db.CommunityUser.community_id,
+                            orm.Operator.EQ,
+                            self.id,
+                        ),
+                        (
+                            db.CommunityUser.jumpedia_user_id,
+                            orm.Operator.EQ,
+                            jumpedia_user.id,
+                        ),
+                    ),
+                    get_affected_row_count=True
+                )
+
+                assert execute_data.affected_row_count == 1
+
+        return CommunityUser(
+            community=community_user.community,
+            jumpedia_user=jumpedia_user,
+            id=community_user.id,
+            community_rank=community_rank,
+            selected_list_id=selected_list_id,
+        )
+
     def get_community_user_by_jumpedia_user(
         self, jumpedia_user: JumpediaUser
     ) -> CommunityUser | None:
@@ -310,6 +310,7 @@ class Community(BaseStructure):
         return CommunityUser(
             community=self,
             jumpedia_user=jumpedia_user,
+            id=row.id,
             community_rank=CommunityRank.get(row.power),
             selected_list_id=row.selected_list_id,
         )

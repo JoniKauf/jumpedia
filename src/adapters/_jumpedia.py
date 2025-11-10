@@ -8,7 +8,7 @@ from src.utils.orm import Connector
 
 from ..structures.community import Community
 from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
-                                 SynAlreadyTakenError)
+                                 SynsAlreadyTakenError)
 from ..structures.jumpedia import Jumpedia, JumpediaLimits
 from ..utils import text
 from . import BaseAdapter, errors
@@ -98,7 +98,7 @@ class JumpediaAdapter(BaseAdapter):
                 t"The server you are on (`{self.interaction.current_server.name}`) "
                 t"is already connected to a community (`{e.structure.name}`)!",
             )
-        except SynAlreadyTakenError as e:
+        except SynsAlreadyTakenError as e:
             raise errors.SynAlreadyTakenFeedbackError(e)
 
         community = CommunityAdapter(comm, self)

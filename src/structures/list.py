@@ -1,11 +1,12 @@
 import enum
 import itertools
-from pydoc import text
 import typing as t
+from ast import alias
 from types import MappingProxyType
-from src.utils import orm
 
+from src.utils import orm, text
 from src.utils.text import NormStr, RealStr
+
 from . import BaseStructure, errors
 from .attribute import (
     ALL_ATTRIBUTE_TYPES,
@@ -17,14 +18,13 @@ from .attribute import (
     UserAttribute,
 )
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
-from .jumpedia import db
+from .jumpedia import StructureNotFoundError, db
 from .task import Task
-from .task.attribute_value_mapping import AttributeValueMapping, AvmT
+from .task.attribute_value_mapping import AttributeValueMapping, AvmT, UserAttributeValueMapping
 from .user import CommunityUser, JumpediaUser
 
 if t.TYPE_CHECKING:
     from .community import Community
-
 
 
 class Kind(enum.IntEnum):
@@ -32,8 +32,9 @@ class Kind(enum.IntEnum):
     NAME = 2
     ALIAS = 3
 
+
 type _RawAvmT = dict[int, tuple[SlotStr, ...]]
- 
+
 
 class List(BaseStructure):
     community: "Community"
@@ -55,54 +56,60 @@ class List(BaseStructure):
 
     # --- All Attributes ---
 
-    def get_attributes[T: BaseAttribute](self, type: type[T]) -> list[T]:
+    def get_attributes[T: BaseAttribute](self, type: type[T], /) -> list[T]:
         return [
             self._attribute_row_to_obj(type, row)
             for row in self._fetch_from_attribute_table(type.tables.attribute)
         ]
 
-    def get_attribute_by_id[T: BaseAttribute](self, type: type[T], id: int) -> T | None:
+    def get_attributes_by_id[T: BaseAttribute](
+        self, type: type[T], id: int, /, *ids: int
+    ) -> list[T]:
         table_type = type.tables.attribute
         rows = self._fetch_from_attribute_table(
-            table_type, (table_type.id, orm.Operator.EQ, id)
+            table_type, (table_type.id, orm.Operator.IN, (id, *ids))
         )
-        return self._attribute_row_to_obj(type, rows[0]) if rows else None
+        return list(self._attribute_row_to_obj(type, row) for row in rows)
 
-    def get_attribute_by_name[T: BaseAttribute](
-        self, type: type[T], norm_name: NormStr
-    ) -> T | None:
+    def get_attributes_by_name[T: BaseAttribute](
+        self, type: type[T], name: NormStr, /, *names: NormStr
+    ) -> list[T]:
         table_type = type.tables.attribute
         rows = self._fetch_from_attribute_table(
-            table_type, (table_type.norm_name, orm.Operator.EQ, norm_name)
+            table_type, (table_type.norm_name, orm.Operator.IN, (name, *names))
         )
-        return self._attribute_row_to_obj(type, rows[0]) if rows else None
+        return list(self._attribute_row_to_obj(type, row) for row in rows)
 
-    def get_attribute_by_alias[T: BaseAttribute](
-        self, type: type[T], norm_alias: NormStr
-    ) -> T | None:
-        AttributeAliasTable: t.Any = type.tables.attribute_alias
+    def get_attributes_by_alias[T: BaseAttribute](
+        self, type: type[T], alias: NormStr, /, *aliases: NormStr
+    ) -> list[T]:
+        AttributeAliasTable: db.AbstractAttributeAliasTable = type.tables.attribute_alias  # type: ignore
 
         with self.connector.cursor() as c:
-            row = c.fetch_one(
+            rows = c.fetch_all(
                 AttributeAliasTable.select(
                     "*",
                 ).where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                    (AttributeAliasTable.norm_alias, orm.Operator.EQ, norm_alias),
+                    (
+                        AttributeAliasTable.norm_alias,
+                        orm.Operator.IN,
+                        (alias, *aliases),
+                    ),
                 )
             )
 
-        if row is None:
-            return None
+        if not rows:
+            return []
 
-        return self.get_attribute_by_id(type, row.attribute_id)
+        return self.get_attributes_by_id(type, *rows)  # type: ignore
 
-    def get_attribute_by_syn[T: BaseAttribute](
-        self, type: type[T], norm_syn: NormStr
-    ) -> T | None:
-        return self.get_attribute_by_name(
-            type, norm_syn
-        ) or self.get_attribute_by_alias(type, norm_syn)
+    def get_attributes_by_syn[T: BaseAttribute](
+        self, type: type[T], syn: NormStr, /, *syns: NormStr
+    ) -> list[T]:
+        return self.get_attributes_by_name(
+            type, syn, *syns
+        ) or self.get_attributes_by_alias(type, syn, *syns)
 
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
         return tuple(
@@ -116,35 +123,41 @@ class List(BaseStructure):
             self.get_attributes(type) for type in ALL_ATTRIBUTE_TYPES
         )  # type: ignore
 
-    def get_any_attribute_by_id(self, id: int) -> AnyAttributeT | None:
-        for type in ALL_ATTRIBUTE_TYPES:
-            attr = self.get_attribute_by_id(type, id)
+    def get_any_attributes_by_id(self, id: int, /, *ids: int) -> list[AnyAttributeT]:
+        return [
+            attr
+            for type in ALL_ATTRIBUTE_TYPES
+            for attr in self.get_attributes_by_id(type, id, *ids)
+        ]
 
-            if attr is not None:
-                return attr
+    def get_any_attributes_by_name(
+        self, name: NormStr, /, *names: NormStr
+    ) -> list[AnyAttributeT]:
+        return [
+            attr
+            for type in ALL_ATTRIBUTE_TYPES
+            for attr in self.get_attributes_by_name(type, name, *names)
+        ]
 
-    def get_any_attribute_by_name(self, norm_name: NormStr) -> AnyAttributeT | None:
-        for type in ALL_ATTRIBUTE_TYPES:
-            attr = self.get_attribute_by_name(type, norm_name)
+    def get_any_attributes_by_alias(
+        self, alias: NormStr, /, *aliases: NormStr
+    ) -> list[AnyAttributeT]:
+        return [
+            attr
+            for type in ALL_ATTRIBUTE_TYPES
+            for attr in self.get_attributes_by_alias(type, alias, *aliases)
+        ]
 
-            if attr is not None:
-                return attr
+    def get_any_attributes_by_syn(
+        self, syn: NormStr, /, *syns: NormStr
+    ) -> list[AnyAttributeT]:
+        return [
+            attr
+            for type in ALL_ATTRIBUTE_TYPES
+            for attr in self.get_attributes_by_syn(type, syn, *syns)
+        ]
 
-    def get_any_attribute_by_alias(self, norm_alias: NormStr) -> AnyAttributeT | None:
-        for type in ALL_ATTRIBUTE_TYPES:
-            attr = self.get_attribute_by_alias(type, norm_alias)
-
-            if attr is not None:
-                return attr
-
-    def get_any_attribute_by_syn(self, norm_syn: NormStr) -> AnyAttributeT | None:
-        for type in ALL_ATTRIBUTE_TYPES:
-            attr = self.get_attribute_by_syn(type, norm_syn)
-
-            if attr is not None:
-                return attr
-
-    def get_static_attribute_by_kind(self, kind: Kind) -> StaticAttribute:
+    def get_static_attribute_by_kind(self, kind: Kind, /) -> StaticAttribute:
         if kind not in Kind:
             raise ValueError(f"Kind {kind} is not valid")
 
@@ -165,9 +178,11 @@ class List(BaseStructure):
 
         return self._attribute_row_to_obj(StaticAttribute, row)
 
-    def get_default_static_attribute(self, kind: Kind, id: int) -> StaticAttribute:
+    def _get_default_static_attribute(
+        self, kind: Kind, id: int = -1, /
+    ) -> StaticAttribute:
         if kind.value == 1:
-            real_name = RealStr('Id')
+            real_name = RealStr("Id")
 
             return StaticAttribute(
                 list=self,
@@ -178,11 +193,11 @@ class List(BaseStructure):
                 position=0,
                 min_slots=1,
                 max_slots=1,
-                kind=kind
+                kind=kind,
             )
-        
+
         if kind.value == 2:
-            real_name = RealStr('Name')
+            real_name = RealStr("Name")
 
             return StaticAttribute(
                 list=self,
@@ -193,11 +208,11 @@ class List(BaseStructure):
                 position=1,
                 min_slots=1,
                 max_slots=1,
-                kind=kind
+                kind=kind,
             )
-        
+
         if kind.value == 3:
-            real_name = RealStr('Alias')
+            real_name = RealStr("Alias")
 
             return StaticAttribute(
                 list=self,
@@ -208,12 +223,11 @@ class List(BaseStructure):
                 position=1,
                 min_slots=0,
                 max_slots=self.community.limits.attribute_task_value_slot_count_max,
-                kind=kind
+                kind=kind,
             )
-        
+
         t.assert_never(kind.value)
-        
-        
+
     @t.overload
     def create_attribute[T: StaticAttribute](
         self,
@@ -266,94 +280,99 @@ class List(BaseStructure):
             NormStr.unique_reals_and_norms((real_name, *real_aliases))
         )
 
-        with self.locked:
-            attrs = self.get_all_attributes_flat()
+        attrs = self.get_all_attributes_flat()
 
-            if len(attrs) >= self.community.limits.list_attribute_count_max:
-                raise errors.LimitReachedError(
-                    self.community.limits.list_attribute_count_max, type
-                )
-
-            for syn in (norm_name, *norm_aliases):
-                if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
-                    raise errors.TooLongSynError(
-                        syn,
-                        self.community.jumpedia.limits.attribute_syn_length_max,
-                        type
-                    )
-
-                attr_ = self.get_any_attribute_by_syn(syn)
-
-                if attr_ is not None:
-                    raise errors.SynAlreadyTakenError(attr_)
-
-            if not (0 <= min_slots <= max_slots <= self.community.limits.attribute_task_value_slot_count_max):
-                raise errors.AttributeMinSlotsOrMaxSlotsOutOfRange(
-                    min_slots,
-                    max_slots,
-                    0,
-                    self.community.limits.attribute_task_value_slot_count_max
-                )
-            
-            position = max(attr.position for attr in attrs) + 1 if attrs else 1
-
-            AttributeTable = t.cast(
-                type[db.AbstractAttributeTable], type.tables.attribute
+        if len(attrs) >= self.community.limits.list_attribute_count_max:
+            raise errors.LimitReachedError(
+                self.community.limits.list_attribute_count_max, type
             )
 
-            with self.connector.cursor() as c:
-                additional: tuple[orm.ColumnBind[t.Any, t.Any], ...] = ()
-
-                if issubclass(AttributeTable, db.StaticAttribute):
-                    additional = (AttributeTable.kind.bind(kind),)
-
-                execute_data = c.execute(
-                    AttributeTable.insert(
-                        AttributeTable.list_id.bind(self.id),
-                        AttributeTable.norm_name.bind(norm_name),
-                        AttributeTable.real_name.bind(real_name),
-                        AttributeTable.slot_type.bind(SLOT_TYPES.index(slot_type)),
-                        AttributeTable.position.bind(position),
-                        AttributeTable.min_slots.bind(min_slots),
-                        AttributeTable.max_slots.bind(max_slots),
-                        *additional,
-                    ),
-                    get_last_generated_id=True,
+        for syn in (norm_name, *norm_aliases):
+            if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
+                raise errors.TooLongSynError(
+                    syn,
+                    self.community.jumpedia.limits.attribute_syn_length_max,
+                    type,
                 )
 
-                attribute_id = execute_data.last_generated_id
-                assert attribute_id is not None
+            try:
+                _ = self.get_any_attributes_by_syn(syn)[0]
+            except IndexError:
+                raise errors.StructureNotFoundError(type)
 
-                self._insert_attribute_aliases(
-                    c, type, attribute_id, real_aliases, norm_aliases
-                )
+        if not (
+            0
+            <= min_slots
+            <= max_slots
+            <= self.community.limits.attribute_task_value_slot_count_max
+        ):
+            raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
+                min_slots,
+                max_slots,
+                0,
+                self.community.limits.attribute_task_value_slot_count_max,
+            )
 
-                attribute = type(
-                    list=self,
-                    id=attribute_id,
-                    real_name=real_name,
-                    norm_name=norm_name,
-                    slot_type=slot_type,
-                    position=position,
-                    min_slots=min_slots,
-                    max_slots=max_slots,
-                    kind=kind,
-                )
+        position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
-                if collection:
-                    assert isinstance(
-                        attribute, BaseNonStaticAttribute
-                    ), "Typing not followed on attribute creation #3"
-                    attribute.set_collection(collection)
+        AttributeTable = t.cast(
+            type[db.AbstractAttributeTable], type.tables.attribute
+        )
 
-                return attribute
+        with self.connector.cursor() as c:
+            additional: tuple[orm.ColumnBind[t.Any, t.Any], ...] = ()
+
+            if issubclass(AttributeTable, db.StaticAttribute):
+                assert kind is not None
+                additional = (AttributeTable.kind.bind(kind.value),)
+
+            execute_data = c.execute(
+                AttributeTable.insert(
+                    AttributeTable.list_id.bind(self.id),
+                    AttributeTable.norm_name.bind(norm_name),
+                    AttributeTable.real_name.bind(real_name),
+                    AttributeTable.slot_type.bind(SLOT_TYPES.index(slot_type)),
+                    AttributeTable.position.bind(position),
+                    AttributeTable.min_slots.bind(min_slots),
+                    AttributeTable.max_slots.bind(max_slots),
+                    *additional,
+                ),
+                get_last_generated_id=True,
+            )
+
+            attribute_id = execute_data.last_generated_id
+            assert attribute_id is not None
+
+            self._insert_attribute_aliases(
+                c, type, attribute_id, real_aliases, norm_aliases
+            )
+
+            attribute = type(
+                list=self,
+                id=attribute_id,
+                real_name=real_name,
+                norm_name=norm_name,
+                slot_type=slot_type,
+                position=position,
+                min_slots=min_slots,
+                max_slots=max_slots,
+                kind=kind,
+            )
+
+            if collection:
+                assert isinstance(
+                    attribute, BaseNonStaticAttribute
+                ), "Typing not followed on attribute creation #3"
+                attribute.set_collection(collection)
+
+            return attribute
 
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
         from . import errors
 
         AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
 
-        with self.locked, self.connector.cursor() as c:
+        with self.connector.cursor() as c:
             execute_data = c.execute(
                 AttributeTable.delete().where(
                     (AttributeTable.list_id, orm.Operator.EQ, self.id),
@@ -370,84 +389,40 @@ class List(BaseStructure):
     ) -> None:
         norm_name = NormStr(real_name)
 
-        with self.locked:
-            attribute = self.get_attribute_by_id(type, id)
+        try:
+            attribute = self.get_attributes_by_id(type, id)[0]
+        except IndexError:
+            raise errors.StructureNotFoundError(type)
 
-            if attribute is None:
-                raise errors.StructureNotFoundError(type)
+        if real_name == attribute.real_name:
+            return
 
-            if real_name == attribute.real_name:
-                return
+        self._validate_attribute_syns(
+            type, norm_name, allowed_attributes=frozenset([attribute])
+        )
 
-            self._validate_attribute_syns(type, norm_name, allowed_attributes=frozenset([attribute]))
+        AttributeTable = t.cast(
+            type[db.AbstractAttributeTable], type.tables.attribute
+        )
 
-            AttributeTable = t.cast(
-                type[db.AbstractAttributeTable], type.tables.attribute
+        with self.connector.cursor() as c:
+            execute_data = c.execute(
+                AttributeTable.update(
+                    AttributeTable.norm_name.set(norm_name),
+                    AttributeTable.real_name.set(real_name),
+                ).where(
+                    (AttributeTable.list_id, orm.Operator.EQ, self.id),
+                    (AttributeTable.id, orm.Operator.EQ, attribute.id),
+                ),
+                get_affected_row_count=True,
             )
 
-            with self.connector.cursor() as c:
-                execute_data = c.execute(
-                    AttributeTable.update(
-                        AttributeTable.norm_name.set(norm_name),
-                        AttributeTable.real_name.set(real_name),
-                    ).where(
-                        (AttributeTable.list_id, orm.Operator.EQ, self.id),
-                        (AttributeTable.id, orm.Operator.EQ, attribute.id),
-                    ),
-                    get_affected_row_count=True,
-                )
+            assert execute_data.affected_row_count == 1
 
-                assert execute_data.affected_row_count == 1
+            # If the new name is an alias, remove the alias
+            if norm_name in attribute.get_norm_aliases():
+                AttributeAliasTable = attribute.__class__.tables.attribute_alias
 
-                # If the new name is an alias, remove the alias
-                if norm_name in attribute.get_norm_aliases():
-                    AttributeAliasTable = attribute.__class__.tables.attribute_alias
-
-                    c.execute(
-                        AttributeAliasTable.delete().where(
-                            (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                            (
-                                AttributeAliasTable.attribute_id,
-                                orm.Operator.EQ,
-                                attribute.id,
-                            ),
-                            (
-                                AttributeAliasTable.norm_alias,
-                                orm.Operator.EQ,
-                                norm_name,
-                            ),
-                        )
-                    )
-
-    def edit_attribute_aliases(
-        self, type: type[BaseAttribute], id: int, aliases: t.Iterable[RealStr]
-    ) -> None:
-        (*real_aliases,), (*norm_aliases,) = NormStr.unique_reals_and_norms(aliases)
-
-        with self.locked:
-            attribute = self.get_attribute_by_id(type, id)
-
-            if attribute is None:
-                raise errors.StructureNotFoundError(type)
-
-            self._validate_attribute_syns(
-                type,
-                norm_aliases=frozenset(norm_aliases), allowed_attributes=frozenset([attribute])
-            )
-
-            # If an alias is the name already, remove it
-            try:
-                idx = norm_aliases.index(attribute.norm_name)
-            except ValueError:
-                pass
-            else:
-                real_aliases.pop(idx)
-                norm_aliases.pop(idx)
-
-            AttributeAliasTable = type.tables.attribute_alias
-
-            with self.connector.cursor() as c:
-                # Delete all aliases
                 c.execute(
                     AttributeAliasTable.delete().where(
                         (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
@@ -456,12 +431,57 @@ class List(BaseStructure):
                             orm.Operator.EQ,
                             attribute.id,
                         ),
+                        (
+                            AttributeAliasTable.norm_alias,
+                            orm.Operator.EQ,
+                            norm_name,
+                        ),
                     )
                 )
 
-                self._insert_attribute_aliases(
-                    c, type, attribute.id, real_aliases, norm_aliases
+    def edit_attribute_aliases(
+        self, type: type[BaseAttribute], id: int, aliases: t.Iterable[RealStr]
+    ) -> None:
+        (*real_aliases,), (*norm_aliases,) = NormStr.unique_reals_and_norms(aliases)
+
+        try:
+            attribute = self.get_attributes_by_id(type, id)[0]
+        except IndexError:
+            raise errors.StructureNotFoundError(type)
+
+        self._validate_attribute_syns(
+            type,
+            norm_aliases=frozenset(norm_aliases),
+            allowed_attributes=frozenset([attribute]),
+        )
+
+        # If an alias is the name already, remove it
+        try:
+            idx = norm_aliases.index(attribute.norm_name)
+        except ValueError:
+            pass
+        else:
+            real_aliases.pop(idx)
+            norm_aliases.pop(idx)
+
+        AttributeAliasTable = type.tables.attribute_alias
+
+        with self.connector.cursor() as c:
+            # Delete all aliases
+            c.execute(
+                AttributeAliasTable.delete().where(
+                    (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                    (
+                        AttributeAliasTable.attribute_id,
+                        orm.Operator.EQ,
+                        attribute.id,
+                    ),
                 )
+            )
+
+            self._insert_attribute_aliases(
+                c, type, attribute.id, real_aliases, norm_aliases
+            )
 
     def _fetch_from_attribute_table[T: db.AnyAttributeTable](
         self, table_type: type[T], *where: tuple[t.Any, orm.Operator, t.Any]
@@ -491,7 +511,7 @@ class List(BaseStructure):
                 position=row.position,
                 min_slots=row.min_slots,
                 max_slots=row.max_slots,
-                kind=row.kind,
+                kind=Kind(row.kind),
             )
 
         return type(
@@ -505,31 +525,28 @@ class List(BaseStructure):
             max_slots=row.max_slots,
         )
 
-    def _cook_raw_task_attribute_value_mapping(
-        self, task_attribute_value_mapping: dict[int, t.Sequence[RealStr]]
-    ) -> dict[TaskAttribute, tuple[SlotStr, ...]]:
-        id_to_attr = {attr.id: attr for attr in self.get_attributes(TaskAttribute)}
+    def _calc_attribute_value_mapping[T: TaskAttribute | UserAttribute](
+        self, type: type[T], attribute_value_mapping: dict[int, t.Sequence[RealStr]]
+    ) -> dict[T, tuple[SlotStr, ...]]:
+        id_to_attr = {attr.id: attr for attr in self.get_attributes(type)}
 
-        # Check if all required attributes are given
+        for id in attribute_value_mapping:
+            if id not in id_to_attr:
+                raise StructureNotFoundError(type)
+            
         for attr in id_to_attr.values():
-            task_attribute_value_mapping.setdefault(attr.id, ())
+            attribute_value_mapping.setdefault(attr.id, ())
 
-        if not task_attribute_value_mapping:
-            return {}
-
-        attribute_value_mapping: dict[TaskAttribute, tuple[SlotStr, ...]] = {}
+        avm: dict[T, tuple[SlotStr, ...]] = {}
 
         # Convert ids to attributes and validate value
-        for attr_id, v in task_attribute_value_mapping.items():
-            if attr_id not in id_to_attr:
-                raise errors.StructureNotFoundError(TaskAttribute)
-
+        for attr_id, v in attribute_value_mapping.items():
             attr = id_to_attr[attr_id]
-            val = attr.real_to_slot(v)
+            val = attr.real_to_slot_value(v)
 
-            attribute_value_mapping[attr] = val
+            avm[attr] = val
 
-        return attribute_value_mapping
+        return avm
 
     def _insert_attribute_aliases(
         self,
@@ -542,7 +559,7 @@ class List(BaseStructure):
         if not norm_aliases:
             return
 
-        AttributeAliasTable: type[db.AllAttributeAliasTable] = type.tables.attribute_alias  # type: ignore
+        AttributeAliasTable: type[db.AbstractAttributeAliasTable] = type.tables.attribute_alias  # type: ignore
         count = len(norm_aliases)
 
         c.execute(
@@ -558,37 +575,47 @@ class List(BaseStructure):
 
     # --- Tasks ---
 
+    def _task_id_to_slot(self, id: int) -> SlotStr:
+        return self._get_default_static_attribute(Kind.ID).real_to_slot_value((RealStr(str(id)),))[0]
+    def _task_real_name_to_slot(self, name: RealStr) -> SlotStr:
+        return self._get_default_static_attribute(Kind.NAME).real_to_slot_value((name,))[0]
+    
+    def _task_real_aliases_to_slot_value(self, aliases: t.Sequence[RealStr]) -> tuple[SlotStr, ...]:
+        return self._get_default_static_attribute(Kind.ALIAS).real_to_slot_value(aliases)
+    
     def get_tasks(self, *where: tuple[t.Any, orm.Operator, t.Any]) -> list[Task]:
         return [
             self._task_row_to_obj(data) for data in self._fetch_tasks_from_table(*where)
         ]
 
-    def get_task_by_id(self, id: int) -> Task | None:
-        data = self._fetch_tasks_from_table((db.Task.id, orm.Operator.EQ, id))
-        return self._task_row_to_obj(data[0]) if data else None
+    def get_tasks_by_id(self, id: int, /, *ids: int) -> list[Task]:
+        rows = self._fetch_tasks_from_table((db.Task.id, orm.Operator.IN, (id, *ids)))
+        return list(map(self._task_row_to_obj, rows))
 
-    def get_task_by_name(self, norm_name: NormStr) -> Task | None:
-        data = self._fetch_tasks_from_table(
-            (db.Task.norm_name, orm.Operator.EQ, norm_name)
+    def get_tasks_by_name(self, name: NormStr, /, *names: NormStr) -> list[Task]:
+        rows = self._fetch_tasks_from_table(
+            (db.Task.norm_name, orm.Operator.IN, (name, *names))
         )
-        return self._task_row_to_obj(data[0]) if data else None
+        return list(map(self._task_row_to_obj, rows))
 
-    def get_task_by_alias(self, norm_alias: NormStr) -> Task | None:
+    def get_tasks_by_alias(self, alias: NormStr, /, *aliases: NormStr) -> list[Task]:
         with self.connector.cursor() as c:
-            row = c.fetch_one(
+            rows = c.fetch_all(
                 db.TaskAlias.select(db.TaskAlias.task_id).where(
                     (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
-                    (db.TaskAlias.norm_alias, orm.Operator.EQ, norm_alias),
+                    (db.TaskAlias.norm_alias, orm.Operator.IN, (alias, *aliases)),
                 )
             )
 
-        if row is None:
-            return None
+        if not rows:
+            return []
 
-        return self.get_task_by_id(row.task_id)
+        return self.get_tasks_by_id(*(row.task_id for row in rows))
 
-    def get_task_by_syn(self, norm_syn: NormStr) -> Task | None:
-        return self.get_task_by_name(norm_syn) or self.get_task_by_alias(norm_syn)
+    def get_tasks_by_syn(self, norm_syn: NormStr, /, *norm_syns: NormStr) -> list[Task]:
+        return self.get_tasks_by_name(norm_syn, *norm_syns) + self.get_tasks_by_alias(
+            norm_syn, *norm_syns
+        )
 
     def _get_attributes_and_data_for_non_static_attribute_value_mapping[
         T: BaseNonStaticAttribute
@@ -599,34 +626,41 @@ class List(BaseStructure):
         id_to_attr = {(attr.type_id, attr.id): attr for attr in task_attrs}
         del task_attrs
 
-        AttributeTaskValueTable = t.cast(
-            type[db.AbstractAttributeTaskValueTable], type.tables.attribute_task_value
-        )
+        AttributeTaskValueTable = type.tables.attribute_task_value
 
-        additional_where: tuple[tuple[t.Any, orm.Operator, t.Any], ...] = ()
-
-        if issubclass(AttributeTaskValueTable, db.UserAttributeTaskValue):
-            additional_where = (
-                (AttributeTaskValueTable.user_id, orm.Operator.EQ, community_user_id),
+        if issubclass(AttributeTaskValueTable, db.TaskAttributeTaskValue):
+            rows = c.fetch_all(
+                AttributeTaskValueTable.select(
+                    AttributeTaskValueTable.task_id,
+                    AttributeTaskValueTable.attribute_id,
+                    AttributeTaskValueTable.slot_slot,
+                )
+                .where(
+                    (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
+                )
+                .order_by(
+                    (AttributeTaskValueTable.task_id, orm.Order.ASC),
+                    (AttributeTaskValueTable.attribute_id, orm.Order.ASC),
+                    (AttributeTaskValueTable.index, orm.Order.ASC),
+                )
             )
-
-        rows = c.fetch_all(
-            AttributeTaskValueTable.select(
-                AttributeTaskValueTable.task_id,
-                AttributeTaskValueTable.attribute_id,
-                AttributeTaskValueTable.slot_slot,
-                AttributeTaskValueTable.index,
+        elif issubclass(AttributeTaskValueTable, db.UserAttributeTaskValue):
+            rows = c.fetch_all(
+                AttributeTaskValueTable.select(
+                    AttributeTaskValueTable.task_id,
+                    AttributeTaskValueTable.attribute_id,
+                    AttributeTaskValueTable.slot_slot,
+                ).where(
+                    (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
+                    (AttributeTaskValueTable.community_user_id, orm.Operator.EQ, community_user_id)
+                ).order_by(
+                    AttributeTaskValueTable.task_id,
+                    AttributeTaskValueTable.attribute_id,
+                    AttributeTaskValueTable.index,
+                )
             )
-            .where(
-                (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
-                *additional_where,
-            )
-            .order_by(
-                (AttributeTaskValueTable.task_id, orm.Order.ASC),
-                (AttributeTaskValueTable.attribute_id, orm.Order.ASC),
-                (AttributeTaskValueTable.index, orm.Order.ASC),
-            )
-        )
+        else:
+            t.assert_never(AttributeTaskValueTable)
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
         value: list[SlotStr] = []
@@ -649,9 +683,21 @@ class List(BaseStructure):
 
         return (id_to_attr, raw_data)
 
-    def get_tasks_attribute_value_mapping(
-        self, jumpedia_user_id: int | None
-    ) -> tuple[list[AnyAttributeT], list[AttributeValueMapping]]:
+    @t.overload
+    def get_task_attribute_value_mappings(
+        self, /
+    ) -> tuple[list[StaticAttribute | TaskAttribute], list[AttributeValueMapping]]:
+        pass
+
+    @t.overload
+    def get_task_attribute_value_mappings(
+        self, community_user: CommunityUser, /
+    ) -> tuple[list[AnyAttributeT], list[UserAttributeValueMapping]]:
+        pass
+
+    def get_task_attribute_value_mappings(
+        self, community_user: CommunityUser | None = None, /
+    ) -> tuple[list[t.Any], list[t.Any]]:
         id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
         type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
 
@@ -659,30 +705,11 @@ class List(BaseStructure):
 
         ATTRIBUTES_TYPES_TO_HANDLE = (
             (StaticAttribute, TaskAttribute)
-            if jumpedia_user_id is None
+            if community_user is None
             else ALL_ATTRIBUTE_TYPES
         )
 
         with self.connector.cursor() as c:
-            community_user: CommunityUser | None = None
-
-            if jumpedia_user_id is not None:
-                jumpedia_user = self.community.jumpedia.get_jumpedia_user_by_id(
-                    jumpedia_user_id
-                )
-
-                if jumpedia_user is None:
-                    raise errors.StructureNotFoundError(JumpediaUser)
-
-                community_user = self.community.get_community_user_by_jumpedia_user(
-                    jumpedia_user
-                )
-
-                if community_user is None:
-                    raise errors.StructureNotFoundError(CommunityUser)
-
-            del jumpedia_user_id
-
             # --- Static Attribute ---
             static_attrs = self.get_attributes(StaticAttribute)
 
@@ -740,7 +767,7 @@ class List(BaseStructure):
 
         # --- Final Conversion ---
 
-        final: list[AttributeValueMapping] = []
+        final: list[AttributeValueMapping | UserAttributeValueMapping] = []
 
         for task_id, data in raw_data.items():
             avms = tuple(
@@ -756,74 +783,73 @@ class List(BaseStructure):
             static_and_task_avm: tuple[AvmT[StaticAttribute], AvmT[TaskAttribute]] = (
                 avms[:2]
             )  # pyright: ignore[reportAssignmentType]
-            user_avm: tuple[CommunityUser, AvmT[UserAttribute]] | None = None
 
-            if community_user is not None:
-                user_avm = (
-                    community_user,
-                    avms[2],
-                )  # pyright: ignore[reportAssignmentType]
-
-            final.append(
-                AttributeValueMapping(
-                    id_to_task[task_id], *static_and_task_avm, user_avm
-                )
+            avm = AttributeValueMapping(
+                id_to_task[task_id], *static_and_task_avm
             )
+            
+            if community_user is None:
+                final.append(avm)
+            else:
+                final.append(UserAttributeValueMapping(avm, community_user, avms[2]))  # type: ignore
 
         return list(type_id_and_id_to_attribute.values()), final
 
     def create_task(
         self,
-        real_name: RealStr,
-        real_aliases: t.Iterable[RealStr],
+        name: RealStr,
+        aliases: t.Sequence[RealStr],
         task_attribute_value_mapping: dict[int, t.Sequence[RealStr]],
     ) -> Task:
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
-            NormStr.unique_reals_and_norms((real_name, *real_aliases))
+            NormStr.unique_reals_and_norms((name, *aliases))
         )
 
-        with self.locked:
-            self._validate_task_syns(norm_name, frozenset(norm_aliases))
+        del name, aliases
 
-            all_tasks = self.get_tasks()
+        slot_name = self._task_real_name_to_slot(real_name)
+        slot_aliases = self._task_real_aliases_to_slot_value(real_aliases)
 
-            if len(all_tasks) >= self.community.limits.list_task_count_max:
-                raise errors.LimitReachedError(
-                    self.community.limits.list_task_count_max, Task
-                )
+        del real_name, real_aliases
 
-            cooked = self._cook_raw_task_attribute_value_mapping(
-                task_attribute_value_mapping
+        self._validate_task_syns(norm_name, frozenset(norm_aliases))
+
+        all_tasks = self.get_tasks()
+
+        if len(all_tasks) >= self.community.limits.list_task_count_max:
+            raise errors.LimitReachedError(
+                self.community.limits.list_task_count_max, Task
             )
 
-            del task_attribute_value_mapping
+        avm = self._calc_attribute_value_mapping(
+            TaskAttribute,
+            task_attribute_value_mapping
+        )
 
-            slot_name = self.get_default_static_attribute(Kind.NAME, -1).real_to_slot([real_name])
-            
-            with self.connector.cursor() as c:
-                execute_data = c.execute(
-                    db.Task.insert(
-                        db.Task.list_id.bind(self.id),
-                        db.Task.norm_name.bind(norm_name),
-                        db.Task.slot_name.bind(real_name),
-                    ),
-                    get_last_generated_id=True,
-                )
+        del task_attribute_value_mapping
 
-                task_id = execute_data.last_generated_id
-                assert task_id is not None
+        with self.connector.cursor() as c:
+            execute_data = c.execute(
+                db.Task.insert(
+                    db.Task.list_id.bind(self.id),
+                    db.Task.norm_name.bind(norm_name),
+                    db.Task.slot_name.bind(slot_name),
+                ),
+                get_last_generated_id=True,
+            )
 
-                self._insert_task_aliases(c, task_id, real_aliases, norm_aliases)
-                self._insert_task_attribute_value_mapping(
-                    c, task_id, cooked
-                )
+            task_id = execute_data.last_generated_id
+            assert task_id is not None
 
-            return Task(list=self, id=task_id, slot_name=real_name, norm_name=norm_name)
+            self._insert_task_aliases(c, task_id, slot_aliases, norm_aliases)
+            self._insert_task_attribute_value_mapping(c, task_id, avm)
+
+        return Task(list=self, id=task_id, slot_name=slot_name, norm_name=norm_name)
 
     def delete_task(self, id: int) -> None:
         from . import errors
 
-        with self.locked, self.connector.cursor() as c:
+        with self.connector.cursor() as c:
             execute_data = c.execute(
                 db.Task.delete().where(
                     (db.Task.list_id, orm.Operator.EQ, self.id),
@@ -837,112 +863,110 @@ class List(BaseStructure):
 
             assert execute_data.affected_row_count == 1
 
-    def edit_task_name(self, id: int, slot_name: SlotStr) -> None:
+    def edit_task_name(self, id: int, name: text.RealStr) -> None:
+        slot_name = self._task_real_name_to_slot(name)
         norm_name = NormStr(slot_name)
 
-        with self.locked:
-            task = self.get_task_by_id(id)
+        del name
 
-            if task is None:
-                raise errors.StructureNotFoundError(Task)
+        try:
+            task = self.get_tasks_by_id(id)[0]
+        except IndexError:
+            raise errors.StructureNotFoundError(Task)
 
-            if slot_name == task.slot_name:
-                return
+        if slot_name == task.slot_name:
+            return
 
-            self._validate_task_syns(norm_name, allowed_tasks=frozenset([task]))
+        self._validate_task_syns(norm_name, allowed_tasks=frozenset([task]))
 
-            with self.connector.cursor() as c:
-                c.execute(
-                    db.Task.update(
-                        db.Task.norm_name.set(norm_name),
-                        db.Task.slot_name.set(slot_name),
-                    ).where(
-                        (db.Task.list_id, orm.Operator.EQ, self.id),
-                        (db.Task.id, orm.Operator.EQ, task.id),
-                    )
+        with self.connector.cursor() as c:
+            c.execute(
+                db.Task.update(
+                    db.Task.norm_name.set(norm_name),
+                    db.Task.slot_name.set(slot_name),
+                ).where(
+                    (db.Task.list_id, orm.Operator.EQ, self.id),
+                    (db.Task.id, orm.Operator.EQ, task.id),
                 )
-
-                # If the new name is an alias, remove the alias
-                execute_data = c.execute(
-                    db.TaskAlias.delete().where(
-                        (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
-                        (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
-                        (db.TaskAlias.norm_alias, orm.Operator.EQ, norm_name),
-                    ),
-                    get_affected_row_count=True,
-                )
-
-                assert execute_data.affected_row_count in (0, 1)
-
-    def edit_task_aliases(self, id: int, slot_aliases: t.Iterable[SlotStr]) -> None:
-        slot_aliases, norm_aliases = NormStr.unique_reals_and_norms(slot_aliases)
-
-        with self.locked:
-            task = self.get_task_by_id(id)
-
-            if task is None:
-                raise errors.StructureNotFoundError(Task)
-
-            self._validate_task_syns(
-                norm_aliases=frozenset(norm_aliases), allowed_tasks=frozenset([task])
             )
 
-            norm_name = task.norm_name
+            # If the new name is an alias, remove the alias
+            execute_data = c.execute(
+                db.TaskAlias.delete().where(
+                    (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
+                    (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
+                    (db.TaskAlias.norm_alias, orm.Operator.EQ, norm_name),
+                ),
+                get_affected_row_count=True,
+            )
 
-            # If an alias is the name already, remove it
-            try:
-                idx = norm_aliases.index(norm_name)
-            except ValueError:
-                pass
-            else:
-                slot_aliases = slot_aliases[:idx] + slot_aliases[idx + 1 :]
-                norm_aliases = norm_aliases[:idx] + norm_aliases[idx + 1 :]
+            assert execute_data.affected_row_count in (0, 1)
 
-            del norm_name
+    def edit_task_aliases(self, id: int, aliases: t.Sequence[RealStr]) -> None:
+        real_aliases, norm_aliases = NormStr.unique_reals_and_norms(aliases)
 
-            with self.connector.cursor() as c:
-                # Delete all aliases
-                c.execute(
-                    db.TaskAlias.delete().where(
-                        (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
-                        (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
-                    )
+        del aliases
+
+        slot_aliases = self._task_real_aliases_to_slot_value(real_aliases)
+
+        del real_aliases
+
+        try:
+            task = self.get_tasks_by_id(id)[0]
+        except IndexError:
+            raise errors.StructureNotFoundError(Task)
+
+        self._validate_task_syns(
+            norm_aliases=frozenset(norm_aliases), allowed_tasks=frozenset([task])
+        )
+
+        norm_name = task.norm_name
+
+        # If an alias is the name already, remove it
+        try:
+            idx = norm_aliases.index(norm_name)
+        except ValueError:
+            pass
+        else:
+            slot_aliases = slot_aliases[:idx] + slot_aliases[idx + 1 :]
+            norm_aliases = norm_aliases[:idx] + norm_aliases[idx + 1 :]
+
+        del norm_name
+
+        with self.connector.cursor() as c:
+            # Delete all aliases
+            c.execute(
+                db.TaskAlias.delete().where(
+                    (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
+                    (db.TaskAlias.task_id, orm.Operator.EQ, task.id),
                 )
+            )
 
-                self._insert_task_aliases(c, task.id, slot_aliases, norm_aliases)
+            self._insert_task_aliases(c, task.id, slot_aliases, norm_aliases)
 
     def edit_task_attribute_value_mapping(
         self,
-        id: int,
-        task_attribute_value_mapping: dict[int, t.Sequence[SlotStr]],
+        task: Task,
+        task_attribute_value_mapping: dict[int, t.Sequence[RealStr]],
     ) -> None:
-        from . import errors
+        tavm = self._calc_attribute_value_mapping(
+            TaskAttribute,
+            task_attribute_value_mapping
+        )
 
-        with self.locked:
-            task = self.get_task_by_id(id)
+        del task_attribute_value_mapping
 
-            if task is None:
-                raise errors.StructureNotFoundError(Task)
+        AttributeTaskValueTable = TaskAttribute.tables.attribute_task_value
 
-            tavm = self._cook_raw_task_attribute_value_mapping(
-                task_attribute_value_mapping
+        with self.connector.cursor() as c:
+            c.execute(
+                AttributeTaskValueTable.delete().where(
+                    (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
+                    (AttributeTaskValueTable.task_id, orm.Operator.EQ, task.id),
+                )
             )
-            
-            del task_attribute_value_mapping
 
-            AttributeTaskValueTable = TaskAttribute.tables.attribute_task_value
-
-            with self.connector.cursor() as c:
-                c.execute(
-                    AttributeTaskValueTable.delete().where(
-                        (AttributeTaskValueTable.list_id, orm.Operator.EQ, self.id),
-                        (AttributeTaskValueTable.task_id, orm.Operator.EQ, task.id),
-                    )
-                )
-
-                self._insert_task_attribute_value_mapping(
-                    c, task.id, tavm
-                )
+            self._insert_task_attribute_value_mapping(c, task.id, tavm)
 
     def _fetch_tasks_from_table(
         self, *where: tuple[t.Any, orm.Operator, t.Any]
@@ -1029,18 +1053,18 @@ class List(BaseStructure):
 
         if norm_aliases:
             norm_syns.update(norm_aliases)
-        
+
         alias_copycat = self.get_default_static_attribute(Kind.ALIAS, -1)
 
-        if (
-            len(norm_aliases)
-            > alias_copycat.max_slots
+        if not (
+            alias_copycat.min_slots <= len(norm_aliases) <= alias_copycat.max_slots
         ):
             raise errors.TooManyAliasesError(
-                norm_aliases,
-                alias_copycat.max_slots,
-                Task
+                norm_aliases, alias_copycat.max_slots, Task
             )
+
+        if not norm_syns:
+            return
 
         for normed_syn in norm_syns:
             if (
@@ -1050,15 +1074,14 @@ class List(BaseStructure):
                 raise errors.TooLongSynError(
                     normed_syn,
                     self.community.jumpedia.limits.attribute_task_value_slot_length_max,
-                    Task
+                    Task,
                 )
 
-            task = self.get_task_by_syn(normed_syn)
+        taken = frozenset(self.get_tasks_by_syn(*norm_syns))
+        taken -= allowed_tasks
 
-            if task is not None and task not in allowed_tasks:
-                raise errors.SynAlreadyTakenError(
-                    task
-                )
+        if taken:
+            raise errors.SynsAlreadyTakenError(taken)
 
     def _validate_attribute_syns(
         self,
@@ -1067,31 +1090,100 @@ class List(BaseStructure):
         norm_aliases: frozenset[NormStr] = frozenset(),
         allowed_attributes: frozenset[BaseAttribute] = frozenset(),
     ) -> None:
+        if len(norm_aliases) > self.community.limits.attribute_alias_count_max:
+            raise errors.TooManyAliasesError(
+                norm_aliases, self.community.limits.attribute_alias_count_max, type
+            )
+
         norm_syns: set[NormStr] = set()
 
         if norm_name is not None:
             norm_syns.add(norm_name)
 
-        if norm_aliases:
-            norm_syns.update(norm_aliases)
+        norm_syns.update(norm_aliases)
 
-        
-        if len(norm_aliases) > self.community.limits.attribute_alias_count_max:
-            raise errors.TooManyAliasesError(
-                norm_aliases, self.community.limits.attribute_alias_count_max,
-                type
+        if not norm_syns:
+            return
+
+        for norm_syn in norm_syns:
+            if len(norm_syn) > self.community.jumpedia.limits.attribute_syn_length_max:
+                raise errors.TooLongSynError(
+                    norm_syn,
+                    self.community.jumpedia.limits.attribute_syn_length_max,
+                    type,
+                )
+
+        taken: frozenset[BaseAttribute] = frozenset(
+            self.get_any_attributes_by_syn(*norm_syns)
+        )
+        taken -= allowed_attributes
+
+        if taken:
+            raise errors.SynsAlreadyTakenError(taken)
+
+    def give_task_to_community_user(
+        self,
+        task_id: int,
+        community_user_id: int,
+        user_attribute_value_mapping: dict[int, t.Sequence[text.RealStr]],
+    ) -> None:
+        uavm = self._calc_attribute_value_mapping(UserAttribute, user_attribute_value_mapping)
+
+        with self.connector.cursor() as c:
+            row = c.fetch_one(
+                db.CommunityUserListTask.select(
+                    '*'
+                ).where(
+                    (db.CommunityUserListTask.community_user_id, orm.Operator.EQ, community_user_id),
+                    (db.CommunityUserListTask.list_id, orm.Operator.EQ, self.id),
+                    (db.CommunityUserListTask.task_id, orm.Operator.EQ, task_id)
+                )
             )
 
-        for normed_syn in norm_syns:
-            if (
-                len(normed_syn)
-                > self.community.jumpedia.limits.attribute_syn_length_max
-            ):
-                raise errors.TooLongSynError(normed_syn, self.community.jumpedia.limits.attribute_syn_length_max, type)
-
-            attribute = self.get_any_attribute_by_syn(normed_syn)
-
-            if attribute is not None and attribute not in allowed_attributes:
-                raise errors.SynAlreadyTakenError(
-                    attribute
+            if row is not None:
+                raise errors.TaskAlreadyGivenToUserError(
+                    task_id,
+                    community_user_id
                 )
+
+            execute_data = c.execute(
+                db.CommunityUserListTask.insert(
+                    db.CommunityUserListTask.community_user_id.bind(community_user_id),
+                    db.CommunityUserListTask.list_id.bind(self.id),
+                    db.CommunityUserListTask.task_id.bind(task_id)
+                ), get_last_generated_id=True
+            )
+            
+            if not uavm:
+                return
+            
+            total_row_count: int = sum(len(v) for v in uavm.values())
+
+            if not total_row_count:
+                return
+            
+            assert execute_data.last_generated_id is not None
+
+            c.execute(
+                db.UserAttributeTaskValue.insert(
+                    db.UserAttributeTaskValue.community_user_list_task_id.bind(*itertools.repeat(execute_data.last_generated_id, total_row_count)),
+                    db.UserAttributeTaskValue.community_user_id.bind(*itertools.repeat(community_user_id, total_row_count)),
+                    db.UserAttributeTaskValue.list_id.bind(*itertools.repeat(self.id, total_row_count)),
+                    db.UserAttributeTaskValue.task_id.bind(*itertools.repeat(task_id, total_row_count)),
+                    db.UserAttributeTaskValue.attribute_id.bind(*(attr.id for attr, v in uavm.items() for _ in v)),
+                    db.UserAttributeTaskValue.index.bind(*(i for v in uavm.values() for i in range(len(v)))),
+                    db.UserAttributeTaskValue.slot_slot.bind(*(slot for v in uavm.values() for slot in v))
+                )
+            )
+
+    def remove_task_from_community_user(self, task_id: int, community_user_id: int) -> None:
+        with self.connector.cursor() as c:
+            execute_data = c.execute(
+                db.CommunityUserListTask.delete().where(
+                    (db.CommunityUserListTask.community_user_id, orm.Operator.EQ, community_user_id),
+                    (db.CommunityUserListTask.list_id, orm.Operator.EQ, self.id),
+                    (db.CommunityUserListTask.task_id, orm.Operator.EQ, task_id)
+                ), get_affected_row_count=True
+            )
+
+            raise StructureNotF

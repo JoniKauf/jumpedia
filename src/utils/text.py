@@ -1,8 +1,8 @@
-from numbers import Real
 import re
 import string
 import typing as t
 from dataclasses import dataclass, field
+from numbers import Real
 from string.templatelib import Interpolation, Template, convert
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
@@ -86,7 +86,6 @@ class NormStr(str):
             s = RealStr(s)
 
         return super().__new__(cls, s.lower())
-
 
     @classmethod
     def unique_reals_and_norms(

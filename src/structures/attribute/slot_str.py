@@ -4,9 +4,8 @@ import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 
-from structures import errors
-
 from src.utils import text
+from structures import errors
 
 type SlotTypeT = (bool | int | Decimal | str)
 SLOT_TYPES = (bool, int, Decimal, str)

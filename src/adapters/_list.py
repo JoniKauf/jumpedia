@@ -55,12 +55,10 @@ def _get_attribute_adapter(
 
 
 def _require_task_with_syn(norm_syn: text.NormStr, list: List) -> Task:
-    task = list.get_task_by_syn(norm_syn)
-
-    if task is None:
+    try:
+        return list.get_tasks_by_syn(norm_syn)[0]
+    except IndexError:
         raise errors.StructureNotFoundViaSynFeedbackError(norm_syn, Task)
-
-    return task
 
 
 def _require_attribute_with_syn[T: BaseAttribute](

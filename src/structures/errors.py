@@ -1,17 +1,18 @@
-from dataclasses import dataclass
 import typing as t
+from dataclasses import dataclass
 
-from src.structures.attribute import SlotStr
 from src.utils import text
 from src.utils.text import RealStr
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
-    from .attribute.slot_str import SlotTypeT
-    from .community import Community
     from .attribute import BaseAttribute
     from .attribute.collection import Collection
-
+    from .attribute.slot_str import SlotTypeT
+    from .community import Community
+    from .task import Task
+    from .attribute import SlotStr
+    from .user import CommunityUser
 
 @t.dataclass_transform(eq_default=False)
 class _BaseStructureErrorMeta(type):
@@ -37,8 +38,8 @@ class StructureNotFoundError(BaseStructureError):
     structure_type: type[BaseStructure]
 
 
-class SynAlreadyTakenError(BaseStructureError):
-    structure: BaseStructure
+class SynsAlreadyTakenError(BaseStructureError):
+    structures: frozenset[BaseStructure]
 
 
 class ServerAlreadyConnectedToCommunityError(BaseStructureError):
@@ -69,10 +70,12 @@ class TooLongSynError(BaseStructureError):
     limit: int
     structure_type: type[BaseStructure]
 
+
 class TooManyAliasesError(BaseStructureError):
     aliases: frozenset[text.NormStr]
     limit: int
     structure_type: type[BaseStructure]
+
 
 class AttributeValueSlotCountOutOfRangeError(BaseStructureError):
     value: tuple[text.RealStr, ...]
@@ -80,12 +83,19 @@ class AttributeValueSlotCountOutOfRangeError(BaseStructureError):
     max: int
     attribute: BaseAttribute
 
-class AttributeMinSlotsOrMaxSlotsOutOfRange(BaseStructureError):
+
+class AttributeMinSlotsOrMaxSlotsOutOfRangeError(BaseStructureError):
     min: int
     max: int
     min_min: int
     max_max: int
 
+
 class InvalidSlotStrError(BaseStructureError):
     s: str
     expected_type: type[SlotTypeT]
+
+
+class TaskAlreadyGivenToUserError(BaseStructureError):
+    task_id: int
+    community_user_id: int
