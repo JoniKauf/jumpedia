@@ -4,11 +4,10 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ...adapters.interaction import InteractionAdapter
-from ...ranks.community_rank import CommunityRank
-from ...ranks.server_rank import ServerRank
-from ..structs import modals, predicates, views
-from ..utils import messaging
+from adapters.interaction import InteractionAdapter
+from structures.user.rank import CommunityRank, ServerRank
+from ..structs import modals, predicates
+from ..utils_ import messaging
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):

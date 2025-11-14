@@ -1,18 +1,14 @@
+import sys
+import platform
+
 def __main() -> None:
     # --- Set global defaults ---
-    import sys
-
-    sys.dont_write_bytecode = True
-
     import logging
 
     logging.basicConfig(
         level=logging.INFO,  # or DEBUG, WARNING, etc.
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-
-    # --- Check Python Implementation ---
-    import platform
 
     if sys.version_info < (3, 14):
         raise RuntimeError("Developed for Python 3.14 or higher")
@@ -23,8 +19,8 @@ def __main() -> None:
         )
 
     # --- Import/Run modules to preload and test functionality ---
-    import src.discord_
-    from src.structures import jumpedia
+    from structures import jumpedia
+    import discord_
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from functools import cached_property
 
 import discord as dc
 
-from ..discord_.errors import FeedbackError
+from discord_.errors import FeedbackError
 from . import BaseAdapter
 from ._discord.member import MemberAdapter
 from ._discord.server import ServerAdapter

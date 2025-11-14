@@ -1,17 +1,16 @@
 import typing as t
-from curses import meta
 from dataclasses import field
 
-from src.discord_.errors import FeedbackError
-from src.structures.user.rank import JumpediaRank
-from src.utils import secret
-from src.utils.orm import Connector
+from discord_.errors import FeedbackError
+from structures.user.rank import JumpediaRank
+from utils import secret
+from utils.orm import Connector
 
-from ..structures.community import Community, CommunityLimits
-from ..structures.errors import (ServerAlreadyConnectedToCommunityError,
+from structures.community import Community, CommunityLimits
+from structures.errors import (ServerAlreadyConnectedToCommunityError,
                                  SynsAlreadyTakenError)
-from ..structures.jumpedia import Jumpedia, JumpediaLimits
-from ..utils import text
+from structures.jumpedia import Jumpedia, JumpediaLimits
+from utils import text
 from . import BaseAdapter, errors
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter

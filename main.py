@@ -1,5 +1,5 @@
 def main():
-    import src
+    import __main__ as __main__
 
 
 if __name__ == "__main__":

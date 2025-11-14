@@ -1,8 +1,8 @@
 import typing as t
 
-from src.utils import text
+from utils import text
 
-from . import BaseStructure, errors
+from . import errors
 
 
 def handled_unique_reals_and_norms(

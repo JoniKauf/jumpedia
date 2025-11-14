@@ -1,10 +1,10 @@
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
-from src.utils import text
+from utils import text
 
-from ..discord_.errors import FeedbackError
-from ..structures import BaseStructure, errors
+from discord_.errors import FeedbackError
+from structures import BaseStructure, errors
 
 
 class StructureNotFoundViaSynFeedbackError(FeedbackError):

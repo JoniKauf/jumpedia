@@ -1,11 +1,11 @@
 import typing as t
 
-from src.discord_.errors import FeedbackError
-from src.structures.user.rank import CommunityRank
+from discord_.errors import FeedbackError
+from structures.user.rank import CommunityRank
 
-from ..structures.community import Community
-from ..structures.list import List
-from ..utils import text
+from structures.community import Community
+from structures.list import List
+from utils import text
 from . import BaseAdapter, errors
 from ._list import ListAdapter
 from ._user.community_user import CommunityUserAdapter

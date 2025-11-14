@@ -1,7 +1,7 @@
 import typing as t
 
-from src.structures.community import JumpediaUser
-from src.structures.user.rank import JumpediaRank
+from structures.community import JumpediaUser
+from structures.user.rank import JumpediaRank
 
 from .. import BaseAdapter
 

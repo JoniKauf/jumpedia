@@ -1,8 +1,7 @@
 import typing as t
 from dataclasses import dataclass
 
-from src.utils import text
-from src.utils.text import RealStr
+from utils import text
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
@@ -55,7 +54,7 @@ class LimitReachedError(BaseStructureError):
 
 
 class CollectionEntryNotFoundError(BaseStructureError):
-    real_slot: RealStr
+    real_slot: text.RealStr
     collection: Collection
 
 

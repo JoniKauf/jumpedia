@@ -3,8 +3,7 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from src.structures.community import Kind
-from src.utils import orm, text
+from utils import text, orm
 
 from .. import BaseStructure, errors
 from ..jumpedia import db
@@ -13,6 +12,7 @@ from .slot_str import SlotStr, SlotTypeT
 
 if t.TYPE_CHECKING:
     from ..list import Kind, List
+    from ..community import Kind
 
 # General
 SORT_KEY_NONE_NUMBER: t.Final[int] = (

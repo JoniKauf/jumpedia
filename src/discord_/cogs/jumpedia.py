@@ -1,12 +1,15 @@
+from string.templatelib import Template
+
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ...adapters.interaction import InteractionAdapter
-from ...ranks import CommunityRank, JumpediaRank, ServerRank
+from adapters.interaction import InteractionAdapter
+from structures.user.rank import CommunityRank, JumpediaRank, ServerRank
+
 from ..errors import FeedbackError
 from ..structs import modals, predicates
-from ..utils import messaging
+from ..utils_ import messaging
 
 
 class JumpediaCog(cmds.GroupCog, name="jumpedia"):
@@ -39,14 +42,20 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @get_group.command(name="communities", description="Get all communities.")
     async def show_communities(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
+        result: Template = Template("None") 
+
+        communities = ia.jumpedia.get_communities()
+        
+        if communities:
+            result = t""
+
+            for comm in communities:
+                result += t"- " + Template(comm.name) + t"\n"
 
         await interaction.response.send_message(
             messaging.layout(
                 "All Communities",
-                "\n".join(
-                    f"- {community.name}" for community in ia.jumpedia.get_communities()
-                )
-                or "None",
+                result,
                 messaging.MessageStatus.INFO,
             )
         )
@@ -70,8 +79,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Created",
-                f"The community `{community.name}` was successfully created "
-                "and is now connected to this server!",
+                t"The community `{community.name}` was successfully created " +
+                t"and is now connected to this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -110,8 +119,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Connected",
-                f"This server has successfully been connected with "
-                f"the community `{community.name}`!",
+                t"This server has successfully been connected with " +
+                t"the community `{community.name}`!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -133,8 +142,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Disconnected",
-                f"The community `{community.name}` has successfully been "
-                "disconnected from this server!",
+                t"The community `{community.name}` has successfully been " +
+                t"disconnected from this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

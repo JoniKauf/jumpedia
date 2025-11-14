@@ -1,11 +1,9 @@
 import builtins
 import typing as t
 
-from src.structures.attribute import slot_str
-from src.utils import orm
-from src.utils.text import NormStr, RealStr
-
-from . import BaseStructure, errors, list
+from utils import orm, text
+from . import BaseStructure
+from . import errors
 from .attribute import StaticAttribute
 from .jumpedia import db
 from .list import Kind, List
@@ -31,8 +29,8 @@ class CommunityLimits(t.NamedTuple):
 class Community(BaseStructure):
     jumpedia: Jumpedia
     id: int
-    real_name: RealStr
-    norm_name: NormStr
+    real_name: text.RealStr
+    norm_name: text.NormStr
     limits: CommunityLimits
 
     @property
@@ -57,8 +55,8 @@ class Community(BaseStructure):
 
         return frozenset(row.id for row in rows)
 
-    def create_list(self, name: RealStr) -> List:
-        norm_name = NormStr(name)
+    def create_list(self, name: text.RealStr) -> List:
+        norm_name = text.NormStr(name)
 
         list_obj = self.get_list_by_name(norm_name)
 
@@ -172,7 +170,7 @@ class Community(BaseStructure):
         data = self._fetch_from_list_table((db.List.id, orm.Operator.EQ, id))
         return self._list_row_to_obj(data[0]) if data else None
 
-    def get_list_by_name(self, norm_name: NormStr) -> List | None:
+    def get_list_by_name(self, norm_name: text.NormStr) -> List | None:
         data = self._fetch_from_list_table(
             (db.List.norm_name, orm.Operator.EQ, norm_name)
         )

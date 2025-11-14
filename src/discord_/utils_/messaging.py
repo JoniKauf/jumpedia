@@ -4,8 +4,7 @@ from string.templatelib import Interpolation, Template
 
 import discord as dc
 
-from ...utils import text
-from .. import errors
+from utils import text
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
 

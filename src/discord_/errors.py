@@ -55,7 +55,7 @@ class FeedbackError(BaseUserReturnableError):
         super().__init__(**(msg_kwargs or {}))
 
     def __str__(self) -> str:
-        from .utils import messaging
+        from .utils_ import messaging
         
         paragraphs: list[Template] = list(self.paragraphs)
 

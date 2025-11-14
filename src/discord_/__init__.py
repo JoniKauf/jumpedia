@@ -2,15 +2,17 @@ import importlib
 import inspect
 import os
 import pkgutil
-import traceback
 import types
 import typing as t
-
+from pathlib import Path    
 import discord as dc
+import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from ..utils import secret
+from discord_.utils_ import messaging
+
+from utils import secret
 from .errors import BaseUserReturnableError
 
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
@@ -18,13 +20,13 @@ BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
 
 def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:
     rel = (
-        os.path.relpath(pkg_path, start=os.getcwd())
+        os.path.relpath(pkg_path, start=Path(__file__).resolve().parent.parent)
         .strip(os.path.sep)
         .replace(os.path.sep, ".")
     )
 
     # Use pkgutil to iterate over modules in the package
-    for importer, modname, ispkg in pkgutil.iter_modules([pkg_path]):
+    for _, modname, ispkg in pkgutil.iter_modules([pkg_path]):
         if ispkg:
             continue
 
@@ -60,6 +62,12 @@ async def on_app_command_error(
     if not interaction.response.is_done():
         await interaction.response.defer()
 
+    if isinstance(e, mariadb.Error):
+        return await interaction.followup.send(messaging.layout(
+            "Database Error",
+            t"An unknown database error occurred. Please try again!",
+            messaging.MessageStatus.FAILED
+        ))
     if isinstance(e, BaseUserReturnableError):
         e.msg_kwargs["content"] = str(e)
         return await interaction.followup.send(**e.msg_kwargs)

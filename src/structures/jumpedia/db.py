@@ -1,9 +1,8 @@
 import types
 import typing as t
-from email.policy import default
 
-from src.utils.orm import *
-from src.utils.text import NormStr, RealStr
+from utils.orm import *
+from utils.text import NormStr, RealStr
 
 from ..attribute.slot_str import SlotStr
 

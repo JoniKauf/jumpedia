@@ -4,9 +4,9 @@ from types import MappingProxyType
 
 from ..attribute import AnyAttributeT, StaticAttribute, TaskAttribute, UserAttribute
 from ..attribute.slot_str import SlotStr
-from ..list import CommunityUser
 
 if t.TYPE_CHECKING:
+    from ..list import CommunityUser
     from ..task import Task
 
 type AvmT[T: AnyAttributeT] = MappingProxyType[T, tuple[SlotStr, ...]]

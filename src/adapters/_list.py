@@ -2,16 +2,16 @@ import collections
 import itertools
 import typing as t
 
-from src.adapters import parsers
-from src.discord_.errors import FeedbackError
-from src.structures.attribute import (StaticAttribute, TaskAttribute,
+from adapters import parsers
+from discord_.errors import FeedbackError
+from structures.attribute import (StaticAttribute, TaskAttribute,
                                       UserAttribute)
 
-from ..structures import attribute
-from ..structures.attribute import AnyAttributeT, BaseAttribute
-from ..structures.list import List
-from ..structures.task import Task
-from ..utils import text
+from structures import attribute
+from structures.attribute import AnyAttributeT, BaseAttribute
+from structures.list import List
+from structures.task import Task
+from utils import text
 from . import BaseAdapter, errors
 from ._attribute import (AnyAttributeAdapterT, StaticAttributeAdapter,
                          TaskAttributeAdapter, UserAttributeAdapter)
@@ -88,7 +88,7 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](raw_avm: str
         if count > 1:
             raise FeedbackError(
                 "Attributes Not Unique",
-                t"The attribute `{k.name}` was specified multiple times in the attribute value mapping, probably by different aliases!"
+                t"The attribute `{k.name}` was specified multiple times in the attribute value mapping, probably by using different aliases!"
             )
 
     return {

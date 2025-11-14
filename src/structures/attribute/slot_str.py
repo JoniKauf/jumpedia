@@ -1,12 +1,13 @@
 import decimal
 import typing as t
-from dataclasses import dataclass
 from decimal import Decimal
 
-from src.utils import text
+from utils import text
 
 from .. import errors
-from ..jumpedia import Jumpedia
+
+if t.TYPE_CHECKING:
+    from ..jumpedia import Jumpedia
 
 type SlotTypeT = (bool | int | Decimal | str)
 SLOT_TYPES = (bool, int, Decimal, str)

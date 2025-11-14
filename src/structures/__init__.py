@@ -1,9 +1,8 @@
 import typing as t
 from abc import ABCMeta, abstractmethod
-from contextlib import _GeneratorContextManager
 from dataclasses import dataclass
 
-from src.utils import locked, text
+from utils import text
 
 type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
@@ -29,7 +28,11 @@ class _StructureMeta(ABCMeta):
         cls = super().__new__(
             mcls, name, bases, namespace | {"_type_name": None}, **kwargs
         )
-        return dataclass(frozen=True, slots=True, kw_only=True)(cls)  # type: ignore
+        
+        if namespace.get('__dataclass_fields__') is None:
+            return dataclass(frozen=True, slots=True, kw_only=True)(cls)  # type: ignore
+        
+        return cls
 
     @property
     def type_name(self) -> str:
@@ -45,7 +48,7 @@ class BaseStructure(metaclass=_StructureMeta):
     # @property
     # def locked(self) -> _GeneratorContextManager[None]:
     #     return locked.equality_locked(self)
-
+    
     @property
     @abstractmethod
     def identity(self) -> tuple[int, ...]:

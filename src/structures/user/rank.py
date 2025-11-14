@@ -10,6 +10,10 @@ from dataclasses import dataclass
 @functools.total_ordering
 @dataclass(frozen=True)
 class BaseRank:
+    DEFAULT: t.ClassVar[t.Self]
+    LOWEST: t.ClassVar[t.Self]
+    HIGHEST: t.ClassVar[t.Self]
+
     SORTED: t.ClassVar[tuple[t.Self, ...]]
     _lookup: t.ClassVar[dict[int, t.Self]]
 
@@ -23,10 +27,10 @@ class BaseRank:
         self.__class__._lookup[self.power] = self
 
     def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
         cls._lookup = {}
         cls._init()
-        super().__init_subclass__()
-        # cls._init()
+        cls._create_sorted()
 
     @classmethod
     def _create_sorted(cls) -> None:
@@ -68,67 +72,42 @@ class BaseRank:
 
 @dataclass(frozen=True)
 class CommunityRank(BaseRank):
-    _init_done: t.ClassVar[bool] = False
-
-    DEFAULT: t.ClassVar["CommunityRank"]
-    LOWEST: t.ClassVar["CommunityRank"]
-    HIGHEST: t.ClassVar["CommunityRank"]
-
     @classmethod
-    def _init(cls):
-        cls.USER = CommunityRank(0, "User")
-        cls.HELPER = CommunityRank(10, "Helper")
-        cls.MODERATOR = CommunityRank(20, "Moderator")
-        cls.ADMINISTRATOR = CommunityRank(30, "Administrator")
-        cls.OWNER = CommunityRank(40, "Owner")
+    def _init(cls) -> None:
+        cls.USER = cls(0, "User")
+        cls.HELPER = cls(10, "Helper")
+        cls.MODERATOR = cls(20, "Moderator")
+        cls.ADMINISTRATOR = cls(30, "Administrator")
+        cls.OWNER = cls(40, "Owner")
 
         cls.LOWEST = cls.USER
         cls.HIGHEST = cls.OWNER
         cls.DEFAULT = cls.LOWEST
 
-        cls._create_sorted()
-
-
 @dataclass(frozen=True)
 class JumpediaRank(BaseRank):
-    _init_done: t.ClassVar[bool] = False
-
-    DEFAULT: t.ClassVar["JumpediaRank"]
-    LOWEST: t.ClassVar["JumpediaRank"]
-    HIGHEST: t.ClassVar["JumpediaRank"]
-
     @classmethod
     def _init(cls) -> None:
-        cls.JUMPEDIA_USER = JumpediaRank(0, "None")
-        cls.META_ADMIN = JumpediaRank(100, "Meta Administrator")
-        cls.JONIKAUF = JumpediaRank(200, "JoniKauf")
+        cls.JUMPEDIA_USER = cls(0, "None")
+        cls.META_ADMIN = cls(100, "Meta Administrator")
+        cls.JONIKAUF = cls(200, "JoniKauf")
 
         cls.LOWEST = cls.JUMPEDIA_USER
         cls.HIGHEST = cls.JONIKAUF
         cls.DEFAULT = cls.LOWEST
 
-        cls._create_sorted()
-
 
 @dataclass(frozen=True)
 class ServerRank(BaseRank):
-    _init_done: t.ClassVar[bool] = False
-
-    DEFAULT: t.ClassVar["ServerRank"]
-    LOWEST: t.ClassVar["ServerRank"]
-    HIGHEST: t.ClassVar["ServerRank"]
-
     @classmethod
     def _init(cls):
-        cls.SERVER_MEMBER = ServerRank(0, "Member")
-        cls.SERVER_ADMINISTRATOR = ServerRank(10, "Server Administrator")
-        cls.SERVER_OWNER = ServerRank(20, "Server Owner")
+        cls.SERVER_MEMBER = cls(0, "Member")
+        cls.SERVER_ADMINISTRATOR = cls(10, "Server Administrator")
+        cls.SERVER_OWNER = cls(20, "Server Owner")
 
         cls.LOWEST = cls.SERVER_MEMBER
         cls.HIGHEST = cls.SERVER_OWNER
         cls.DEFAULT = cls.LOWEST
-
-        cls._create_sorted()
 
 
 def get_offset_rank(base_rank: AnyRankT, offset: int) -> AnyRankT:

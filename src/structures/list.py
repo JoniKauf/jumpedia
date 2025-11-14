@@ -1,13 +1,12 @@
 import enum
 import itertools
 import typing as t
-from ast import alias
 from types import MappingProxyType
 
-from src.utils import orm, text
-from src.utils.text import NormStr, RealStr
-
-from . import BaseStructure, errors, utils
+from utils import text, orm
+from utils.text import NormStr, RealStr
+from .jumpedia import db
+from . import BaseStructure, _utils, errors
 from .attribute import (
     ALL_ATTRIBUTE_TYPES,
     AnyAttributeT,
@@ -18,14 +17,14 @@ from .attribute import (
     UserAttribute,
 )
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
-from .jumpedia import StructureNotFoundError, db
+from .errors import StructureNotFoundError
 from .task import Task
 from .task.attribute_value_mapping import (
     AttributeValueMapping,
     AvmT,
     UserAttributeValueMapping,
 )
-from .user import CommunityUser, JumpediaUser
+from .user import CommunityUser
 
 if t.TYPE_CHECKING:
     from .community import Community
@@ -289,7 +288,7 @@ class List(BaseStructure):
         ), "Typing not followed on attribute creation #2"
 
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
-            utils.handled_unique_reals_and_norms((real_name, *real_aliases))
+            _utils.handled_unique_reals_and_norms((real_name, *real_aliases))
         )
 
         attrs = self.get_all_attributes_flat()
@@ -450,7 +449,7 @@ class List(BaseStructure):
     def edit_attribute_aliases(
         self, type: type[BaseAttribute], id: int, aliases: t.Iterable[RealStr]
     ) -> None:
-        (*real_aliases,), (*norm_aliases,) = utils.handled_unique_reals_and_norms(
+        (*real_aliases,), (*norm_aliases,) = _utils.handled_unique_reals_and_norms(
             aliases
         )
 
@@ -845,7 +844,7 @@ class List(BaseStructure):
         task_attribute_value_mapping: dict[int, t.Sequence[RealStr]],
     ) -> Task:
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
-            utils.handled_unique_reals_and_norms((name, *aliases))
+            _utils.handled_unique_reals_and_norms((name, *aliases))
         )
 
         del name, aliases
@@ -950,7 +949,7 @@ class List(BaseStructure):
             assert execute_data.affected_row_count in (0, 1)
 
     def edit_task_aliases(self, task_id: int, aliases: t.Sequence[RealStr]) -> None:
-        real_aliases, norm_aliases = utils.handled_unique_reals_and_norms(aliases)
+        real_aliases, norm_aliases = _utils.handled_unique_reals_and_norms(aliases)
 
         del aliases
 

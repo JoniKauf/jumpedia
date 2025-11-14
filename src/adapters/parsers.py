@@ -2,14 +2,14 @@ import ast
 import typing as t
 from types import MappingProxyType
 
-from src.adapters.errors import (InvalidArgumentFeedbackError,
+from adapters.errors import (InvalidArgumentFeedbackError,
                                  StructureNotFoundViaSynFeedbackError)
-from src.structures.attribute.slot_str import SlotTypeT
-from src.utils.expression_parsing import errors as ep_errors
-from src.utils.expression_parsing import utils as ep_utils
-from src.utils.expression_parsing.parser import (ExpressionParser,
+from structures.attribute.slot_str import SlotTypeT
+from utils.expression_parsing import errors as ep_errors
+from utils.expression_parsing import utils as ep_utils
+from utils.expression_parsing.parser import (ExpressionParser,
                                                  ExpressionParserConfig)
-from src.utils.expression_parsing.visitor import (BaseExpressionVisitor,
+from utils.expression_parsing.visitor import (BaseExpressionVisitor,
                                                   DictOfStrToListOfStrVisitor,
                                                   ExpressionVisitorConfig,
                                                   ListOfStrVisitor,

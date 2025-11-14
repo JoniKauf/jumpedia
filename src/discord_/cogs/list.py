@@ -5,13 +5,13 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ...structures.attribute.slot_str import SlotTypeEnum
-from ...structures.attribute.task_attribute import TaskAttribute
-from ...structures.attribute.user_attribute import UserAttribute
-from ...structures.task import Task
-from ...utils import parsetools
+from structures.attribute.slot_str import SlotTypeEnum
+from structures.attribute.task_attribute import TaskAttribute
+from structures.attribute.user_attribute import UserAttribute
+from structures.task import Task
+from utils import parsetools
 from ..structs import modals
-from ..utils import messaging
+from ..utils_ import messaging
 
 
 class ListCog(cmds.GroupCog, group_name="list"):

@@ -1,6 +1,6 @@
 import re
 
-from ...structures.user import MAX_ID, MIN_ID
+from structures.user import MAX_ID, MIN_ID
 
 MENTION_PATTERN = re.compile(r"^<@([0-9]{0,20})>$")
 

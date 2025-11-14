@@ -1,18 +1,16 @@
 import re
 import typing as t
 
-from src.adapters._user import community_user
-from src.utils import orm
-
+from utils import orm
 from .. import BaseStructure
-from ..community import Community
-from ..jumpedia import Jumpedia, db
 from .rank import CommunityRank, JumpediaRank
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 
 
 if t.TYPE_CHECKING:
+    from ..jumpedia import Jumpedia, db
+    from ..community import Community
     from ..list import List
 
 MAX_NAME_LENGTH: t.Final[int] = 32

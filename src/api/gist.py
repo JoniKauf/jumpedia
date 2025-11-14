@@ -12,7 +12,7 @@ class _FileContentT(t.TypedDict):
 
 
 def create_gist(
-    files: dict[str, _FileContentT],
+    files: dict[str, str],
     /,
     description: str | None = None,
     public: bool = False,
@@ -28,7 +28,7 @@ def create_gist(
     if description is not None:
         payload["description"] = description
 
-    payload["files"] = files
+    payload["files"] = {"content": files}
 
     response = requests.post(url, json=payload, headers=headers)
 

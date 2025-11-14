@@ -1,11 +1,9 @@
-import json
-import time
 import typing as t
 
-from src.utils import orm, text
+from utils import text
 
-from .. import BaseStructure, errors, user
-from ..attribute import slot_str
+from utils import orm
+from .. import BaseStructure, errors
 from ..community import Community, CommunityLimits
 from ..errors import StructureNotFoundError, SynsAlreadyTakenError
 from ..user import JumpediaUser

@@ -1,8 +1,8 @@
 import typing as t
 
-from src.discord_.errors import FeedbackError
-from src.structures.community import CommunityUser
-from src.structures.user.rank import CommunityRank, JumpediaRank
+from discord_.errors import FeedbackError
+from structures.community import CommunityUser
+from structures.user.rank import CommunityRank, JumpediaRank
 
 from .. import BaseAdapter
 from .jumpedia_user import JumpediaUserAdapter

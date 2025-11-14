@@ -1,19 +1,15 @@
 import typing as t
 
-from src.structures.community import StaticAttribute
-from src.structures.list import TaskAttribute, UserAttribute
+from structures.community import StaticAttribute
+from structures.list import TaskAttribute, UserAttribute
 
-from ...structures.attribute import BaseAttribute
-from ...structures.attribute.slot_str import SlotType
-from ...utils import text
+from structures.attribute import BaseAttribute
+from structures.attribute.slot_str import SlotTypeT
+from utils import text
 from .. import BaseAdapter
 
 if t.TYPE_CHECKING:
     from .._list import ListAdapter
-    from .static_attribute import StaticAttributeAdapter
-    from .task_attribute import TaskAttributeAdapter
-    from .user_attribute import UserAttributeAdapter
-
 
 class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     _attribute: T
@@ -32,7 +28,7 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
         return self._attribute.norm_name
 
     @property
-    def _slot_type(self) -> SlotType:
+    def _slot_type(self) -> type[SlotTypeT]:
         return self._attribute.slot_type
 
     @property

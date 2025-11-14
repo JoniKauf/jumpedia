@@ -1,7 +1,6 @@
 import typing as t
 from dataclasses import dataclass
 
-from orm._query.select import Join
 from typing_extensions import TypeForm
 
 from .. import _utils
@@ -100,9 +99,8 @@ class ColumnBind[TOwner: Model, TValue]:
         return iter((self.column, self.values))
 
 
-type _NonDescriptorTypes = ColumnSet[t.Any, t.Any] | ColumnBind[t.Any, t.Any] | Join[
-    t.Any, t.Any
-]
-_NON_DESCRIPTOR_TYPES = (ColumnSet, ColumnBind, Join)
+type _NonDescriptorTypes = ColumnSet[t.Any, t.Any] | ColumnBind[t.Any, t.Any]
+
+_NON_DESCRIPTOR_TYPES = (ColumnSet, ColumnBind)
 
 __all__ = ["Column", "column", "ColumnSet", "ColumnBind"]

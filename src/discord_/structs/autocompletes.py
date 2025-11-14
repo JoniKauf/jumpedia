@@ -5,8 +5,6 @@ from collections import defaultdict
 import discord as dc
 from discord import app_commands as acmds
 
-from ... import errors
-
 type ChoiceValueT = int | float | str
 type ChoiceT = acmds.Choice[ChoiceValueT]
 
