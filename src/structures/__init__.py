@@ -28,10 +28,10 @@ class _StructureMeta(ABCMeta):
         cls = super().__new__(
             mcls, name, bases, namespace | {"_type_name": None}, **kwargs
         )
-        
-        if namespace.get('__dataclass_fields__') is None:
+
+        if namespace.get("__dataclass_fields__") is None:
             return dataclass(frozen=True, slots=True, kw_only=True)(cls)  # type: ignore
-        
+
         return cls
 
     @property
@@ -48,7 +48,7 @@ class BaseStructure(metaclass=_StructureMeta):
     # @property
     # def locked(self) -> _GeneratorContextManager[None]:
     #     return locked.equality_locked(self)
-    
+
     @property
     @abstractmethod
     def identity(self) -> tuple[int, ...]:

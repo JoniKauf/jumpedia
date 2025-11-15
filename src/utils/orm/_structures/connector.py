@@ -46,15 +46,15 @@ class Connector:
                 port=self.port,
                 converter=self.converter,
                 **kwargs,
-            )
+            ),
         )
 
     def _get_pool(self) -> mariadb.ConnectionPool:
         if self._pool is None:
-            object.__setattr__(self, '_pool', self._lazy_pool())
+            object.__setattr__(self, "_pool", self._lazy_pool())
 
         return self._pool  # type: ignore
-    
+
     def cursor(self, c: Cursor | None = None) -> Cursor:
         if c is not None:
             return c

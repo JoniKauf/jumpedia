@@ -2,10 +2,10 @@ import builtins
 import typing as t
 
 from utils import orm, text
-from . import BaseStructure
-from . import errors
+
+from . import BaseStructure, errors
 from .attribute import StaticAttribute
-from .jumpedia import db
+from . import db
 from .list import Kind, List
 from .user import CommunityUser, JumpediaUser
 from .user.rank import CommunityRank

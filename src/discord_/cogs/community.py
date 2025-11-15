@@ -6,6 +6,7 @@ import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
 from structures.user.rank import CommunityRank, ServerRank
+
 from ..structs import modals, predicates
 from ..utils_ import messaging
 

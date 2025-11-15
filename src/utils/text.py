@@ -1,8 +1,6 @@
 import re
 import string
 import typing as t
-from dataclasses import dataclass, field
-from numbers import Real
 from string.templatelib import Interpolation, Template, convert
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
@@ -126,6 +124,6 @@ def t_to_f_string(template: Template) -> str:
             case Interpolation() as interp:
                 parts.append(apply_f_to_interpolation_value(interp))
             case _:
-                assert_never(item)
+                t.assert_never(item)
 
     return "".join(parts)

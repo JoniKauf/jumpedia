@@ -4,15 +4,16 @@ import os
 import pkgutil
 import types
 import typing as t
-from pathlib import Path    
+from pathlib import Path
+
 import discord as dc
 import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
 from discord_.utils_ import messaging
-
 from utils import secret
+
 from .errors import BaseUserReturnableError
 
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
@@ -63,11 +64,13 @@ async def on_app_command_error(
         await interaction.response.defer()
 
     if isinstance(e, mariadb.Error):
-        return await interaction.followup.send(messaging.layout(
-            "Database Error",
-            t"An unknown database error occurred. Please try again!",
-            messaging.MessageStatus.FAILED
-        ))
+        return await interaction.followup.send(
+            messaging.layout(
+                "Database Error",
+                t"An unknown database error occurred. Please try again!",
+                messaging.MessageStatus.FAILED,
+            )
+        )
     if isinstance(e, BaseUserReturnableError):
         e.msg_kwargs["content"] = str(e)
         return await interaction.followup.send(**e.msg_kwargs)

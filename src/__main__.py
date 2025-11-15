@@ -1,5 +1,6 @@
-import sys
 import platform
+import sys
+
 
 def __main() -> None:
     # --- Set global defaults ---
@@ -19,8 +20,8 @@ def __main() -> None:
         )
 
     # --- Import/Run modules to preload and test functionality ---
-    from structures import jumpedia
     import discord_
+    from structures import jumpedia
 
 
 if __name__ == "__main__":

@@ -2,9 +2,10 @@ import typing as t
 from dataclasses import field
 
 from utils import orm, text
+
 from .. import BaseStructure, errors
 from ..attribute.slot_str import SlotStr
-from ..jumpedia import db
+from .. import db
 
 if t.TYPE_CHECKING:
     from ..list import List

@@ -1,15 +1,14 @@
 import typing as t
 
 from discord_.errors import FeedbackError
-from structures.user.rank import CommunityRank
-
 from structures.community import Community
 from structures.list import List
+from structures.user.rank import CommunityRank
 from utils import text
+
 from . import BaseAdapter, errors
 from ._list import ListAdapter
-from ._user.community_user import CommunityUserAdapter
-from ._user.jumpedia_user import JumpediaUserAdapter
+from ._user import CommunityUserAdapter, JumpediaUserAdapter
 
 if t.TYPE_CHECKING:
     from ._jumpedia import JumpediaAdapter
@@ -19,9 +18,7 @@ def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     list = community.get_list_by_name(name)
 
     if list is None:
-        raise errors.StructureNotFoundViaSynFeedbackError(
-            name, List, True
-        )
+        raise errors.StructureNotFoundViaSynFeedbackError(name, List, True)
 
     return list
 
@@ -70,7 +67,7 @@ class CommunityAdapter(BaseAdapter):
 
             raise FeedbackError(
                 "No Default Selected List",
-                t"The community `{self.name}` has no default selected list!"
+                t"The community `{self.name}` has no default selected list!",
             )
 
         return ListAdapter(list, self)
@@ -79,9 +76,7 @@ class CommunityAdapter(BaseAdapter):
         if name is None:
             list_id = None
         else:
-            list_id = _require_list_with_name(
-                text.NormStr(name), self._community
-            ).id
+            list_id = _require_list_with_name(text.NormStr(name), self._community).id
 
         self._community.set_default_selected_list(list_id)
 

@@ -2,6 +2,7 @@ import re
 import typing as t
 
 from utils import orm
+
 from .. import BaseStructure
 from .rank import CommunityRank, JumpediaRank
 
@@ -9,8 +10,8 @@ type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 
 
 if t.TYPE_CHECKING:
-    from ..jumpedia import Jumpedia, db
     from ..community import Community
+    from ..jumpedia import Jumpedia, db
     from ..list import List
 
 MAX_NAME_LENGTH: t.Final[int] = 32

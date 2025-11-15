@@ -7,6 +7,7 @@ from discord_.cogs.community import ServerRank
 from discord_.errors import FeedbackError
 from structures.community import CommunityRank
 from structures.user.rank import AnyRankT, JumpediaRank
+
 type AsyncPredicateT = t.Callable[
     [dc.Interaction], t.Coroutine[t.Any, t.Any, t.Literal[True]]
 ]

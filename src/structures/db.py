@@ -4,10 +4,10 @@ import typing as t
 from utils.orm import *
 from utils.text import NormStr, RealStr
 
-from ..attribute.slot_str import SlotStr
+from .attribute.slot_str import SlotStr
 
 if t.TYPE_CHECKING:
-    from . import Jumpedia
+    from .jumpedia import Jumpedia
 
 
 class Community(Model, table_name=SNAKE):
@@ -27,34 +27,8 @@ class Community(Model, table_name=SNAKE):
     def default_selected_list_id(self):
         pass
 
-
-class CommunityLimits(Model, table_name=SNAKE):
-    @column(int)
-    def community_id(self):
-        pass
-
-    @column(int)
-    def community_list_count_max(self):
-        pass
-
-    @column(int)
-    def list_attribute_count_max(self):
-        pass
-
-    @column(int)
-    def list_task_count_max(self):
-        pass
-
-    @column(int)
-    def attribute_task_value_slot_count_max(self):
-        pass
-
-    @column(int)
-    def attribute_collection_entry_count_max(self):
-        pass
-
-    @column(int)
-    def attribute_collection_entry_alias_count_max(self):
+    @column(str)
+    def limits(self):
         pass
 
 
@@ -583,42 +557,30 @@ def create_database(j: Jumpedia) -> None:
                     {Community.id} INT AUTO_INCREMENT PRIMARY KEY,
                     {Community.norm_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
                     {Community.real_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
-                    {Community.default_selected_list_id} BIGINT DEFAULT NULL
+                    {Community.default_selected_list_id} BIGINT DEFAULT NULL,
+                    {Community.limits} JSON NOT NULL
                 )
             """
             )
 
             input(f"""
-                CREATE TABLE {CommunityLimits} (
-                    {CommunityLimits.community_id} INT PRIMARY KEY,
-                    {', '.join(f"{col.name} BIGINT" for col in CommunityLimits._columns)},
+                CREATE TABLE {Server} (
+                    {Server.id} BIGINT UNSIGNED PRIMARY KEY,
+                    {Server.community_id} INT NOT NULL,
 
-                    FOREIGN KEY ({CommunityLimits.community_id})
-                        REFERENCES {Community}({Community.id})
+                    FOREIGN KEY ({Server.community_id.unqualified}) 
+                        REFERENCES {Community}({Community.id.unqualified}) 
                         ON DELETE CASCADE
                 )
             """)
-            c.raw_execute(
-                f"""
-                CREATE TABLE {CommunityLimits} (
-                    {CommunityLimits.community_id} INT PRIMARY KEY,
-                    {', '.join(f"{col.name} BIGINT" for col in CommunityLimits._columns)},
-
-                    FOREIGN KEY ({CommunityLimits.community_id})
-                        REFERENCES {Community}({Community.id})
-                        ON DELETE CASCADE
-                )
-            """
-            )
-
             c.raw_execute(
                 f"""
                 CREATE TABLE {Server} (
                     {Server.id} BIGINT UNSIGNED PRIMARY KEY,
                     {Server.community_id} INT NOT NULL,
 
-                    FOREIGN KEY ({Server.community_id}) 
-                        REFERENCES {Community}({Community.id}) 
+                    FOREIGN KEY ({Server.id.unqualified}) 
+                        REFERENCES {Community}({Community.id.unqualified}) 
                         ON DELETE CASCADE
                 )
             """
@@ -632,8 +594,8 @@ def create_database(j: Jumpedia) -> None:
                     {List.norm_name} VARCHAR({j.limits.list_name_length_max}) NOT NULL,
                     {List.real_name} VARCHAR({j.limits.list_name_length_max}) NOT NULL,
 
-                    FOREIGN KEY ({List.community_id})
-                        REFERENCES {Community}({Community.id})
+                    FOREIGN KEY ({List.community_id.unqualified})
+                        REFERENCES {Community}({Community.id.unqualified})
                         ON DELETE CASCADE,
 
                     UNIQUE ({List.community_id}, {List.norm_name})
@@ -646,13 +608,13 @@ def create_database(j: Jumpedia) -> None:
                 f"""
                 ALTER TABLE {Community}
                 ADD CONSTRAINT fk_community_default_list
-                FOREIGN KEY ({Community.default_selected_list_id})
-                    REFERENCES {List}({List.id})
+                FOREIGN KEY ({Community.default_selected_list_id.unqualified})
+                    REFERENCES {List}({List.id.unqualified})
                     ON DELETE SET NULL
             """
             )
 
-            from .. import user
+            from . import user
 
             c.raw_execute(
                 f"""
@@ -775,7 +737,7 @@ def create_database(j: Jumpedia) -> None:
             """
             )
 
-            from ..attribute import slot_str
+            from .attribute import slot_str
 
             c.raw_execute(
                 f"""

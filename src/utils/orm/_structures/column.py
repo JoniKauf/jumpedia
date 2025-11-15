@@ -49,7 +49,7 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
         return instance._columns_data[self._name]
 
     def __str__(self) -> str:
-        return f"{self._owner}.`{self._name}`"
+        return f"{self._owner}.{self.unqualified}"
 
     @property
     def name(self) -> str:
@@ -68,6 +68,10 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
 
     def bind(self, value: TValue, /, *values: TValue) -> ColumnBind[TOwner, TValue]:
         return ColumnBind(self, (value, *values))
+    
+    @property
+    def unqualified(self) -> str:
+        return f"`{self._name}`"
 
 
 def column[TOwner: Model, TValue](

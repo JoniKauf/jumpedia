@@ -1,18 +1,20 @@
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
-from utils import text
-
 from discord_.errors import FeedbackError
 from structures import BaseStructure, errors
+from utils import text
 
 
 class StructureNotFoundViaSynFeedbackError(FeedbackError):
-    def __init__(self, syn: str, structure_type: type[BaseStructure], only_name: bool) -> None:
+    def __init__(
+        self, syn: str, structure_type: type[BaseStructure], only_name: bool
+    ) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",
             t"The {structure_type.type_name} with the name {"" if only_name else "or alias"}`{syn}` could not be found!",
         )
+
 
 class SynAlreadyTakenFeedbackError(FeedbackError):
     def __init__(self, e: errors.SynsAlreadyTakenError) -> None:
@@ -20,8 +22,9 @@ class SynAlreadyTakenFeedbackError(FeedbackError):
 
         super().__init__(
             "Names Or Aliases Already Taken",
-            t"The names or aliases `{'`, `'.join(text.shorten_many(tuple(e.structures)))}` are already taken!"
+            t"The names or aliases `{'`, `'.join(text.shorten_many(tuple(e.structures)))}` are already taken!",
         )
+
 
 class InvalidArgumentFeedbackError(FeedbackError):
     def __init__(

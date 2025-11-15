@@ -56,15 +56,17 @@ class FeedbackError(BaseUserReturnableError):
 
     def __str__(self) -> str:
         from .utils_ import messaging
-        
+
         paragraphs: list[Template] = list(self.paragraphs)
 
         if self.related_documentation:
             paragraphs.append(
                 t"### Related Documentation\n"
-                + Template("\n".join(
-                    f"[{name}]({link})" for name, link in self.related_documentation
-                ))
+                + Template(
+                    "\n".join(
+                        f"[{name}]({link})" for name, link in self.related_documentation
+                    )
+                )
             )
 
         return messaging.layout(

@@ -2,19 +2,18 @@ import typing as t
 from dataclasses import field
 
 from discord_.errors import FeedbackError
-from structures.user.rank import JumpediaRank
-from utils import secret
-from utils.orm import Connector
-
 from structures.community import Community, CommunityLimits
 from structures.errors import (ServerAlreadyConnectedToCommunityError,
-                                 SynsAlreadyTakenError)
+                               SynsAlreadyTakenError)
 from structures.jumpedia import Jumpedia, JumpediaLimits
-from utils import text
+from structures.user.rank import JumpediaRank
+from utils import secret, text
+from utils.orm import Connector
+
 from . import BaseAdapter, errors
 from ._community import CommunityAdapter
 from ._discord.user import UserAdapter
-from ._user.jumpedia_user import JumpediaUserAdapter
+from ._user import JumpediaUserAdapter
 
 if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
@@ -29,25 +28,18 @@ _JUMPEDIA = Jumpedia(
         list_name_length_max=64,
         user_name_length_max=32,  # Discord limit
         attribute_syn_length_max=64,
-        attribute_task_value_slot_length_max=255
+        attribute_task_value_slot_length_max=255,
     ),
-    connector=Connector(
-        **__conn_data,
-        database_name='jumpedia',
-        pool_name="pool"
-    ),
-    meta_connector=Connector(
-        **__conn_data,
-        database_name=None,
-        pool_name="meta_pool"
-    )
+    connector=Connector(**__conn_data, database_name="jumpedia", pool_name="pool"),
+    meta_connector=Connector(**__conn_data, database_name=None, pool_name="meta_pool"),
 )
+
 
 def _require_server_with_community(community: Community | None) -> Community:
     if community is None:
         raise FeedbackError(
             "Server Not Connected To Community",
-            t"This server is not connected to a community!"
+            t"This server is not connected to a community!",
         )
 
     return community
@@ -59,7 +51,7 @@ def _require_community_with_name(name: text.NormStr, jumpedia: Jumpedia) -> Comm
     if community is None:
         raise FeedbackError(
             "Community Not Found",
-            t"A community with the name `{name}` could not be found!"
+            t"A community with the name `{name}` could not be found!",
         )
 
     return community
@@ -98,7 +90,7 @@ class JumpediaAdapter(BaseAdapter):
                 name=text.RealStr(name),
                 server_id=self.interaction.current_server.id,
                 creator=jumpedia_user,
-                limits=CommunityLimits()
+                limits=CommunityLimits(),
             )
         except ServerAlreadyConnectedToCommunityError as e:
             raise FeedbackError(

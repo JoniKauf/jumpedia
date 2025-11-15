@@ -1,13 +1,13 @@
+import json
 import typing as t
 
-from utils import text
+from utils import orm, text
 
-from utils import orm
-from .. import BaseStructure, errors
-from ..community import Community, CommunityLimits
-from ..errors import StructureNotFoundError, SynsAlreadyTakenError
-from ..user import JumpediaUser
-from ..user.rank import CommunityRank, JumpediaRank
+from . import BaseStructure, errors
+from .community import Community, CommunityLimits
+from .errors import StructureNotFoundError, SynsAlreadyTakenError
+from .user import JumpediaUser
+from .user.rank import CommunityRank, JumpediaRank
 from . import db
 
 
@@ -77,6 +77,7 @@ class Jumpedia(BaseStructure):
                 db.Community.insert(
                     db.Community.norm_name.bind(norm_name),
                     db.Community.real_name.bind(name),
+                    db.Community.limits.bind(json.dumps(limits._asdict())),
                 ),
                 get_last_generated_id=True,
             )
@@ -91,16 +92,6 @@ class Jumpedia(BaseStructure):
                     db.Server.community_id.bind(community_id),
                 )
             )
-
-            if limits != CommunityLimits():
-                c.execute(
-                    db.CommunityLimits.insert(
-                        *(
-                            limit_col.bind(getattr(limits, limit_col.name))
-                            for limit_col in db.CommunityLimits._columns
-                        )
-                    )
-                )
 
             comm = Community(
                 jumpedia=self,
@@ -137,25 +128,20 @@ class Jumpedia(BaseStructure):
 
             return c.fetch_all(query)
 
-    def _community_row_to_obj(self, row: db.Community, limit_row: db.CommunityLimits) -> Community:
+    def _community_row_to_obj(self, row: db.Community) -> Community:
         return Community(
             jumpedia=self,
             id=row.id,
             real_name=row.real_name,
             norm_name=row.norm_name,
-            limits=CommunityLimits(**{
-                k: CommunityLimits._field_defaults[k] if v is None else v
-                for k, v in
-                limit_row._columns_data.items()
-                if k in CommunityLimits._field_defaults
-            }),
+            limits=CommunityLimits(**json.loads(row.limits)),
         )
 
     def get_communities(
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[Community]:
         return [
-            self._community_row_to_obj(*data)
+            self._community_row_to_obj(data)
             for data in self._fetch_from_community_table(*where)
         ]
 

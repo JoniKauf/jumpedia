@@ -84,6 +84,7 @@ class CommunityRank(BaseRank):
         cls.HIGHEST = cls.OWNER
         cls.DEFAULT = cls.LOWEST
 
+
 @dataclass(frozen=True)
 class JumpediaRank(BaseRank):
     @classmethod

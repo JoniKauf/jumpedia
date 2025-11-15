@@ -1,15 +1,16 @@
 import typing as t
 
-from structures.community import StaticAttribute
-from structures.list import TaskAttribute, UserAttribute
-
 from structures.attribute import BaseAttribute
 from structures.attribute.slot_str import SlotTypeT
+from structures.community import StaticAttribute
+from structures.list import TaskAttribute, UserAttribute
 from utils import text
+
 from .. import BaseAdapter
 
 if t.TYPE_CHECKING:
     from .._list import ListAdapter
+
 
 class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter):
     _attribute: T

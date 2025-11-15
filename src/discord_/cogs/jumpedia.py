@@ -20,10 +20,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         JONI_ID = 679564566769827841
 
         if interaction.user.id != JONI_ID:
-            raise FeedbackError(
-                "No.",
-                t"YOU SHALL NOT PASS!\n-# Gandalf said calmly"
-            )
+            raise FeedbackError("No.", t"YOU SHALL NOT PASS!\n-# Gandalf said calmly")
 
         ia.jumpedia.get_or_create_current_jumpedia_user(JumpediaRank.JONIKAUF)
 
@@ -42,10 +39,10 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @get_group.command(name="communities", description="Get all communities.")
     async def show_communities(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
-        result: Template = Template("None") 
+        result: Template = Template("None")
 
         communities = ia.jumpedia.get_communities()
-        
+
         if communities:
             result = t""
 
@@ -79,8 +76,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Created",
-                t"The community `{community.name}` was successfully created " +
-                t"and is now connected to this server!",
+                t"The community `{community.name}` was successfully created "
+                + t"and is now connected to this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -96,9 +93,9 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         community = ia.jumpedia.get_current_community()
 
         await modals.delete_structure_confirmation(
-            ia._interaction, 
-            community._community, 
-            lambda _: ia.jumpedia.delete_community(community.name)
+            ia._interaction,
+            community._community,
+            lambda _: ia.jumpedia.delete_community(community.name),
         )
 
     connect_group = acmds.Group(
@@ -119,8 +116,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Connected",
-                t"This server has successfully been connected with " +
-                t"the community `{community.name}`!",
+                t"This server has successfully been connected with "
+                + t"the community `{community.name}`!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -142,9 +139,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Disconnected",
-                t"The community `{community.name}` has successfully been " +
-                t"disconnected from this server!",
+                t"The community `{community.name}` has successfully been "
+                + t"disconnected from this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
-
