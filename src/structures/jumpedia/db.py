@@ -588,6 +588,16 @@ def create_database(j: Jumpedia) -> None:
             """
             )
 
+            input(f"""
+                CREATE TABLE {CommunityLimits} (
+                    {CommunityLimits.community_id} INT PRIMARY KEY,
+                    {', '.join(f"{col.name} BIGINT" for col in CommunityLimits._columns)},
+
+                    FOREIGN KEY ({CommunityLimits.community_id})
+                        REFERENCES {Community}({Community.id})
+                        ON DELETE CASCADE
+                )
+            """)
             c.raw_execute(
                 f"""
                 CREATE TABLE {CommunityLimits} (

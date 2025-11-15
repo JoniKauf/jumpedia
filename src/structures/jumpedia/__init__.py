@@ -137,20 +137,25 @@ class Jumpedia(BaseStructure):
 
             return c.fetch_all(query)
 
-    def _community_row_to_obj(self, row: db.Community) -> Community:
+    def _community_row_to_obj(self, row: db.Community, limit_row: db.CommunityLimits) -> Community:
         return Community(
             jumpedia=self,
             id=row.id,
             real_name=row.real_name,
             norm_name=row.norm_name,
-            limits=row.limits,
+            limits=CommunityLimits(**{
+                k: CommunityLimits._field_defaults[k] if v is None else v
+                for k, v in
+                limit_row._columns_data.items()
+                if k in CommunityLimits._field_defaults
+            }),
         )
 
     def get_communities(
         self, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[Community]:
         return [
-            self._community_row_to_obj(data)
+            self._community_row_to_obj(*data)
             for data in self._fetch_from_community_table(*where)
         ]
 

@@ -33,11 +33,13 @@ _JUMPEDIA = Jumpedia(
     ),
     connector=Connector(
         **__conn_data,
-        database_name='jumpedia'
+        database_name='jumpedia',
+        pool_name="pool"
     ),
     meta_connector=Connector(
         **__conn_data,
-        database_name=None
+        database_name=None,
+        pool_name="meta_pool"
     )
 )
 

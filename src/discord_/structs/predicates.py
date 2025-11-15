@@ -3,12 +3,10 @@ import typing as t
 import discord as dc
 
 from adapters.interaction import InteractionAdapter
-from errors.feedback import FeedbackError
-from ranks import AnyRankT
-from ranks.community_rank import CommunityRank
-from ranks.jumpedia_rank import JumpediaRank
-from ranks.server_rank import ServerRank
-
+from discord_.cogs.community import ServerRank
+from discord_.errors import FeedbackError
+from structures.community import CommunityRank
+from structures.user.rank import AnyRankT, JumpediaRank
 type AsyncPredicateT = t.Callable[
     [dc.Interaction], t.Coroutine[t.Any, t.Any, t.Literal[True]]
 ]
@@ -18,7 +16,7 @@ type PredicateT = t.Callable[[dc.Interaction], t.Literal[True]]
 def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
     return FeedbackError(
         "Not Permitted",
-        f"You must at least have the rank `{rank_required}`, but your rank is only `{my_rank}`!",
+        t"You must at least have the rank `{rank_required}`, but your rank is only `{my_rank}`!",
     )
 
 

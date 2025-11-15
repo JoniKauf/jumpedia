@@ -3,6 +3,7 @@ from dataclasses import InitVar, dataclass, field
 from types import MappingProxyType
 
 import mariadb
+import mariadb.connectionpool
 
 from .cursor import Cursor
 
@@ -19,7 +20,8 @@ class Connector:
     connection_pool_size: InitVar[int] = 5
     converter: MappingProxyType[int, t.Callable[[t.Any], t.Any]] = MappingProxyType({})
     kwargs: InitVar[t.Mapping[str, t.Any]] = MappingProxyType({})
-    pool: mariadb.ConnectionPool = field(init=False, default=None)  # type: ignore
+    _pool: mariadb.ConnectionPool | None = field(init=False, default=None)
+    _lazy_pool: t.Callable[[], mariadb.ConnectionPool] = field(init=False, default=None)  # type: ignore
 
     def __post_init__(
         self,
@@ -30,8 +32,8 @@ class Connector:
     ) -> None:
         object.__setattr__(
             self,
-            "pool",
-            mariadb.ConnectionPool(
+            "_lazy_pool",
+            lambda: mariadb.ConnectionPool(
                 # Pool
                 pool_name=pool_name,
                 pool_size=connection_pool_size,
@@ -44,14 +46,20 @@ class Connector:
                 port=self.port,
                 converter=self.converter,
                 **kwargs,
-            ),
+            )
         )
 
+    def _get_pool(self) -> mariadb.ConnectionPool:
+        if self._pool is None:
+            object.__setattr__(self, '_pool', self._lazy_pool())
+
+        return self._pool  # type: ignore
+    
     def cursor(self, c: Cursor | None = None) -> Cursor:
         if c is not None:
             return c
 
-        c = self.pool.get_connection().cursor(dictionary=True)
+        c = self._get_pool().get_connection().cursor(dictionary=True)
         c.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         return Cursor(c)
 
