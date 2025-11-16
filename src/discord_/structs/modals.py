@@ -41,7 +41,7 @@ class ConfirmByEnteringModal(ui.Modal):
         await interaction.followup.send(
             messaging.layout(
                 "Awaiting Confirmation",
-                "Please fill out the modal that should be appearing on your screen to confirm!",
+                t"Please fill out the modal that should be appearing on your screen to confirm!",
                 messaging.MessageStatus.INFO,
             ),
             ephemeral=True,
@@ -68,7 +68,7 @@ async def delete_structure_confirmation(
             await interaction.response.send_message(
                 messaging.layout(
                     f"{structure.__class__.type_name.title()} Deleted",
-                    f"The specifed {structure.__class__.type_name} has successfully been deleted!",
+                    t"The specifed {structure.__class__.type_name} has successfully been deleted!",
                     messaging.MessageStatus.SUCCESS,
                 )
             )
@@ -76,7 +76,7 @@ async def delete_structure_confirmation(
             await interaction.response.send_message(
                 messaging.layout(
                     f"{structure.__class__.type_name.title()} Deletion Aborted",
-                    f"The {structure.__class__.type_name} has **not** been deleted because the name entered is not correct!",
+                    t"The {structure.__class__.type_name} has **not** been deleted because the name entered is not correct!",
                     messaging.MessageStatus.WARNING,
                 )
             )

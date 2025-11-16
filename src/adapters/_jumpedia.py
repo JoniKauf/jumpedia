@@ -3,7 +3,7 @@ from dataclasses import field
 
 from discord_.errors import FeedbackError
 from structures.community import Community, CommunityLimits
-from structures.errors import (ServerAlreadyConnectedToCommunityError,
+from structures.errors import (ServerAlreadyConnectedToCommunityError, ServerNotConnectedToACommunityError,
                                SynsAlreadyTakenError)
 from structures.jumpedia import Jumpedia, JumpediaLimits
 from structures.user.rank import JumpediaRank
@@ -95,11 +95,10 @@ class JumpediaAdapter(BaseAdapter):
         except ServerAlreadyConnectedToCommunityError as e:
             raise FeedbackError(
                 "Server Already Connected To A Community",
-                t"The server you are on (`{self.interaction.current_server.name}`) "
-                t"is already connected to a community (`{e.structure.name}`)!",
+                t"This server is already connected to a community (`{e.structure.name}`)!",
             )
         except SynsAlreadyTakenError as e:
-            raise errors.SynAlreadyTakenFeedbackError(e)
+            raise errors.SynsAlreadyTakenFeedbackError(e)
 
         community = CommunityAdapter(comm, self)
 
@@ -130,11 +129,19 @@ class JumpediaAdapter(BaseAdapter):
         )
 
     def remove_community_from_current_server(self) -> CommunityAdapter:
-        return CommunityAdapter(
-            self._jumpedia.remove_community_from_server(
+        try:
+            community = self._jumpedia.remove_community_from_server(
                 self.interaction.current_server._server.id
-            ),
-            self,
+            )
+        except ServerNotConnectedToACommunityError as e:
+            raise FeedbackError(
+                "Server Not Connected To A Community",
+                t"This server is not connected to a community!"
+            )
+        
+        return CommunityAdapter(
+            community,
+            self
         )
 
     # --- Jumpedia User ---

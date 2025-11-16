@@ -20,8 +20,8 @@ def __main() -> None:
         )
 
     # --- Import/Run modules to preload and test functionality ---
-    import discord_
     from structures import jumpedia
+    import discord_
 
 
 if __name__ == "__main__":

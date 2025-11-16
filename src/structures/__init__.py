@@ -9,7 +9,7 @@ type StructuresTypeT = type[BaseStructure] | tuple[
 ]
 
 
-@t.dataclass_transform(frozen_default=True, kw_only_default=True)
+@t.dataclass_transform(frozen_default=True, kw_only_default=True, eq_default=False)
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.
 
@@ -30,7 +30,7 @@ class _StructureMeta(ABCMeta):
         )
 
         if namespace.get("__dataclass_fields__") is None:
-            return dataclass(frozen=True, slots=True, kw_only=True)(cls)  # type: ignore
+            return dataclass(frozen=True, slots=True, kw_only=True, eq=False)(cls)  # type: ignore
 
         return cls
 

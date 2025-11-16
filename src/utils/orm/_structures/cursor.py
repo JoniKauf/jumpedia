@@ -42,8 +42,8 @@ class Cursor:
             else:
                 conn.rollback()
 
-        # Re-raise exception if occurred implicitly
-
+        conn.close()
+        
     def _core_execute(self, query: Query, /) -> None:
         self._mariadb_cursor.execute(*query._to_sql())
 

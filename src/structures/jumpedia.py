@@ -123,7 +123,7 @@ class Jumpedia(BaseStructure):
         with self.connector.cursor() as c:
             query = db.Community.select("*")
 
-            if where is not None:
+            if where:
                 query = query.where(*where)
 
             return c.fetch_all(query)

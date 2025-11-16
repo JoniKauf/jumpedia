@@ -1,6 +1,5 @@
 import typing as t
 
-from .._utils import TupleOfOneOrMore
 from . import ExecutableQuery, FetchableQuery, utils
 
 if t.TYPE_CHECKING:
@@ -46,6 +45,8 @@ class Insert[T: Model](InsertQuery[T]):
         /,
         *columns: Column[T, t.Any],
     ) -> Returning[T]:
+        from .._structures.column import Column
+
         cols: tuple[Column[T, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):

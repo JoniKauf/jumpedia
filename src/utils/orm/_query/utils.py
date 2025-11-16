@@ -1,3 +1,4 @@
+import itertools
 import typing as t
 
 from .._utils import SqlString, TupleOfOneOrMore
@@ -75,7 +76,6 @@ def get_entire_insert_sql(
         parts.append("IGNORE")
 
     parts.append(str(table))
-
     parts.append(f"({','.join(map(str, cols))})")
     parts.append("VALUES")
 
@@ -83,7 +83,7 @@ def get_entire_insert_sql(
 
     parts.append(f"({','.join(PLACEHOLDER for _ in rows[0])})")
 
-    return (" ".join(parts), rows)
+    return (" ".join(parts), list(itertools.chain.from_iterable(rows)))
 
 
 def get_entire_delete_sql(

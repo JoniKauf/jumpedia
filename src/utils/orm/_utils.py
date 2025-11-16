@@ -1,15 +1,10 @@
 import string
-import typing as t
-from abc import ABC, abstractmethod
 
 type TupleOfOneOrMore[T] = tuple[T, *tuple[T, ...]]
 
 
-class SqlString(ABC):
-    @abstractmethod
-    def __str__(self) -> str:
-        pass
-
+class SqlString:
+    pass
 
 def validate_identifier(s: str) -> bool:
     if len(s) > 64:

@@ -27,6 +27,10 @@ class _ModelMeta(type, _utils.SqlString):
 
     def __str__(self) -> str:
         return f"`{self._table_name}`"
+    
+    @property
+    def table_name(self) -> str:
+        return self._table_name
 
 
 _SNAKE_TRANS_TABLE = str.maketrans(

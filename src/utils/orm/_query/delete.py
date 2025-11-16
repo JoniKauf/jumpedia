@@ -1,6 +1,5 @@
 import typing as t
 
-from .._utils import TupleOfOneOrMore
 from . import ExecutableQuery, FetchableQuery, Operator, Order, utils
 
 if t.TYPE_CHECKING:
@@ -53,6 +52,8 @@ class _ReturningAndLater[T: Model](DeleteQuery[T]):
         /,
         *columns: Column[t.Any, t.Any],
     ) -> Returning[T]:
+        from .._structures.column import Column
+        
         cols: tuple[Column[t.Any, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):
