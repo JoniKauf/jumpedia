@@ -73,6 +73,7 @@ class CommunityAdapter(BaseAdapter[Community]):
             raise FeedbackError(
                 "No Default Selected List",
                 t"The community `{self.name}` has no default selected list!",
+                additional=t"Please specify the list you want to use in the command."
             )
 
         return ListAdapter(list, self)

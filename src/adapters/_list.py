@@ -160,11 +160,17 @@ class ListAdapter(BaseAdapter[List]):
 
     # --- Attribute ---
 
-    def get_attributes(self) -> list[AnyAttributeAdapterT]:
+    def get_attributes_flat(self) -> list[AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
             for attr in self._s.get_all_attributes_flat()
         ]
+    
+    def get_attributes(self) -> tuple[list[StaticAttributeAdapter], list[TaskAttributeAdapter], list[UserAttributeAdapter]]:
+        return tuple(
+            [_get_attribute_adapter(attr, self) for attr in attrs]
+            for attrs in self._s.get_all_attributes()
+        )  # type: ignore
 
     @t.overload
     def get_attribute(

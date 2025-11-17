@@ -1,10 +1,14 @@
 import builtins
+from string.templatelib import Template
 from typing import Any
 
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from adapters._list import ListAdapter
+from adapters.interaction import InteractionAdapter
+from structures.attribute import ALL_ATTRIBUTE_TYPES
 from structures.task import Task
 
 from ..structs import modals
@@ -19,27 +23,34 @@ class ListCog(cmds.GroupCog, group_name="list"):
     async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
         ia = InteractionAdapter(interaction)
 
-        list_obj = ia.jumpedia.get_current_community().get_or_create_current_community_user()
+        community = ia.jumpedia.get_current_community()
+
+        list_obj: ListAdapter
+
+        if list is not None:
+            list_obj = community.get_list(list)
+        else:
+            list_obj = community.get_default_selected_list()
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 
-        attributes = list_obj.get_attributes_categorized()
+        attributes = list_obj.get_attributes()
 
         info.append(
-            ("Total Attribute Count", sum(len(attrs) for _, attrs in attributes))
+            ("Total Attribute Count", sum(len(type) for type in attributes))
         )
-
-        for attr_type, attrs in attributes:
+        
+        for i, type in enumerate(attributes):
             info.append(
-                (f"{attr_type.ATTRIBUTE_TYPE_NAME.title()} Attribute Count", len(attrs))
+                (f"{ALL_ATTRIBUTE_TYPES[i].type_name.title()} Count", len(type))
             )
 
         info.append(("Task Count", len(list_obj.get_tasks())))
 
-        await ia.response.send_message(
+        await interaction.response.send_message(
             messaging.layout(
                 "List Info",
-                "\n".join(f"**{k}:** {v}" for k, v in info),
+                Template('\n'.join(f"**{k}:** {v}" for k, v in info)),
                 messaging.MessageStatus.INFO,
             )
         )

@@ -80,7 +80,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Default Selected List",
-                t"The current default selected list of this community is {"not set" if dsl is None else f"`{dsl.name}`":p}!",
+                t"No list is selected as the default!"
+                if dsl is None else
+                t"The current default selected list of this community is `{dsl.name:p}`!",
                 messaging.MessageStatus.INFO
             )
         )
