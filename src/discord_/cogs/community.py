@@ -69,10 +69,11 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    @get_group.command(name="default_selected_list", description="Get the default selected list of the commuity.")
-    async def get_default_selected_list(
-        self, interaction: dc.Interaction
-    ) -> None:
+    @get_group.command(
+        name="default_selected_list",
+        description="Get the default selected list of the commuity.",
+    )
+    async def get_default_selected_list(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
 
         dsl = ia.jumpedia.get_current_community().get_default_selected_list(None)
@@ -80,10 +81,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Default Selected List",
-                t"No list is selected as the default!"
-                if dsl is None else
-                t"The current default selected list of this community is `{dsl.name:p}`!",
-                messaging.MessageStatus.INFO
+                (
+                    t"No list is set as the default selected list!"
+                    if dsl is None
+                    else t"The current default selected list of this community is `{dsl.name:p}`!"
+                ),
+                messaging.MessageStatus.INFO,
             )
         )
 
@@ -135,7 +138,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "List Created",
-                t"The list `{new_list.name:p}` has been created successfully!",
+                t"The list `{new_list.name:p}` has successfully been created!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -144,9 +147,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         name="delete", description="Delete objects from the community."
     )
 
-    @delete_group.command(
-        name="list", description="Delete a list from the community."
-    )
+    @delete_group.command(name="list", description="Delete a list from the community.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_list(self, interaction: dc.Interaction, list_name: str) -> None:
         ia = InteractionAdapter(interaction)
@@ -154,7 +155,5 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         list_s = ia.jumpedia.get_current_community().get_list(list_name)._s
 
         await modals.delete_structure_confirmation(
-            interaction,
-            list_s,
-            lambda ia: list_s.community.delete_list(list_s.id)
+            interaction, list_s, lambda ia: list_s.community.delete_list(list_s.id)
         )

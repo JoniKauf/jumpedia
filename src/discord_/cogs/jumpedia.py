@@ -42,11 +42,11 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         ia = InteractionAdapter(interaction)
 
         communities = ia.jumpedia.get_communities()
-        
+
         listing: Template
 
         if communities:
-            listing = text.join_t('\n', (t'- {comm.name:p}' for comm in communities))
+            listing = text.join_t("\n", (t"- {comm.name:p}" for comm in communities))
         else:
             listing = t"None"
 

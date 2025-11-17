@@ -19,20 +19,20 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
 class SynsAlreadyTakenFeedbackError(FeedbackError):
     def __init__(self, e: errors.SynsAlreadyTakenError) -> None:
         assert e.structures
-        
+
         syns = tuple(e.structures)
 
         MAX_EXAMPLES: int = 4
 
         if len(e.structures) > MAX_EXAMPLES:
-            syns = syns[:MAX_EXAMPLES - 1] + ('...',)
-        
+            syns = syns[: MAX_EXAMPLES - 1] + ("...",)
+
         names = ("name", "names")
         aliases = ("alias", "aliases")
         are = ("is", "are")
 
         many: bool = len(syns) > 1
-        
+
         super().__init__(
             f"{next(iter(e.structures.values())).__class__.type_name.title()} {names[many].title()} Or {aliases[many].title()} Already Taken",
             t"The specified {names[many].lower():p} or {aliases[many].lower():p} (`{'`, `'.join(syns):p}`) {are[many].lower():p} already taken!",

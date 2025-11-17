@@ -56,6 +56,7 @@ class ConfirmByEnteringModal(ui.Modal):
         await self.after_submit(ia, self.predicate(self.text_input.value))
         self.stop()
 
+
 async def delete_structure_confirmation(
     interaction: dc.Interaction,
     structure: BaseStructure,

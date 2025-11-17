@@ -298,9 +298,9 @@ class List(BaseStructure):
         assert (min_slots or kind) != issubclass(
             type, BaseNonStaticAttribute
         ), "Typing not followed on attribute creation #1"
-        assert (not collection) != issubclass(
-            type, BaseNonStaticAttribute
-        ), "Typing not followed on attribute creation #2"
+        assert not (issubclass(
+            type, StaticAttribute
+        ) and collection), "Typing not followed on attribute creation #2"
 
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
             utils_.handled_unique_reals_and_norms((real_name, *real_aliases))
@@ -379,6 +379,11 @@ class List(BaseStructure):
 
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
         from . import errors
+
+        if issubclass(type, StaticAttribute):
+            raise RuntimeError(
+                "Static Attributes have no business being deleted manually!! Wtf did you cook?!"
+            )
 
         AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
 
@@ -570,6 +575,20 @@ class List(BaseStructure):
         AttributeAliasTable: type[db.AbstractAttributeAliasTable] = type.tables.attribute_alias  # type: ignore
         count = len(norm_aliases)
 
+        x = AttributeAliasTable.insert(
+                AttributeAliasTable.attribute_id.bind(
+                    *itertools.repeat(attribute_id, count)
+                ),
+                AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
+                AttributeAliasTable.norm_alias.bind(*norm_aliases),
+                AttributeAliasTable.real_alias.bind(*real_aliases),
+            )._to_sql()
+        
+        print(x[0])
+        print("\n\n\n")
+        print(x[1])
+
+        input()
         c.execute(
             AttributeAliasTable.insert(
                 AttributeAliasTable.attribute_id.bind(

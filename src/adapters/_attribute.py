@@ -20,12 +20,8 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter[T]):
         return self._s.id
 
     @property
-    def real_name(self) -> text.RealStr:
+    def name(self) -> text.RealStr:
         return self._s.real_name
-
-    @property
-    def norm_name(self) -> text.NormStr:
-        return self._s.norm_name
 
     @property
     def _slot_type(self) -> type[SlotTypeT]:

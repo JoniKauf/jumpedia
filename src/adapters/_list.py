@@ -7,10 +7,12 @@ from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
     BaseAttribute,
+    BaseNonStaticAttribute,
     StaticAttribute,
     TaskAttribute,
     UserAttribute,
 )
+from structures.attribute.slot_str import SlotTypeT
 from structures.list import List
 from structures.task import Task
 from utils import text
@@ -165,8 +167,14 @@ class ListAdapter(BaseAdapter[List]):
             _get_attribute_adapter(attr, self)
             for attr in self._s.get_all_attributes_flat()
         ]
-    
-    def get_attributes(self) -> tuple[list[StaticAttributeAdapter], list[TaskAttributeAdapter], list[UserAttributeAdapter]]:
+
+    def get_attributes(
+        self,
+    ) -> tuple[
+        list[StaticAttributeAdapter],
+        list[TaskAttributeAdapter],
+        list[UserAttributeAdapter],
+    ]:
         return tuple(
             [_get_attribute_adapter(attr, self) for attr in attrs]
             for attrs in self._s.get_all_attributes()
@@ -196,3 +204,56 @@ class ListAdapter(BaseAdapter[List]):
         attribute = _require_attribute_with_syn(text.NormStr(syn), type, self._s)
 
         return _get_attribute_adapter(attribute, self)
+
+    @t.overload
+    def create_attribute(
+        self, 
+        type: type[TaskAttribute],
+        name: str,
+        slot_type: type[SlotTypeT],
+        max_slots: int,
+        aliases: str | None,
+        collection: str | None
+    ) -> TaskAttributeAdapter:
+        pass
+
+    @t.overload
+    def create_attribute(
+        self, 
+        type: type[UserAttribute],
+        name: str,
+        slot_type: type[SlotTypeT],
+        max_slots: int,
+        aliases: str | None,
+        collection: str | None
+    ) -> UserAttributeAdapter:
+        pass
+
+    def create_attribute(
+        self, 
+        type: type[BaseNonStaticAttribute],
+        name: str,
+        slot_type: type[SlotTypeT],
+        max_slots: int,
+        aliases: str | None,
+        collection: str | None
+    ) -> TaskAttributeAdapter | UserAttributeAdapter:
+        real_aliases = map(text.RealStr, _parsers.LIST_PARSER.parse(aliases or '[]'))
+        real_collection = tuple(
+            (text.RealStr(name), tuple(map(text.RealStr, aliases))) for name, aliases in
+            _parsers.LIST_OF_NAME_ALIASES_PARSER.parse(collection or '[]')
+        )
+
+        attr = self._s.create_attribute(
+            type,
+            text.RealStr(name),
+            real_aliases,
+            slot_type,
+            max_slots,
+            collection=real_collection
+        )
+
+        if isinstance(attr, TaskAttribute):
+            return TaskAttributeAdapter(attr, self)
+        
+        return UserAttributeAdapter(attr, self)  # type: ignore

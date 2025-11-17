@@ -1,7 +1,6 @@
 import re
 import typing as t
 
-from discord_.errors import FeedbackError
 from structures.community import CommunityUser, JumpediaUser
 from structures.user import MAX_ID, MIN_ID
 from structures.user.rank import CommunityRank, JumpediaRank
@@ -72,24 +71,16 @@ class CommunityUserAdapter(BaseAdapter[CommunityUser]):
         return self._s.community_rank
 
     @property
-    def most_important_rank(self) -> JumpediaRank | CommunityRank:
+    def most_powerful_rank(self) -> JumpediaRank | CommunityRank:
         return self._s.jumpedia_user.jumpedia_rank or self.community_rank
 
-    def get_selected_list(self, priority_list: str | None = None) -> ListAdapter:
-        if priority_list is not None:
-            return self.community.get_list(priority_list)
-        
+    def get_list_or_default(self, list: str | None) -> ListAdapter:
+        if list is not None:
+            return self.community.get_list(list)
+
         list_s = self._s.get_selected_list()
-        
+
         if list_s is not None:
             return ListAdapter(list_s, self.community)
-        
-        list = self.community.get_default_selected_list()
 
-        if list is not None:
-            return list
-        
-        raise FeedbackError(
-            "No Default Selected List",
-            t"Neither the user `{self.jumpedia_user.name}`, nor the community `{self.community.name}` have a default selected list!",
-        )
+        return self.community.get_default_selected_list()

@@ -73,9 +73,7 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
     def get_current_community(self) -> CommunityAdapter:
         return self.get_community(
             _require_server_with_community(
-                self._s.get_community_by_server_id(
-                    self.interaction.current_server.id
-                )
+                self._s.get_community_by_server_id(self.interaction.current_server.id)
             ).real_name
         )
 

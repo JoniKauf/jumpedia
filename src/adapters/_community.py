@@ -37,16 +37,14 @@ class CommunityAdapter(BaseAdapter[Community]):
         return [ListAdapter(list, self) for list in self._s.get_lists()]
 
     def get_list(self, name: str) -> ListAdapter:
-        return ListAdapter(
-            _require_list_with_name(text.NormStr(name), self._s), self
-        )
+        return ListAdapter(_require_list_with_name(text.NormStr(name), self._s), self)
 
     def create_list(self, name: str) -> ListAdapter:
         try:
             list = self._s.create_list(text.RealStr(name))
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTakenFeedbackError(e)
-        
+
         return ListAdapter(list, self)
 
     def delete_list(self, name: str) -> None:
@@ -73,7 +71,7 @@ class CommunityAdapter(BaseAdapter[Community]):
             raise FeedbackError(
                 "No Default Selected List",
                 t"The community `{self.name}` has no default selected list!",
-                additional=t"Please specify the list you want to use in the command."
+                additional=t"Please specify the list you want to use in the command.",
             )
 
         return ListAdapter(list, self)
@@ -85,7 +83,7 @@ class CommunityAdapter(BaseAdapter[Community]):
             list_id = _require_list_with_name(text.NormStr(name), self._s).id
 
         curr_default_selected_list = self.get_default_selected_list(None)
-        
+
         if curr_default_selected_list is None and list_id is None:
             raise FeedbackError(
                 "Already No Default Selected List",
@@ -96,14 +94,18 @@ class CommunityAdapter(BaseAdapter[Community]):
                     + t"into the command, but there is already no "
                     + t"list selected as the default, therefore "
                     + t"nothing changed."
-            ))
-        
-        if curr_default_selected_list is not None and list_id == curr_default_selected_list._s.id:
+                ),
+            )
+
+        if (
+            curr_default_selected_list is not None
+            and list_id == curr_default_selected_list._s.id
+        ):
             raise FeedbackError(
                 "Already Specified Default Selected List",
-                t"The specified list is already the default selected list, therefore nothing changed!"
+                t"The specified list is already the default selected list, therefore nothing changed!",
             )
-        
+
         self._s.set_default_selected_list(list_id)
 
     # --- User ---

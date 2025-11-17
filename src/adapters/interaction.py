@@ -14,8 +14,7 @@ from ._jumpedia import _JUMPEDIA, JumpediaAdapter
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     if isinstance(user_or_member, dc.User):
         raise FeedbackError(
-            "Not On Server", 
-            t"You must execute this command on a server!"
+            "Not On Server", t"You must execute this command on a server!"
         )
 
     return user_or_member

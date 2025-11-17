@@ -1,3 +1,4 @@
+import time
 import typing as t
 from dataclasses import InitVar, dataclass, field
 from types import MappingProxyType
@@ -14,9 +15,9 @@ class Connector:
     user: str
     password: InitVar[str]
     database_name: str | None
+    pool_name: InitVar[str]
     port: int = 3306
     autocommit: bool = False
-    pool_name: InitVar[str] = "pool"
     connection_pool_size: InitVar[int] = 10
     converter: MappingProxyType[int, t.Callable[[t.Any], t.Any]] = MappingProxyType({})
     kwargs: InitVar[t.Mapping[str, t.Any]] = MappingProxyType({})
@@ -59,7 +60,24 @@ class Connector:
         if c is not None:
             return c
 
-        c = self._get_pool().get_connection().cursor(dictionary=True)
+        pool = self._get_pool()
+
+        RETRIES: int = 5
+        DELAY: float = .5
+
+        for i in range(RETRIES):
+            try:
+                c = pool.get_connection().cursor(dictionary=True)
+            except mariadb.PoolError as e:
+                time.sleep(DELAY)
+                
+                if i >= RETRIES - 1:
+                    raise e
+            else:
+                break
+                
+        assert c is not None
+
         c.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         return Cursor(c)
 

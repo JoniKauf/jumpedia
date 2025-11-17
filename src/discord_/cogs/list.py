@@ -1,18 +1,32 @@
 import builtins
-from string.templatelib import Template
+from decimal import Decimal
+import enum
+from string.templatelib import Interpolation, Template
+from types import MappingProxyType
 from typing import Any
 
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters._list import ListAdapter
 from adapters.interaction import InteractionAdapter
-from structures.attribute import ALL_ATTRIBUTE_TYPES
+from structures.attribute import ALL_ATTRIBUTE_TYPES, TaskAttribute, UserAttribute
+from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
 from structures.task import Task
+from utils import text
 
 from ..structs import modals
 from ..utils_ import messaging
+
+
+_SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType({
+    bool: "Boolean (true/false)",
+    int: "Integer",
+    Decimal: "Decimal",
+    str: "String (Text)"
+})
+
+assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
 
 
 class ListCog(cmds.GroupCog, group_name="list"):
@@ -23,23 +37,14 @@ class ListCog(cmds.GroupCog, group_name="list"):
     async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
         ia = InteractionAdapter(interaction)
 
-        community = ia.jumpedia.get_current_community()
-
-        list_obj: ListAdapter
-
-        if list is not None:
-            list_obj = community.get_list(list)
-        else:
-            list_obj = community.get_default_selected_list()
+        list_obj = ia.jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 
         attributes = list_obj.get_attributes()
 
-        info.append(
-            ("Total Attribute Count", sum(len(type) for type in attributes))
-        )
-        
+        info.append(("Total Attribute Count", sum(len(type) for type in attributes)))
+
         for i, type in enumerate(attributes):
             info.append(
                 (f"{ALL_ATTRIBUTE_TYPES[i].type_name.title()} Count", len(type))
@@ -50,7 +55,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         await interaction.response.send_message(
             messaging.layout(
                 "List Info",
-                Template('\n'.join(f"**{k}:** {v}" for k, v in info)),
+                Template("\n".join(f"**{k}:** {v}" for k, v in info)),
                 messaging.MessageStatus.INFO,
             )
         )
@@ -58,72 +63,99 @@ class ListCog(cmds.GroupCog, group_name="list"):
     get_group = acmds.Group(name="get", description="Get objects of the list.")
 
     @get_group.command(name="attributes", description="Get all attributes of a list.")
-    async def get_attributes(self, ia: dc.Interaction, list: str | None = None) -> None:
-        list_obj = Context(ia).get_requested_list(list)
+    async def get_attributes(
+        self, interaction: dc.Interaction, list: str | None = None
+    ) -> None:
+        list_obj = (
+            InteractionAdapter(interaction)
+            .jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
 
         result: builtins.list[str] = []
 
-        for attr_type, attr_coll in list_obj.get_attributes_categorized():
+        for i, group in enumerate(list_obj.get_attributes()):
             result.append(
-                f"__**{attr_type.ATTRIBUTE_TYPE_NAME.title()}**__\n"
-                + ("\n".join(f"- {attr.name}" for attr in attr_coll) or "None")
+                f"__**{ALL_ATTRIBUTE_TYPES[i].type_name.title()}**__\n"
+                + ("\n".join(f"- {attr.name}" for attr in group) or "None")
             )
 
-        await ia.response.send_message(
+        await interaction.response.send_message(
             messaging.layout(
-                "All Attributes", "\n\n".join(result), messaging.MessageStatus.INFO
+                "All Attributes", text.join_t('\n\n', (Template(Interpolation(part)) for part in result)), messaging.MessageStatus.INFO
             )
         )
 
     @get_group.command(name="tasks", description="Get all tasks of a list.")
-    async def get_tasks(self, ia: dc.Interaction, list: str | None = None) -> None:
-        list_obj = Context(ia).get_requested_list(list)
+    async def get_tasks(self, interaction: dc.Interaction, list: str | None = None) -> None:
+        list_obj = InteractionAdapter(interaction).jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
 
-        await ia.response.send_message(
+        await interaction.response.send_message(
             messaging.layout(
                 "All Attributes",
-                "\n".join(task.name for task in list_obj.get_tasks()),
+                Template(Interpolation("\n".join(task.name for task in list_obj.get_tasks()))),
                 messaging.MessageStatus.INFO,
             )
         )
 
     create_group = acmds.Group(name="create", description="Create objects for a list.")
 
+
+    SlotTypeEnum = enum.Enum('SlotTypeEnum', [(_SLOT_TYPE_TO_NAME[type], type) for type in SLOT_TYPES] + [])
+
+    async def _create_attribute(
+        self,
+        interaction: dc.Interaction,
+        type: type[TaskAttribute | UserAttribute],
+        name: str,
+        slot_type: SlotTypeEnum,
+        max_slots: int,
+        aliases: str | None,
+        collection: str | None,
+        list: str | None,
+    ) -> None:
+        list_obj = InteractionAdapter(interaction).jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
+
+        attr = list_obj.create_attribute(
+            type,
+            name,
+            slot_type.value,
+            max_slots,
+            aliases,
+            collection
+        )
+
+        await interaction.response.send_message(
+            messaging.layout(
+                f"{type.type_name.title()} Created",
+                t"The {type.type_name.lower()} `{attr.name:p}` has successfully been created!",
+                messaging.MessageStatus.SUCCESS,
+            )
+        )
+
     @create_group.command(
         name="task_attribute", description="Create a new task attribute."
     )
     async def create_task_attribute(
         self,
-        ia: dc.Interaction,
+        interaction: dc.Interaction,
         name: str,
-        value_type: int,
+        slot_type: SlotTypeEnum,
         max_slots: int,
-        unique_slots: bool,
-        unique_value_per_list: bool,
-        aliases: str = "[]",
-        collection: str = "[]",
+        aliases: str | None = None,
+        collection: str | None = None,
         list: str | None = None,
     ) -> None:
-        ctx = Context(ia)
-
-        list_obj = ctx.get_requested_list(list)
-
-        task_attribute = list_obj.create_task_attribute(
-            bad_name=name,
-            bad_aliases=parsetools.json_loads_safe(aliases, 1),
-            value_type=value_type.value,
-            bad_collection=collection,
-            max_slots=max_slots,
-            unique_slots=unique_slots,
-            unique_value_per_list=unique_value_per_list,
-        )
-
-        await ia.response.send_message(
-            messaging.layout(
-                "Task Attribute Created",
-                f"The task attribute `{task_attribute.name}` has been created successfully!",
-                messaging.MessageStatus.SUCCESS,
-            )
+        await self._create_attribute(
+            interaction,
+            TaskAttribute,
+            name,
+            slot_type,
+            max_slots,
+            aliases,
+            collection,
+            list
         )
 
     @create_group.command(
@@ -131,34 +163,23 @@ class ListCog(cmds.GroupCog, group_name="list"):
     )
     async def create_user_attribute(
         self,
-        ia: dc.Interaction,
+        interaction: dc.Interaction,
         name: str,
-        value_type: int,
+        slot_type: SlotTypeEnum,
         max_slots: int,
-        unique_slots: bool,
-        aliases: str = "[]",
-        collection: str = "[]",
+        aliases: str | None = None,
+        collection: str | None = None,
         list: str | None = None,
     ) -> None:
-        ctx = Context(ia)
-
-        list_obj = ctx.get_requested_list(list)
-
-        task_attribute = list_obj.create_user_attribute(
-            bad_name=name,
-            bad_aliases=parsetools.json_loads_safe(aliases, 1),
-            value_type=value_type.value,
-            bad_collection=collection,
-            max_slots=max_slots,
-            unique_slots=unique_slots,
-        )
-
-        await ia.response.send_message(
-            messaging.layout(
-                "User Attribute Created",
-                f"The user attribute `{task_attribute.name}` has been created successfully!",
-                messaging.MessageStatus.SUCCESS,
-            )
+        await self._create_attribute(
+            interaction,
+            UserAttribute,
+            name,
+            slot_type,
+            max_slots,
+            aliases,
+            collection,
+            list
         )
 
     @create_group.command(

@@ -50,6 +50,7 @@ class _InterpolationData(t.NamedTuple):
 
 MAX_DISCORD_CODE_UNITS: int = 2000
 
+
 def utf16_code_units(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
 

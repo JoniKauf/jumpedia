@@ -106,7 +106,4 @@ class CommunityUser(BaseStructure):
         if row is None:
             return None
 
-        return (
-            self.community._list_row_to_obj(row)
-        )
-    
+        return self.community._list_row_to_obj(row)
