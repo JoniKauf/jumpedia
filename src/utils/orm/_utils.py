@@ -6,6 +6,7 @@ type TupleOfOneOrMore[T] = tuple[T, *tuple[T, ...]]
 class SqlString:
     pass
 
+
 def validate_identifier(s: str) -> bool:
     if len(s) > 64:
         return False

@@ -6,6 +6,7 @@ import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
 from structures.user.rank import CommunityRank, JumpediaRank, ServerRank
+from utils import text
 
 from ..errors import FeedbackError
 from ..structs import modals, predicates
@@ -37,22 +38,22 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     )
 
     @get_group.command(name="communities", description="Get all communities.")
-    async def show_communities(self, interaction: dc.Interaction) -> None:
+    async def get_communities(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
-        result: Template = Template("None")
 
         communities = ia.jumpedia.get_communities()
+        
+        listing: Template
 
         if communities:
-            result = t""
-
-            for comm in communities:
-                result += t"- " + Template(comm.name) + t"\n"
+            listing = text.join_t('\n', (t'- {comm.name:p}' for comm in communities))
+        else:
+            listing = t"None"
 
         await interaction.response.send_message(
             messaging.layout(
                 "All Communities",
-                result,
+                listing,
                 messaging.MessageStatus.INFO,
             )
         )
@@ -76,14 +77,13 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Created",
-                t"The community `{community.name}` was successfully created "
-                + t"and is now connected to this server!",
+                t"The community `{community.name:p}` was successfully created and is now connected to this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
 
     delete_group = acmds.Group(
-        name="delete", description="Delete objects that belong to the metaverse."
+        name="delete", description="Delete objects that belong to the Jumpediaverse."
     )
 
     @delete_group.command(name="community", description="Delete a community.")
@@ -93,8 +93,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         community = ia.jumpedia.get_current_community()
 
         await modals.delete_structure_confirmation(
-            ia._interaction,
-            community._community,
+            ia._s,
+            community._s,
             lambda _: ia.jumpedia.delete_community(community.name),
         )
 
@@ -116,8 +116,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Connected",
-                t"This server has successfully been connected with "
-                + t"the community `{community.name}`!",
+                t"This server has successfully been connected to the community `{community.name:p}`!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -139,8 +138,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Disconnected",
-                t"The community `{community.name}` has successfully been "
-                + t"disconnected from this server!",
+                t"The community `{community.name:p}` has successfully been disconnected from this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

@@ -54,7 +54,7 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
     @property
     def unqualified(self) -> str:
         return f"`{self.name}`"
-    
+
     @property
     def name(self) -> str:
         return self._name
@@ -72,6 +72,7 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
 
     def bind(self, value: TValue, /, *values: TValue) -> ColumnBind[TOwner, TValue]:
         return ColumnBind(self, (value, *values))
+
 
 def column[TOwner: Model, TValue](
     *fetch_types: TypeForm[TValue],

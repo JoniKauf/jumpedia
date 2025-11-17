@@ -35,7 +35,7 @@ class MessageStatus:
         cls.INFO = cls("information_source", "Info")
         cls.SUCCESS = cls("white_check_mark", "Success")
         cls.WARNING = cls("warning", "Warning")
-        cls.FAILED = cls("x", "Failed")
+        cls.ERROR = cls("x", "Error")
 
         cls._init_done = True
 
@@ -49,7 +49,6 @@ class _InterpolationData(t.NamedTuple):
 
 
 MAX_DISCORD_CODE_UNITS: int = 2000
-
 
 def utf16_code_units(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
@@ -86,7 +85,7 @@ def layout(
     for i, interp in enumerate(final_templ.interpolations):
         if interp.format_spec == "p":
             interp_to_data[id(interp)] = data = _InterpolationData(
-                str(interp.value.obj), False
+                str(interp.value), False
             )
         else:
             interp_to_data[id(interp)] = data = _InterpolationData(

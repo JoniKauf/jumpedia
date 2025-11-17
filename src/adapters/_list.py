@@ -4,16 +4,24 @@ import typing as t
 from adapters import _parsers
 from discord_.errors import FeedbackError
 from structures import attribute
-from structures.attribute import (AnyAttributeT, BaseAttribute,
-                                  StaticAttribute, TaskAttribute,
-                                  UserAttribute)
+from structures.attribute import (
+    AnyAttributeT,
+    BaseAttribute,
+    StaticAttribute,
+    TaskAttribute,
+    UserAttribute,
+)
 from structures.list import List
 from structures.task import Task
 from utils import text
 
 from . import BaseAdapter, errors
-from ._attribute import (AnyAttributeAdapterT, StaticAttributeAdapter,
-                         TaskAttributeAdapter, UserAttributeAdapter)
+from ._attribute import (
+    AnyAttributeAdapterT,
+    StaticAttributeAdapter,
+    TaskAttributeAdapter,
+    UserAttributeAdapter,
+)
 from ._task import TaskAdapter
 
 if t.TYPE_CHECKING:
@@ -86,7 +94,7 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
         for k, v in _parsers.MAPPING_PARSER.parse(raw_avm or "").items()
     }
 
-    found_attrs = list.get_attributes_by_syn(attribute_type, *avm)
+    found_attrs = list.get_attributes_by_syn(attribute_type, *avm).values()
 
     for k, count in collections.Counter(found_attrs).items():
         if count > 1:
@@ -98,22 +106,20 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
     return {attr.id: avm[attr.norm_name] for attr in found_attrs}
 
 
-class ListAdapter(BaseAdapter):
-    _list: List
-
+class ListAdapter(BaseAdapter[List]):
     community: CommunityAdapter
 
     @property
     def name(self) -> text.RealStr:
-        return self._list.real_name
+        return self._s.real_name
 
     # --- Task ---
 
     def get_tasks(self) -> list[TaskAdapter]:
-        return [TaskAdapter(task, self) for task in self._list.get_tasks()]
+        return [TaskAdapter(task, self) for task in self._s.get_tasks()]
 
     def get_task(self, syn: str) -> TaskAdapter:
-        return TaskAdapter(_require_task_with_syn(text.NormStr(syn), self._list), self)
+        return TaskAdapter(_require_task_with_syn(text.NormStr(syn), self._s), self)
 
     def create_task(
         self, name: str, aliases: str, task_attribute_value_mapping: str | None
@@ -122,24 +128,24 @@ class ListAdapter(BaseAdapter):
         real_aliases = tuple(map(text.RealStr, _parsers.LIST_PARSER.parse(aliases)))
 
         avm = _validate_and_convert_attribute_value_mapping(
-            task_attribute_value_mapping, TaskAttribute, self._list
+            task_attribute_value_mapping, TaskAttribute, self._s
         )
 
-        return TaskAdapter(self._list.create_task(real_name, real_aliases, avm), self)
+        return TaskAdapter(self._s.create_task(real_name, real_aliases, avm), self)
 
     def delete_task(self, syn: str) -> None:
         task = self.get_task(syn)
-        self._list.delete_task(task._task.id)
+        self._s.delete_task(task._s.id)
 
     def edit_task_name(self, syn: str, name: str) -> None:
         task = self.get_task(syn)
-        self._list.edit_task_name(task._task.id, text.RealStr(name))
+        self._s.edit_task_name(task._s.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
         real_aliases = tuple(map(text.RealStr, _parsers.LIST_PARSER.parse(aliases)))
 
         task = self.get_task(syn)
-        self._list.edit_task_aliases(task._task.id, real_aliases)
+        self._s.edit_task_aliases(task._s.id, real_aliases)
 
     def edit_task_attribute_value_mapping(
         self, syn: str, task_attribute_value_mapping: str | None
@@ -147,17 +153,17 @@ class ListAdapter(BaseAdapter):
         task = self.get_task(syn)
 
         avm = _validate_and_convert_attribute_value_mapping(
-            task_attribute_value_mapping, TaskAttribute, self._list
+            task_attribute_value_mapping, TaskAttribute, self._s
         )
 
-        self._list.edit_task_attribute_value_mapping(task._task.id, avm)
+        self._s.edit_task_attribute_value_mapping(task._s.id, avm)
 
     # --- Attribute ---
 
     def get_attributes(self) -> list[AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
-            for attr in self._list.get_all_attributes_flat()
+            for attr in self._s.get_all_attributes_flat()
         ]
 
     @t.overload
@@ -181,6 +187,6 @@ class ListAdapter(BaseAdapter):
     def get_attribute(
         self, syn: str, type: type[AnyAttributeT]
     ) -> AnyAttributeAdapterT:
-        attribute = _require_attribute_with_syn(text.NormStr(syn), type, self._list)
+        attribute = _require_attribute_with_syn(text.NormStr(syn), type, self._s)
 
         return _get_attribute_adapter(attribute, self)

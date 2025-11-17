@@ -35,22 +35,26 @@ class StructureNotFoundError(BaseStructureError):
     structure_type: type[BaseStructure]
 
 
-class SynsAlreadyTakenError(BaseStructureError):
-    structures: frozenset[BaseStructure]
+class SynsAlreadyTakenError[T: text.RealStr](BaseStructureError):
+    structures: t.Mapping[T, BaseStructure]
 
 
 class ServerAlreadyConnectedToCommunityError(BaseStructureError):
     server_id: int
-    structure: Community
+    community: Community
 
 
 class ServerNotConnectedToACommunityError(BaseStructureError):
     server_id: int
 
 
-class LimitReachedError(BaseStructureError):
+class StructureCountLimitReachedError(BaseStructureError):
     limit: int
-    type: type
+    structure_type: type[BaseStructure]
+
+
+class CollectionEntryLimitReachedError(BaseStructureError):
+    limit: int
 
 
 class CollectionEntryNotFoundError(BaseStructureError):

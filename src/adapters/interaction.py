@@ -8,21 +8,20 @@ from . import BaseAdapter
 from ._discord.member import MemberAdapter
 from ._discord.server import ServerAdapter
 from ._discord.user import UserAdapter
-from ._jumpedia import JumpediaAdapter
+from ._jumpedia import _JUMPEDIA, JumpediaAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     if isinstance(user_or_member, dc.User):
         raise FeedbackError(
-            "Not On Server", t"You must execute this command on a server!"
+            "Not On Server", 
+            t"You must execute this command on a server!"
         )
 
     return user_or_member
 
 
-class InteractionAdapter(BaseAdapter):
-    _interaction: dc.Interaction
-
+class InteractionAdapter(BaseAdapter[dc.Interaction]):
     def __post_init__(self) -> None:
         # If a user interacts with Jumpedia, we want to save them.
         #
@@ -33,12 +32,12 @@ class InteractionAdapter(BaseAdapter):
 
     @cached_property
     def current_server(self) -> ServerAdapter:
-        user = _require_member(self._interaction.user)
+        user = _require_member(self._s.user)
         return ServerAdapter(user.guild, self)
 
     @cached_property
     def current_user(self) -> UserAdapter:
-        user_or_member = self._interaction.user
+        user_or_member = self._s.user
 
         if isinstance(user_or_member, dc.Member):
             return UserAdapter(user_or_member._user, self)
@@ -47,9 +46,9 @@ class InteractionAdapter(BaseAdapter):
 
     @cached_property
     def current_member(self) -> MemberAdapter:
-        member = _require_member(self._interaction.user)
+        member = _require_member(self._s.user)
         return MemberAdapter(member, self.current_server, self.current_user)
 
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:
-        return JumpediaAdapter(self)
+        return JumpediaAdapter(_JUMPEDIA, self)

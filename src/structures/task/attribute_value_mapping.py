@@ -2,8 +2,7 @@ import typing as t
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from ..attribute import (AnyAttributeT, StaticAttribute, TaskAttribute,
-                         UserAttribute)
+from ..attribute import AnyAttributeT, StaticAttribute, TaskAttribute, UserAttribute
 from ..attribute.slot_str import SlotStr
 
 if t.TYPE_CHECKING:

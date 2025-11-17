@@ -19,10 +19,23 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
 class SynsAlreadyTakenFeedbackError(FeedbackError):
     def __init__(self, e: errors.SynsAlreadyTakenError) -> None:
         assert e.structures
+        
+        syns = tuple(e.structures)
 
+        MAX_EXAMPLES: int = 4
+
+        if len(e.structures) > MAX_EXAMPLES:
+            syns = syns[:MAX_EXAMPLES - 1] + ('...',)
+        
+        names = ("name", "names")
+        aliases = ("alias", "aliases")
+        are = ("is", "are")
+
+        many: bool = len(syns) > 1
+        
         super().__init__(
-            "Names Or Aliases Already Taken",
-            t"The names or aliases `{'`, `'.join(text.shorten_many(tuple(e.structures)))}` are already taken!",
+            f"{next(iter(e.structures.values())).__class__.type_name.title()} {names[many].title()} Or {aliases[many].title()} Already Taken",
+            t"The specified {names[many].lower():p} or {aliases[many].lower():p} (`{'`, `'.join(syns):p}`) {are[many].lower():p} already taken!",
         )
 
 
@@ -43,4 +56,20 @@ class InvalidArgumentFeedbackError(FeedbackError):
             related_documentation=related_documentation,
             paragraphs=paragraphs,
             msg_kwargs=msg_kwargs,
+        )
+
+
+class ServerNotConnectedToACommunityFeedbackError(FeedbackError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Server Not Connected To A Community",
+            t"This server is not connected to a community!",
+        )
+
+
+class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
+    def __init__(self, e: errors.ServerAlreadyConnectedToCommunityError) -> None:
+        super().__init__(
+            "Server Already Connected To A Community",
+            t"This server is already connected to a community (`{e.community.name}`)!",
         )

@@ -2,6 +2,7 @@ import typing as t
 
 from discord_.errors import FeedbackError
 from structures.community import Community
+from structures.errors import SynsAlreadyTakenError
 from structures.list import List
 from structures.user.rank import CommunityRank
 from utils import text
@@ -23,30 +24,34 @@ def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     return list
 
 
-class CommunityAdapter(BaseAdapter):
-    _community: Community
+class CommunityAdapter(BaseAdapter[Community]):
     jumpedia: JumpediaAdapter
 
     @property
     def name(self) -> text.RealStr:
-        return self._community.real_name
+        return self._s.real_name
 
     # --- List ---
 
     def get_lists(self) -> list[ListAdapter]:
-        return [ListAdapter(list, self) for list in self._community.get_lists()]
+        return [ListAdapter(list, self) for list in self._s.get_lists()]
 
     def get_list(self, name: str) -> ListAdapter:
         return ListAdapter(
-            _require_list_with_name(text.NormStr(name), self._community), self
+            _require_list_with_name(text.NormStr(name), self._s), self
         )
 
     def create_list(self, name: str) -> ListAdapter:
-        return ListAdapter(self._community.create_list(text.RealStr(name)), self)
+        try:
+            list = self._s.create_list(text.RealStr(name))
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTakenFeedbackError(e)
+        
+        return ListAdapter(list, self)
 
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(text.NormStr(name), self._community)
-        self._community.delete_list(list.id)
+        list = _require_list_with_name(text.NormStr(name), self._s)
+        self._s.delete_list(list.id)
 
     @t.overload
     def get_default_selected_list(self) -> ListAdapter:
@@ -59,7 +64,7 @@ class CommunityAdapter(BaseAdapter):
     _MISSING = object()
 
     def get_default_selected_list[T](self, default: T = _MISSING) -> ListAdapter | T:
-        list = self._community.get_default_selected_list()
+        list = self._s.get_default_selected_list()
 
         if list is None:
             if default is not self.__class__._MISSING:
@@ -76,9 +81,29 @@ class CommunityAdapter(BaseAdapter):
         if name is None:
             list_id = None
         else:
-            list_id = _require_list_with_name(text.NormStr(name), self._community).id
+            list_id = _require_list_with_name(text.NormStr(name), self._s).id
 
-        self._community.set_default_selected_list(list_id)
+        curr_default_selected_list = self.get_default_selected_list(None)
+        
+        if curr_default_selected_list is None and list_id is None:
+            raise FeedbackError(
+                "Already No Default Selected List",
+                t"There is already no default selected list!",
+                additional=(
+                    t"You tried to unset the default selected list "
+                    + t"of the community by not entering a list's name "
+                    + t"into the command, but there is already no "
+                    + t"list selected as the default, therefore "
+                    + t"nothing changed."
+            ))
+        
+        if curr_default_selected_list is not None and list_id == curr_default_selected_list._s.id:
+            raise FeedbackError(
+                "Already Specified Default Selected List",
+                t"The specified list is already the default selected list, therefore nothing changed!"
+            )
+        
+        self._s.set_default_selected_list(list_id)
 
     # --- User ---
 
@@ -88,8 +113,8 @@ class CommunityAdapter(BaseAdapter):
         override_community_rank: CommunityRank | None = None,
     ) -> CommunityUserAdapter:
         return CommunityUserAdapter(
-            self._community.get_or_create_community_user(
-                jumpedia_user._jumpedia_user,
+            self._s.get_or_create_community_user(
+                jumpedia_user._s,
                 override_community_rank or CommunityRank.DEFAULT,
                 None,
                 override_community_rank is not None,
@@ -109,4 +134,4 @@ class CommunityAdapter(BaseAdapter):
     # --- Server ---
 
     def get_server_count(self) -> int:
-        return len(self._community.get_server_ids())
+        return len(self._s.get_server_ids())

@@ -13,13 +13,8 @@ if t.TYPE_CHECKING:
 
 class Task(BaseStructure):
     list: List
-    id: int
     slot_name: SlotStr
     norm_name: text.NormStr
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.list.identity
 
     @property
     def name(self) -> str:

@@ -17,7 +17,7 @@ class Connector:
     port: int = 3306
     autocommit: bool = False
     pool_name: InitVar[str] = "pool"
-    connection_pool_size: InitVar[int] = 5
+    connection_pool_size: InitVar[int] = 10
     converter: MappingProxyType[int, t.Callable[[t.Any], t.Any]] = MappingProxyType({})
     kwargs: InitVar[t.Mapping[str, t.Any]] = MappingProxyType({})
     _pool: mariadb.ConnectionPool | None = field(init=False, default=None)

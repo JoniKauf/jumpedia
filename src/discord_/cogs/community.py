@@ -1,4 +1,5 @@
 from enum import Enum
+from string.templatelib import Template
 
 import discord as dc
 import discord.app_commands as acmds
@@ -6,6 +7,7 @@ import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
 from structures.user.rank import CommunityRank, ServerRank
+from utils import text
 
 from ..structs import modals, predicates
 from ..utils_ import messaging
@@ -20,7 +22,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ia = InteractionAdapter(interaction)
         community = ia.jumpedia.get_current_community()
 
-        default_selected_list = community.get_default_selected_list()
+        default_selected_list = community.get_default_selected_list(None)
         default_selected_list_name = (
             default_selected_list.name if default_selected_list is not None else "None"
         )
@@ -28,14 +30,17 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Info",
-                "\n".join(
-                    f"**{k}:** {v}"
-                    for k, v in [
-                        ("Name", community.name),
-                        ("Server Count", community.get_server_count()),
-                        ("List Count", len(community.get_lists())),
-                        ("Default Selected List", default_selected_list_name),
-                    ]
+                text.join_t(
+                    "\n",
+                    (
+                        t"**{k:p}:** {v}"
+                        for k, v in [
+                            ("Name", community.name),
+                            ("Server Count", community.get_server_count()),
+                            ("List Count", len(community.get_lists())),
+                            ("Default Selected List", default_selected_list_name),
+                        ]
+                    ),
                 ),
                 messaging.MessageStatus.INFO,
             )
@@ -47,13 +52,36 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def get_lists(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
 
-        community = ia.jumpedia.get_current_community()
+        lists = ia.jumpedia.get_current_community().get_lists()
+
+        listing: Template
+
+        if lists:
+            listing = text.join_t("\n", (t"- {list.name}" for list in lists))
+        else:
+            listing = t"None"
 
         await interaction.response.send_message(
             messaging.layout(
                 "All Lists",
-                ",".join(f"- {list.name}" for list in community.get_lists()) or "None",
+                listing,
                 messaging.MessageStatus.INFO,
+            )
+        )
+
+    @get_group.command(name="default_selected_list", description="Get the default selected list of the commuity.")
+    async def get_default_selected_list(
+        self, interaction: dc.Interaction
+    ) -> None:
+        ia = InteractionAdapter(interaction)
+
+        dsl = ia.jumpedia.get_current_community().get_default_selected_list(None)
+
+        await interaction.response.send_message(
+            messaging.layout(
+                "Default Selected List",
+                t"The current default selected list of this community is {"not set" if dsl is None else f"`{dsl.name}`":p}!",
+                messaging.MessageStatus.INFO
             )
         )
 
@@ -83,9 +111,9 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             messaging.layout(
                 "Default Selected List Set",
                 (
-                    f"The default selected list has successfully been changed to `{list}`!"
+                    t"The default selected list has successfully been changed to `{list}`!"
                     if list is not None
-                    else "The default selected list has successfully been changed to be unset, meaning that users are forced to select one."
+                    else t"The default selected list has successfully been changed to be unset, meaning that users are forced to select one."
                 ),
                 messaging.MessageStatus.SUCCESS,
             )
@@ -105,7 +133,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "List Created",
-                f"The list `{new_list.name}` has been created successfully!",
+                t"The list `{new_list.name:p}` has been created successfully!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -115,40 +143,16 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     )
 
     @delete_group.command(
-        name="delete", description="Delete a list from the community."
+        name="list", description="Delete a list from the community."
     )
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_list(self, interaction: dc.Interaction, list_name: str) -> None:
         ia = InteractionAdapter(interaction)
 
-        list = ia.jumpedia.get_current_community().get_list(list_name)
+        list_s = ia.jumpedia.get_current_community().get_list(list_name)._s
 
-        async def after_submit(interaction: dc.Interaction, success: bool) -> None:
-            if success:
-                ctx.community.delete_list(list_name)
-
-                return await interaction.response.send_message(
-                    messaging.layout(
-                        "List Deleted",
-                        f"The list `{list.name}` has successfully been deleted!",
-                        messaging.MessageStatus.SUCCESS,
-                    )
-                )
-
-            await interaction.response.send_message(
-                messaging.layout(
-                    "List Deletion Aborted",
-                    f"The list `{list.name}` has **not** been deleted because the name entered is not correct!",
-                    messaging.MessageStatus.WARNING,
-                )
-            )
-
-        await interaction.response.send_modal(
-            modals.ConfirmByEnteringModal(
-                interaction,
-                "Confirm List Deletion",
-                "Re-Enter the list's name to confirm",
-                lambda s: s == list.name,
-                after_submit,
-            )
+        await modals.delete_structure_confirmation(
+            interaction,
+            list_s,
+            lambda ia: list_s.community.delete_list(list_s.id)
         )

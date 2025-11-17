@@ -28,14 +28,9 @@ class CommunityLimits(t.NamedTuple):
 
 class Community(BaseStructure):
     jumpedia: Jumpedia
-    id: int
     real_name: text.RealStr
     norm_name: text.NormStr
     limits: CommunityLimits
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,) + self.jumpedia.identity
 
     @property
     def name(self) -> str:
@@ -61,12 +56,14 @@ class Community(BaseStructure):
         list_obj = self.get_list_by_name(norm_name)
 
         if list_obj is not None:
-            raise errors.SynsAlreadyTakenError(frozenset((list_obj,)))
+            raise errors.SynsAlreadyTakenError({list_obj.real_name: list_obj})
 
         count = len(self.get_lists())
 
         if count >= self.limits.community_list_count_max:
-            raise errors.LimitReachedError(self.limits.community_list_count_max, List)
+            raise errors.StructureCountLimitReachedError(
+                self.limits.community_list_count_max, List
+            )
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -113,7 +110,7 @@ class Community(BaseStructure):
 
             del static_attr_name
 
-            static_attr_alias = list_obj._get_default_static_attribute(Kind.NAME, -1)
+            static_attr_alias = list_obj._get_default_static_attribute(Kind.ALIAS, -1)
 
             list_obj.create_attribute(
                 StaticAttribute,
@@ -180,7 +177,7 @@ class Community(BaseStructure):
         with self.connector.cursor() as c:
             row = c.fetch_one(
                 db.Community.select(db.Community.default_selected_list_id).where(
-                    (db.Community, orm.Operator.EQ, self.id)
+                    (db.Community.id, orm.Operator.EQ, self.id)
                 )
             )
 

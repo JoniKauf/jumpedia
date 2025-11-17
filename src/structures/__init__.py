@@ -2,7 +2,7 @@ import typing as t
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
-from utils import text
+from utils import orm, text
 
 type StructuresTypeT = type[BaseStructure] | tuple[
     type[BaseStructure], *tuple[type[BaseStructure], ...]
@@ -45,24 +45,18 @@ class _StructureMeta(ABCMeta):
 
 
 class BaseStructure(metaclass=_StructureMeta):
-    # @property
-    # def locked(self) -> _GeneratorContextManager[None]:
-    #     return locked.equality_locked(self)
-
-    @property
-    @abstractmethod
-    def identity(self) -> tuple[int, ...]:
-        """Uniquely identify an object of this type."""
+    id: int
 
     @property
     @abstractmethod
     def name(self) -> str: ...
 
+    @property
+    @abstractmethod
+    def connector(self) -> orm.Connector: ...
+
     def __hash__(self) -> int:
-        return hash(self.identity)
+        return hash(self.id)
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, BaseStructure):
-            return NotImplemented
-
-        return self.__class__ is value.__class__ and self.identity == value.identity
+        return self.__class__ is value.__class__ and self.id == value.id  # type: ignore

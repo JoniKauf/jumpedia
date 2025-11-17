@@ -493,34 +493,37 @@ type AnyAttributeCollectionEntryAliasTable = TaskAttributeCollectionEntryAlias |
 type AnyTaskAttributeValueTable = TaskTaskAttributeValue | TaskUserAttributeValue
 
 
-if t.TYPE_CHECKING:
-    # Intersection types to be type safe and make type checker shut up for queries
-    class AbstractAttributeTable(
-        StaticAttribute, TaskAttribute, UserAttribute, table_name=""
-    ):
-        pass
+# Intersection types to be type safe and make type checker shut up for queries
+class AbstractAttributeTable(
+    StaticAttribute, TaskAttribute, UserAttribute, table_name=""
+):
+    pass
 
-    class AbstractAttributeAliasTable(
-        StaticAttributeAlias, TaskAttributeAlias, UserAttributeAlias, table_name=""
-    ):
-        pass
 
-    class AbstractAttributeCollectionEntryTable(
-        TaskAttributeCollectionEntry, UserAttributeCollectionEntry, table_name=""
-    ):
-        pass
+class AbstractAttributeAliasTable(
+    StaticAttributeAlias, TaskAttributeAlias, UserAttributeAlias, table_name=""
+):
+    pass
 
-    class AbstractAttributeCollectionEntryAliasTable(
-        TaskAttributeCollectionEntryAlias,
-        UserAttributeCollectionEntryAlias,
-        table_name="",
-    ):
-        pass
 
-    class AbstractTaskAttributeValueTable(
-        TaskTaskAttributeValue, TaskUserAttributeValue, table_name=""
-    ):
-        pass
+class AbstractAttributeCollectionEntryTable(
+    TaskAttributeCollectionEntry, UserAttributeCollectionEntry, table_name=""
+):
+    pass
+
+
+class AbstractAttributeCollectionEntryAliasTable(
+    TaskAttributeCollectionEntryAlias,
+    UserAttributeCollectionEntryAlias,
+    table_name="",
+):
+    pass
+
+
+class AbstractTaskAttributeValueTable(
+    TaskTaskAttributeValue, TaskUserAttributeValue, table_name=""
+):
+    pass
 
 
 def create_database(j: Jumpedia) -> None:

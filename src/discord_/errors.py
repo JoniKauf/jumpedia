@@ -72,7 +72,7 @@ class FeedbackError(BaseUserReturnableError):
         return messaging.layout(
             header=self.header,
             core=self.core,
-            message_status=messaging.MessageStatus.FAILED,
+            message_status=messaging.MessageStatus.ERROR,
             additional=self.additional,
             paragraphs=paragraphs,
         )

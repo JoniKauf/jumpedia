@@ -2,20 +2,23 @@ import ast
 import typing as t
 from types import MappingProxyType
 
-from adapters.errors import (InvalidArgumentFeedbackError,
-                             StructureNotFoundViaSynFeedbackError)
+from adapters.errors import (
+    InvalidArgumentFeedbackError,
+    StructureNotFoundViaSynFeedbackError,
+)
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_str import SlotTypeT
 from structures.task.attribute_value_mapping import AttributeValueMapping
 from utils.expression_parsing import errors as ep_errors
 from utils.expression_parsing import utils as ep_utils
-from utils.expression_parsing.parser import (ExpressionParser,
-                                             ExpressionParserConfig)
-from utils.expression_parsing.visitor import (BaseExpressionVisitor,
-                                              DictOfStrToListOfStrVisitor,
-                                              ExpressionVisitorConfig,
-                                              ListOfStrVisitor,
-                                              ListOfTupleVisitor)
+from utils.expression_parsing.parser import ExpressionParser, ExpressionParserConfig
+from utils.expression_parsing.visitor import (
+    BaseExpressionVisitor,
+    DictOfStrToListOfStrVisitor,
+    ExpressionVisitorConfig,
+    ListOfStrVisitor,
+    ListOfTupleVisitor,
+)
 from utils.text import NormStr
 
 _KIBIBYTE = 2**10

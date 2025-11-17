@@ -49,48 +49,47 @@ def identifier_to_id(identifier: str | int) -> int:
     return _str_to_id(identifier)
 
 
-
-
-
-
-class JumpediaUserAdapter(BaseAdapter):
-    _jumpedia_user: JumpediaUser
-
+class JumpediaUserAdapter(BaseAdapter[JumpediaUser]):
     jumpedia: JumpediaAdapter
 
     @property
     def name(self) -> str:
-        return self._jumpedia_user.user_name
+        return self._s.user_name
 
     @property
     def jumpedia_rank(self) -> JumpediaRank:
-        return self._jumpedia_user.jumpedia_rank
+        return self._s.jumpedia_rank
 
 
-
-
-
-class CommunityUserAdapter(BaseAdapter):
-    _community_user: CommunityUser
+class CommunityUserAdapter(BaseAdapter[CommunityUser]):
+    _s: CommunityUser
 
     community: CommunityAdapter
     jumpedia_user: JumpediaUserAdapter
 
     @property
     def community_rank(self) -> CommunityRank:
-        return self._community_user.community_rank
+        return self._s.community_rank
 
     @property
     def most_important_rank(self) -> JumpediaRank | CommunityRank:
-        return self._community_user.jumpedia_user.jumpedia_rank or self.community_rank
+        return self._s.jumpedia_user.jumpedia_rank or self.community_rank
 
-    def get_selected_list(self) -> ListAdapter:
-        list = self._community_user.get_selected_list()
+    def get_selected_list(self, priority_list: str | None = None) -> ListAdapter:
+        if priority_list is not None:
+            return self.community.get_list(priority_list)
+        
+        list_s = self._s.get_selected_list()
+        
+        if list_s is not None:
+            return ListAdapter(list_s, self.community)
+        
+        list = self.community.get_default_selected_list()
 
-        if list is None:
-            raise FeedbackError(
-                "No Default Selected List",
-                t"Neither the user `{self.jumpedia_user.name}`, nor the community `{self.community.name}` have a default selected list!",
-            )
-
-        return ListAdapter(list, self.community)
+        if list is not None:
+            return list
+        
+        raise FeedbackError(
+            "No Default Selected List",
+            t"Neither the user `{self.jumpedia_user.name}`, nor the community `{self.community.name}` have a default selected list!",
+        )

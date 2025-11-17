@@ -3,8 +3,11 @@ from dataclasses import field
 
 from discord_.errors import FeedbackError
 from structures.community import Community, CommunityLimits
-from structures.errors import (ServerAlreadyConnectedToCommunityError, ServerNotConnectedToACommunityError,
-                               SynsAlreadyTakenError)
+from structures.errors import (
+    ServerAlreadyConnectedToCommunityError,
+    ServerNotConnectedToACommunityError,
+    SynsAlreadyTakenError,
+)
 from structures.jumpedia import Jumpedia, JumpediaLimits
 from structures.user.rank import JumpediaRank
 from utils import secret, text
@@ -35,18 +38,15 @@ _JUMPEDIA = Jumpedia(
 )
 
 
-def _require_server_with_community(community: Community | None) -> Community:
-    if community is None:
-        raise FeedbackError(
-            "Server Not Connected To Community",
-            t"This server is not connected to a community!",
-        )
+def _require_server_with_community(community_s: Community | None) -> Community:
+    if community_s is None:
+        raise errors.ServerNotConnectedToACommunityFeedbackError()
 
-    return community
+    return community_s
 
 
-def _require_community_with_name(name: text.NormStr, jumpedia: Jumpedia) -> Community:
-    community = jumpedia.get_community_by_name(name)
+def _require_community_with_name(name: text.NormStr, jumpedia_s: Jumpedia) -> Community:
+    community = jumpedia_s.get_community_by_name(name)
 
     if community is None:
         raise FeedbackError(
@@ -57,24 +57,23 @@ def _require_community_with_name(name: text.NormStr, jumpedia: Jumpedia) -> Comm
     return community
 
 
-class JumpediaAdapter(BaseAdapter):
+class JumpediaAdapter(BaseAdapter[Jumpedia]):
     interaction: InteractionAdapter
-    _jumpedia: Jumpedia = field(init=False, default=_JUMPEDIA)
 
     # --- Community ---
 
     def get_communities(self) -> list[CommunityAdapter]:
-        return [CommunityAdapter(c, self) for c in self._jumpedia.get_communities()]
+        return [CommunityAdapter(c, self) for c in self._s.get_communities()]
 
     def get_community(self, name: str) -> CommunityAdapter:
         return CommunityAdapter(
-            _require_community_with_name(text.NormStr(name), self._jumpedia), self
+            _require_community_with_name(text.NormStr(name), self._s), self
         )
 
     def get_current_community(self) -> CommunityAdapter:
         return self.get_community(
             _require_server_with_community(
-                self._jumpedia.get_community_by_server_id(
+                self._s.get_community_by_server_id(
                     self.interaction.current_server.id
                 )
             ).real_name
@@ -83,20 +82,17 @@ class JumpediaAdapter(BaseAdapter):
     def create_community(
         self, name: str, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = self.get_or_create_current_jumpedia_user()._jumpedia_user
+        jumpedia_user = self.get_or_create_current_jumpedia_user()._s
 
         try:
-            comm = self._jumpedia.create_community(
+            comm = self._s.create_community(
                 name=text.RealStr(name),
                 server_id=self.interaction.current_server.id,
                 creator=jumpedia_user,
                 limits=CommunityLimits(),
             )
         except ServerAlreadyConnectedToCommunityError as e:
-            raise FeedbackError(
-                "Server Already Connected To A Community",
-                t"This server is already connected to a community (`{e.structure.name}`)!",
-            )
+            raise errors.ServerAlreadyConnectedToACommunityFeedbackError(e)
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTakenFeedbackError(e)
 
@@ -113,43 +109,40 @@ class JumpediaAdapter(BaseAdapter):
         return community
 
     def delete_community(self, name: str) -> None:
-        community = _require_community_with_name(text.NormStr(name), self._jumpedia)
-        self._jumpedia.delete_community(community.id)
+        community = _require_community_with_name(text.NormStr(name), self._s)
+        self._s.delete_community(community.id)
 
     def delete_current_community(self) -> None:
-        self._jumpedia.delete_community(self.get_current_community()._community.id)
+        self._s.delete_community(self.get_current_community()._s.id)
 
     def add_community_to_current_server(self, name: str) -> CommunityAdapter:
-        return CommunityAdapter(
-            self._jumpedia.add_community_to_server(
-                self.get_community(name)._community.id,
-                self.interaction.current_server.id,
-            ),
-            self,
-        )
+        try:
+            return CommunityAdapter(
+                self._s.add_community_to_server(
+                    self.get_community(name)._s.id,
+                    self.interaction.current_server.id,
+                ),
+                self,
+            )
+        except ServerAlreadyConnectedToCommunityError as e:
+            raise errors.ServerAlreadyConnectedToACommunityFeedbackError(e)
 
     def remove_community_from_current_server(self) -> CommunityAdapter:
         try:
-            community = self._jumpedia.remove_community_from_server(
-                self.interaction.current_server._server.id
+            community = self._s.remove_community_from_server(
+                self.interaction.current_server._s.id
             )
-        except ServerNotConnectedToACommunityError as e:
-            raise FeedbackError(
-                "Server Not Connected To A Community",
-                t"This server is not connected to a community!"
-            )
-        
-        return CommunityAdapter(
-            community,
-            self
-        )
+        except ServerNotConnectedToACommunityError:
+            raise errors.ServerNotConnectedToACommunityFeedbackError()
+
+        return CommunityAdapter(community, self)
 
     # --- Jumpedia User ---
 
     def get_or_create_jumpedia_user(
         self, user: UserAdapter, override_jumpedia_rank: JumpediaRank | None = None
     ) -> JumpediaUserAdapter:
-        jumpedia_user = self._jumpedia.get_or_create_jumpedia_user(
+        jumpedia_user = self._s.get_or_create_jumpedia_user(
             user.id,
             user.name,
             override_jumpedia_rank or JumpediaRank.DEFAULT,

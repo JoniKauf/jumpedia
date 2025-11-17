@@ -14,7 +14,7 @@ class BaseRank:
     LOWEST: t.ClassVar[t.Self]
     HIGHEST: t.ClassVar[t.Self]
 
-    SORTED: t.ClassVar[tuple[t.Self, ...]]
+    ASC: t.ClassVar[tuple[t.Self, ...]]
     _lookup: t.ClassVar[dict[int, t.Self]]
 
     power: int
@@ -34,7 +34,7 @@ class BaseRank:
 
     @classmethod
     def _create_sorted(cls) -> None:
-        cls.SORTED = tuple(sorted(cls._lookup.values(), key=lambda rank: rank.power))
+        cls.ASC = tuple(sorted(cls._lookup.values(), key=lambda rank: rank.power))
 
     @classmethod
     def _init(cls) -> None:
@@ -46,7 +46,7 @@ class BaseRank:
 
     @classmethod
     def iter(cls) -> t.Iterator[t.Self]:
-        return iter(cls.SORTED)
+        return iter(cls.ASC)
 
     def __lt__(self, value: t.Self) -> bool:
         if type(self) is not type(value):
@@ -89,7 +89,7 @@ class CommunityRank(BaseRank):
 class JumpediaRank(BaseRank):
     @classmethod
     def _init(cls) -> None:
-        cls.JUMPEDIA_USER = cls(0, "None")
+        cls.JUMPEDIA_USER = cls(0, "Jumpedia User")
         cls.META_ADMIN = cls(100, "Meta Administrator")
         cls.JONIKAUF = cls(200, "JoniKauf")
 
@@ -101,8 +101,8 @@ class JumpediaRank(BaseRank):
 @dataclass(frozen=True)
 class ServerRank(BaseRank):
     @classmethod
-    def _init(cls):
-        cls.SERVER_MEMBER = cls(0, "Member")
+    def _init(cls) -> None:
+        cls.SERVER_MEMBER = cls(0, "Server Member")
         cls.SERVER_ADMINISTRATOR = cls(10, "Server Administrator")
         cls.SERVER_OWNER = cls(20, "Server Owner")
 
@@ -115,25 +115,30 @@ def get_offset_rank(base_rank: AnyRankT, offset: int) -> AnyRankT:
     """
     This hierarchy is kind of confusing:
 
-    Any meta rank (besides NONE) is higher than any other rank.
-    Meta ranks therefore basically extend the scale of community ranks
-    and server ranks at the top.
+    Meta ranks are the most powerful because they extend across
+    all of Jumpedia. This means that any meta rank is more powerful
+    than any server or community rank.
 
-    If we need to go down from meta ranks, we use community ranks.
-    Server ranks are something that only goes one way.
+    A server rank has no meaning to Jumpedia besides being able to
+    manage HOW a Community is on a server, but not the internals
+    of the Community.
+
+    When we go backwards, so we ask the questions about what
+    is LESS powerful than a meta rank, we go down the community
+    ranks, because these are actually there to manage the Community.
     """
 
     if isinstance(base_rank, (JumpediaRank, CommunityRank)):
-        scale = CommunityRank.SORTED + JumpediaRank.SORTED[1:]
+        scale = CommunityRank.ASC + JumpediaRank.ASC[1:]
     else:
-        scale = ServerRank.SORTED + JumpediaRank.SORTED[1:]
+        scale = ServerRank.ASC + JumpediaRank.ASC[1:]
 
     idx = scale.index(base_rank) + offset
 
     if idx < 0:
         return scale[0]
 
-    if idx > len(scale) - 1:
+    if idx >= len(scale):
         return scale[-1]
 
     return scale[idx]

@@ -8,11 +8,9 @@ if t.TYPE_CHECKING:
     from ..interaction import InteractionAdapter
 
 
-class ServerAdapter(BaseAdapter):
-    _server: dc.Guild
-
+class ServerAdapter(BaseAdapter[dc.Guild]):
     interaction: InteractionAdapter
 
     @property
     def id(self) -> int:
-        return self._server.id
+        return self._s.id

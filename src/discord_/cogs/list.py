@@ -16,10 +16,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
         self.bot = bot
 
     @acmds.command(description="Show information about a list.")
-    async def info(self, ia: dc.Interaction, list: str | None = None) -> None:
-        ctx = Context(ia)
+    async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
+        ia = InteractionAdapter(interaction)
 
-        list_obj = ctx.get_requested_list(list)
+        list_obj = ia.jumpedia.get_current_community().get_or_create_current_community_user()
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 

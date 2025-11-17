@@ -1,3 +1,4 @@
+import builtins
 import enum
 import itertools
 import typing as t
@@ -7,15 +8,24 @@ from utils import orm, text
 from utils.text import NormStr, RealStr
 
 from . import BaseStructure, errors, utils_
-from .attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
-                        BaseNonStaticAttribute, StaticAttribute, TaskAttribute,
-                        UserAttribute)
+from .attribute import (
+    ALL_ATTRIBUTE_TYPES,
+    AnyAttributeT,
+    BaseAttribute,
+    BaseNonStaticAttribute,
+    StaticAttribute,
+    TaskAttribute,
+    UserAttribute,
+)
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
 from .errors import StructureNotFoundError
 from . import db
 from .task import Task
-from .task.attribute_value_mapping import (AttributeValueMapping, AvmT,
-                                           UserAttributeValueMapping)
+from .task.attribute_value_mapping import (
+    AttributeValueMapping,
+    AvmT,
+    UserAttributeValueMapping,
+)
 from .user import CommunityUser
 
 if t.TYPE_CHECKING:
@@ -33,13 +43,8 @@ type _RawAvmT = dict[int, tuple[SlotStr, ...]]
 
 class List(BaseStructure):
     community: Community
-    id: int
     real_name: RealStr
     norm_name: NormStr
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id, *self.community.identity)
 
     @property
     def name(self) -> str:
@@ -68,22 +73,27 @@ class List(BaseStructure):
 
     def get_attributes_by_name[T: BaseAttribute](
         self, type: type[T], name: NormStr, /, *names: NormStr
-    ) -> list[T]:
+    ) -> dict[text.RealStr, T]:
         table_type = type.tables.attribute
+
         rows = self._fetch_from_attribute_table(
             table_type, (table_type.norm_name, orm.Operator.IN, (name, *names))
         )
-        return list(self._attribute_row_to_obj(type, row) for row in rows)
+
+        return {row.real_name: self._attribute_row_to_obj(type, row) for row in rows}
 
     def get_attributes_by_alias[T: BaseAttribute](
         self, type: type[T], alias: NormStr, /, *aliases: NormStr
-    ) -> list[T]:
-        AttributeAliasTable: db.AbstractAttributeAliasTable = type.tables.attribute_alias  # type: ignore
+    ) -> dict[text.RealStr, T]:
+        AttributeAliasTable = t.cast(
+            builtins.type[db.AbstractAttributeAliasTable], type.tables.attribute_alias
+        )
 
         with self.connector.cursor() as c:
             rows = c.fetch_all(
                 AttributeAliasTable.select(
-                    "*",
+                    AttributeAliasTable.attribute_id,
+                    AttributeAliasTable.real_alias,
                 ).where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
                     (
@@ -95,24 +105,37 @@ class List(BaseStructure):
             )
 
         if not rows:
-            return []
+            return {}
 
-        return self.get_attributes_by_id(type, *rows)  # type: ignore
+        attr_id_to_real_aliases: dict[int, tuple[text.RealStr, ...]] = {
+            attr_id: tuple(row.real_alias for row in rows)
+            for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
+        }
+
+        attrs = self.get_attributes_by_id(type, *attr_id_to_real_aliases)
+
+        assert len(attrs) == len(rows)
+
+        return {
+            real_alias: attr
+            for attr in attrs
+            for real_alias in attr_id_to_real_aliases[attr.id]
+        }
 
     def get_attributes_by_syn[T: BaseAttribute](
         self, type: type[T], syn: NormStr, /, *syns: NormStr
-    ) -> list[T]:
+    ) -> dict[text.RealStr, T]:
         return self.get_attributes_by_name(
             type, syn, *syns
-        ) or self.get_attributes_by_alias(type, syn, *syns)
+        ) | self.get_attributes_by_alias(type, syn, *syns)
 
     def get_single_attribute_by_syn[T: BaseAttribute](
         self, type: type[T], syn: NormStr
     ) -> T | None:
-        try:
-            return self.get_attributes_by_syn(type, syn)[0]
-        except IndexError:
-            return None
+        for attr in self.get_attributes_by_syn(type, syn).values():
+            return attr
+
+        return None
 
     def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
         return tuple(
@@ -135,30 +158,30 @@ class List(BaseStructure):
 
     def get_any_attributes_by_name(
         self, name: NormStr, /, *names: NormStr
-    ) -> list[AnyAttributeT]:
-        return [
-            attr
+    ) -> dict[text.RealStr, AnyAttributeT]:
+        return {
+            k: v
             for type in ALL_ATTRIBUTE_TYPES
-            for attr in self.get_attributes_by_name(type, name, *names)
-        ]
+            for k, v in self.get_attributes_by_name(type, name, *names).items()
+        }
 
     def get_any_attributes_by_alias(
         self, alias: NormStr, /, *aliases: NormStr
-    ) -> list[AnyAttributeT]:
-        return [
-            attr
+    ) -> dict[text.RealStr, AnyAttributeT]:
+        return {
+            k: v
             for type in ALL_ATTRIBUTE_TYPES
-            for attr in self.get_attributes_by_alias(type, alias, *aliases)
-        ]
+            for k, v in self.get_attributes_by_alias(type, alias, *aliases).items()
+        }
 
     def get_any_attributes_by_syn(
         self, syn: NormStr, /, *syns: NormStr
-    ) -> list[AnyAttributeT]:
-        return [
-            attr
+    ) -> dict[text.RealStr, AnyAttributeT]:
+        return {
+            k: v
             for type in ALL_ATTRIBUTE_TYPES
-            for attr in self.get_attributes_by_syn(type, syn, *syns)
-        ]
+            for k, v in self.get_attributes_by_syn(type, syn, *syns).items()
+        }
 
     def get_static_attribute_by_kind(self, kind: Kind, /) -> StaticAttribute:
         if kind not in Kind:
@@ -285,23 +308,7 @@ class List(BaseStructure):
 
         attrs = self.get_all_attributes_flat()
 
-        if len(attrs) >= self.community.limits.list_attribute_count_max:
-            raise errors.LimitReachedError(
-                self.community.limits.list_attribute_count_max, type
-            )
-
-        for syn in (norm_name, *norm_aliases):
-            if len(syn) > self.community.jumpedia.limits.attribute_syn_length_max:
-                raise errors.TooLongSynError(
-                    syn,
-                    self.community.jumpedia.limits.attribute_syn_length_max,
-                    type,
-                )
-
-            try:
-                _ = self.get_any_attributes_by_syn(syn)[0]
-            except IndexError:
-                raise errors.StructureNotFoundError(type)
+        self._validate_attribute_syns(type, norm_name, frozenset(norm_aliases))
 
         if not (
             0
@@ -316,9 +323,11 @@ class List(BaseStructure):
                 self.community.limits.attribute_task_value_slot_count_max,
             )
 
-        position = max(attr.position for attr in attrs) + 1 if attrs else 1
+        position = max(attr.position for attr in attrs) + 1 if attrs else 0
 
-        AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
+        AttributeTable = t.cast(
+            builtins.type[db.AbstractAttributeTable], type.tables.attribute
+        )
 
         with self.connector.cursor() as c:
             additional: tuple[orm.ColumnBind[t.Any, t.Any], ...] = ()
@@ -485,17 +494,15 @@ class List(BaseStructure):
             )
 
     def _fetch_from_attribute_table[T: db.AnyAttributeTable](
-        self, table_type: type[T], *where: tuple[t.Any, orm.Operator, t.Any]
+        self, type: type[T], *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[T]:
         with self.connector.cursor() as c:
-            query = table_type.select("*").where(
-                (table_type.list_id, orm.Operator.EQ, self.id), *where
+            return c.fetch_all(
+                type.select("*").where(
+                    (type.list_id, orm.Operator.EQ, self.id),
+                    *where,
+                )  # type: ignore
             )
-
-            if issubclass(table_type, db.StaticAttribute):
-                query = query.order_by((table_type.kind, orm.Order.ASC))  # type: ignore
-
-            return c.fetch_all(query)  # type: ignore
 
     def _attribute_row_to_obj[T: BaseAttribute](
         self, type: type[T], row: db.AnyAttributeTable
@@ -608,34 +615,53 @@ class List(BaseStructure):
         except IndexError:
             return None
 
-    def get_tasks_by_name(self, name: NormStr, /, *names: NormStr) -> list[Task]:
+    def get_tasks_by_name(
+        self, name: NormStr, /, *names: NormStr
+    ) -> dict[SlotStr, Task]:
         rows = self._fetch_tasks_from_table(
             (db.Task.norm_name, orm.Operator.IN, (name, *names))
         )
-        return list(map(self._task_row_to_obj, rows))
+        return {row.slot_name: self._task_row_to_obj(row) for row in rows}
 
-    def get_tasks_by_alias(self, alias: NormStr, /, *aliases: NormStr) -> list[Task]:
+    def get_tasks_by_alias(
+        self, alias: NormStr, /, *aliases: NormStr
+    ) -> dict[SlotStr, Task]:
         with self.connector.cursor() as c:
             rows = c.fetch_all(
-                db.TaskAlias.select(db.TaskAlias.task_id).where(
+                db.TaskAlias.select(
+                    db.TaskAlias.task_id, db.TaskAlias.slot_alias
+                ).where(
                     (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
                     (db.TaskAlias.norm_alias, orm.Operator.IN, (alias, *aliases)),
                 )
             )
 
         if not rows:
-            return []
+            return {}
 
-        return self.get_tasks_by_id(*(row.task_id for row in rows))
+        task_id_to_slot_aliases: dict[int, tuple[SlotStr, ...]] = {
+            task_id: tuple(row.slot_alias for row in rows)
+            for task_id, rows in itertools.groupby(rows, lambda row: row.task_id)
+        }
 
-    def get_tasks_by_syn(self, syn: NormStr, /, *syns: NormStr) -> list[Task]:
-        return self.get_tasks_by_name(syn, *syns) + self.get_tasks_by_alias(syn, *syns)
+        tasks = self.get_tasks_by_id(*task_id_to_slot_aliases)
+
+        assert len(tasks) == len(task_id_to_slot_aliases)
+
+        return {
+            slot_alias: task
+            for task in tasks
+            for slot_alias in task_id_to_slot_aliases[task.id]
+        }
+
+    def get_tasks_by_syn(self, syn: NormStr, /, *syns: NormStr) -> dict[SlotStr, Task]:
+        return self.get_tasks_by_name(syn, *syns) | self.get_tasks_by_alias(syn, *syns)
 
     def get_single_task_by_syn(self, syn: NormStr, /) -> Task | None:
-        try:
-            return self.get_tasks_by_syn(syn)[0]
-        except IndexError:
-            return None
+        for task in self.get_tasks_by_syn(syn).values():
+            return task
+
+        return None
 
     def _get_attributes_and_data_for_non_static_attribute_value_mapping[
         T: BaseNonStaticAttribute
@@ -753,7 +779,9 @@ class List(BaseStructure):
                 (attr.type_id, attr.id): attr for attr in static_attrs
             }
 
-            id_attr, name_attr, aliases_attr = static_attrs
+            id_attr, name_attr, aliases_attr = sorted(
+                static_attrs, key=lambda attr: attr.kind
+            )
             del static_attrs
 
             for id, task in id_to_task.items():
@@ -846,15 +874,17 @@ class List(BaseStructure):
 
         del real_name, real_aliases
 
-        existing_tasks = frozenset(self.get_tasks_by_syn(norm_name, *norm_aliases))
+        existing_tasks = self.get_tasks_by_syn(norm_name, *norm_aliases)
 
         if existing_tasks:
             raise errors.SynsAlreadyTakenError(existing_tasks)
 
+        del existing_tasks
+
         all_tasks = self.get_tasks()
 
         if len(all_tasks) >= self.community.limits.list_task_count_max:
-            raise errors.LimitReachedError(
+            raise errors.StructureCountLimitReachedError(
                 self.community.limits.list_task_count_max, Task
             )
 
@@ -912,10 +942,10 @@ class List(BaseStructure):
 
         del name
 
-        existing_tasks = frozenset(self.get_tasks_by_syn(norm_name)) - {task}
+        existing_task = self.get_single_task_by_syn(norm_name)
 
-        if existing_tasks:
-            raise errors.SynsAlreadyTakenError(existing_tasks)
+        if existing_task is not None and existing_task != task:
+            raise errors.SynsAlreadyTakenError({existing_task.slot_name: existing_task})
 
         with self.connector.cursor() as c:
             c.execute(
@@ -956,10 +986,14 @@ class List(BaseStructure):
 
         del task_id
 
-        existing_tasks = frozenset(self.get_tasks_by_syn(*norm_aliases)) - {task}
+        existing_tasks = {
+            k: v for k, v in self.get_tasks_by_syn(*norm_aliases).items() if v != task
+        }
 
         if existing_tasks:
             raise errors.SynsAlreadyTakenError(existing_tasks)
+
+        del existing_tasks
 
         norm_name = task.norm_name
 
@@ -1117,10 +1151,11 @@ class List(BaseStructure):
                     type,
                 )
 
-        taken: frozenset[BaseAttribute] = frozenset(
-            self.get_any_attributes_by_syn(*norm_syns)
-        )
-        taken -= allowed_attributes
+        taken = {
+            k: v
+            for k, v in self.get_any_attributes_by_syn(*norm_syns).items()
+            if v not in allowed_attributes
+        }
 
         if taken:
             raise errors.SynsAlreadyTakenError(taken)

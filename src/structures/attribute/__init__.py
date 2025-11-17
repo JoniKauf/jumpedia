@@ -13,7 +13,7 @@ from .slot_str import SlotStr, SlotTypeT
 if t.TYPE_CHECKING:
     from ..community import Kind
     from ..list import Kind, List
-    
+
 
 # General
 SORT_KEY_NONE_NUMBER: t.Final[int] = (
@@ -42,7 +42,6 @@ class BaseAttribute(BaseStructure):
     type_id: t.ClassVar[AttributeTypeId]
 
     list: List
-    id: int
     real_name: text.RealStr
     norm_name: text.NormStr
     slot_type: type[SlotTypeT]
@@ -50,10 +49,6 @@ class BaseAttribute(BaseStructure):
     min_slots: int
     max_slots: int
     kind: Kind | None = None
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.__class__.type_id, self.id) + self.list.identity
 
     @property
     def name(self) -> str:
@@ -72,12 +67,6 @@ class BaseAttribute(BaseStructure):
     def __post_init__(self) -> None:
         if self.__class__ == BaseAttribute:
             raise RuntimeError()
-
-    def __hash__(self) -> int:
-        return hash(self.identity)
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, self.__class__) and self.identity == value.identity
 
     def _get_aliases_rows(
         self,
@@ -220,9 +209,8 @@ class BaseNonStaticAttribute(BaseAttribute):
             return Collection(attribute=self, entries=())
 
         if count > self.list.community.limits.attribute_collection_entry_count_max:
-            raise errors.LimitReachedError(
-                self.list.community.limits.attribute_collection_entry_count_max,
-                Collection,
+            raise errors.CollectionEntryLimitReachedError(
+                self.list.community.limits.attribute_collection_entry_count_max
             )
 
         AttributeCollectionEntryTable = t.cast(

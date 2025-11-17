@@ -29,14 +29,9 @@ class JumpediaLimits(t.NamedTuple):
 
 
 class Jumpedia(BaseStructure):
-    id: int
     limits: JumpediaLimits
-    connector: orm.Connector
+    connector: orm.Connector  # type: ignore
     meta_connector: orm.Connector
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id,)
 
     @property
     def name(self) -> str:
@@ -70,7 +65,7 @@ class Jumpedia(BaseStructure):
         comm = self.get_community_by_name(norm_name)
 
         if comm is not None:
-            raise SynsAlreadyTakenError(frozenset((comm,)))
+            raise SynsAlreadyTakenError({comm.real_name: comm})
 
         with self.connector.cursor() as c:
             execute_data = c.execute(

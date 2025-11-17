@@ -2,9 +2,8 @@ import typing as t
 
 from . import ExecutableQuery, FetchableQuery, utils
 
-if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBind
-    from .._structures.model import Model
+from .._structures.column import Column, ColumnBind
+from .._structures.model import Model
 
 
 class InsertQuery[T: Model](ExecutableQuery[T]):
@@ -45,8 +44,6 @@ class Insert[T: Model](InsertQuery[T]):
         /,
         *columns: Column[T, t.Any],
     ) -> Returning[T]:
-        from .._structures.column import Column
-
         cols: tuple[Column[T, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):

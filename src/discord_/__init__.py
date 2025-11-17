@@ -19,6 +19,7 @@ from .errors import BaseUserReturnableError
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
 DEV_MODE: bool = True
 
+
 def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:
     rel = (
         os.path.relpath(pkg_path, start=Path(__file__).resolve().parent.parent)
@@ -67,13 +68,13 @@ async def on_app_command_error(
         e.msg_kwargs["content"] = str(e)
         await interaction.followup.send(**e.msg_kwargs)
         return
-    
+
     if isinstance(e, mariadb.Error):
         await interaction.followup.send(
             messaging.layout(
                 "Database Error",
                 t"An unknown database error occurred. Please try again!",
-                messaging.MessageStatus.FAILED,
+                messaging.MessageStatus.ERROR,
             )
         )
 

@@ -4,18 +4,28 @@ import typing as t
 from .._utils import SqlString, TupleOfOneOrMore
 from . import Operator, Order
 
-if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnBind
-    from .._structures.model import Model
+from .._structures.column import Column, ColumnBind
+from .._structures.model import Model
 
 PLACEHOLDER: str = "?"
 
 
-def placehold(o: object, params: list[t.Any]) -> str:
+def placehold(o: object, params: list[t.Any], left_operator: Operator | None) -> str:
     if isinstance(o, SqlString):
         return str(o)
 
+    if (
+        left_operator in {Operator.IN}
+        and not isinstance(o, str)
+        and isinstance(o, t.Iterable)
+    ):
+        o = tuple(o)
+        params.extend(o)
+
+        return f"({','.join(itertools.repeat('?', len(o)))})"
+
     params.append(o)
+
     return PLACEHOLDER
 
 
@@ -29,7 +39,7 @@ def handle_where_sql(
         parts.append(
             " OR ".join(
                 " AND ".join(
-                    f"{placehold(left, params)} {comp} {placehold(right, params)}"
+                    f"{placehold(left, params, None)} {comp} {placehold(right, params, comp)}"
                     for left, comp, right in and_where
                 )
                 for and_where in where

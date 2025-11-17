@@ -65,13 +65,8 @@ def extract_id(identifier: UserIdentifierT) -> int:
 
 class JumpediaUser(BaseStructure):
     jumpedia: Jumpedia
-    id: int
     user_name: str
     jumpedia_rank: JumpediaRank
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id, *self.jumpedia.identity)
 
     @property
     def name(self) -> str:
@@ -85,13 +80,8 @@ class JumpediaUser(BaseStructure):
 class CommunityUser(BaseStructure):
     jumpedia_user: JumpediaUser
     community: Community
-    id: int
     community_rank: CommunityRank
     selected_list_id: int | None
-
-    @property
-    def identity(self) -> tuple[int, ...]:
-        return (self.id, *self.community.identity)
 
     @property
     def name(self) -> str:
@@ -118,5 +108,5 @@ class CommunityUser(BaseStructure):
 
         return (
             self.community._list_row_to_obj(row)
-            or self.community.get_default_selected_list()
         )
+    

@@ -1,10 +1,10 @@
+import operator
 import typing as t
 
 from . import ExecutableQuery, Operator, Order, utils
 
-if t.TYPE_CHECKING:
-    from .._structures.column import Column, ColumnSet
-    from .._structures.model import Model
+from .._structures.column import Column, ColumnSet
+from .._structures.model import Model
 
 
 class UpdateQuery[T: Model](ExecutableQuery[T]):
@@ -27,7 +27,10 @@ class UpdateQuery[T: Model](ExecutableQuery[T]):
         parts.append("SET")
 
         parts.append(
-            ",".join(f"{col}={utils.placehold(v, params)}" for col, v in cols_binded)
+            ",".join(
+                f"{col}={utils.placehold(v, params, Operator.EQ)}"
+                for col, v in cols_binded
+            )
         )
 
         utils.handle_where_sql(self._where, parts, params)

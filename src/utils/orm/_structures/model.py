@@ -3,11 +3,13 @@ import typing as t
 from types import SimpleNamespace
 
 from .. import _utils
-from .._query.delete import Delete
-from .._query.insert import Insert
-from .._query.select import Select
-from .._query.update import Update
 from .column import Column, ColumnBind, ColumnSet
+
+if t.TYPE_CHECKING:
+    from .._query.delete import Delete
+    from .._query.insert import Insert
+    from .._query.select import Select
+    from .._query.update import Update
 
 
 @t.final
@@ -27,7 +29,7 @@ class _ModelMeta(type, _utils.SqlString):
 
     def __str__(self) -> str:
         return f"`{self._table_name}`"
-    
+
     @property
     def table_name(self) -> str:
         return self._table_name
@@ -52,8 +54,8 @@ class Model(_ModelBase, metaclass=_ModelMeta):
 
     @t.final
     def __init_subclass__(cls, table_name: str | type[SNAKE] | type[EXACT]) -> None:
-        if cls.__bases__ != (Model,):
-            raise RuntimeError
+        # if cls.__bases__ != (Model,):
+        #     raise RuntimeError
 
         if table_name is SNAKE:
             table_name = cls.__name__.translate(_SNAKE_TRANS_TABLE).removeprefix("_")
@@ -92,12 +94,14 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         /,
         *columns: Column[t.Self | T, t.Any],
     ) -> Select[t.Self | T]:
+        from .._query.select import Select
+
         cols: tuple[Column[t.Self | T, t.Any], ...] = ()
 
         if isinstance(all_or_column, Column):
             cols = (all_or_column, *columns)
 
-        return Select(cls, cols, [], (), None)  # type: ignore
+        return Select(cls, cols, [], (), None)
 
     @classmethod
     def insert(
@@ -107,6 +111,8 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         *columns_binded: ColumnBind[t.Self, t.Any],
         ignore: bool = False,
     ) -> Insert[t.Self]:
+        from .._query.insert import Insert
+
         return Insert(cls, ((column_binded, *columns_binded), ignore))
 
     @classmethod
@@ -117,10 +123,14 @@ class Model(_ModelBase, metaclass=_ModelMeta):
         *columns_set: ColumnSet[t.Self, t.Any],
         ignore: bool = False,
     ) -> Update[t.Self]:
+        from .._query.update import Update
+
         return Update(cls, ((column_set, *columns_set), ignore), [], (), None)
 
     @classmethod
     def delete(cls, *, ignore: bool = False) -> Delete[t.Self]:
+        from .._query.delete import Delete
+
         return Delete(cls, ignore, [], (), None)
 
 

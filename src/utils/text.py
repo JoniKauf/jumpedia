@@ -127,3 +127,19 @@ def t_to_f_string(template: Template) -> str:
                 t.assert_never(item)
 
     return "".join(parts)
+
+
+def join_t(delim: str | Template, iterable: t.Iterable[Template]) -> Template:
+    iterator = iter(iterable)
+    res = next(iterator, None)
+
+    if res is None:
+        return t""
+
+    delim = delim if isinstance(delim, Template) else Template(delim)
+
+    for elem in iterator:
+        res += delim
+        res += elem
+
+    return res
