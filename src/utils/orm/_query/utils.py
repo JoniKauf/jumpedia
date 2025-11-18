@@ -1,11 +1,10 @@
 import itertools
 import typing as t
 
-from .._utils import SqlString, TupleOfOneOrMore
-from . import Operator, Order
-
 from .._structures.column import Column, ColumnBind
 from .._structures.model import Model
+from .._utils import SqlString, TupleOfOneOrMore
+from . import Operator, Order
 
 PLACEHOLDER: str = "?"
 

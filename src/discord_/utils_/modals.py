@@ -6,7 +6,7 @@ from discord import ui
 
 from structures import BaseStructure
 
-from ..utils_ import messaging
+from . import messaging
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -41,7 +41,7 @@ class ConfirmByEnteringModal(ui.Modal):
         await interaction.followup.send(
             messaging.layout(
                 "Awaiting Confirmation",
-                "Please fill out the modal that should be appearing on your screen to confirm!",
+                t"Please fill out the modal that should be appearing on your screen to confirm!",
                 messaging.MessageStatus.INFO,
             ),
             ephemeral=True,
@@ -54,12 +54,14 @@ class ConfirmByEnteringModal(ui.Modal):
 
     async def on_submit(self, ia: dc.Interaction) -> None:
         await self.after_submit(ia, self.predicate(self.text_input.value))
+        self.stop()
 
 
 async def delete_structure_confirmation(
     interaction: dc.Interaction,
-    structure: BaseStructure,
-    delete: t.Callable[[dc.Interaction], None],
+    structure_type: type[BaseStructure],
+    structure_name: str,
+    delete: t.Callable[[dc.Interaction], t.Any],
 ):
     async def after_submit(interaction: dc.Interaction, success: bool) -> None:
         if success:
@@ -67,16 +69,16 @@ async def delete_structure_confirmation(
 
             await interaction.response.send_message(
                 messaging.layout(
-                    f"{structure.__class__.type_name.title()} Deleted",
-                    f"The specifed {structure.__class__.type_name} has successfully been deleted!",
+                    f"{structure_type.type_name.title()} Deleted",
+                    t"The specifed {structure_type.type_name} has successfully been deleted!",
                     messaging.MessageStatus.SUCCESS,
                 )
             )
         else:
             await interaction.response.send_message(
                 messaging.layout(
-                    f"{structure.__class__.type_name.title()} Deletion Aborted",
-                    f"The {structure.__class__.type_name} has **not** been deleted because the name entered is not correct!",
+                    f"{structure_type.type_name.title()} Deletion Aborted",
+                    t"The {structure_type.type_name} has **not** been deleted because the name entered is not correct!",
                     messaging.MessageStatus.WARNING,
                 )
             )
@@ -84,9 +86,9 @@ async def delete_structure_confirmation(
     await interaction.response.send_modal(
         ConfirmByEnteringModal(
             interaction,
-            f"Confirm {structure.__class__.type_name.title()} Deletion",
-            f"Re-Enter the {structure.__class__.type_name}'s name to confirm:",
-            lambda s: s == structure.name,
+            f"Confirm {structure_type.type_name.title()} Deletion",
+            f"Re-Enter the {structure_type.type_name}'s name to confirm:",
+            lambda s: s == structure_name,
             after_submit,
         )
     )

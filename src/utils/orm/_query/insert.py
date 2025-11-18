@@ -1,9 +1,8 @@
 import typing as t
 
-from . import ExecutableQuery, FetchableQuery, utils
-
 from .._structures.column import Column, ColumnBind
 from .._structures.model import Model
+from . import ExecutableQuery, FetchableQuery, utils
 
 
 class InsertQuery[T: Model](ExecutableQuery[T]):

@@ -3,9 +3,8 @@ from dataclasses import field
 
 from utils import orm, text
 
-from .. import BaseStructure, errors
+from .. import BaseStructure, db, errors
 from ..attribute.slot_str import SlotStr
-from .. import db
 
 if t.TYPE_CHECKING:
     from ..list import List

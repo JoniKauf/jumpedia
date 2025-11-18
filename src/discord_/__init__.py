@@ -20,7 +20,7 @@ BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
 DEV_MODE: bool = True
 
 
-def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType]:
+def _get_all_modules_of_cogs(pkg_path: str) -> t.Generator[types.ModuleType]:
     rel = (
         os.path.relpath(pkg_path, start=Path(__file__).resolve().parent.parent)
         .strip(os.path.sep)
@@ -32,7 +32,7 @@ def _get_all_modules_from_package(pkg_path: str) -> t.Generator[types.ModuleType
         if ispkg:
             continue
 
-        if modname == "__init__":
+        if modname.startswith("_"):
             continue
 
         yield importlib.import_module(f"{rel}.{modname}")
@@ -43,7 +43,7 @@ async def on_ready():
     from . import cogs
 
     # The one without sin among you should be the first to throw a stone at her.
-    for module in _get_all_modules_from_package(os.path.dirname(cogs.__file__)):
+    for module in _get_all_modules_of_cogs(os.path.dirname(cogs.__file__)):
         for obj in module.__dict__.values():
             if inspect.isclass(obj) and issubclass(obj, cmds.Cog):
                 await BOT.add_cog(obj(BOT))
@@ -69,18 +69,27 @@ async def on_app_command_error(
         await interaction.followup.send(**e.msg_kwargs)
         return
 
+    if DEV_MODE:
+        await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
+        raise e
+
     if isinstance(e, mariadb.Error):
         await interaction.followup.send(
             messaging.layout(
-                "Database Error",
+                "Unhandled Database Error",
                 t"An unknown database error occurred. Please try again!",
                 messaging.MessageStatus.ERROR,
             )
         )
 
-    if DEV_MODE:
-        await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
-        raise e
+    await interaction.followup.send(
+        messaging.layout(
+            "Unhandled Error",
+            t"An unhandled error has occurred!",
+            messaging.MessageStatus.ERROR,
+            additional=t"This is a bug. It will be logged internally and fixed soon.",
+        )
+    )
 
 
 TOKEN = secret.listen().DISCORD_TOKEN

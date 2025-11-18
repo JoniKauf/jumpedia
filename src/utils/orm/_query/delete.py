@@ -1,9 +1,8 @@
 import typing as t
 
-from . import ExecutableQuery, FetchableQuery, Operator, Order, utils
-
 from .._structures.column import Column
 from .._structures.model import Model
+from . import ExecutableQuery, FetchableQuery, Operator, Order, utils
 
 
 class DeleteQuery[T: Model](ExecutableQuery[T]):

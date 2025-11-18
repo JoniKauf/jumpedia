@@ -7,7 +7,7 @@ from types import MappingProxyType
 from utils import orm, text
 from utils.text import NormStr, RealStr
 
-from . import BaseStructure, errors, utils_
+from . import BaseStructure, db, errors, utils_
 from .attribute import (
     ALL_ATTRIBUTE_TYPES,
     AnyAttributeT,
@@ -19,7 +19,6 @@ from .attribute import (
 )
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
 from .errors import StructureNotFoundError
-from . import db
 from .task import Task
 from .task.attribute_value_mapping import (
     AttributeValueMapping,
@@ -269,7 +268,7 @@ class List(BaseStructure):
         pass
 
     @t.overload
-    def create_attribute[T: BaseNonStaticAttribute](
+    def create_attribute[T: TaskAttribute | UserAttribute](
         self,
         type: type[T],
         real_name: RealStr,
@@ -281,7 +280,7 @@ class List(BaseStructure):
     ) -> T:
         pass
 
-    def create_attribute[T: BaseAttribute](
+    def create_attribute[T: AnyAttributeT](
         self,
         type: type[T],
         real_name: RealStr,
@@ -293,14 +292,12 @@ class List(BaseStructure):
         kind: Kind | None = None,
         collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
     ) -> T:
-        from . import errors
-
         assert (min_slots or kind) != issubclass(
             type, BaseNonStaticAttribute
         ), "Typing not followed on attribute creation #1"
-        assert not (issubclass(
-            type, StaticAttribute
-        ) and collection), "Typing not followed on attribute creation #2"
+        assert not (
+            issubclass(type, StaticAttribute) and collection
+        ), "Typing not followed on attribute creation #2"
 
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
             utils_.handled_unique_reals_and_norms((real_name, *real_aliases))
@@ -366,7 +363,7 @@ class List(BaseStructure):
                 position=position,
                 min_slots=min_slots,
                 max_slots=max_slots,
-                kind=kind,
+                kind=kind,  # type: ignore
             )
 
             if collection:
@@ -378,8 +375,6 @@ class List(BaseStructure):
             return attribute
 
     def delete_attribute(self, type: type[BaseAttribute], id: int) -> None:
-        from . import errors
-
         if issubclass(type, StaticAttribute):
             raise RuntimeError(
                 "Static Attributes have no business being deleted manually!! Wtf did you cook?!"
@@ -536,6 +531,7 @@ class List(BaseStructure):
             position=row.position,
             min_slots=row.min_slots,
             max_slots=row.max_slots,
+            kind=None,
         )
 
     def _calc_attribute_value_mapping[T: TaskAttribute | UserAttribute](
@@ -576,14 +572,14 @@ class List(BaseStructure):
         count = len(norm_aliases)
 
         x = AttributeAliasTable.insert(
-                AttributeAliasTable.attribute_id.bind(
-                    *itertools.repeat(attribute_id, count)
-                ),
-                AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
-                AttributeAliasTable.norm_alias.bind(*norm_aliases),
-                AttributeAliasTable.real_alias.bind(*real_aliases),
-            )._to_sql()
-        
+            AttributeAliasTable.attribute_id.bind(
+                *itertools.repeat(attribute_id, count)
+            ),
+            AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
+            AttributeAliasTable.norm_alias.bind(*norm_aliases),
+            AttributeAliasTable.real_alias.bind(*real_aliases),
+        )._to_sql()
+
         print(x[0])
         print("\n\n\n")
         print(x[1])
@@ -932,8 +928,6 @@ class List(BaseStructure):
         return Task(list=self, id=task_id, slot_name=slot_name, norm_name=norm_name)
 
     def delete_task(self, id: int) -> None:
-        from . import errors
-
         with self.connector.cursor() as c:
             execute_data = c.execute(
                 db.Task.delete().where(

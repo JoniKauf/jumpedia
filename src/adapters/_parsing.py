@@ -37,22 +37,16 @@ MAPPING_PARSER = ExpressionParser(
 def _handle_name_aliases_tuple(
     tup: ast.Tuple, visitor: ListOfTupleVisitor
 ) -> tuple[str, list[str]]:
-    ADDITIONAL = (
-        t"The tuple should have 2 elements in this order:\n"
-        t"1. The value (a string)\n"
-        t"2. The aliases (a list of strings)"
-    )
-
     if len(tup.elts) != 2:
         raise InvalidArgumentFeedbackError(
-            t"A tuple of length {len(tup.elts)} is invalid!", additional=ADDITIONAL
+            t"A specified tuple that must be of length **2** has the length **{len(tup.elts)}**!"
         )
 
     first, second = tup.elts
 
     if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
         raise InvalidArgumentFeedbackError(
-            t"The first element of the tuple is not a string!", additional=ADDITIONAL
+            t"The first element of a specified tuple is not a string, when it should be!"
         )
 
     elts: list[str] = []
@@ -70,8 +64,7 @@ def _handle_name_aliases_tuple(
 
     if not valid:
         raise InvalidArgumentFeedbackError(
-            t"The second element of the tuple is not a list of strings!",
-            additional=ADDITIONAL,
+            t"The second element of a tuple is not a list of strings, when it should be!"
         )
 
     return (first.value, elts)

@@ -5,8 +5,7 @@ from dataclasses import dataclass, field
 
 from utils import orm, text
 
-from .. import db
-from .. import BaseStructure, errors
+from .. import BaseStructure, db, errors
 from .collection import Collection, CollectionEntry
 from .slot_str import SlotStr, SlotTypeT
 
@@ -48,7 +47,7 @@ class BaseAttribute(BaseStructure):
     position: int
     min_slots: int
     max_slots: int
-    kind: Kind | None = None
+    kind: Kind | None
 
     @property
     def name(self) -> str:
@@ -112,6 +111,8 @@ class RawCollectionEntryItem(t.NamedTuple):
 
 
 class BaseNonStaticAttribute(BaseAttribute):
+    kind: None = None
+
     tables: t.ClassVar[BaseNonStaticAttributeTables]
 
     def __post_init__(self) -> None:
@@ -327,13 +328,7 @@ class StaticAttribute(BaseAttribute):
     tables = AttributeTables(db.StaticAttribute, db.StaticAttributeAlias)
     type_id = 0
 
-    kind: Kind = field(default=None)  # pyright: ignore[reportAssignmentType]
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        if self.kind is None:
-            raise ValueError("Kind not set")
+    kind: Kind
 
 
 class TaskAttribute(BaseNonStaticAttribute):

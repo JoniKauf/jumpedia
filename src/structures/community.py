@@ -3,9 +3,8 @@ import typing as t
 
 from utils import orm, text
 
-from . import BaseStructure, errors
+from . import BaseStructure, db, errors
 from .attribute import StaticAttribute
-from . import db
 from .list import Kind, List
 from .user import CommunityUser, JumpediaUser
 from .user.rank import CommunityRank

@@ -1,8 +1,8 @@
 import typing as t
-from . import FetchableQuery, Operator, Order, utils
 
 from .._structures.column import Column
 from .._structures.model import Model
+from . import FetchableQuery, Operator, Order, utils
 
 
 class SelectQuery[T: Model](FetchableQuery[T]):

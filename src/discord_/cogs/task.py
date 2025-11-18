@@ -2,7 +2,7 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from ..structs import predicates
+from ..utils_ import predicates
 
 
 class TaskCog(cmds.GroupCog, group_name="task"):

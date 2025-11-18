@@ -63,19 +63,19 @@ class Connector:
         pool = self._get_pool()
 
         RETRIES: int = 5
-        DELAY: float = .5
+        DELAY: float = 0.5
 
         for i in range(RETRIES):
             try:
                 c = pool.get_connection().cursor(dictionary=True)
             except mariadb.PoolError as e:
                 time.sleep(DELAY)
-                
+
                 if i >= RETRIES - 1:
                     raise e
             else:
                 break
-                
+
         assert c is not None
 
         c.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")

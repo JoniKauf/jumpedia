@@ -3,12 +3,11 @@ import typing as t
 
 from utils import orm, text
 
-from . import BaseStructure, errors
+from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits
 from .errors import StructureNotFoundError, SynsAlreadyTakenError
 from .user import JumpediaUser
 from .user.rank import CommunityRank, JumpediaRank
-from . import db
 
 
 class JumpediaLimits(t.NamedTuple):

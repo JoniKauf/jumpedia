@@ -5,12 +5,12 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
+from structures.community import Community
 from structures.user.rank import CommunityRank, JumpediaRank, ServerRank
 from utils import text
 
 from ..errors import FeedbackError
-from ..structs import modals, predicates
-from ..utils_ import messaging
+from ..utils_ import messaging, modals, predicates
 
 
 class JumpediaCog(cmds.GroupCog, name="jumpedia"):
@@ -94,7 +94,8 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
 
         await modals.delete_structure_confirmation(
             ia._s,
-            community._s,
+            Community,
+            community._s.name,
             lambda _: ia.jumpedia.delete_community(community.name),
         )
 

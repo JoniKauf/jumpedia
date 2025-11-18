@@ -6,11 +6,11 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
+from structures.list import List
 from structures.user.rank import CommunityRank, ServerRank
 from utils import text
 
-from ..structs import modals, predicates
-from ..utils_ import messaging
+from ..utils_ import messaging, modals, predicates
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -130,10 +130,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @create_group.command(name="list", description="Create a new list.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
-    async def create_list(self, interaction: dc.Interaction, list_name: str) -> None:
+    async def create_list(self, interaction: dc.Interaction, list: str) -> None:
         ia = InteractionAdapter(interaction)
 
-        new_list = ia.jumpedia.get_current_community().create_list(list_name)
+        new_list = ia.jumpedia.get_current_community().create_list(list)
 
         await interaction.response.send_message(
             messaging.layout(
@@ -149,11 +149,14 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @delete_group.command(name="list", description="Delete a list from the community.")
     @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
-    async def delete_list(self, interaction: dc.Interaction, list_name: str) -> None:
+    async def delete_list(self, interaction: dc.Interaction, list: str) -> None:
         ia = InteractionAdapter(interaction)
 
-        list_s = ia.jumpedia.get_current_community().get_list(list_name)._s
+        list_s = ia.jumpedia.get_current_community().get_list(list)._s
 
         await modals.delete_structure_confirmation(
-            interaction, list_s, lambda ia: list_s.community.delete_list(list_s.id)
+            interaction,
+            List,
+            list_s.name,
+            lambda _: list_s.community.delete_list(list_s.id),
         )

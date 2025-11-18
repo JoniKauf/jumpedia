@@ -1,10 +1,9 @@
 import operator
 import typing as t
 
-from . import ExecutableQuery, Operator, Order, utils
-
 from .._structures.column import Column, ColumnSet
 from .._structures.model import Model
+from . import ExecutableQuery, Operator, Order, utils
 
 
 class UpdateQuery[T: Model](ExecutableQuery[T]):

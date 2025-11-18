@@ -1,7 +1,7 @@
 import collections
 import typing as t
 
-from adapters import _parsers
+from adapters import _parsing
 from discord_.errors import FeedbackError
 from structures import attribute
 from structures.attribute import (
@@ -13,6 +13,7 @@ from structures.attribute import (
     UserAttribute,
 )
 from structures.attribute.slot_str import SlotTypeT
+from structures.errors import SynsAlreadyTakenError
 from structures.list import List
 from structures.task import Task
 from utils import text
@@ -93,7 +94,7 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
 ) -> dict[int, t.Sequence[text.RealStr]]:
     avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
         text.NormStr(k): tuple(map(text.RealStr, v))
-        for k, v in _parsers.MAPPING_PARSER.parse(raw_avm or "").items()
+        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or "").items()
     }
 
     found_attrs = list.get_attributes_by_syn(attribute_type, *avm).values()
@@ -124,10 +125,12 @@ class ListAdapter(BaseAdapter[List]):
         return TaskAdapter(_require_task_with_syn(text.NormStr(syn), self._s), self)
 
     def create_task(
-        self, name: str, aliases: str, task_attribute_value_mapping: str | None
+        self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
         real_name = text.RealStr(name)
-        real_aliases = tuple(map(text.RealStr, _parsers.LIST_PARSER.parse(aliases)))
+        real_aliases = tuple(
+            map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]"))
+        )
 
         avm = _validate_and_convert_attribute_value_mapping(
             task_attribute_value_mapping, TaskAttribute, self._s
@@ -144,7 +147,7 @@ class ListAdapter(BaseAdapter[List]):
         self._s.edit_task_name(task._s.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
-        real_aliases = tuple(map(text.RealStr, _parsers.LIST_PARSER.parse(aliases)))
+        real_aliases = tuple(map(text.RealStr, _parsing.LIST_PARSER.parse(aliases)))
 
         task = self.get_task(syn)
         self._s.edit_task_aliases(task._s.id, real_aliases)
@@ -182,24 +185,24 @@ class ListAdapter(BaseAdapter[List]):
 
     @t.overload
     def get_attribute(
-        self, syn: str, type: type[StaticAttribute]
+        self, type: type[StaticAttribute], syn: str
     ) -> StaticAttributeAdapter:
         pass
 
     @t.overload
     def get_attribute(
-        self, syn: str, type: type[TaskAttribute]
+        self, type: type[TaskAttribute], syn: str
     ) -> TaskAttributeAdapter:
         pass
 
     @t.overload
     def get_attribute(
-        self, syn: str, type: type[UserAttribute]
+        self, type: type[UserAttribute], syn: str
     ) -> UserAttributeAdapter:
         pass
 
     def get_attribute(
-        self, syn: str, type: type[AnyAttributeT]
+        self, type: type[AnyAttributeT], syn: str
     ) -> AnyAttributeAdapterT:
         attribute = _require_attribute_with_syn(text.NormStr(syn), type, self._s)
 
@@ -207,53 +210,64 @@ class ListAdapter(BaseAdapter[List]):
 
     @t.overload
     def create_attribute(
-        self, 
+        self,
         type: type[TaskAttribute],
         name: str,
         slot_type: type[SlotTypeT],
         max_slots: int,
         aliases: str | None,
-        collection: str | None
+        collection: str | None,
     ) -> TaskAttributeAdapter:
         pass
 
     @t.overload
     def create_attribute(
-        self, 
+        self,
         type: type[UserAttribute],
         name: str,
         slot_type: type[SlotTypeT],
         max_slots: int,
         aliases: str | None,
-        collection: str | None
+        collection: str | None,
     ) -> UserAttributeAdapter:
         pass
 
     def create_attribute(
-        self, 
+        self,
         type: type[BaseNonStaticAttribute],
         name: str,
         slot_type: type[SlotTypeT],
         max_slots: int,
         aliases: str | None,
-        collection: str | None
+        collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
-        real_aliases = map(text.RealStr, _parsers.LIST_PARSER.parse(aliases or '[]'))
+        real_aliases = map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]"))
         real_collection = tuple(
-            (text.RealStr(name), tuple(map(text.RealStr, aliases))) for name, aliases in
-            _parsers.LIST_OF_NAME_ALIASES_PARSER.parse(collection or '[]')
+            (text.RealStr(name), tuple(map(text.RealStr, aliases)))
+            for name, aliases in _parsing.LIST_OF_NAME_ALIASES_PARSER.parse(
+                collection or "[]"
+            )
         )
 
-        attr = self._s.create_attribute(
-            type,
-            text.RealStr(name),
-            real_aliases,
-            slot_type,
-            max_slots,
-            collection=real_collection
-        )
+        try:
+            attr = self._s.create_attribute(
+                type,
+                text.RealStr(name),
+                real_aliases,
+                slot_type,
+                max_slots,
+                collection=real_collection,
+            )
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTakenFeedbackError(e)
 
         if isinstance(attr, TaskAttribute):
             return TaskAttributeAdapter(attr, self)
-        
+
         return UserAttributeAdapter(attr, self)  # type: ignore
+
+    def delete_attribute(
+        self, type: type[TaskAttribute | UserAttribute], syn: str
+    ) -> None:
+        attr = self.get_attribute(type, syn)
+        self._s.delete_attribute(type, attr._s.id)

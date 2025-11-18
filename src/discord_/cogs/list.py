@@ -1,6 +1,6 @@
 import builtins
-from decimal import Decimal
 import enum
+from decimal import Decimal
 from string.templatelib import Interpolation, Template
 from types import MappingProxyType
 from typing import Any
@@ -15,16 +15,16 @@ from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
 from structures.task import Task
 from utils import text
 
-from ..structs import modals
-from ..utils_ import messaging
+from ..utils_ import messaging, modals
 
-
-_SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType({
-    bool: "Boolean (true/false)",
-    int: "Integer",
-    Decimal: "Decimal",
-    str: "String (Text)"
-})
+_SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
+    {
+        bool: "Boolean (true/false)",
+        int: "Integer",
+        Decimal: "Decimal",
+        str: "String (Text)",
+    }
+)
 
 assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
 
@@ -37,7 +37,11 @@ class ListCog(cmds.GroupCog, group_name="list"):
     async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
         ia = InteractionAdapter(interaction)
 
-        list_obj = ia.jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
+        list_obj = (
+            ia.jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 
@@ -83,26 +87,38 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
         await interaction.response.send_message(
             messaging.layout(
-                "All Attributes", text.join_t('\n\n', (Template(Interpolation(part)) for part in result)), messaging.MessageStatus.INFO
+                "All Attributes",
+                text.join_t("\n\n", (Template(Interpolation(part)) for part in result)),
+                messaging.MessageStatus.INFO,
             )
         )
 
     @get_group.command(name="tasks", description="Get all tasks of a list.")
-    async def get_tasks(self, interaction: dc.Interaction, list: str | None = None) -> None:
-        list_obj = InteractionAdapter(interaction).jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
+    async def get_tasks(
+        self, interaction: dc.Interaction, list: str | None = None
+    ) -> None:
+        list_obj = (
+            InteractionAdapter(interaction)
+            .jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
 
         await interaction.response.send_message(
             messaging.layout(
                 "All Attributes",
-                Template(Interpolation("\n".join(task.name for task in list_obj.get_tasks()))),
+                Template(
+                    Interpolation("\n".join(task.name for task in list_obj.get_tasks()))
+                ),
                 messaging.MessageStatus.INFO,
             )
         )
 
     create_group = acmds.Group(name="create", description="Create objects for a list.")
 
-
-    SlotTypeEnum = enum.Enum('SlotTypeEnum', [(_SLOT_TYPE_TO_NAME[type], type) for type in SLOT_TYPES] + [])
+    SlotTypeEnum = enum.Enum(
+        "SlotTypeEnum", [(_SLOT_TYPE_TO_NAME[type], type) for type in SLOT_TYPES] + []
+    )
 
     async def _create_attribute(
         self,
@@ -115,15 +131,15 @@ class ListCog(cmds.GroupCog, group_name="list"):
         collection: str | None,
         list: str | None,
     ) -> None:
-        list_obj = InteractionAdapter(interaction).jumpedia.get_current_community().get_or_create_current_community_user().get_list_or_default(list)
+        list_obj = (
+            InteractionAdapter(interaction)
+            .jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
 
         attr = list_obj.create_attribute(
-            type,
-            name,
-            slot_type.value,
-            max_slots,
-            aliases,
-            collection
+            type, name, slot_type.value, max_slots, aliases, collection
         )
 
         await interaction.response.send_message(
@@ -155,7 +171,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             max_slots,
             aliases,
             collection,
-            list
+            list,
         )
 
     @create_group.command(
@@ -179,7 +195,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             max_slots,
             aliases,
             collection,
-            list
+            list,
         )
 
     @create_group.command(
@@ -187,147 +203,76 @@ class ListCog(cmds.GroupCog, group_name="list"):
     )
     async def create_task(
         self,
-        ia: dc.Interaction,
+        interaction: dc.Interaction,
         name: str,
-        attribute_value_mapping: str = "{}",
-        aliases: str = "[]",
+        aliases: str | None = None,
+        attribute_value_mapping: str | None = None,
         list: str | None = None,
     ) -> None:
-        ctx = Context(ia)
-        list_obj = ctx.get_requested_list(list)
+        ia = InteractionAdapter(interaction)
+
+        list_obj = (
+            ia.jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
 
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
-        await ia.response.send_message(
+        await interaction.response.send_message(
             messaging.layout(
                 "Task Created",
-                f"The task `{task.name}` has successfully been created!",
+                t"The task `{task.name}` has successfully been created!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
 
     delete_group = acmds.Group(name="delete", description="Delete objects from a list.")
 
+    async def _delete_attribute(
+        self,
+        interaction: dc.Interaction,
+        type: type[TaskAttribute | UserAttribute],
+        syn: str,
+        list: str | None,
+    ) -> None:
+        list_obj = (
+            InteractionAdapter(interaction)
+            .jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
+        )
+
+        attr_s = list_obj.get_attribute(type, syn)._s
+
+        await modals.delete_structure_confirmation(
+            interaction,
+            type,
+            attr_s.name,
+            lambda _: list_obj._s.delete_attribute(type, attr_s.id),
+        )
+
     @delete_group.command(name="task_attribute")
     async def delete_task_attribute(
-        self, ia: dc.Interaction, name: str, list: str | None = None
+        self, interaction: dc.Interaction, task_attribute: str, list: str | None = None
     ) -> None:
-        ctx = Context(ia)
-
-        list_obj = ctx.get_requested_list(list)
-
-        task_attribute = required.obj_generic(
-            list_obj.get_user_attribute_by_name(name), TaskAttribute
-        )
-
-        async def after_submit(ia: dc.Interaction, success: bool) -> None:
-            if success:
-                list_obj.delete_task_attribute(name)
-
-                return await ia.response.send_message(
-                    messaging.layout(
-                        "Task Attribute Deleted",
-                        f"The task attribute `{task_attribute.name}` has successfully been deleted!",
-                        messaging.MessageStatus.SUCCESS,
-                    )
-                )
-
-            await ia.response.send_message(
-                messaging.layout(
-                    "Task Attribute Deletion Aborted",
-                    f"The task attribute `{task_attribute.name}` has **not** been deleted because the name entered is not correct!",
-                    messaging.MessageStatus.WARNING,
-                )
-            )
-
-        await ia.response.send_modal(
-            modals.ConfirmByEnteringModal(
-                ia,
-                "Confirm Task Attribute Deletion",
-                "Re-Enter the task attribute's name to confirm",
-                lambda s: s == task_attribute.name,
-                after_submit,
-            )
-        )
+        await self._delete_attribute(interaction, TaskAttribute, task_attribute, list)
 
     @delete_group.command(name="user_attribute")
     async def delete_user_attribute(
-        self, ia: dc.Interaction, name: str, list: str | None = None
+        self, interaction: dc.Interaction, user_attribute: str, list: str | None = None
     ) -> None:
-        ctx = Context(ia)
-
-        list_obj = ctx.get_requested_list(list)
-
-        user_attribute = required.obj_generic(
-            list_obj.get_user_attribute_by_name(name), UserAttribute
-        )
-
-        async def after_submit(ia: dc.Interaction, success: bool) -> None:
-            if success:
-                list_obj.delete_user_attribute(name)
-
-                return await ia.response.send_message(
-                    messaging.layout(
-                        "User Attribute Deleted",
-                        f"The task attribute `{user_attribute.name}` has successfully been deleted!",
-                        messaging.MessageStatus.SUCCESS,
-                    )
-                )
-
-            await ia.response.send_message(
-                messaging.layout(
-                    "User Attribute Deletion Aborted",
-                    f"The user attribute `{user_attribute.name}` has **not** been deleted because the name entered is not correct!",
-                    messaging.MessageStatus.WARNING,
-                )
-            )
-
-        await ia.response.send_modal(
-            modals.ConfirmByEnteringModal(
-                ia,
-                "Confirm User Attribute Deletion",
-                "Re-Enter the user attribute's name to confirm",
-                lambda s: s == user_attribute.name,
-                after_submit,
-            )
-        )
+        await self._delete_attribute(interaction, UserAttribute, user_attribute, list)
 
     @delete_group.command(name="task")
     async def delete_task(
-        self, ia: dc.Interaction, name: str, list: str | None = None
+        self, interaction: dc.Interaction, task: str, list: str | None = None
     ) -> None:
-        ctx = Context(ia)
-
-        list_obj = ctx.get_requested_list(list)
-
-        task = required.obj_generic(list_obj.get_task_by_name(name), Task)
-
-        async def after_submit(ia: dc.Interaction, success: bool) -> None:
-            if success:
-                list_obj.delete_task(name)
-
-                return await ia.response.send_message(
-                    messaging.layout(
-                        "Task Deleted",
-                        f"The task `{task.name}` has successfully been deleted!",
-                        messaging.MessageStatus.SUCCESS,
-                    )
-                )
-
-            await ia.response.send_message(
-                messaging.layout(
-                    "Task Deletion Aborted",
-                    f"The task `{task.name}` has **not** been deleted because the name entered is not correct!",
-                    messaging.MessageStatus.WARNING,
-                )
-            )
-
-        await ia.response.send_modal(
-            modals.ConfirmByEnteringModal(
-                ia,
-                "Confirm User Task Deletion",
-                "Re-Enter the task's name to confirm",
-                lambda s: s == task.name,
-                after_submit,
-            )
+        list_obj = (
+            InteractionAdapter(interaction)
+            .jumpedia.get_current_community()
+            .get_or_create_current_community_user()
+            .get_list_or_default(list)
         )
+
+        list_obj.delete_task(task)
