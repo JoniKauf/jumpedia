@@ -7,7 +7,7 @@ from . import BaseStructure, db, errors
 from .attribute import StaticAttribute
 from .list import Kind, List
 from .user import CommunityUser, JumpediaUser
-from .user.rank import CommunityRank
+from utils.rank import CommunityRank
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia
@@ -216,7 +216,7 @@ class Community(BaseStructure):
                     db.CommunityUser.insert(
                         db.CommunityUser.community_id.bind(self.id),
                         db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
-                        db.CommunityUser.power.bind(community_rank.power),
+                        db.CommunityUser.power.bind(community_rank.value),
                         db.CommunityUser.selected_list_id.bind(selected_list_id),
                     ),
                     get_last_generated_id=True,
@@ -245,12 +245,12 @@ class Community(BaseStructure):
             )
 
             if (
-                community_rank != community_user.community_rank
+                community_rank is not community_user.community_rank
                 or selected_list_id != selected_list_id
             ):
                 execute_data = c.execute(
                     db.CommunityUser.update(
-                        db.CommunityUser.power.set(community_rank.power),
+                        db.CommunityUser.power.set(community_rank.value),
                         db.CommunityUser.selected_list_id.set(selected_list_id),
                     ).where(
                         (

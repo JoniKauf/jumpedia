@@ -5,12 +5,14 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
+from discord_.utils_ import group
 from structures.community import Community
-from structures.user.rank import CommunityRank, JumpediaRank, ServerRank
+from structures.jumpedia import Jumpedia
+from utils.rank import CommunityRank, JumpediaRank, ServerRank
 from utils import text
 
 from ..errors import FeedbackError
-from ..utils_ import messaging, modals, predicates
+from ..utils_ import messaging, modal, predicate
 
 
 class JumpediaCog(cmds.GroupCog, name="jumpedia"):
@@ -33,9 +35,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
             )
         )
 
-    get_group = acmds.Group(
-        name="get", description="Get objects that belong to Jumpedia."
-    )
+    get_group = group.get_get_group(Jumpedia)
 
     @get_group.command(name="communities", description="Get all communities.")
     async def get_communities(self, interaction: dc.Interaction) -> None:
@@ -58,12 +58,10 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
             )
         )
 
-    create_group = acmds.Group(
-        name="create", description="Create objects that belong to the metaverse."
-    )
+    create_group = group.get_create_group(Jumpedia, CommunityRank.OWNER)
 
     @create_group.command(name="community", description="Create a new community.")
-    @acmds.check(predicates.rank_required(JumpediaRank.META_ADMIN))
+    @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
     async def create_community(
         self,
         interaction: dc.Interaction,
@@ -87,12 +85,11 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     )
 
     @delete_group.command(name="community", description="Delete a community.")
-    @acmds.check(predicates.rank_required(CommunityRank.OWNER))
     async def delete_community(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
         community = ia.jumpedia.get_current_community()
 
-        await modals.delete_structure_confirmation(
+        await modal.delete_structure_confirmation(
             ia._s,
             Community,
             community._s.name,
@@ -106,7 +103,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @connect_group.command(
         name="community", description="Connect an existing community to this server."
     )
-    @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
+    @acmds.check(predicate.rank_required(ServerRank.SERVER_OWNER))
     async def connect_community(
         self, interaction: dc.Interaction, community_name: str
     ) -> None:
@@ -130,7 +127,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @disconnect_group.command(
         name="community", description="Disconnect a community from this server."
     )
-    @acmds.check(predicates.rank_required(ServerRank.SERVER_OWNER))
+    @acmds.check(predicate.rank_required(ServerRank.SERVER_OWNER))
     async def disconnect_community(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
 

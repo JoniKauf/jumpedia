@@ -2,10 +2,6 @@ import ast
 import typing as t
 from types import MappingProxyType
 
-from adapters.errors import (
-    InvalidArgumentFeedbackError,
-    StructureNotFoundViaSynFeedbackError,
-)
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_str import SlotTypeT
 from structures.task.attribute_value_mapping import AttributeValueMapping
@@ -20,6 +16,8 @@ from utils.expression_parsing.visitor import (
     ListOfTupleVisitor,
 )
 from utils.text import NormStr
+
+from . import errors
 
 _KIBIBYTE = 2**10
 
@@ -38,14 +36,14 @@ def _handle_name_aliases_tuple(
     tup: ast.Tuple, visitor: ListOfTupleVisitor
 ) -> tuple[str, list[str]]:
     if len(tup.elts) != 2:
-        raise InvalidArgumentFeedbackError(
+        raise errors.InvalidArgumentFeedbackError(
             t"A specified tuple that must be of length **2** has the length **{len(tup.elts)}**!"
         )
 
     first, second = tup.elts
 
     if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
-        raise InvalidArgumentFeedbackError(
+        raise errors.InvalidArgumentFeedbackError(
             t"The first element of a specified tuple is not a string, when it should be!"
         )
 
@@ -63,7 +61,7 @@ def _handle_name_aliases_tuple(
             elts.append(elem.value)
 
     if not valid:
-        raise InvalidArgumentFeedbackError(
+        raise errors.InvalidArgumentFeedbackError(
             t"The second element of a tuple is not a list of strings, when it should be!"
         )
 
@@ -200,7 +198,9 @@ class FilterVisitor(
         attr = attributes.get(attr_name)
 
         if attr is None:
-            raise StructureNotFoundViaSynFeedbackError(attr_name, BaseAttribute, False)
+            raise errors.StructureNotFoundViaSynFeedbackError(
+                attr_name, BaseAttribute, False
+            )
 
         value: SlotTypeT = self.visit(left, attr)
 

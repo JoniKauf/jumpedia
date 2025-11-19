@@ -1,17 +1,20 @@
+import typing as t
 from functools import cached_property
 
 import discord as dc
 
-from structures.user.rank import ServerRank
+from utils.rank import ServerRank
 
-from .. import BaseAdapter
-from .server import ServerAdapter
-from .user import UserAdapter
+from . import BaseAdapter
+from ._server import ServerAdapter
+
+if t.TYPE_CHECKING:
+    from ._user import ServerUserAdapter
 
 
-class MemberAdapter(BaseAdapter[dc.Member]):
+class ServerMemberAdapter(BaseAdapter[dc.Member]):
     server: ServerAdapter
-    user: UserAdapter
+    user: ServerUserAdapter
 
     @cached_property
     def server_rank(self) -> ServerRank:

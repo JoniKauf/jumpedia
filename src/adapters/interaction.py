@@ -5,10 +5,10 @@ import discord as dc
 from discord_.errors import FeedbackError
 
 from . import BaseAdapter
-from ._discord.member import MemberAdapter
-from ._discord.server import ServerAdapter
-from ._discord.user import UserAdapter
 from ._jumpedia import _JUMPEDIA, JumpediaAdapter
+from ._server import ServerAdapter
+from ._server_member import ServerMemberAdapter
+from ._user import ServerUserAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
@@ -35,18 +35,18 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         return ServerAdapter(user.guild, self)
 
     @cached_property
-    def current_user(self) -> UserAdapter:
+    def current_user(self) -> ServerUserAdapter:
         user_or_member = self._s.user
 
         if isinstance(user_or_member, dc.Member):
-            return UserAdapter(user_or_member._user, self)
+            return ServerUserAdapter(user_or_member._user, self)
 
-        return UserAdapter(user_or_member, self)
+        return ServerUserAdapter(user_or_member, self)
 
     @cached_property
-    def current_member(self) -> MemberAdapter:
+    def current_member(self) -> ServerMemberAdapter:
         member = _require_member(self._s.user)
-        return MemberAdapter(member, self.current_server, self.current_user)
+        return ServerMemberAdapter(member, self.current_server, self.current_user)
 
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:

@@ -1,5 +1,4 @@
 import typing as t
-from dataclasses import field
 
 from discord_.errors import FeedbackError
 from structures.community import Community, CommunityLimits
@@ -9,17 +8,16 @@ from structures.errors import (
     SynsAlreadyTakenError,
 )
 from structures.jumpedia import Jumpedia, JumpediaLimits
-from structures.user.rank import JumpediaRank
+from utils.rank import JumpediaRank
 from utils import secret, text
 from utils.orm import Connector
 
-from . import BaseAdapter, errors
+from . import BaseAdapter, BaseStructureAdapter, errors
 from ._community import CommunityAdapter
-from ._discord.user import UserAdapter
-from ._user import JumpediaUserAdapter
+from ._user import JumpediaUserAdapter, ServerUserAdapter
 
 if t.TYPE_CHECKING:
-    from adapters.interaction import InteractionAdapter
+    from .interaction import InteractionAdapter
 
 
 __conn_data = secret.listen().DATABASE_CONNECTION_DATA
@@ -57,7 +55,7 @@ def _require_community_with_name(name: text.NormStr, jumpedia_s: Jumpedia) -> Co
     return community
 
 
-class JumpediaAdapter(BaseAdapter[Jumpedia]):
+class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     interaction: InteractionAdapter
 
     # --- Community ---
@@ -138,7 +136,9 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
     # --- Jumpedia User ---
 
     def get_or_create_jumpedia_user(
-        self, user: UserAdapter, override_jumpedia_rank: JumpediaRank | None = None
+        self,
+        user: ServerUserAdapter,
+        *, override_jumpedia_rank: JumpediaRank | None = None,
     ) -> JumpediaUserAdapter:
         jumpedia_user = self._s.get_or_create_jumpedia_user(
             user.id,
@@ -151,8 +151,18 @@ class JumpediaAdapter(BaseAdapter[Jumpedia]):
         return JumpediaUserAdapter(jumpedia_user, self)
 
     def get_or_create_current_jumpedia_user(
-        self, override_jumpedia_rank: JumpediaRank | None = None
+        self, *, override_jumpedia_rank: JumpediaRank | None = None
     ) -> JumpediaUserAdapter:
         return self.get_or_create_jumpedia_user(
-            self.interaction.current_user, override_jumpedia_rank
+            self.interaction.current_user, override_jumpedia_rank=override_jumpedia_rank
         )
+
+    def get_or_create_jumpedia_user_or_current(
+        self,
+        user: ServerUserAdapter | None,
+        override_jumpedia_rank: JumpediaRank | None = None,
+    ) -> JumpediaUserAdapter:
+        if user is None:
+            return self.get_or_create_current_jumpedia_user(override_jumpedia_rank=override_jumpedia_rank)
+
+        return self.get_or_create_jumpedia_user(user, override_jumpedia_rank=override_jumpedia_rank)

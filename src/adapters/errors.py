@@ -3,7 +3,7 @@ from typing import Any, Mapping, Sequence
 
 from discord_.errors import FeedbackError
 from structures import BaseStructure, errors
-from utils import text
+from utils.rank import AnyRankT
 
 
 class StructureNotFoundViaSynFeedbackError(FeedbackError):
@@ -72,4 +72,11 @@ class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
         super().__init__(
             "Server Already Connected To A Community",
             t"This server is already connected to a community (`{e.community.name}`)!",
+        )
+
+class NotEnoughPowerToAffectOthersFeedbackError(FeedbackError):
+    def __init__(self, executing_rank: AnyRankT, required_rank: AnyRankT) -> None:
+        super().__init__(
+            "Not Enough Power To Affect Others",
+            t"You must at least have the {required_rank.mention()} to execute this command, but you only have the {executing_rank.mention()}!",
         )

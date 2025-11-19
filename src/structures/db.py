@@ -4,10 +4,11 @@ import typing as t
 from utils.orm import *
 from utils.text import NormStr, RealStr
 
-from .attribute.slot_str import SlotStr
-
 if t.TYPE_CHECKING:
+    from .attribute.slot_str import SlotStr
     from .jumpedia import Jumpedia
+else:
+    SlotStr = RealStr
 
 
 class Community(Model, table_name=SNAKE):

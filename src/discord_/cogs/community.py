@@ -1,16 +1,18 @@
-from enum import Enum
 from string.templatelib import Template
 
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from adapters._user import ServerUserAdapter
 from adapters.interaction import InteractionAdapter
+from discord_.utils_ import group
+from structures.community import Community
 from structures.list import List
-from structures.user.rank import CommunityRank, ServerRank
+from utils.rank import CommunityRank, ServerRank
 from utils import text
 
-from ..utils_ import messaging, modals, predicates
+from ..utils_ import messaging, modal, predicate
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -46,7 +48,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    get_group = acmds.Group(name="get", description="Get objects of the community.")
+    get_group = group.get_get_group(Community)
 
     @get_group.command(name="lists", description="Get all lists of the community.")
     async def get_lists(self, interaction: dc.Interaction) -> None:
@@ -90,15 +92,13 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    set_group = acmds.Group(
-        name="set", description="Set values for objects of the community."
-    )
+    set_group = group.get_set_group(Community)
 
     @set_group.command(
         name="default_selected_list",
         description="Set the default selected list of the community.",
     )
-    @acmds.check(predicates.rank_required(ServerRank.SERVER_ADMINISTRATOR))
+    @acmds.check(predicate.rank_required(ServerRank.SERVER_ADMINISTRATOR))
     async def set_default_selected_list(
         self, interaction: dc.Interaction, list: str | None = None
     ) -> None:
@@ -124,12 +124,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    create_group = acmds.Group(
-        name="create", description="Create new objects for the community."
-    )
+    create_group = group.get_create_group(Community)
 
     @create_group.command(name="list", description="Create a new list.")
-    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def create_list(self, interaction: dc.Interaction, list: str) -> None:
         ia = InteractionAdapter(interaction)
 
@@ -143,18 +141,16 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    delete_group = acmds.Group(
-        name="delete", description="Delete objects from the community."
-    )
+    delete_group = group.get_delete_group(Community)
 
     @delete_group.command(name="list", description="Delete a list from the community.")
-    @acmds.check(predicates.rank_required(CommunityRank.ADMINISTRATOR))
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_list(self, interaction: dc.Interaction, list: str) -> None:
         ia = InteractionAdapter(interaction)
 
         list_s = ia.jumpedia.get_current_community().get_list(list)._s
 
-        await modals.delete_structure_confirmation(
+        await modal.delete_structure_confirmation(
             interaction,
             List,
             list_s.name,

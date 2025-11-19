@@ -4,6 +4,8 @@ from string.templatelib import Template
 
 from discord.app_commands.errors import CheckFailure
 
+from .utils_ import messaging
+
 
 class BaseUserReturnableError(RuntimeError, CheckFailure):
     """
@@ -45,18 +47,18 @@ class FeedbackError(BaseUserReturnableError):
         related_documentation: t.Sequence[tuple[str, str]] = (),
         paragraphs: t.Sequence[Template] = (),
         msg_kwargs: t.Mapping[str, t.Any] | None = None,
+        explicit_message_status: messaging.MessageStatus | None = None,
     ):
         self.header = header
         self.core = core
         self.additional = additional
         self.related_documentation = related_documentation
         self.paragraphs = paragraphs
+        self.explicit_message_status = explicit_message_status
 
         super().__init__(**(msg_kwargs or {}))
 
     def __str__(self) -> str:
-        from .utils_ import messaging
-
         paragraphs: list[Template] = list(self.paragraphs)
 
         if self.related_documentation:
@@ -72,7 +74,8 @@ class FeedbackError(BaseUserReturnableError):
         return messaging.layout(
             header=self.header,
             core=self.core,
-            message_status=messaging.MessageStatus.ERROR,
+            message_status=self.explicit_message_status
+            or messaging.MessageStatus.ERROR,
             additional=self.additional,
             paragraphs=paragraphs,
         )

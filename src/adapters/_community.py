@@ -1,13 +1,14 @@
 import typing as t
 
 from discord_.errors import FeedbackError
+from discord_.utils_ import messaging
 from structures.community import Community
 from structures.errors import SynsAlreadyTakenError
 from structures.list import List
-from structures.user.rank import CommunityRank
+from utils.rank import CommunityRank, JumpediaRank
 from utils import text
 
-from . import BaseAdapter, errors
+from . import BaseAdapter, BaseStructureAdapter, errors
 from ._list import ListAdapter
 from ._user import CommunityUserAdapter, JumpediaUserAdapter
 
@@ -24,7 +25,7 @@ def _require_list_with_name(name: text.NormStr, community: Community) -> List:
     return list
 
 
-class CommunityAdapter(BaseAdapter[Community]):
+class CommunityAdapter(BaseStructureAdapter[Community]):
     jumpedia: JumpediaAdapter
 
     @property
@@ -113,7 +114,7 @@ class CommunityAdapter(BaseAdapter[Community]):
     def get_or_create_community_user(
         self,
         jumpedia_user: JumpediaUserAdapter,
-        override_community_rank: CommunityRank | None = None,
+        *, override_community_rank: CommunityRank | None = None,
     ) -> CommunityUserAdapter:
         return CommunityUserAdapter(
             self._s.get_or_create_community_user(
@@ -128,12 +129,12 @@ class CommunityAdapter(BaseAdapter[Community]):
         )
 
     def get_or_create_current_community_user(
-        self, override_community_rank: CommunityRank | None = None
+        self, *, override_community_rank: CommunityRank | None = None
     ) -> CommunityUserAdapter:
         return self.get_or_create_community_user(
-            self.jumpedia.get_or_create_current_jumpedia_user(), override_community_rank
+            self.jumpedia.get_or_create_current_jumpedia_user(), override_community_rank=override_community_rank
         )
-
+    
     # --- Server ---
 
     def get_server_count(self) -> int:

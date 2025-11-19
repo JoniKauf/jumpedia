@@ -1,13 +1,11 @@
 import collections
 import typing as t
 
-from adapters import _parsing
 from discord_.errors import FeedbackError
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
     BaseAttribute,
-    BaseNonStaticAttribute,
     StaticAttribute,
     TaskAttribute,
     UserAttribute,
@@ -18,7 +16,7 @@ from structures.list import List
 from structures.task import Task
 from utils import text
 
-from . import BaseAdapter, errors
+from . import BaseAdapter, BaseStructureAdapter, _parsing, errors
 from ._attribute import (
     AnyAttributeAdapterT,
     StaticAttributeAdapter,
@@ -28,7 +26,7 @@ from ._attribute import (
 from ._task import TaskAdapter
 
 if t.TYPE_CHECKING:
-    from adapters._community import CommunityAdapter
+    from ._community import CommunityAdapter
 
 
 @t.overload
@@ -109,7 +107,7 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
     return {attr.id: avm[attr.norm_name] for attr in found_attrs}
 
 
-class ListAdapter(BaseAdapter[List]):
+class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
 
     @property
@@ -234,7 +232,7 @@ class ListAdapter(BaseAdapter[List]):
 
     def create_attribute(
         self,
-        type: type[BaseNonStaticAttribute],
+        type: type[TaskAttribute | UserAttribute],
         name: str,
         slot_type: type[SlotTypeT],
         max_slots: int,

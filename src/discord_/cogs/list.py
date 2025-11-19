@@ -10,12 +10,14 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
+from discord_.utils_ import predicate
 from structures.attribute import ALL_ATTRIBUTE_TYPES, TaskAttribute, UserAttribute
 from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
-from structures.task import Task
+from structures.list import List
+from utils.rank import CommunityRank
 from utils import text
 
-from ..utils_ import messaging, modals
+from ..utils_ import group, messaging, modal
 
 _SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
     {
@@ -40,7 +42,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         list_obj = (
             ia.jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
@@ -64,7 +66,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    get_group = acmds.Group(name="get", description="Get objects of the list.")
+    get_group = group.get_get_group(List)
 
     @get_group.command(name="attributes", description="Get all attributes of a list.")
     async def get_attributes(
@@ -74,7 +76,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             InteractionAdapter(interaction)
             .jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         result: builtins.list[str] = []
@@ -101,7 +103,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             InteractionAdapter(interaction)
             .jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         await interaction.response.send_message(
@@ -114,7 +116,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    create_group = acmds.Group(name="create", description="Create objects for a list.")
+    create_group = group.get_create_group(List, CommunityRank.HELPER)
 
     SlotTypeEnum = enum.Enum(
         "SlotTypeEnum", [(_SLOT_TYPE_TO_NAME[type], type) for type in SLOT_TYPES] + []
@@ -135,7 +137,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             InteractionAdapter(interaction)
             .jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         attr = list_obj.create_attribute(
@@ -153,6 +155,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @create_group.command(
         name="task_attribute", description="Create a new task attribute."
     )
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def create_task_attribute(
         self,
         interaction: dc.Interaction,
@@ -177,6 +180,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @create_group.command(
         name="user_attribute", description="Create a new user attribute."
     )
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def create_user_attribute(
         self,
         interaction: dc.Interaction,
@@ -214,7 +218,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         list_obj = (
             ia.jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
@@ -227,7 +231,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    delete_group = acmds.Group(name="delete", description="Delete objects from a list.")
+    delete_group = group.get_delete_group(List, CommunityRank.MODERATOR)
 
     async def _delete_attribute(
         self,
@@ -240,12 +244,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
             InteractionAdapter(interaction)
             .jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         attr_s = list_obj.get_attribute(type, syn)._s
 
-        await modals.delete_structure_confirmation(
+        await modal.delete_structure_confirmation(
             interaction,
             type,
             attr_s.name,
@@ -253,12 +257,14 @@ class ListCog(cmds.GroupCog, group_name="list"):
         )
 
     @delete_group.command(name="task_attribute")
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_task_attribute(
         self, interaction: dc.Interaction, task_attribute: str, list: str | None = None
     ) -> None:
         await self._delete_attribute(interaction, TaskAttribute, task_attribute, list)
 
     @delete_group.command(name="user_attribute")
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def delete_user_attribute(
         self, interaction: dc.Interaction, user_attribute: str, list: str | None = None
     ) -> None:
@@ -272,7 +278,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             InteractionAdapter(interaction)
             .jumpedia.get_current_community()
             .get_or_create_current_community_user()
-            .get_list_or_default(list)
+            .get_selected_list_or_default(list)
         )
 
         list_obj.delete_task(task)

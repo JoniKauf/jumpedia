@@ -7,7 +7,7 @@ from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits
 from .errors import StructureNotFoundError, SynsAlreadyTakenError
 from .user import JumpediaUser
-from .user.rank import CommunityRank, JumpediaRank
+from utils.rank import CommunityRank, JumpediaRank
 
 
 class JumpediaLimits(t.NamedTuple):
@@ -181,7 +181,7 @@ class Jumpedia(BaseStructure):
                 c.execute(
                     db.JumpediaUser.insert(
                         db.JumpediaUser.id.bind(id),
-                        db.JumpediaUser.power.bind(jumpedia_rank.power),
+                        db.JumpediaUser.power.bind(jumpedia_rank.value),
                         db.JumpediaUser.norm_name.bind(norm_name),
                         db.JumpediaUser.raw_name.bind(name),
                     )
@@ -195,12 +195,12 @@ class Jumpedia(BaseStructure):
                 )
                 name = name if override_name_if_user_exists else user.user_name
 
-                if name != user.user_name or jumpedia_rank != user.jumpedia_rank:
+                if name != user.user_name or jumpedia_rank is not user.jumpedia_rank:
                     c.execute(
                         db.JumpediaUser.update(
                             db.JumpediaUser.norm_name.set(norm_name),
                             db.JumpediaUser.raw_name.set(name),
-                            db.JumpediaUser.power.set(jumpedia_rank.power),
+                            db.JumpediaUser.power.set(jumpedia_rank.value),
                         ).where((db.JumpediaUser.id, orm.Operator.EQ, user.id))
                     )
 

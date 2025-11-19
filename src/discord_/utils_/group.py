@@ -4,10 +4,10 @@ from types import CoroutineType
 import discord as dc
 from discord import app_commands as acmds
 
-from discord_.utils_ import predicates
+from discord_.utils_ import predicate
 from structures import BaseStructure
 from structures.jumpedia import Jumpedia
-from structures.user.rank import AnyRankT, CommunityRank
+from utils.rank import AnyRankT, CommunityRank
 
 
 def _mention(structure_type: type[BaseStructure], /) -> str:
@@ -15,18 +15,6 @@ def _mention(structure_type: type[BaseStructure], /) -> str:
         return structure_type.type_name
 
     return f"a {structure_type.type_name}"
-
-
-def _get_ranks_interaction_check(
-    rank_required: AnyRankT, /, *ranks_required: AnyRankT
-) -> t.Callable[[dc.Interaction], CoroutineType[t.Any, t.Any, t.Literal[True]]]:
-    async def interaction_check(interaction: dc.Interaction) -> t.Literal[True]:
-        for rank in (rank_required, *ranks_required):
-            await predicates.rank_required(rank)(interaction)
-
-        return True
-
-    return interaction_check
 
 
 def get_get_group(structure_type: type[BaseStructure], /) -> acmds.Group:
@@ -38,7 +26,6 @@ def get_get_group(structure_type: type[BaseStructure], /) -> acmds.Group:
 
 def get_create_group(
     structure_type: type[BaseStructure],
-    rank_required: AnyRankT = CommunityRank.HIGHEST,
     /,
     *ranks_required: AnyRankT,
 ) -> acmds.Group:
@@ -47,16 +34,14 @@ def get_create_group(
         description=f"Create objects that belong to {_mention(structure_type)}.",
     )
 
-    group.interaction_check = _get_ranks_interaction_check(
-        rank_required, *ranks_required
-    )
+    if ranks_required:
+        group.interaction_check = predicate.rank_required(*ranks_required)
 
     return group
 
 
 def get_delete_group(
     structure_type: type[BaseStructure],
-    rank_required: AnyRankT = CommunityRank.HIGHEST,
     /,
     *ranks_required: AnyRankT,
 ) -> acmds.Group:
@@ -65,8 +50,23 @@ def get_delete_group(
         description=f"Delete objects that belong to {_mention(structure_type)}.",
     )
 
-    group.interaction_check = _get_ranks_interaction_check(
-        rank_required, *ranks_required
+    if ranks_required:
+        group.interaction_check = predicate.rank_required(*ranks_required)
+
+    return group
+
+
+def get_set_group(
+    structure_type: type[BaseStructure],
+    /,
+    *ranks_required: AnyRankT,
+) -> acmds.Group:
+    group = acmds.Group(
+        name="set",
+        description=f"Set objects that belong to a {_mention(structure_type)}.",
     )
+
+    if ranks_required:
+        group.interaction_check = predicate.rank_required(*ranks_required)
 
     return group
