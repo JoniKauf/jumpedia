@@ -4,13 +4,13 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters._user import ServerUserAdapter
 from adapters.interaction import InteractionAdapter
 from discord_.utils_ import group
 from structures.community import Community
+from structures.errors import StructureCountLimitReachedError
 from structures.list import List
-from utils.rank import CommunityRank, ServerRank
 from utils import text
+from utils.rank import CommunityRank, ServerRank
 
 from ..utils_ import messaging, modal, predicate
 
@@ -130,13 +130,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def create_list(self, interaction: dc.Interaction, list: str) -> None:
         ia = InteractionAdapter(interaction)
-
         new_list = ia.jumpedia.get_current_community().create_list(list)
 
         await interaction.response.send_message(
             messaging.layout(
                 "List Created",
-                t"The list `{new_list.name:p}` has successfully been created!",
+                t"The list `{new_list.name}` has successfully been created!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

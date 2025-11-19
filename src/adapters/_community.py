@@ -1,14 +1,13 @@
 import typing as t
 
 from discord_.errors import FeedbackError
-from discord_.utils_ import messaging
 from structures.community import Community
-from structures.errors import SynsAlreadyTakenError
+from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
-from utils.rank import CommunityRank, JumpediaRank
 from utils import text
+from utils.rank import CommunityRank
 
-from . import BaseAdapter, BaseStructureAdapter, errors
+from . import BaseStructureAdapter, errors
 from ._list import ListAdapter
 from ._user import CommunityUserAdapter, JumpediaUserAdapter
 
@@ -45,6 +44,8 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
             list = self._s.create_list(text.RealStr(name))
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTakenFeedbackError(e)
+        except StructureCountLimitReachedError as e:
+            raise errors.StructureCountLimitReachedFeedbackError(e)
 
         return ListAdapter(list, self)
 
@@ -114,7 +115,8 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
     def get_or_create_community_user(
         self,
         jumpedia_user: JumpediaUserAdapter,
-        *, override_community_rank: CommunityRank | None = None,
+        *,
+        override_community_rank: CommunityRank | None = None,
     ) -> CommunityUserAdapter:
         return CommunityUserAdapter(
             self._s.get_or_create_community_user(
@@ -132,9 +134,10 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         self, *, override_community_rank: CommunityRank | None = None
     ) -> CommunityUserAdapter:
         return self.get_or_create_community_user(
-            self.jumpedia.get_or_create_current_jumpedia_user(), override_community_rank=override_community_rank
+            self.jumpedia.get_or_create_current_jumpedia_user(),
+            override_community_rank=override_community_rank,
         )
-    
+
     # --- Server ---
 
     def get_server_count(self) -> int:

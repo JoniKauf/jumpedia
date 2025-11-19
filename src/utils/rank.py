@@ -4,10 +4,12 @@ import typing as t
 
 from utils import text
 
+
 class _BaseRankMeta(enum.EnumMeta):
-    @functools.cached_property
+    @property
     def type_name(cls) -> str:
         return text.pascal_to_snake(cls.__name__, delim=" ")
+
 
 @functools.total_ordering
 class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
@@ -33,7 +35,7 @@ class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
                 return elem
 
         raise ValueError(power)
-    
+
     def mention(self, title: bool = False) -> str:
         type_name = self.__class__.type_name
         type_name = type_name.title() if title else type_name.lower()

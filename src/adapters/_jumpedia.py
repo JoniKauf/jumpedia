@@ -8,9 +8,9 @@ from structures.errors import (
     SynsAlreadyTakenError,
 )
 from structures.jumpedia import Jumpedia, JumpediaLimits
-from utils.rank import JumpediaRank
 from utils import secret, text
 from utils.orm import Connector
+from utils.rank import JumpediaRank
 
 from . import BaseAdapter, BaseStructureAdapter, errors
 from ._community import CommunityAdapter
@@ -138,7 +138,8 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def get_or_create_jumpedia_user(
         self,
         user: ServerUserAdapter,
-        *, override_jumpedia_rank: JumpediaRank | None = None,
+        *,
+        override_jumpedia_rank: JumpediaRank | None = None,
     ) -> JumpediaUserAdapter:
         jumpedia_user = self._s.get_or_create_jumpedia_user(
             user.id,
@@ -163,6 +164,10 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
         override_jumpedia_rank: JumpediaRank | None = None,
     ) -> JumpediaUserAdapter:
         if user is None:
-            return self.get_or_create_current_jumpedia_user(override_jumpedia_rank=override_jumpedia_rank)
+            return self.get_or_create_current_jumpedia_user(
+                override_jumpedia_rank=override_jumpedia_rank
+            )
 
-        return self.get_or_create_jumpedia_user(user, override_jumpedia_rank=override_jumpedia_rank)
+        return self.get_or_create_jumpedia_user(
+            user, override_jumpedia_rank=override_jumpedia_rank
+        )

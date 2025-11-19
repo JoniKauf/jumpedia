@@ -14,8 +14,8 @@ from discord_.utils_ import predicate
 from structures.attribute import ALL_ATTRIBUTE_TYPES, TaskAttribute, UserAttribute
 from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
 from structures.list import List
-from utils.rank import CommunityRank
 from utils import text
+from utils.rank import CommunityRank
 
 from ..utils_ import group, messaging, modal
 

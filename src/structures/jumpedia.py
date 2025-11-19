@@ -2,12 +2,12 @@ import json
 import typing as t
 
 from utils import orm, text
+from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits
 from .errors import StructureNotFoundError, SynsAlreadyTakenError
 from .user import JumpediaUser
-from utils.rank import CommunityRank, JumpediaRank
 
 
 class JumpediaLimits(t.NamedTuple):

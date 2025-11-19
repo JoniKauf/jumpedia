@@ -87,7 +87,7 @@ async def delete_structure_confirmation(
         ConfirmByEnteringModal(
             interaction,
             f"Confirm {structure_type.type_name.title()} Deletion",
-            f"Re-Enter the {structure_type.type_name}'s name to confirm:",
+            f"Enter the {structure_type.type_name}'s name to confirm:",
             lambda s: s == structure_name,
             after_submit,
         )

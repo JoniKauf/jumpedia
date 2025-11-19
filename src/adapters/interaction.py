@@ -7,8 +7,7 @@ from discord_.errors import FeedbackError
 from . import BaseAdapter
 from ._jumpedia import _JUMPEDIA, JumpediaAdapter
 from ._server import ServerAdapter
-from ._server_member import ServerMemberAdapter
-from ._user import ServerUserAdapter
+from ._user import ServerMemberAdapter, ServerUserAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:

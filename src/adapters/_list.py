@@ -11,7 +11,7 @@ from structures.attribute import (
     UserAttribute,
 )
 from structures.attribute.slot_str import SlotTypeT
-from structures.errors import SynsAlreadyTakenError
+from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
 from structures.task import Task
 from utils import text
@@ -134,7 +134,12 @@ class ListAdapter(BaseStructureAdapter[List]):
             task_attribute_value_mapping, TaskAttribute, self._s
         )
 
-        return TaskAdapter(self._s.create_task(real_name, real_aliases, avm), self)
+        try:
+            return TaskAdapter(self._s.create_task(real_name, real_aliases, avm), self)
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTakenFeedbackError(e)
+        except StructureCountLimitReachedError as e:
+            raise errors.StructureCountLimitReachedFeedbackError(e)
 
     def delete_task(self, syn: str) -> None:
         task = self.get_task(syn)
@@ -248,7 +253,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         )
 
         try:
-            attr = self._s.create_attribute(
+            attr_s = self._s.create_attribute(
                 type,
                 text.RealStr(name),
                 real_aliases,
@@ -258,11 +263,13 @@ class ListAdapter(BaseStructureAdapter[List]):
             )
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTakenFeedbackError(e)
+        except StructureCountLimitReachedError as e:
+            raise errors.StructureCountLimitReachedFeedbackError(e)
 
-        if isinstance(attr, TaskAttribute):
-            return TaskAttributeAdapter(attr, self)
+        if isinstance(attr_s, TaskAttribute):
+            return TaskAttributeAdapter(attr_s, self)
 
-        return UserAttributeAdapter(attr, self)  # type: ignore
+        return UserAttributeAdapter(attr_s, self)  # type: ignore
 
     def delete_attribute(
         self, type: type[TaskAttribute | UserAttribute], syn: str

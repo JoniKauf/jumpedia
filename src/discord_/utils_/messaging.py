@@ -84,7 +84,7 @@ def layout(
     interp_to_data: dict[int, _InterpolationData] = {}
 
     for i, interp in enumerate(final_templ.interpolations):
-        if interp.format_spec == "p":
+        if "p" in interp.format_spec:
             interp_to_data[id(interp)] = data = _InterpolationData(
                 str(interp.value), False
             )

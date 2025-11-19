@@ -1,13 +1,15 @@
 import typing as t
+from functools import cached_property
 
 import discord as dc
 
+from adapters._server import ServerAdapter
 from discord_.errors import FeedbackError
 from discord_.utils_ import messaging
 from structures.community import CommunityUser, JumpediaUser
 from structures.list import List
-from utils.rank import CommunityRank, JumpediaRank
 from utils import text
+from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 from . import BaseAdapter, BaseStructureAdapter, errors
 
@@ -19,14 +21,28 @@ if t.TYPE_CHECKING:
 
 
 @t.overload
-def _get_set_rank_error(executing_user: CommunityUserAdapter, set_user: CommunityUserAdapter, rank: CommunityRank) -> FeedbackError | None:
+def _get_set_rank_error(
+    executing_user: CommunityUserAdapter,
+    set_user: CommunityUserAdapter,
+    rank: CommunityRank,
+) -> FeedbackError | None:
     pass
+
 
 @t.overload
-def _get_set_rank_error(executing_user: JumpediaUserAdapter, set_user: JumpediaUserAdapter, rank: JumpediaRank) -> FeedbackError | None:
+def _get_set_rank_error(
+    executing_user: JumpediaUserAdapter,
+    set_user: JumpediaUserAdapter,
+    rank: JumpediaRank,
+) -> FeedbackError | None:
     pass
 
-def _get_set_rank_error(executing_user: JumpediaUserAdapter | CommunityUserAdapter, set_user: JumpediaUserAdapter | CommunityUserAdapter, rank: JumpediaRank | CommunityRank) -> FeedbackError | None:
+
+def _get_set_rank_error(
+    executing_user: JumpediaUserAdapter | CommunityUserAdapter,
+    set_user: JumpediaUserAdapter | CommunityUserAdapter,
+    rank: JumpediaRank | CommunityRank,
+) -> FeedbackError | None:
     if set_user == executing_user:
         return FeedbackError(
             "Cannot Set Own Rank",
@@ -50,7 +66,6 @@ def _get_set_rank_error(executing_user: JumpediaUserAdapter | CommunityUserAdapt
 
         executing_best_rank = executing_user.most_powerful_rank
         set_best_rank = set_user.most_powerful_rank
-    
 
     if executing_best_rank.value <= set_best_rank.value:
         return FeedbackError(
@@ -75,24 +90,34 @@ def _get_set_rank_error(executing_user: JumpediaUserAdapter | CommunityUserAdapt
             ),
         )
 
-    if (isinstance(set_user, JumpediaUserAdapter) and rank is set_user.jumpedia_rank) or (isinstance(set_user, CommunityUserAdapter) and rank is set_user.community_rank):
+    if (
+        isinstance(set_user, JumpediaUserAdapter) and rank is set_user.jumpedia_rank
+    ) or (
+        isinstance(set_user, CommunityUserAdapter) and rank is set_user.community_rank
+    ):
         return FeedbackError(
             "User Already Has Specified Rank",
             t"The user `{set_user}` already has the {rank.mention()}, therefore nothing changed!",
             explicit_message_status=messaging.MessageStatus.WARNING,
         )
-    
+
     return None
+
 
 @t.overload
 def get_success_msg(set_user: JumpediaUserAdapter, rank: JumpediaRank):
     pass
 
+
 @t.overload
 def get_success_msg(set_user: CommunityUserAdapter, rank: CommunityRank):
     pass
 
-def get_success_msg(set_user: JumpediaUserAdapter | CommunityUserAdapter, rank: JumpediaRank | CommunityRank):
+
+def get_success_msg(
+    set_user: JumpediaUserAdapter | CommunityUserAdapter,
+    rank: JumpediaRank | CommunityRank,
+):
     return messaging.layout(
         f"{rank.__class__.type_name.title()} Set",
         t"The jumpedia rank of `{set_user}` has successfully been set to `{rank}`!",
@@ -110,7 +135,7 @@ class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     @property
     def jumpedia_rank(self) -> JumpediaRank:
         return self._s.jumpedia_rank
-    
+
     def set_jumpedia_rank(
         self, jumpedia_rank: JumpediaRank, executing_jumpedia_user: JumpediaUserAdapter
     ) -> str:
@@ -124,7 +149,7 @@ class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
             self.name,
             jumpedia_rank,
             override_name_if_user_exists=False,
-            override_jumpedia_rank_if_user_exists=True
+            override_jumpedia_rank_if_user_exists=True,
         )
 
         return get_success_msg(self, jumpedia_rank)
@@ -149,11 +174,13 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         return self._s.jumpedia_user.jumpedia_rank or self.community_rank
 
     def get_selected_list(self) -> ListAdapter | None:
+        from ._list import ListAdapter
+
         list_s = self._s.get_selected_list()
 
         if list_s is None:
             return None
-        
+
         return ListAdapter(list_s, self.community)
 
     def get_selected_list_or_default(self, list: str | None) -> ListAdapter:
@@ -166,9 +193,11 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             return list_obj
 
         return self.community.get_default_selected_list()
-    
+
     def set_community_rank(
-        self, community_rank: CommunityRank, executing_community_user: CommunityUserAdapter
+        self,
+        community_rank: CommunityRank,
+        executing_community_user: CommunityUserAdapter,
     ) -> str:
         error = _get_set_rank_error(executing_community_user, self, community_rank)
 
@@ -185,24 +214,45 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
 
         return get_success_msg(self, community_rank)
 
-    def set_selected_list(self, list: str | None, executing_community_user: CommunityUserAdapter) -> None:
+    def set_selected_list(
+        self, list: str | None, executing_community_user: CommunityUserAdapter
+    ) -> ListAdapter | None:
         from . import _community
+        from ._list import ListAdapter
 
         REQ_RANK = CommunityRank.MODERATOR
 
-        if self != executing_community_user and executing_community_user.community_rank < REQ_RANK:
-            raise errors.NotEnoughPowerToAffectOthersFeedbackError(
+        if (
+            self != executing_community_user
+            and executing_community_user.most_powerful_rank.value < REQ_RANK.value
+        ):
+            raise errors.NotEnoughPowerToAffectOtherUsersFeedbackError(
                 executing_community_user.most_powerful_rank, REQ_RANK
             )
-        
-        selected_list_s: List | None
+
+        selected_list: ListAdapter | None
 
         if list is None:
-            selected_list_s = None
+            selected_list = None
         else:
-            selected_list_s = _community._require_list_with_name(text.NormStr(list), self.community._s)
+            selected_list = ListAdapter(_community._require_list_with_name(
+                text.NormStr(list), self.community._s
+            ), self.community)
 
+        if self.get_selected_list() == selected_list:
+            start = "You already have" if self == executing_community_user else f"The user `{self}` already has"
+            selection = "no selected list" if selected_list is None else f"the selected list `{selected_list}`"
+
+            raise FeedbackError(
+                "User Already Has Specified Selected List Set",
+                t"{start} {selection} set, therefore nothing changed!",
+                explicit_message_status=messaging.MessageStatus.WARNING
+            )
         
+        self._s.set_selected_list(None if selected_list is None else selected_list._s.id)
+
+        return selected_list
+
 
 class ServerUserAdapter(BaseAdapter[dc.User]):
     interaction: InteractionAdapter
@@ -214,3 +264,18 @@ class ServerUserAdapter(BaseAdapter[dc.User]):
     @property
     def name(self) -> str:
         return self._s.global_name or self._s.name
+
+
+class ServerMemberAdapter(BaseAdapter[dc.Member]):
+    server: ServerAdapter
+    user: ServerUserAdapter
+
+    @cached_property
+    def server_rank(self) -> ServerRank:
+        if self._s == self.server._s.owner:
+            return ServerRank.SERVER_OWNER
+
+        if self._s.guild_permissions.administrator:
+            return ServerRank.SERVER_ADMINISTRATOR
+
+        return ServerRank.SERVER_MEMBER

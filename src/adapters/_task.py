@@ -3,7 +3,7 @@ import typing as t
 from structures.attribute.slot_str import SlotStr
 from structures.task import Task
 
-from . import BaseAdapter, BaseStructureAdapter
+from . import BaseStructureAdapter
 
 if t.TYPE_CHECKING:
     from ._list import ListAdapter

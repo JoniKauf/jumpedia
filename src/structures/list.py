@@ -113,8 +113,6 @@ class List(BaseStructure):
 
         attrs = self.get_attributes_by_id(type, *attr_id_to_real_aliases)
 
-        assert len(attrs) == len(rows)
-
         return {
             real_alias: attr
             for attr in attrs
@@ -346,7 +344,7 @@ class List(BaseStructure):
                 ),
                 get_last_generated_id=True,
             )
-
+            
             attribute_id = execute_data.last_generated_id
             assert attribute_id is not None
 
@@ -380,7 +378,7 @@ class List(BaseStructure):
                 "Static Attributes have no business being deleted manually!! Wtf did you cook?!"
             )
 
-        AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
+        AttributeTable = t.cast(builtins.type[db.AbstractAttributeTable], type.tables.attribute)
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -411,7 +409,7 @@ class List(BaseStructure):
             type, norm_name, allowed_attributes=frozenset([attribute])
         )
 
-        AttributeTable = t.cast(type[db.AbstractAttributeTable], type.tables.attribute)
+        AttributeTable = t.cast(builtins.type[db.AbstractAttributeTable], type.tables.attribute)
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -579,12 +577,7 @@ class List(BaseStructure):
             AttributeAliasTable.norm_alias.bind(*norm_aliases),
             AttributeAliasTable.real_alias.bind(*real_aliases),
         )._to_sql()
-
-        print(x[0])
-        print("\n\n\n")
-        print(x[1])
-
-        input()
+        
         c.execute(
             AttributeAliasTable.insert(
                 AttributeAliasTable.attribute_id.bind(

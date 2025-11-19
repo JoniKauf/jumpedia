@@ -1,3 +1,4 @@
+import itertools
 import typing as t
 from dataclasses import dataclass
 from types import TracebackType
@@ -5,11 +6,7 @@ from types import TracebackType
 import mariadb
 
 from .._query import ExecutableQuery, FetchableQuery, Query
-from .._query.delete import Delete
-from .._query.insert import Insert
-from .._query.select import Select
-from .._query.update import Update
-from .column import Column, ColumnBind, ColumnSet
+from .._query.insert import InsertQuery, InsertReturningQuery
 
 if t.TYPE_CHECKING:
     from .model import Model
@@ -45,7 +42,12 @@ class Cursor:
         conn.close()
 
     def _core_execute(self, query: Query, /) -> None:
-        self._mariadb_cursor.execute(*query._to_sql())
+        sql, data = query._to_sql()
+
+        if isinstance(query, (InsertQuery, InsertReturningQuery)):
+            self._mariadb_cursor.executemany(sql, data)
+        else:
+            self._mariadb_cursor.execute(sql, data)
 
     @t.overload
     def execute(

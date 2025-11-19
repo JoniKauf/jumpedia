@@ -1,5 +1,6 @@
-from string.templatelib import Template
 import typing as t
+from string.templatelib import Template
+
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
@@ -10,8 +11,8 @@ from discord_.utils_ import group
 from structures.community import Community
 from structures.list import List
 from structures.user import CommunityUser, JumpediaUser
-from utils.rank import CommunityRank, ServerRank, JumpediaRank
 from utils import text
+from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 from ..utils_ import messaging, modal, predicate
 
@@ -27,8 +28,12 @@ class CommunityUserCog(cmds.GroupCog, group_name="community_user"):
         ia = InteractionAdapter(interaction)
         jumpedia = ia.jumpedia
 
-        jumpedia_user = jumpedia.get_or_create_jumpedia_user_or_current(None if user is None else ServerUserAdapter(user, ia))
-        community_user = jumpedia.get_current_community().get_or_create_community_user(jumpedia_user)
+        jumpedia_user = jumpedia.get_or_create_jumpedia_user_or_current(
+            None if user is None else ServerUserAdapter(user, ia)
+        )
+        community_user = jumpedia.get_current_community().get_or_create_community_user(
+            jumpedia_user
+        )
 
         data: dict[str, t.Any] = {
             "Name": community_user.name,
@@ -43,11 +48,12 @@ class CommunityUserCog(cmds.GroupCog, group_name="community_user"):
             )
         )
 
-    
     set_group = group.get_set_group(CommunityUser)
 
     @set_group.command(name="rank")
-    async def set_rank(self, interaction: dc.Interaction, user: dc.User, rank: CommunityRank) -> None:
+    async def set_rank(
+        self, interaction: dc.Interaction, user: dc.User, rank: CommunityRank
+    ) -> None:
         ia = InteractionAdapter(interaction)
         jumpedia = ia.jumpedia
         community = jumpedia.get_current_community()
@@ -57,20 +63,42 @@ class CommunityUserCog(cmds.GroupCog, group_name="community_user"):
         )
 
         await interaction.response.send_message(
-            set_community_user.set_community_rank(rank, community.get_or_create_current_community_user())
+            set_community_user.set_community_rank(
+                rank, community.get_or_create_current_community_user()
+            )
         )
 
     @set_group.command(name="selected_list")
-    async def set_selected_list(self, interaction: dc.Interaction, list: str | None = None, user: dc.User | None = None) -> None:
+    async def set_selected_list(
+        self,
+        interaction: dc.Interaction,
+        list: str | None = None,
+        user: dc.User | None = None,
+    ) -> None:
         ia = InteractionAdapter(interaction)
 
         jumpedia = ia.jumpedia
         community = jumpedia.get_current_community()
 
-        community_user = community.get_or_create_community_user(
-            jumpedia.get_or_create_jumpedia_user_or_current(None if user is None else ServerUserAdapter(user, ia))
+        set_community_user = community.get_or_create_community_user(
+            jumpedia.get_or_create_jumpedia_user_or_current(
+                None if user is None else ServerUserAdapter(user, ia)
+            )
         )
-        
+
         ia_community_user = community.get_or_create_current_community_user()
 
-        community_user.set_community_rank
+        list_obj = set_community_user.set_selected_list(list, ia_community_user)
+
+        await interaction.response.send_message(
+            messaging.layout(
+                "Selected List Set",
+                (
+                    t"Your selected list "
+                    if ia_community_user == set_community_user
+                    else t"The selected list of the user `{set_community_user}` "
+                )
+                + t"has successfully been set to `{list_obj}`!",
+                messaging.MessageStatus.SUCCESS,
+            )
+        )

@@ -35,7 +35,7 @@ class SynsAlreadyTakenFeedbackError(FeedbackError):
 
         super().__init__(
             f"{next(iter(e.structures.values())).__class__.type_name.title()} {names[many].title()} Or {aliases[many].title()} Already Taken",
-            t"The specified {names[many].lower():p} or {aliases[many].lower():p} (`{'`, `'.join(syns):p}`) {are[many].lower():p} already taken!",
+            t"The specified {names[many].lower():p} or {aliases[many].lower():p} ({'`' + '`, `'.join(syns) + '`':p}) {are[many].lower():p} already taken!",
         )
 
 
@@ -74,9 +74,18 @@ class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
             t"This server is already connected to a community (`{e.community.name}`)!",
         )
 
-class NotEnoughPowerToAffectOthersFeedbackError(FeedbackError):
+
+class NotEnoughPowerToAffectOtherUsersFeedbackError(FeedbackError):
     def __init__(self, executing_rank: AnyRankT, required_rank: AnyRankT) -> None:
         super().__init__(
-            "Not Enough Power To Affect Others",
-            t"You must at least have the {required_rank.mention()} to execute this command, but you only have the {executing_rank.mention()}!",
+            "Not Enough Power To Affect Other Users",
+            t"You must at least have the {required_rank.mention()} to execute this command for other users, but you only have the {executing_rank.mention()}!",
+        )
+
+
+class StructureCountLimitReachedFeedbackError(FeedbackError):
+    def __init__(self, e: errors.StructureCountLimitReachedError) -> None:
+        super().__init__(
+            f"{e.structure_type.type_name.title()} Count Limit Reached",
+            t"The limit of the total amount of {e.structure_type.type_name.lower()}s in this community has been reached, therefore you cannot add any more!"
         )

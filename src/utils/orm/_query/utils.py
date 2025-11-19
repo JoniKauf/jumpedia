@@ -78,8 +78,8 @@ def get_entire_insert_sql(
     cols_binded, ignore = insert
 
     cols, binded = tuple(zip(*cols_binded))
-    cols: TupleOfOneOrMore[Column[t.Any, t.Any]]
-    binded: TupleOfOneOrMore[TupleOfOneOrMore[t.Any]]
+    cols: tuple[Column[t.Any, t.Any], ...]
+    binded: tuple[TupleOfOneOrMore[t.Any], ...]
 
     if ignore:
         parts.append("IGNORE")
@@ -91,8 +91,8 @@ def get_entire_insert_sql(
     rows = list(zip(*binded, strict=True))
 
     parts.append(f"({','.join(PLACEHOLDER for _ in rows[0])})")
-
-    return (" ".join(parts), list(itertools.chain.from_iterable(rows)))
+        
+    return (" ".join(parts), rows)
 
 
 def get_entire_delete_sql(
