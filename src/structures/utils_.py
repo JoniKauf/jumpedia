@@ -11,7 +11,4 @@ def handled_unique_reals_and_norms(
     try:
         return text.NormStr.unique_reals_and_norms(iterable)
     except ValueError as e:
-        if not e.args:
-            raise errors.EmptyStringError()
-        else:
-            raise errors.NotUniqueStringError(e.args[0], e.args[1])
+        raise errors.NotUniqueStringError(e.args[0], e.args[1])

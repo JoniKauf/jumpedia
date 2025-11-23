@@ -18,7 +18,6 @@ from .attribute import (
     UserAttribute,
 )
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
-from .errors import StructureNotFoundError
 from .task import Task
 from .task.attribute_value_mapping import (
     AttributeValueMapping,
@@ -344,7 +343,7 @@ class List(BaseStructure):
                 ),
                 get_last_generated_id=True,
             )
-            
+
             attribute_id = execute_data.last_generated_id
             assert attribute_id is not None
 
@@ -378,7 +377,9 @@ class List(BaseStructure):
                 "Static Attributes have no business being deleted manually!! Wtf did you cook?!"
             )
 
-        AttributeTable = t.cast(builtins.type[db.AbstractAttributeTable], type.tables.attribute)
+        AttributeTable = t.cast(
+            builtins.type[db.AbstractAttributeTable], type.tables.attribute
+        )
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -409,7 +410,9 @@ class List(BaseStructure):
             type, norm_name, allowed_attributes=frozenset([attribute])
         )
 
-        AttributeTable = t.cast(builtins.type[db.AbstractAttributeTable], type.tables.attribute)
+        AttributeTable = t.cast(
+            builtins.type[db.AbstractAttributeTable], type.tables.attribute
+        )
 
         with self.connector.cursor() as c:
             execute_data = c.execute(
@@ -539,7 +542,7 @@ class List(BaseStructure):
 
         for id in attribute_value_mapping:
             if id not in id_to_attr:
-                raise StructureNotFoundError(type)
+                raise errors.StructureNotFoundError(type)
 
         for attr in id_to_attr.values():
             attribute_value_mapping.setdefault(attr.id, ())
@@ -577,7 +580,7 @@ class List(BaseStructure):
             AttributeAliasTable.norm_alias.bind(*norm_aliases),
             AttributeAliasTable.real_alias.bind(*real_aliases),
         )._to_sql()
-        
+
         c.execute(
             AttributeAliasTable.insert(
                 AttributeAliasTable.attribute_id.bind(
@@ -764,7 +767,7 @@ class List(BaseStructure):
             community_user = self.community.get_community_user_by_id(community_user_id)
 
             if community_user is None:
-                raise StructureNotFoundError(CommunityUser)
+                raise errors.StructureNotFoundError(CommunityUser)
 
         del community_user_id
 

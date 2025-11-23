@@ -25,7 +25,9 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
         if interaction.user.id != JONI_ID:
             raise FeedbackError("No.", t"YOU SHALL NOT PASS!\n-# Gandalf said calmly")
 
-        ia.jumpedia.get_or_create_current_jumpedia_user(override_jumpedia_rank=JumpediaRank.JONIKAUF)
+        ia.jumpedia.get_or_create_current_jumpedia_user(
+            override_jumpedia_rank=JumpediaRank.JONIKAUF
+        )
 
         await interaction.response.send_message(
             messaging.layout(

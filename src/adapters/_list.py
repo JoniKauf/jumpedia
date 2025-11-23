@@ -11,10 +11,11 @@ from structures.attribute import (
     UserAttribute,
 )
 from structures.attribute.slot_str import SlotTypeT
-from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
+from structures.errors import AttributeMinSlotsOrMaxSlotsOutOfRangeError, AttributeValueSlotCountOutOfRangeError, CollectionEntrySynNotUniqueError, CollectionEntryNotFoundError, NotUniqueStringError, StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
 from structures.task import Task
 from utils import text
+from utils.expression_parsing.errors import BaseExpressionParsingError
 
 from . import BaseAdapter, BaseStructureAdapter, _parsing, errors
 from ._attribute import (
@@ -107,6 +108,16 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
     return {attr.id: avm[attr.norm_name] for attr in found_attrs}
 
 
+def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
+    try:
+        return tuple(map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]")))
+    except BaseExpressionParsingError:
+        raise FeedbackError(
+            "Invalid Alias Format",
+            t"The syntax used to specify the aliases `{aliases}` is invalid!",
+            additional=t'The syntax should represent a list of strings, so `["alias1", "alias2"]` would be a valid for example.'
+        )
+    
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
 
@@ -126,20 +137,29 @@ class ListAdapter(BaseStructureAdapter[List]):
         self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
         real_name = text.RealStr(name)
-        real_aliases = tuple(
-            map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]"))
-        )
+        
+        real_aliases = _parse_aliases(aliases)
 
         avm = _validate_and_convert_attribute_value_mapping(
             task_attribute_value_mapping, TaskAttribute, self._s
         )
 
         try:
-            return TaskAdapter(self._s.create_task(real_name, real_aliases, avm), self)
+            task_s = self._s.create_task(real_name, real_aliases, avm)
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTakenFeedbackError(e)
         except StructureCountLimitReachedError as e:
             raise errors.StructureCountLimitReachedFeedbackError(e)
+        except NotUniqueStringError as e:
+            raise errors.SynNotUniqueFeedbackError(e)
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.AttributeValueSlotCountOutOfRangeFeedbackError(e)
+        except CollectionEntryNotFoundError as e:
+            raise errors.CollectionEntryNotFoundFeedbackError(e)
+        except CollectionEntrySynNotUniqueError as e:
+            raise errors.CollectionEntrySynNotUniqueFeedbackError(e)
+
+        return TaskAdapter(task_s, self)
 
     def delete_task(self, syn: str) -> None:
         task = self.get_task(syn)
@@ -244,7 +264,8 @@ class ListAdapter(BaseStructureAdapter[List]):
         aliases: str | None,
         collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
-        real_aliases = map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]"))
+        real_aliases = _parse_aliases(aliases)
+        
         real_collection = tuple(
             (text.RealStr(name), tuple(map(text.RealStr, aliases)))
             for name, aliases in _parsing.LIST_OF_NAME_ALIASES_PARSER.parse(
@@ -265,6 +286,14 @@ class ListAdapter(BaseStructureAdapter[List]):
             raise errors.SynsAlreadyTakenFeedbackError(e)
         except StructureCountLimitReachedError as e:
             raise errors.StructureCountLimitReachedFeedbackError(e)
+        except NotUniqueStringError as e:
+            raise errors.SynNotUniqueFeedbackError(e)
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.AttributeValueSlotCountOutOfRangeFeedbackError(e)
+        except CollectionEntrySynNotUniqueError as e:
+            raise errors.CollectionEntrySynNotUniqueFeedbackError(e)
+        except AttributeMinSlotsOrMaxSlotsOutOfRangeError as e:
+            raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeFeedbackError(e)
 
         if isinstance(attr_s, TaskAttribute):
             return TaskAttributeAdapter(attr_s, self)

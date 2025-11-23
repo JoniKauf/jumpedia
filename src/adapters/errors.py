@@ -1,8 +1,10 @@
+from operator import add
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
 from discord_.errors import FeedbackError
 from structures import BaseStructure, errors
+from utils import text
 from utils.rank import AnyRankT
 
 
@@ -12,7 +14,7 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
     ) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",
-            t"The {structure_type.type_name} with the name {"" if only_name else "or alias"}`{syn}` could not be found!",
+            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias"}`{syn}` could not be found!",
         )
 
 
@@ -87,5 +89,62 @@ class StructureCountLimitReachedFeedbackError(FeedbackError):
     def __init__(self, e: errors.StructureCountLimitReachedError) -> None:
         super().__init__(
             f"{e.structure_type.type_name.title()} Count Limit Reached",
-            t"The limit of the total amount of {e.structure_type.type_name.lower()}s in this community has been reached, therefore you cannot add any more!"
+            t"The limit of the total amount of {e.structure_type.type_name.lower()}s in this community has been reached, therefore you cannot add any more!",
+        )
+
+
+class SynNotUniqueFeedbackError(FeedbackError):
+    def __init__(self, e: errors.NotUniqueStringError) -> None:
+        super().__init__(
+            "Name Or Aliases Not Unique",
+            t"The name or alias `{e.given}` has been specified multiple times, but they must be unique!"
+        )
+
+
+class AttributeValueSlotCountOutOfRangeFeedbackError(FeedbackError):
+    def __init__(self, e: errors.AttributeValueSlotCountOutOfRangeError) -> None:
+        super().__init__(
+            "Attribute Value Slot Count Out Of Range",
+            t"The specified value has not enough or too many slots!",
+            additional=t"The value `{list(e.value)}` has `{len(e.value)}` slots, but the {e.attribute.__class__.type_name.lower()} `{e.attribute.name}` requires between `{e.attribute.min_slots}` and `{e.attribute.max_slots}` slots in a value."
+        )
+
+class CollectionEntryNotFoundFeedbackError(FeedbackError):
+    def __init__(self, e: errors.CollectionEntryNotFoundError) -> None:
+        super().__init__(
+            "Collection Entry Not Found",
+            t"The specified collection entry `{e.real_slot}` could not be found in the collection of the {e.collection.attribute.__class__.type_name} `{e.collection.attribute}`!",
+        )
+
+class CollectionEntrySynNotUniqueFeedbackError(FeedbackError):
+    def __init__(self, e: errors.CollectionEntrySynNotUniqueError) -> None:
+        super().__init__(
+            "Collection Entry Value Or Alias Not Unique",
+            t"The collection entry's value or alias `{e.duplicate}` has been specified multiple times, but they must be unique!"
+        )
+
+
+class EmptyStringFeedbackError(FeedbackError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Empty String",
+            t'You entered an empty or whitespace-only string (`""`), which is not allowed!'
+        )
+
+class AttributeMinSlotsOrMaxSlotsOutOfRangeFeedbackError(FeedbackError):
+    def __init__(self, e: errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError) -> None:
+        super().__init__(
+            "Slot Limits Out Of Range",
+            t'The min or max slot count specified is invalid!',
+            additional=(
+                t"The following statement must be valid: `{e.min_min} ≤ min_slots ≤ max_slots ≤ {e.max_max} (upper limit for this community)`.\n"
+                t"The values you entered result in this statement: `{e.min_min} ≤ {e.min} ≤ {e.max} ≤ {e.max_max}`."
+            )
+        )
+
+class TooManyAliasesFeedbackError(FeedbackError):
+    def __init__(self, e: errors.TooManyAliasesError) -> None:
+        super().__init__(
+            "Too Many Aliases",
+            t'The amount of alises specified is too high. {e.aliases}`!'
         )

@@ -235,21 +235,34 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         if list is None:
             selected_list = None
         else:
-            selected_list = ListAdapter(_community._require_list_with_name(
-                text.NormStr(list), self.community._s
-            ), self.community)
+            selected_list = ListAdapter(
+                _community._require_list_with_name(
+                    text.NormStr(list), self.community._s
+                ),
+                self.community,
+            )
 
         if self.get_selected_list() == selected_list:
-            start = "You already have" if self == executing_community_user else f"The user `{self}` already has"
-            selection = "no selected list" if selected_list is None else f"the selected list `{selected_list}`"
+            start = (
+                "You already have"
+                if self == executing_community_user
+                else f"The user `{self}` already has"
+            )
+            selection = (
+                "no selected list"
+                if selected_list is None
+                else f"the selected list `{selected_list}`"
+            )
 
             raise FeedbackError(
                 "User Already Has Specified Selected List Set",
                 t"{start} {selection} set, therefore nothing changed!",
-                explicit_message_status=messaging.MessageStatus.WARNING
+                explicit_message_status=messaging.MessageStatus.WARNING,
             )
-        
-        self._s.set_selected_list(None if selected_list is None else selected_list._s.id)
+
+        self._s.set_selected_list(
+            None if selected_list is None else selected_list._s.id
+        )
 
         return selected_list
 

@@ -8,13 +8,10 @@ import discord.ext.commands as cmds
 from adapters._user import ServerUserAdapter
 from adapters.interaction import InteractionAdapter
 from discord_.utils_ import group
-from structures.community import Community
-from structures.list import List
 from structures.user import JumpediaUser
-from utils import text
-from utils.rank import CommunityRank, JumpediaRank, ServerRank
+from utils.rank import JumpediaRank
 
-from ..utils_ import messaging, modal, predicate
+from ..utils_ import messaging
 
 
 class JumpediaUserCog(cmds.GroupCog, group_name="jumpedia_user"):

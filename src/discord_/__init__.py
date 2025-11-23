@@ -11,8 +11,9 @@ import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
+from adapters.errors import EmptyStringFeedbackError
 from discord_.utils_ import messaging
-from utils import secret
+from utils import secret, text
 
 from .errors import BaseUserReturnableError
 
@@ -64,9 +65,10 @@ async def on_app_command_error(
     if not interaction.response.is_done():
         await interaction.response.defer()
 
+    if isinstance(e, text.EmptyStringError):
+        e = EmptyStringFeedbackError()
     if isinstance(e, BaseUserReturnableError):
-        e.msg_kwargs["content"] = str(e)
-        await interaction.followup.send(**e.msg_kwargs)
+        await interaction.followup.send(str(e), **e.msg_kwargs)
         return
 
     if DEV_MODE:
@@ -81,6 +83,7 @@ async def on_app_command_error(
                 messaging.MessageStatus.ERROR,
             )
         )
+        return
 
     await interaction.followup.send(
         messaging.layout(

@@ -62,7 +62,7 @@ class CollectionEntryNotFoundError(BaseStructureError):
     collection: Collection
 
 
-class CollectionEntryDuplicateError(BaseStructureError):
+class CollectionEntrySynNotUniqueError(BaseStructureError):
     duplicate: SlotStr
 
 
@@ -80,8 +80,6 @@ class TooManyAliasesError(BaseStructureError):
 
 class AttributeValueSlotCountOutOfRangeError(BaseStructureError):
     value: tuple[text.RealStr, ...]
-    min: int
-    max: int
     attribute: BaseAttribute
 
 
@@ -105,11 +103,6 @@ class CommunityUserAlreadyHasTaskError(BaseStructureError):
 class CommunityUserDoesNotHaveTaskError(BaseStructureError):
     task_id: int
     community_user_id: int
-
-
-class EmptyStringError(BaseStructureError):
-    pass
-
 
 class NotUniqueStringError(BaseStructureError):
     given: text.RealStr

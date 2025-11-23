@@ -19,8 +19,13 @@ class ExecuteData[T1: int | None, T2: int | None]:
 
 
 class Cursor:
-    def __init__(self, cursor: mariadb.Cursor) -> None:
-        self._mariadb_cursor = cursor
+    def __init__(self, conn: mariadb.Connection) -> None:
+        self._mariadb_connection = conn
+        self._mariadb_cursor = conn.cursor(dictionary=True)
+
+        self._mariadb_cursor.execute(
+            "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"
+        )
 
     def __enter__(self) -> Cursor:
         return self
@@ -31,15 +36,14 @@ class Cursor:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        conn = t.cast(mariadb.Connection, self._mariadb_cursor.connection)
-
-        if not conn.autocommit:
+        if not self._mariadb_connection.autocommit:
             if exc_value is None:
-                conn.commit()
+                self._mariadb_connection.commit()
             else:
-                conn.rollback()
+                self._mariadb_connection.rollback()
 
-        conn.close()
+        self._mariadb_cursor.close()
+        self._mariadb_connection.close()
 
     def _core_execute(self, query: Query, /) -> None:
         sql, data = query._to_sql()

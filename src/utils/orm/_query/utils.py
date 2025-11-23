@@ -91,7 +91,7 @@ def get_entire_insert_sql(
     rows = list(zip(*binded, strict=True))
 
     parts.append(f"({','.join(PLACEHOLDER for _ in rows[0])})")
-        
+
     return (" ".join(parts), rows)
 
 

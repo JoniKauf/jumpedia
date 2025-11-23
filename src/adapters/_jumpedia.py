@@ -31,8 +31,8 @@ _JUMPEDIA = Jumpedia(
         attribute_syn_length_max=64,
         attribute_task_value_slot_length_max=255,
     ),
-    connector=Connector(**__conn_data, database_name="jumpedia", pool_name="pool"),
-    meta_connector=Connector(**__conn_data, database_name=None, pool_name="meta_pool"),
+    connector=Connector(**__conn_data, database_name="jumpedia"),
+    meta_connector=Connector(**__conn_data, database_name=None),
 )
 
 

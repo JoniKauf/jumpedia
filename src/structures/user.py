@@ -4,8 +4,7 @@ import typing as t
 from utils import orm
 from utils.rank import CommunityRank, JumpediaRank
 
-from . import BaseStructure, errors
-from . import db
+from . import BaseStructure, db, errors
 
 type UserIdentifierT = int | str | JumpediaUser | CommunityUser
 

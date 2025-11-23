@@ -96,7 +96,7 @@ class BaseAttribute(BaseStructure):
     ) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
             raise errors.AttributeValueSlotCountOutOfRangeError(
-                tuple(value), self.min_slots, self.max_slots, self
+                tuple(value), self
             )
 
         return tuple(
@@ -134,7 +134,7 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         for slot in value:
             real_slot = text.RealStr(slot)
-            node = collection.get_entry_by_syn(text.NormStr(real_slot))
+            node = collection.get_entry_by_syn(text.NormStr(real_slot), None)
 
             if node is None:
                 raise errors.CollectionEntryNotFoundError(real_slot, collection)
@@ -203,7 +203,7 @@ class BaseNonStaticAttribute(BaseAttribute):
     def set_collection(
         self,
         collection: t.Sequence[tuple[text.RealStr, t.Iterable[text.RealStr]]],
-    ) -> "Collection":
+    ) -> Collection:
         count = len(collection)
 
         if not count:
@@ -243,7 +243,7 @@ class BaseNonStaticAttribute(BaseAttribute):
                 norm_syn = text.NormStr(slot_syn)
 
                 if norm_syn in norm_syns:
-                    raise errors.CollectionEntryDuplicateError(slot_syn)
+                    raise errors.CollectionEntrySynNotUniqueError(slot_syn)
 
                 norm_syns.add(norm_syn)
 

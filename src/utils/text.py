@@ -63,6 +63,10 @@ def shorten_many(
     yield more_elems
 
 
+class EmptyStringError(ValueError):
+    pass
+
+
 class RealStr(str):
     def __new__(cls, s: str) -> t.Self:
         if isinstance(s, cls):
@@ -73,7 +77,7 @@ class RealStr(str):
         s = "".join(c for c in s if c.isprintable())
 
         if not s:
-            raise ValueError()
+            raise EmptyStringError()
 
         return super().__new__(cls, s)
 
