@@ -13,10 +13,10 @@ class _BaseRankMeta(enum.EnumMeta):
 
 @functools.total_ordering
 class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
-    def __lt__(self, value: t.Self) -> bool:
-        if self.__class__ is not value.__class__:
+    def __lt__(self, value: t.Self | JumpediaRank) -> bool:
+        if not isinstance(value, self.__class__ | JumpediaRank):
             return NotImplemented
-
+        
         return self.value < value.value
 
     def __str__(self) -> str:
@@ -56,6 +56,12 @@ class CommunityRank(_BaseRank):
 
 
 class JumpediaRank(_BaseRank):
+    def __lt__(self, value: t.Self | CommunityRank) -> bool:
+        if not isinstance(value, self.__class__ | CommunityRank):
+            return NotImplemented
+        
+        return self.value < value.value
+    
     USER = 0
     META_ADMINISTRATOR = 100
     JONIKAUF = 200
@@ -66,12 +72,12 @@ class JumpediaRank(_BaseRank):
 
 
 class ServerRank(_BaseRank):
-    SERVER_MEMBER = 0
-    SERVER_ADMINISTRATOR = 10
-    SERVER_OWNER = 20
+    USER = 0
+    ADMINISTRATOR = 10
+    OWNER = 20
 
-    LOWEST = SERVER_MEMBER
-    HIGHEST = SERVER_OWNER
+    LOWEST = USER
+    HIGHEST = OWNER
     DEFAULT = LOWEST
 
 

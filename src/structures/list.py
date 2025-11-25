@@ -1114,19 +1114,19 @@ class List(BaseStructure):
                 index_args.append(i)
                 slot_args.append(slot)
 
-        AttributeTaskValueTable = t.cast(
+        TaskAttributeValueTable = t.cast(
             type[db.AbstractTaskAttributeValueTable],
             TaskAttribute.tables.task_attribute_value,
         )
 
         c.execute(
-            AttributeTaskValueTable.insert(
-                AttributeTaskValueTable.task_id.bind(
+            TaskAttributeValueTable.insert(
+                TaskAttributeValueTable.task_id.bind(
                     *itertools.repeat(task_id, len(attribute_id_args))
                 ),
-                AttributeTaskValueTable.attribute_id.bind(*attribute_id_args),
-                AttributeTaskValueTable.index.bind(*index_args),
-                AttributeTaskValueTable.slot_slot.bind(*slot_args),
+                TaskAttributeValueTable.attribute_id.bind(*attribute_id_args),
+                TaskAttributeValueTable.index.bind(*index_args),
+                TaskAttributeValueTable.slot_slot.bind(*slot_args),
             )
         )
 

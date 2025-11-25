@@ -1,4 +1,5 @@
 import collections
+import types
 import typing as t
 
 from discord_.errors import FeedbackError
@@ -32,27 +33,27 @@ if t.TYPE_CHECKING:
 
 @t.overload
 def _get_attribute_adapter(
-    attribute: StaticAttribute, list: "ListAdapter"
+    attribute: StaticAttribute, list: ListAdapter
 ) -> StaticAttributeAdapter:
     pass
 
 
 @t.overload
 def _get_attribute_adapter(
-    attribute: TaskAttribute, list: "ListAdapter"
+    attribute: TaskAttribute, list: ListAdapter
 ) -> TaskAttributeAdapter:
     pass
 
 
 @t.overload
 def _get_attribute_adapter(
-    attribute: UserAttribute, list: "ListAdapter"
+    attribute: UserAttribute, list: ListAdapter
 ) -> UserAttributeAdapter:
     pass
 
 
 def _get_attribute_adapter(
-    attribute: attribute.AnyAttributeT, list: "ListAdapter"
+    attribute: attribute.AnyAttributeT, list: ListAdapter
 ) -> AnyAttributeAdapterT:
     if isinstance(attribute, StaticAttribute):
         return StaticAttributeAdapter(attribute, list)
@@ -93,10 +94,15 @@ def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
 ) -> dict[int, t.Sequence[text.RealStr]]:
     avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
         text.NormStr(k): tuple(map(text.RealStr, v))
-        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or "").items()
+        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or '{}').items()
     }
 
-    found_attrs = list.get_attributes_by_syn(attribute_type, *avm).values()
+    found_attrs: t.ValuesView[T]
+    
+    if avm:
+        found_attrs = list.get_attributes_by_syn(attribute_type, *avm).values()
+    else:
+        found_attrs = {}.values()
 
     for k, count in collections.Counter(found_attrs).items():
         if count > 1:

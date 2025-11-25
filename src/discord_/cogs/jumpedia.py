@@ -105,7 +105,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @connect_group.command(
         name="community", description="Connect an existing community to this server."
     )
-    @acmds.check(predicate.rank_required(ServerRank.SERVER_OWNER))
+    @acmds.check(predicate.rank_required(ServerRank.OWNER))
     async def connect_community(
         self, interaction: dc.Interaction, community_name: str
     ) -> None:
@@ -129,7 +129,7 @@ class JumpediaCog(cmds.GroupCog, name="jumpedia"):
     @disconnect_group.command(
         name="community", description="Disconnect a community from this server."
     )
-    @acmds.check(predicate.rank_required(ServerRank.SERVER_OWNER))
+    @acmds.check(predicate.rank_required(ServerRank.OWNER))
     async def disconnect_community(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
 

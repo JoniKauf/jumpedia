@@ -12,7 +12,7 @@ from utils import secret, text
 from utils.orm import Connector
 from utils.rank import JumpediaRank
 
-from . import BaseAdapter, BaseStructureAdapter, errors
+from . import BaseStructureAdapter, errors
 from ._community import CommunityAdapter
 from ._user import JumpediaUserAdapter, ServerUserAdapter
 

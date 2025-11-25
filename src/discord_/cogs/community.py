@@ -98,7 +98,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         name="default_selected_list",
         description="Set the default selected list of the community.",
     )
-    @acmds.check(predicate.rank_required(ServerRank.SERVER_ADMINISTRATOR))
+    @acmds.check(predicate.rank_required(ServerRank.ADMINISTRATOR))
     async def set_default_selected_list(
         self, interaction: dc.Interaction, list: str | None = None
     ) -> None:
