@@ -104,6 +104,7 @@ class CommunityUserDoesNotHaveTaskError(BaseStructureError):
     task_id: int
     community_user_id: int
 
+
 class NotUniqueStringError(BaseStructureError):
     given: text.RealStr
     existing: text.RealStr

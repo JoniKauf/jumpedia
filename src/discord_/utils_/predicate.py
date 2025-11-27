@@ -112,7 +112,7 @@ def rank_required(
             if isinstance(req, CommunityRank):
                 if get_jumpedia_rank():
                     continue
-                
+
                 cr = get_community_rank()
 
                 if cr >= req:

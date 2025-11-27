@@ -65,10 +65,14 @@ async def on_app_command_error(
     if not interaction.response.is_done():
         await interaction.response.defer()
 
-    if isinstance(e, acmds.errors.TransformerError) and e.type is dc.AppCommandOptionType.user and isinstance(e.value, dc.User):
+    if (
+        isinstance(e, acmds.errors.TransformerError)
+        and e.type is dc.AppCommandOptionType.user
+        and isinstance(e.value, dc.User)
+    ):
         e = errors.FeedbackError(
             "Non Server Member specified",
-            t"The user `{e.value.global_name or e.value.name}` is not a member of this server."
+            t"The user `{e.value.global_name or e.value.name}` is not a member of this server.",
         )
 
     if isinstance(e, text.EmptyStringError):

@@ -309,6 +309,7 @@ class List(BaseStructure):
             <= min_slots
             <= max_slots
             <= self.community.limits.attribute_task_value_slot_count_max
+            and max_slots >= 1
         ):
             raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
                 min_slots,
@@ -1114,6 +1115,9 @@ class List(BaseStructure):
                 index_args.append(i)
                 slot_args.append(slot)
 
+        if not attribute_id_args:
+            return
+
         TaskAttributeValueTable = t.cast(
             type[db.AbstractTaskAttributeValueTable],
             TaskAttribute.tables.task_attribute_value,
@@ -1121,6 +1125,9 @@ class List(BaseStructure):
 
         c.execute(
             TaskAttributeValueTable.insert(
+                TaskAttributeValueTable.list_id.bind(
+                    *itertools.repeat(self.id, len(attribute_id_args))
+                ),
                 TaskAttributeValueTable.task_id.bind(
                     *itertools.repeat(task_id, len(attribute_id_args))
                 ),

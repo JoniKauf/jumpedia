@@ -16,7 +16,7 @@ class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
     def __lt__(self, value: t.Self | JumpediaRank) -> bool:
         if not isinstance(value, self.__class__ | JumpediaRank):
             return NotImplemented
-        
+
         return self.value < value.value
 
     def __str__(self) -> str:
@@ -59,9 +59,9 @@ class JumpediaRank(_BaseRank):
     def __lt__(self, value: t.Self | CommunityRank) -> bool:
         if not isinstance(value, self.__class__ | CommunityRank):
             return NotImplemented
-        
+
         return self.value < value.value
-    
+
     USER = 0
     META_ADMINISTRATOR = 100
     JONIKAUF = 200

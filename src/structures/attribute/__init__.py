@@ -95,9 +95,7 @@ class BaseAttribute(BaseStructure):
         self, value: t.Sequence[text.RealStr]
     ) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
-            raise errors.AttributeValueSlotCountOutOfRangeError(
-                tuple(value), self
-            )
+            raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self)
 
         return tuple(
             SlotStr(slot, self.slot_type, self.list.community.jumpedia)

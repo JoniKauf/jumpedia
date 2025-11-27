@@ -30,7 +30,7 @@ def _get_set_own_rank_error(
             t"You cannot set your own rank!",
             additional=t"Only somebody with a rank higher than yours can set your rank.",
         )
-    
+
     return None
 
 
@@ -184,7 +184,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     @property
     def jumpedia_rank(self) -> JumpediaRank:
         return self.jumpedia_user.jumpedia_rank
-    
+
     @property
     def most_powerful_rank(self) -> JumpediaRank | CommunityRank:
         return self._s.jumpedia_user.jumpedia_rank or self.community_rank
@@ -285,33 +285,43 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         )
 
         return selected_list
-    
 
-    def transfer_ownership(self, executing_community_user: CommunityUserAdapter) -> None:
+    def transfer_ownership(
+        self, executing_community_user: CommunityUserAdapter
+    ) -> None:
         assert self.community == executing_community_user.community
 
         err = _get_set_own_rank_error(self, executing_community_user)
 
         if err is not None:
             raise err
-        
+
         if executing_community_user.community_rank != CommunityRank.OWNER:
             raise FeedbackError(
                 "Not Owner",
-                t"You are not an owner of this community, so you cannot transfer ownership!"
+                t"You are not an owner of this community, so you cannot transfer ownership!",
             )
-        
+
         old_rank = self.community_rank
 
         try:
-            executing_community_user.community.get_or_create_community_user(executing_community_user.jumpedia_user, override_community_rank=CommunityRank.ADMINISTRATOR)
-            self.community.get_or_create_community_user(self.jumpedia_user, override_community_rank=CommunityRank.OWNER)
+            executing_community_user.community.get_or_create_community_user(
+                executing_community_user.jumpedia_user,
+                override_community_rank=CommunityRank.ADMINISTRATOR,
+            )
+            self.community.get_or_create_community_user(
+                self.jumpedia_user, override_community_rank=CommunityRank.OWNER
+            )
         except BaseException as e:
-            executing_community_user.community.get_or_create_community_user(executing_community_user.jumpedia_user, override_community_rank=CommunityRank.OWNER)
-            self.community.get_or_create_community_user(self.jumpedia_user, override_community_rank=old_rank)
+            executing_community_user.community.get_or_create_community_user(
+                executing_community_user.jumpedia_user,
+                override_community_rank=CommunityRank.OWNER,
+            )
+            self.community.get_or_create_community_user(
+                self.jumpedia_user, override_community_rank=old_rank
+            )
 
             raise e
-
 
 
 class ServerUserAdapter(BaseAdapter[dc.User]):

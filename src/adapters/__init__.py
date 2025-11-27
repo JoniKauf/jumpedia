@@ -38,13 +38,13 @@ class BaseAdapter[T](metaclass=_AdapterMeta):
 class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
     def __str__(self) -> str:
         return self._s.name
-    
+
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, self.__class__):
             return NotImplemented
-        
+
         return self._s == value._s
-    
+
     def mention(self, title: bool = False) -> str:
         type_name: str = self._s.__class__.type_name
 

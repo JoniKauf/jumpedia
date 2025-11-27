@@ -104,16 +104,24 @@ class CommunityUserCog(cmds.GroupCog, group_name="community_user"):
 
     @transfer_group.command(name="ownership")
     @acmds.check(predicate.rank_required(CommunityRank.OWNER))
-    async def transfer_ownership(self, interaction: dc.Interaction, user: dc.User) -> None:
+    async def transfer_ownership(
+        self, interaction: dc.Interaction, user: dc.User
+    ) -> None:
         ia = InteractionAdapter(interaction)
         jumpedia = ia.jumpedia
         community = jumpedia.get_current_community()
-        transfer_jumpedia_user = jumpedia.get_or_create_jumpedia_user(ServerUserAdapter(user, ia))
+        transfer_jumpedia_user = jumpedia.get_or_create_jumpedia_user(
+            ServerUserAdapter(user, ia)
+        )
 
         async def after_submit(interaction: dc.Interaction, success: bool) -> None:
             if success:
-                current_community_user = community.get_or_create_current_community_user()
-                community.get_or_create_community_user(transfer_jumpedia_user).transfer_ownership(current_community_user)
+                current_community_user = (
+                    community.get_or_create_current_community_user()
+                )
+                community.get_or_create_community_user(
+                    transfer_jumpedia_user
+                ).transfer_ownership(current_community_user)
 
                 await interaction.response.send_message(
                     messaging.layout(

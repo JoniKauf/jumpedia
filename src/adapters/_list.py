@@ -1,4 +1,5 @@
 import collections
+import itertools
 import types
 import typing as t
 
@@ -12,7 +13,15 @@ from structures.attribute import (
     UserAttribute,
 )
 from structures.attribute.slot_str import SlotTypeT
-from structures.errors import AttributeMinSlotsOrMaxSlotsOutOfRangeError, AttributeValueSlotCountOutOfRangeError, CollectionEntrySynNotUniqueError, CollectionEntryNotFoundError, NotUniqueStringError, StructureCountLimitReachedError, SynsAlreadyTakenError
+from structures.errors import (
+    AttributeMinSlotsOrMaxSlotsOutOfRangeError,
+    AttributeValueSlotCountOutOfRangeError,
+    CollectionEntrySynNotUniqueError,
+    CollectionEntryNotFoundError,
+    NotUniqueStringError,
+    StructureCountLimitReachedError,
+    SynsAlreadyTakenError,
+)
 from structures.list import List
 from structures.task import Task
 from utils import text
@@ -89,29 +98,36 @@ def _require_attribute_with_syn[T: AnyAttributeT](
     return attribute
 
 
-def _validate_and_convert_attribute_value_mapping[T: BaseAttribute](
+def _validate_and_convert_attribute_value_mapping[T: AnyAttributeT](
     raw_avm: str | None, attribute_type: type[T], list: List
 ) -> dict[int, t.Sequence[text.RealStr]]:
     avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
         text.NormStr(k): tuple(map(text.RealStr, v))
-        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or '{}').items()
+        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or "{}").items()
     }
 
-    found_attrs: t.ValuesView[T]
-    
-    if avm:
-        found_attrs = list.get_attributes_by_syn(attribute_type, *avm).values()
-    else:
-        found_attrs = {}.values()
+    norm_name_to_attr = {
+        attr.norm_name: attr for attr in list.get_attributes(attribute_type)
+    }
 
-    for k, count in collections.Counter(found_attrs).items():
-        if count > 1:
-            raise FeedbackError(
-                "Attributes Not Unique",
-                t"The attribute `{k.name}` was specified multiple times in the attribute value mapping, probably by using different aliases!",
+    for k, g in itertools.groupby(avm, lambda k: norm_name_to_attr.get(k)):
+        g = tuple(g)
+
+        if k is None:
+            raise errors.StructureNotFoundViaSynFeedbackError(
+                g[0], attribute_type, False
             )
 
-    return {attr.id: avm[attr.norm_name] for attr in found_attrs}
+        if len(g) > 1:
+            raise FeedbackError(
+                "Attributes Not Unique",
+                t"The attribute `{k.real_name}` was specified multiple times in the attribute value mapping, probably by using different aliases!",
+            )
+
+    return {
+        norm_name_to_attr[attr_norm_name].id: value
+        for attr_norm_name, value in avm.items()
+    }
 
 
 def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
@@ -121,9 +137,10 @@ def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
         raise FeedbackError(
             "Invalid Alias Format",
             t"The syntax used to specify the aliases `{aliases}` is invalid!",
-            additional=t'The syntax should represent a list of strings, so `["alias1", "alias2"]` would be a valid for example.'
+            additional=t'The syntax should represent a list of strings, so `["alias1", "alias2"]` would be a valid for example.',
         )
-    
+
+
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
 
@@ -143,7 +160,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
         real_name = text.RealStr(name)
-        
+
         real_aliases = _parse_aliases(aliases)
 
         avm = _validate_and_convert_attribute_value_mapping(
@@ -271,7 +288,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
         real_aliases = _parse_aliases(aliases)
-        
+
         real_collection = tuple(
             (text.RealStr(name), tuple(map(text.RealStr, aliases)))
             for name, aliases in _parsing.LIST_OF_NAME_ALIASES_PARSER.parse(

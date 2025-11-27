@@ -282,5 +282,3 @@ class ListCog(cmds.GroupCog, group_name="list"):
         )
 
         list_obj.delete_task(task)
-
-    
