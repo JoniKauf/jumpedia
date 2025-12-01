@@ -1,8 +1,6 @@
 import ast
 import typing as t
 
-from . import utils
-
 
 class BaseExpressionParsingError(Exception):
     pass
@@ -15,15 +13,9 @@ class GenericVisitError(BaseExpressionParsingError):
 
 
 class WrongVisitError(BaseExpressionParsingError):
-    def __init__(self, received: ast.AST, expected: utils.ExpectedAstT | None) -> None:
+    def __init__(self, received: ast.AST, expected: type[ast.AST] | tuple[type[ast.AST], ...] | None) -> None:
         self.received = received
         self.expected = expected
-        super().__init__()
-
-
-class NotStrConstantError(BaseExpressionParsingError):
-    def __init__(self, value: t.Any) -> None:
-        self.value = value
         super().__init__()
 
 
@@ -40,10 +32,6 @@ class MaxTokenCountExceecedError(BaseExpressionParsingError):
 
 
 class MaxSrcLengthExceededError(BaseExpressionParsingError):
-    pass
-
-
-class MaxStringLengthExceededError(BaseExpressionParsingError):
     pass
 
 
