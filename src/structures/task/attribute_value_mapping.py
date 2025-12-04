@@ -46,11 +46,11 @@ class UserAttributeValueMapping:
     @property
     def static_attribute_value_mapping(self) -> AvmT[StaticAttribute]:
         return self.attribute_value_mapping.static_attribute_value_mapping
-    
+
     @property
     def task_attribute_value_mapping(self) -> AvmT[TaskAttribute]:
         return self.attribute_value_mapping.task_attribute_value_mapping
-    
+
     @property
     def combined(self) -> MappingProxyType[AnyAttributeT, tuple[SlotStr, ...]]:
         if not self._combined_cache:

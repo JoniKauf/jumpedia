@@ -11,7 +11,9 @@ class ExpressionVisitorConfig(t.NamedTuple):
 
 
 class BaseExpressionVisitor[T, **P]:
-    def __init_subclass__(cls, body_type: type[ast.AST] | tuple[type[ast.AST], ...]) -> None:
+    def __init_subclass__(
+        cls, body_type: type[ast.AST] | tuple[type[ast.AST], ...]
+    ) -> None:
         cls._body_type = body_type
         super().__init_subclass__()
 
@@ -42,4 +44,3 @@ class BaseExpressionVisitor[T, **P]:
 
     def generic_visit(self, node: ast.AST, *args: t.Any, **kwargs: t.Any) -> t.Any:
         raise errors.GenericVisitError(node)
-

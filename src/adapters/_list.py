@@ -3,7 +3,6 @@ import itertools
 import types
 import typing as t
 
-from . import _parsing
 from discord_.errors import FeedbackError
 from structures import attribute
 from structures.attribute import (
@@ -17,8 +16,8 @@ from structures.attribute.slot_str import SlotTypeT
 from structures.errors import (
     AttributeMinSlotsOrMaxSlotsOutOfRangeError,
     AttributeValueSlotCountOutOfRangeError,
-    CollectionEntrySynNotUniqueError,
     CollectionEntryNotFoundError,
+    CollectionEntrySynNotUniqueError,
     NotUniqueStringError,
     StructureCountLimitReachedError,
     SynsAlreadyTakenError,
@@ -28,7 +27,7 @@ from structures.task import Task
 from utils import text
 from utils.expression_parsing.errors import BaseExpressionParsingError
 
-from . import BaseAdapter, BaseStructureAdapter, errors
+from . import BaseAdapter, BaseStructureAdapter, _parsing, errors
 from ._attribute import (
     AnyAttributeAdapterT,
     StaticAttributeAdapter,

@@ -17,8 +17,6 @@ from utils.text import NormStr
 
 from . import errors
 
-from ._parsing import utils_
-
 type FilterAvmCollectionT = MappingProxyType[int, dict[NormStr, frozenset[SlotTypeT]]]
 type FilterAttributesT = MappingProxyType[NormStr, AnyAttributeT]
 
@@ -27,14 +25,14 @@ _CHILD_TYPE_TO_STR: dict[type[ast.expr], str] = {
     ast.Constant: "string",
     ast.List: "list",
     ast.Tuple: "tuple",
-    ast.Dict: "mapping"
+    ast.Dict: "mapping",
 }
 
 
 _GENERAL_ERROR = FeedbackError(
-    "Invalid Syntax Error",
-    t"The entered syntax is invalid!"
+    "Invalid Syntax Error", t"The entered syntax is invalid!"
 )
+
 
 def validate_children_type[T: ast.AST](
     children: t.Iterable[ast.AST], child_type: type[T]
@@ -55,13 +53,13 @@ def visit_Constant_and_validate_str(
     if not isinstance(node.value, str):
         raise FeedbackError(
             "String Expected",
-            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received `{node.value}` instead!'
+            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received `{node.value}` instead!',
         )
 
     if len(node.value) > visitor.config.STR_LEN_MAX:
         raise FeedbackError(
             "String Length Hard Limit Reached",
-            t"The string `{text.shorten(node.value)}` of length `{len(node.value)}` has surpassed the hard limit `{visitor.config.STR_LEN_MAX}`!"
+            t"The string `{text.shorten(node.value)}` of length `{len(node.value)}` has surpassed the hard limit `{visitor.config.STR_LEN_MAX}`!",
         )
 
     return node.value
@@ -92,7 +90,10 @@ def visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
         k_value = visitor.visit(k)
 
         if k_value in dct:
-            raise ValueError("Dict key not unique")
+            raise FeedbackError(
+                "Not Unique Key Error",
+                t"The key `{k_value}` was specified multiple times in a mapping!",
+            )
 
         dct[k_value] = visitor.visit(v)
 
@@ -210,10 +211,7 @@ class FilterVisitor(
         op_func = _OP_TO_FUNC.get(op.__class__)
 
         if op_func is None:
-            raise FeedbackError(
-                "Invalid Comparison",
-                t"The comparison"
-            )
+            raise FeedbackError("Invalid Comparison", t"The comparison")
 
         left, right = node.left, node.comparators[0]
 
@@ -253,8 +251,6 @@ class FilterVisitor(
 FILTER_PARSER = ExpressionParser(
     FilterVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER
 )
-
-
 
 
 class ListOfStrVisitor(BaseExpressionVisitor[list[str], []], body_type=ast.List):
@@ -340,6 +336,7 @@ class DictOfStrToListOfTupleVisitor[T: tuple](
 
     def visit_Constant(self, node: ast.Constant) -> t.Any:
         return utils_.visit_Constant_and_validate_str(node, self)
+
 
 LIST_PARSER = ExpressionParser(
     ListOfStrVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER

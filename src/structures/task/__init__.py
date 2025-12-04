@@ -1,7 +1,7 @@
 import itertools
-from types import MappingProxyType
 import typing as t
 from dataclasses import field
+from types import MappingProxyType
 
 from structures.attribute import StaticAttribute, TaskAttribute, UserAttribute
 from structures.task.attribute_value_mapping import (
@@ -54,7 +54,9 @@ class Task(BaseStructure):
         return frozenset(row.norm_alias for row in rows)
 
     @t.overload
-    def get_attribute_value_mapping(self, community_user_id: None = ..., /) -> AttributeValueMapping:
+    def get_attribute_value_mapping(
+        self, community_user_id: None = ..., /
+    ) -> AttributeValueMapping:
         pass
 
     @t.overload

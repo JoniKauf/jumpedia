@@ -1,8 +1,11 @@
 import json
 import os
 import typing as t
+from pathlib import Path
 
-__LOCATION = r"secret.json"
+__LOCATION = os.path.join(
+    str(Path(__file__).resolve().parent.parent.parent), "secret.json"
+)
 
 
 class DatabaseConnectionData(t.TypedDict):

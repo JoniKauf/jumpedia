@@ -13,7 +13,11 @@ class GenericVisitError(BaseExpressionParsingError):
 
 
 class WrongVisitError(BaseExpressionParsingError):
-    def __init__(self, received: ast.AST, expected: type[ast.AST] | tuple[type[ast.AST], ...] | None) -> None:
+    def __init__(
+        self,
+        received: ast.AST,
+        expected: type[ast.AST] | tuple[type[ast.AST], ...] | None,
+    ) -> None:
         self.received = received
         self.expected = expected
         super().__init__()
