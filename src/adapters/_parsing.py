@@ -240,7 +240,7 @@ class FilterVisitor(
     def visit_Constant(
         self, node: ast.Constant, attribute: AnyAttributeT | None
     ) -> t.Any:
-        c = utils_.visit_Constant_and_validate_str(node, self)
+        c = visit_Constant_and_validate_str(node, self)
 
         if attribute is None:
             return c
@@ -258,10 +258,10 @@ class ListOfStrVisitor(BaseExpressionVisitor[list[str], []], body_type=ast.List)
         return self.visit(node)
 
     def visit_List(self, node: ast.List) -> t.Any:
-        return utils_.visit_List_and_validate_children(node, self, ast.Constant)
+        return visit_List_and_validate_children(node, self, ast.Constant)
 
     def visit_Constant(self, node: ast.Constant) -> t.Any:
-        return utils_.visit_Constant_and_validate_str(node, self)
+        return visit_Constant_and_validate_str(node, self)
 
 
 class ListOfTupleVisitor[T: tuple](
@@ -280,7 +280,7 @@ class ListOfTupleVisitor[T: tuple](
         super().__init__(config=config)
 
     def visit_List(self, node: ast.List) -> t.Any:
-        return utils_.visit_List_and_validate_children(node, self, ast.Tuple)
+        return visit_List_and_validate_children(node, self, ast.Tuple)
 
     def visit_Tuple(self, node: ast.Tuple) -> t.Any:
         return self._handle_tuple(node, self)
@@ -293,17 +293,15 @@ class DictOfStrToListOfStrVisitor(
         return self.visit(node)
 
     def visit_Dict(self, node: ast.Dict) -> t.Any:
-        return (
-            utils_.visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
-                node, self
-            )
+        return visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
+            node, self
         )
 
     def visit_List(self, node: ast.List) -> t.Any:
-        return utils_.visit_List_and_validate_children(node, self, ast.Constant)
+        return visit_List_and_validate_children(node, self, ast.Constant)
 
     def visit_Constant(self, node: ast.Constant) -> t.Any:
-        return utils_.visit_Constant_and_validate_str(node, self)
+        return visit_Constant_and_validate_str(node, self)
 
 
 class DictOfStrToListOfTupleVisitor[T: tuple](
@@ -322,20 +320,18 @@ class DictOfStrToListOfTupleVisitor[T: tuple](
         super().__init__(config=config)
 
     def visit_Dict(self, node: ast.Dict) -> t.Any:
-        return (
-            utils_.visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
-                node, self
-            )
+        return visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
+            node, self
         )
 
     def visit_List(self, node: ast.List) -> t.Any:
-        return utils_.visit_List_and_validate_children(node, self, ast.Tuple)
+        return visit_List_and_validate_children(node, self, ast.Tuple)
 
     def visit_Tuple(self, node: ast.Tuple) -> t.Any:
         return self._handle_tuple(node, self)
 
     def visit_Constant(self, node: ast.Constant) -> t.Any:
-        return utils_.visit_Constant_and_validate_str(node, self)
+        return visit_Constant_and_validate_str(node, self)
 
 
 LIST_PARSER = ExpressionParser(

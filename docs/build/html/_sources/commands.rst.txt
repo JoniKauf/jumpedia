@@ -1,7 +1,7 @@
 Commands
 ========
 
-.. autosummary::
+.. auto::
     :recursive:
 
     discord_.cogs

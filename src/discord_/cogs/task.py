@@ -36,8 +36,9 @@ class TaskCog(cmds.GroupCog, group_name="task"):
                 Template(
                     *(
                         Interpolation(
-                            f"({attr.__class__.type_name.title()}) {attr.name}: {builtins.list(v)!r}\n"
-                        )
+                            f"**{attr.name.replace('*', '\\*')}**: "
+                        ),
+                        f"`{'`, `'.join(v)}`"
                         for attr, v in avm.combined.items()
                     )
                 ),
