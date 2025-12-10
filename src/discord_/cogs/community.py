@@ -7,12 +7,11 @@ import discord.ext.commands as cmds
 from adapters.interaction import InteractionAdapter
 from discord_.utils_ import group
 from structures.community import Community
-from structures.errors import StructureCountLimitReachedError
 from structures.list import List
 from utils import text
 from utils.rank import CommunityRank, ServerRank
 
-from ..utils_ import messaging, modal, predicate
+# from ..utils_ import messaging, modal, predicate
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):

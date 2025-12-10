@@ -1,7 +1,4 @@
 Commands
 ========
 
-.. auto::
-    :recursive:
-
-    discord_.cogs
+.. autoslashcommands:: src.discord_.cogs

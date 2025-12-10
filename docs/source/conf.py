@@ -18,8 +18,9 @@ release = "2.0.0"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 sys.path.append(os.path.abspath("../../src"))
+sys.path.append(os.path.abspath("_ext"))
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary"]
+extensions = ["sphinx.ext.autodoc", "autoslashcommands"]
 autosummary_generate = True
 
 templates_path = ["_templates"]

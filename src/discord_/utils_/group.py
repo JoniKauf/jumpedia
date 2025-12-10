@@ -1,13 +1,9 @@
-import typing as t
-from types import CoroutineType
-
-import discord as dc
 from discord import app_commands as acmds
 
 from discord_.utils_ import predicate
 from structures import BaseStructure
 from structures.jumpedia import Jumpedia
-from utils.rank import AnyRankT, CommunityRank
+from utils.rank import AnyRankT
 
 
 def _mention(structure_type: type[BaseStructure], /) -> str:

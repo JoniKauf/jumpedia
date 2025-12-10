@@ -30,18 +30,24 @@ class TaskCog(cmds.GroupCog, group_name="task"):
             list_obj.community.get_or_create_current_community_user()
         )
 
+        elems: list[str | Interpolation] = []
+
+        for attr, v in avm.combined.items():
+            elems.append(Interpolation(f"**{attr.name.replace('*', '\\*')}**: "))
+
+            if not v:
+                elems.append(str(None))
+            else:
+                elems.append(f"`{'`, `'.join(v)}`")
+
+            elems.append("\n")
+
+        elems.pop()
+
         await interaction.response.send_message(
             messaging.layout(
                 "Task Info",
-                Template(
-                    *(
-                        Interpolation(
-                            f"**{attr.name.replace('*', '\\*')}**: "
-                        ),
-                        f"`{'`, `'.join(v)}`"
-                        for attr, v in avm.combined.items()
-                    )
-                ),
+                Template(*elems),
                 message_status=messaging.MessageStatus.INFO,
             )
         )
