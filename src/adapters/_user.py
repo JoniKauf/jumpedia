@@ -168,8 +168,6 @@ class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
 
 
 class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
-    _s: CommunityUser
-
     community: CommunityAdapter
     jumpedia_user: JumpediaUserAdapter
 
@@ -198,17 +196,6 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             return None
 
         return ListAdapter(list_s, self.community)
-
-    def get_selected_list_or_default(self, list: str | None) -> ListAdapter:
-        if list is not None:
-            return self.community.get_list(list)
-
-        list_obj = self.get_selected_list()
-
-        if list_obj is not None:
-            return list_obj
-
-        return self.community.get_default_selected_list()
 
     def set_community_rank(
         self,
@@ -324,7 +311,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             raise e
 
 
-class ServerUserAdapter(BaseAdapter[dc.User]):
+class UserAdapter(BaseAdapter[dc.User]):
     interaction: InteractionAdapter
 
     @property
@@ -338,7 +325,7 @@ class ServerUserAdapter(BaseAdapter[dc.User]):
 
 class ServerMemberAdapter(BaseAdapter[dc.Member]):
     server: ServerAdapter
-    user: ServerUserAdapter
+    user: UserAdapter
 
     @cached_property
     def server_rank(self) -> ServerRank:

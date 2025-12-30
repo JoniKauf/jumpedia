@@ -1,109 +1,145 @@
-from enum import Enum
-
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-# class UserCog(cmds.GroupCog, group_name="user"):
-#     def __init__(self, bot: cmds.Bot) -> None:
-#         self.bot = bot
+from adapters._list import ListAdapter
+from adapters._user import UserAdapter
+from adapters.errors import ServerNotConnectedToACommunityFeedbackError
+from adapters.interaction import InteractionAdapter
+from discord_.errors import FeedbackError
+from discord_.utils_ import messaging
+from src.discord_.utils_ import shortcuts
+from utils import text
+from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
-#     @acmds.command()
-#     async def rank(self, ia: dc.Interaction, user: dc.User | None = None) -> None:
-#         ctx = Context(ia)
+from ..utils_ import user as user_
 
-#         if user is None or ia.user.id == user.id:
-#             server_user = ctx.get_server_user
 
-#             rank_info: list[tuple[str, AnyRank]] = [
-#                 ("Server Rank", server_user.server_rank),
-#                 ("Community Rank", server_user.community_rank),
-#                 ("Meta Rank", server_user.meta_rank),
-#             ]
+class UserCog(cmds.GroupCog, group_name="user"):
 
-#             return await ia.response.send_message(
-#                 messaging.layout(
-#                     "Rank Information",
-#                     "You have the following ranks:\n"
-#                     + (
-#                         "\n".join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)
-#                     ),
-#                     messaging.MessageStatus.INFO,
-#                 )
-#             )
+    def __init__(self, bot: cmds.Bot) -> None:
+        self.bot = bot
 
-#         user_id, user_name = helpers.get_user_id_and_name(user)
+    @acmds.command(description="Get information about a user.")
+    async def info(
+        self, interaction: dc.Interaction, user: dc.User | None = None
+    ) -> None:
+        ia = InteractionAdapter(interaction)
+        jumpedia = ia.jumpedia
+        jumpedia_user = jumpedia.get_or_create_jumpedia_user_or_current(
+            UserAdapter(user, ia) if user is not None else None
+        )
 
-#         community_user = ctx.community.create_or_get_community_user(user_id, user_name)
+        jumpedia_rank: JumpediaRank = jumpedia_user.jumpedia_rank
+        community_rank: CommunityRank | None = None
+        server_rank: ServerRank | None = None
+        selected_list: ListAdapter | None = None
 
-#         rank_info: list[tuple[str, AnyRank]] = [
-#             ("Community Rank", community_user.community_rank),
-#             ("Meta Rank", community_user.meta_rank),
-#         ]
+        try:
+            community_user = (
+                jumpedia.get_current_community().get_or_create_community_user(
+                    jumpedia_user
+                )
+            )
+        except ServerNotConnectedToACommunityFeedbackError:
+            pass
+        else:
+            community_rank = community_user.community_rank
+            selected_list = community_user.get_selected_list()
 
-#         await ia.response.send_message(
-#             messaging.layout(
-#                 "Rank Information Retrieved",
-#                 f"The user `{user_name}` has the following ranks:\n"
-#                 + ("\n".join(f"- __{name}:__ `{rank}`" for name, rank in rank_info)),
-#                 messaging.MessageStatus.INFO,
-#             )
-#         )
+        try:
+            server_rank = ia.current_member.server_rank
+        except FeedbackError:
+            pass
 
-#     set_group = acmds.Group(name="set", description="Set data of a user.")
+        community = InteractionAdapter(interaction).jumpedia.get_current_community()
 
-#     SetRanks = Enum(
-#         "PromoteRanks", [(rank.name, rank) for rank in CommunityRank.iter()] + []
-#     )  # For some reason adding a second list removes type errors
+        community.get_or_create_current_community_user().most_powerful_rank
 
-#     @set_group.command(
-#         name="user_community_rank", description="Set a user's community rank."
-#     )
-#     @acmds.rename(other_user="user", rank_enum="rank")
-#     @acmds.check(predicates.rank_required(ranks.get_offset_rank(CommunityRank.USER, 2)))
-#     async def set_user_community_rank(
-#         self, interaction: dc.Interaction, other_user: dc.User, rank_enum: SetRanks
-#     ) -> None:
-#         ia = InteractionAdapter(interaction)
+        rank_info: list[tuple[str, AnyRankT | str]] = [
+            ("Server Rank", server_rank or "<Not on a server>"),
+            ("Community Rank", community_rank or "<Not in a community>"),
+            ("Jumpedia Rank", jumpedia_rank),
+        ]
 
-#         other_user_id, other_user_name = (
-#             ia.jumpedia.get_current_community().get_or_create_community_user()
-#         )
+        await interaction.response.send_message(
+            messaging.layout(
+                "User Info",
+                text.join_t(
+                    "\n",
+                    (
+                        t"**{k}**: {v}"
+                        for k, v in (
+                            ("Name", jumpedia_user.name),
+                            ("Selected List", selected_list or None),
+                            *rank_info,
+                        )
+                    ),
+                ),
+                messaging.MessageStatus.INFO,
+            )
+        )
 
-#         other_community_user = ctx.get_community().create_or_get_community_user(
-#             other_user.id, other_user_name
-#         )
+    @acmds.command()
+    async def set_selected_list(
+        self,
+        interaction: dc.Interaction,
+        list: str | None = None,
+        user: dc.User | None = None,
+    ) -> None:
+        user_.validate_allowed_for_others(interaction, user, CommunityRank.MODERATOR)
 
-#         new_rank: CommunityRank = rank_enum.value
+        ia = InteractionAdapter(interaction)
 
-#         if new_rank.power == other_community_user.community_rank.power:
-#             raise fbe.TemporaryFeedbackError(
-#                 "The new rank for the user is equal to the one they already have."
-#             )
+        jumpedia = ia.jumpedia
+        community = jumpedia.get_current_community()
 
-#         community_user = ctx.get_community_user()
+        set_community_user = community.get_or_create_community_user(
+            jumpedia.get_or_create_jumpedia_user_or_current(
+                None if user is None else UserAdapter(user, ia)
+            )
+        )
 
-#         rank_below_mine = ranks.get_offset_rank(community_user.most_important_rank, -1)
+        ia_community_user = community.get_or_create_current_community_user()
 
-#         if new_rank.power > rank_below_mine.power:
-#             raise fbe.TemporaryFeedbackError(
-#                 "The rank you want to give to that user is too high. You must be higher than the rank you want to give."
-#             )
+        list_obj = set_community_user.set_selected_list(list, ia_community_user)
 
-#         ctx.get_community().change_community_user_community_rank(
-#             other_user_id, other_user_name, new_rank
-#         )
+        await interaction.response.send_message(
+            messaging.layout(
+                "Selected List Set",
+                (
+                    t"Your selected list "
+                    if ia_community_user == set_community_user
+                    else t"The selected list of the user `{set_community_user}` "
+                )
+                + t"has successfully been set to `{list_obj}`!",
+                messaging.MessageStatus.SUCCESS,
+            )
+        )
 
-#         what_moted = (
-#             "promoted"
-#             if new_rank.power > other_community_user.community_rank.power
-#             else "demoted"
-#         )
+    @acmds.command(description="Set the community rank of a user.")
+    async def set_community_rank(
+        self, interaction: dc.Interaction, user: dc.User, community_rank: CommunityRank
+    ) -> None:
+        community_user = shortcuts.get_or_create_specified_or_current_community_user(InteractionAdapter(interaction), user)
 
-#         await interaction.response.send_message(
-#             messaging.layout(
-#                 f"User {what_moted.title()}",
-#                 f"The user `{other_user_name}` has successfully been {what_moted} to `{new_rank}`!",
-#                 messaging.MessageStatus.SUCCESS,
-#             )
-#         )
+        await interaction.response.send_message(
+            community_user.set_community_rank(
+                community_rank, shortcuts.get_or_create_specified_or_current_community_user(community_user.community, None)
+            )
+        )
+
+    @acmds.command(description="Set the jumpedia rank of a user.")
+    async def set_jumpedia_rank(
+        self, interaction: dc.Interaction, user: dc.User, rank: JumpediaRank
+    ) -> None:
+        ia = InteractionAdapter(interaction)
+        jumpedia = ia.jumpedia
+
+        set_jumpedia_user = jumpedia.get_or_create_jumpedia_user(UserAdapter(user, ia))
+
+        await interaction.response.send_message(
+            set_jumpedia_user.set_jumpedia_rank(
+                rank, jumpedia.get_or_create_current_jumpedia_user()
+            )
+        )

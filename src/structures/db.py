@@ -613,8 +613,8 @@ def create_database(j: Jumpedia) -> None:
                 f"""
                 CREATE TABLE {JumpediaUser} (
                     {JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
-                    {JumpediaUser.norm_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
-                    {JumpediaUser.raw_name} VARCHAR({user.MAX_NAME_LENGTH}) NOT NULL,
+                    {JumpediaUser.norm_name} VARCHAR({32}) NOT NULL,
+                    {JumpediaUser.raw_name} VARCHAR({32}) NOT NULL,
                     {JumpediaUser.power} INT NOT NULL
                 )
             """

@@ -14,7 +14,7 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
     ) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",
-            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias"}`{syn}` could not be found!",
+            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias "}`{syn}` could not be found!",
         )
 
 

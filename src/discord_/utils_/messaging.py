@@ -1,9 +1,12 @@
 import typing as t
 from dataclasses import dataclass
+from decimal import Decimal
 from string.templatelib import Interpolation, Template
+from types import MappingProxyType
 
 import discord as dc
 
+from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
 from utils import text
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
@@ -53,6 +56,10 @@ MAX_DISCORD_CODE_UNITS: int = 2000
 
 def utf16_code_units(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
+
+
+def discord_message_too_long(s: str) -> bool:
+    return utf16_code_units(s) > MAX_DISCORD_CODE_UNITS
 
 
 def layout(
@@ -117,7 +124,7 @@ def layout(
             for elem in final_templ
         )
 
-        if utf16_code_units(s) <= MAX_DISCORD_CODE_UNITS:
+        if not discord_message_too_long(s):
             return s
 
         biggest: Interpolation | None = None
@@ -137,7 +144,9 @@ def layout(
                 biggest = interp
 
         if biggest is None:
-            raise ValueError("Layout not shortable enough")
+            raise ValueError(
+                "Layout not shortable enough",
+            )
 
         id_ = id(biggest)
         new_length = max(MIN_LEN_MINUS_MORE, biggest_len // 2)
@@ -147,3 +156,19 @@ def layout(
             interp_to_data[id_].evaluated[:new_length] + MORE,
             still_shortable,
         )
+
+
+_SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
+    {
+        bool: "Boolean (true/false)",
+        int: "Integer",
+        Decimal: "Decimal",
+        str: "String (Text)",
+    }
+)
+
+assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
+
+
+def slot_type_to_name(slot_type: type[SlotTypeT]) -> str:
+    return _SLOT_TYPE_TO_NAME[slot_type]

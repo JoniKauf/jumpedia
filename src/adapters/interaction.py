@@ -3,11 +3,12 @@ from functools import cached_property
 import discord as dc
 
 from discord_.errors import FeedbackError
+from utils.rank import JumpediaRank
 
 from . import BaseAdapter
 from ._jumpedia import _JUMPEDIA, JumpediaAdapter
 from ._server import ServerAdapter
-from ._user import ServerMemberAdapter, ServerUserAdapter
+from ._user import ServerMemberAdapter, UserAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
@@ -19,6 +20,10 @@ def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
     return user_or_member
 
 
+def is_joni(interaction: dc.Interaction) -> bool:
+    return interaction.user.id == 679564566769827841
+
+
 class InteractionAdapter(BaseAdapter[dc.Interaction]):
     def __post_init__(self) -> None:
         # If a user interacts with Jumpedia, we want to save them.
@@ -26,7 +31,10 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         # This action basically counts as registering and if somebody ever wants
         # to find out something about this user, then as long as they ever
         # used a single jumpedia command, they will find information.
-        self.jumpedia.get_or_create_current_jumpedia_user()
+        self.jumpedia.get_or_create_jumpedia_user(
+            self.current_user,
+            override_jumpedia_rank=(JumpediaRank.JONIKAUF if is_joni(self._s) else None)
+        )
 
     @cached_property
     def current_server(self) -> ServerAdapter:
@@ -34,13 +42,13 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         return ServerAdapter(user.guild, self)
 
     @cached_property
-    def current_user(self) -> ServerUserAdapter:
+    def current_user(self) -> UserAdapter:
         user_or_member = self._s.user
 
         if isinstance(user_or_member, dc.Member):
-            return ServerUserAdapter(user_or_member._user, self)
+            return UserAdapter(user_or_member._user, self)
 
-        return ServerUserAdapter(user_or_member, self)
+        return UserAdapter(user_or_member, self)
 
     @cached_property
     def current_member(self) -> ServerMemberAdapter:

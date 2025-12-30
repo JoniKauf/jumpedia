@@ -26,8 +26,10 @@ class Cursor:
         self._mariadb_cursor.execute(
             "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"
         )
+        self._ctx_count: int = 0
 
     def __enter__(self) -> Cursor:
+        self._ctx_count += 1
         return self
 
     def __exit__(
@@ -36,6 +38,11 @@ class Cursor:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        self._ctx_count -= 1
+
+        if self._ctx_count > 0:
+            return
+
         if not self._mariadb_connection.autocommit:
             if exc_value is None:
                 self._mariadb_connection.commit()

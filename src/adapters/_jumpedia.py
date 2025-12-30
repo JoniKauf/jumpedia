@@ -1,6 +1,7 @@
 import typing as t
 
 from discord_.errors import FeedbackError
+from discord_.utils_ import shortcuts
 from structures.community import Community, CommunityLimits
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
@@ -14,7 +15,7 @@ from utils.rank import JumpediaRank
 
 from . import BaseStructureAdapter, errors
 from ._community import CommunityAdapter
-from ._user import JumpediaUserAdapter, ServerUserAdapter
+from ._user import JumpediaUserAdapter, UserAdapter
 
 if t.TYPE_CHECKING:
     from .interaction import InteractionAdapter
@@ -34,13 +35,6 @@ _JUMPEDIA = Jumpedia(
     connector=Connector(**__conn_data, database_name="jumpedia"),
     meta_connector=Connector(**__conn_data, database_name=None),
 )
-
-
-def _require_server_with_community(community_s: Community | None) -> Community:
-    if community_s is None:
-        raise errors.ServerNotConnectedToACommunityFeedbackError()
-
-    return community_s
 
 
 def _require_community_with_name(name: text.NormStr, jumpedia_s: Jumpedia) -> Community:
@@ -68,23 +62,16 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
             _require_community_with_name(text.NormStr(name), self._s), self
         )
 
-    def get_current_community(self) -> CommunityAdapter:
-        return self.get_community(
-            _require_server_with_community(
-                self._s.get_community_by_server_id(self.interaction.current_server.id)
-            ).real_name
-        )
-
     def create_community(
         self, name: str, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = self.get_or_create_current_jumpedia_user()._s
+        jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(self, None)
 
         try:
             comm = self._s.create_community(
                 name=text.RealStr(name),
                 server_id=self.interaction.current_server.id,
-                creator=jumpedia_user,
+                creator=jumpedia_user._s,
                 limits=CommunityLimits(),
             )
         except ServerAlreadyConnectedToCommunityError as e:
@@ -109,7 +96,9 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
         self._s.delete_community(community.id)
 
     def delete_current_community(self) -> None:
-        self._s.delete_community(self.get_current_community()._s.id)
+        self._s.delete_community(
+            shortcuts.get_current_community(self.interaction)._s.id
+        )
 
     def add_community_to_current_server(self, name: str) -> CommunityAdapter:
         try:
@@ -137,7 +126,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
 
     def get_or_create_jumpedia_user(
         self,
-        user: ServerUserAdapter,
+        user: UserAdapter,
         *,
         override_jumpedia_rank: JumpediaRank | None = None,
     ) -> JumpediaUserAdapter:
@@ -150,24 +139,3 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
         )
 
         return JumpediaUserAdapter(jumpedia_user, self)
-
-    def get_or_create_current_jumpedia_user(
-        self, *, override_jumpedia_rank: JumpediaRank | None = None
-    ) -> JumpediaUserAdapter:
-        return self.get_or_create_jumpedia_user(
-            self.interaction.current_user, override_jumpedia_rank=override_jumpedia_rank
-        )
-
-    def get_or_create_jumpedia_user_or_current(
-        self,
-        user: ServerUserAdapter | None,
-        override_jumpedia_rank: JumpediaRank | None = None,
-    ) -> JumpediaUserAdapter:
-        if user is None:
-            return self.get_or_create_current_jumpedia_user(
-                override_jumpedia_rank=override_jumpedia_rank
-            )
-
-        return self.get_or_create_jumpedia_user(
-            user, override_jumpedia_rank=override_jumpedia_rank
-        )

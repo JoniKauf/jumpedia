@@ -130,14 +130,6 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
             jumpedia_user,
         )
 
-    def get_or_create_current_community_user(
-        self, *, override_community_rank: CommunityRank | None = None
-    ) -> CommunityUserAdapter:
-        return self.get_or_create_community_user(
-            self.jumpedia.get_or_create_current_jumpedia_user(),
-            override_community_rank=override_community_rank,
-        )
-
     # --- Server ---
 
     def get_server_count(self) -> int:

@@ -41,16 +41,16 @@ class Connector:
             ),
         )
 
-    def cursor(self, conn: Cursor | None = None) -> Cursor:
-        if conn is not None:
-            return conn
+    def cursor(self, c: Cursor | None = None) -> Cursor:
+        if c is not None:
+            return c
 
         RETRIES: int = 5
         DELAY: float = 0.5
 
         for i in range(RETRIES):
             try:
-                conn = self._create_connection()
+                c = self._create_connection()
             except mariadb.Error as e:
                 time.sleep(DELAY)
 
@@ -59,9 +59,9 @@ class Connector:
             else:
                 break
 
-        assert conn is not None
+        assert c is not None
 
-        return Cursor(conn)
+        return Cursor(c)
 
 
 __all__ = ["Connector"]

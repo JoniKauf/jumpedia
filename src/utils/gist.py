@@ -2,7 +2,7 @@ import typing as t
 
 import requests
 
-from ..utils import secret
+from . import secret
 
 __TOKEN = secret.listen().GITHUB_GIST_TOKEN
 
@@ -41,54 +41,50 @@ def create_gist(
         )
 
 
-def __main() -> None:
-    ESCAPE: set[str] = {"\\", "`"}
+GIST_ESCAPE: set[str] = {"\\", "`"}
+GIST_TABLE_DELIM: str = "|"
+GIST_TRANS_TABLE = str.maketrans({char: "\\" + char for char in GIST_ESCAPE})
 
-    TRANS_TABLE = str.maketrans({char: "\\" + char for char in ESCAPE})
 
-    DELIM: str = "|"
+def table_to_gist_str(
+    table: t.Sequence[t.Sequence[str]],
+    /,
+    headers: t.Sequence[str] = (),
+    *,
+    soft_split_limit: int = 500_000,
+) -> list[str]:
+    result: list[str] = []
 
-    def table_to_markdown(
-        table: t.Sequence[t.Sequence[str]],
-        /,
-        headers: t.Sequence[str] = (),
-        *,
-        soft_split_limit: int = 500_000,
-    ) -> list[str]:
-        result: list[str] = []
+    curr_rows: list[str] = []
+    char_count: int = 0
 
-        curr_rows: list[str] = []
-        char_count: int = 0
+    if headers:
+        curr_rows.append(GIST_TABLE_DELIM.join(headers))
+        curr_rows.append(GIST_TABLE_DELIM.join(tuple(":---" for _ in headers)))
 
-        if headers:
-            curr_rows.append(DELIM.join(headers))
-            curr_rows.append(DELIM.join(tuple(":---" for _ in headers)))
+    for row in table:
+        cells: list[str] = []
 
-        for row in table:
-            cells: list[str] = []
+        for cell in row:
+            cell = f"`{cell.translate(GIST_TRANS_TABLE)}`"
+            cells.append(cell)
 
-            for cell in row:
-                cell = f"`{cell.translate(TRANS_TABLE)}`"
-                cells.append(cell)
+        new_row = GIST_TABLE_DELIM.join(cells)
+        char_count += len(new_row)
+        curr_rows.append(new_row)
 
-            new_row = DELIM.join(cells)
-            char_count += len(new_row)
-            curr_rows.append(new_row)
-
-            if char_count >= soft_split_limit:
-                result.append("\n".join(curr_rows))
-                curr_rows.clear()
-                char_count = 0
-
-        if curr_rows:
+        if char_count >= soft_split_limit:
             result.append("\n".join(curr_rows))
+            curr_rows.clear()
+            char_count = 0
 
-        return result
+    if curr_rows:
+        result.append("\n".join(curr_rows))
 
-    HEADERS = [str(i) for i in range(32)]
-    CHARS = tuple(
-        ESCAPE | set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!§$%&/=²³")
-    )
+    return result
+
+
+def __main() -> None:
     table: list[list[str]] = []
 
     import random
@@ -106,11 +102,11 @@ def __main() -> None:
 
         table.append(row.copy())
 
-    markdowns = table_to_markdown(table, HEADERS)
+    markdowns = table_to_gist_str(table, HEADERS)
 
     for i, md in enumerate(markdowns[1:]):
         markdowns[i] = (
-            f"{DELIM.join(HEADERS)}\n{DELIM.join(":---" for _ in HEADERS)}\n{md}"
+            f"{GIST_TABLE_DELIM.join(HEADERS)}\n{GIST_TABLE_DELIM.join(":---" for _ in HEADERS)}\n{md}"
         )
 
     files: dict[str, _FileContentT] = {

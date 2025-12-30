@@ -4,6 +4,7 @@ import types
 import typing as t
 
 from discord_.errors import FeedbackError
+from src.adapters._user import CommunityUserAdapter
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
@@ -18,6 +19,7 @@ from structures.errors import (
     AttributeValueSlotCountOutOfRangeError,
     CollectionEntryNotFoundError,
     CollectionEntrySynNotUniqueError,
+    CommunityUserAlreadyHasTaskError,
     NotUniqueStringError,
     StructureCountLimitReachedError,
     SynsAlreadyTakenError,
@@ -121,7 +123,7 @@ def _validate_and_convert_attribute_value_mapping[T: AnyAttributeT](
         if len(g) > 1:
             raise FeedbackError(
                 "Attributes Not Unique",
-                t"The attribute `{k.real_name}` was specified multiple times in the attribute value mapping, probably by using different aliases!",
+                t"The attribute `{k.real_name}` was specified multiple times in the attribute value mapping, probably by using different aliases for the same attribute!",
             )
 
     return {
@@ -179,8 +181,6 @@ class ListAdapter(BaseStructureAdapter[List]):
             raise errors.AttributeValueSlotCountOutOfRangeFeedbackError(e)
         except CollectionEntryNotFoundError as e:
             raise errors.CollectionEntryNotFoundFeedbackError(e)
-        except CollectionEntrySynNotUniqueError as e:
-            raise errors.CollectionEntrySynNotUniqueFeedbackError(e)
 
         return TaskAdapter(task_s, self)
 
@@ -217,7 +217,26 @@ class ListAdapter(BaseStructureAdapter[List]):
             for attr in self._s.get_all_attributes_flat()
         ]
 
+    @t.overload
     def get_attributes(
+        self, type: type[StaticAttribute]
+    ) -> list[StaticAttributeAdapter]:
+        pass
+
+    @t.overload
+    def get_attributes(self, type: type[TaskAttribute]) -> list[TaskAttributeAdapter]:
+        pass
+
+    @t.overload
+    def get_attributes(self, type: type[UserAttribute]) -> list[UserAttributeAdapter]:
+        pass
+
+    def get_attributes(self, type: type[AnyAttributeT]) -> list[AnyAttributeAdapterT]:  # type: ignore
+        return [
+            _get_attribute_adapter(attr, self) for attr in self._s.get_attributes(type)
+        ]
+
+    def get_all_attributes(
         self,
     ) -> tuple[
         list[StaticAttributeAdapter],
@@ -328,3 +347,25 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         attr = self.get_attribute(type, syn)
         self._s.delete_attribute(type, attr._s.id)
+
+    def give_task_to_user(
+        self,
+        syn: str,
+        community_user: CommunityUserAdapter,
+        user_attribute_value_mapping: str | None = None,
+    ) -> None:
+        task = _require_task_with_syn(text.NormStr(syn), self._s)
+
+        avm = _validate_and_convert_attribute_value_mapping(
+            user_attribute_value_mapping, UserAttribute, self._s
+        )
+
+        try:
+            self._s.give_task_to_community_user(task.id, community_user._s.id, avm)
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.AttributeValueSlotCountOutOfRangeFeedbackError(e)
+        except CollectionEntryNotFoundError as e:
+            raise errors.CollectionEntryNotFoundFeedbackError(e)
+        except CommunityUserAlreadyHasTaskError as e:
+            raise FeedbackError("Task Already Obtained", t"The user `{community_user}` has already obtained the task `{task}`!")
+        

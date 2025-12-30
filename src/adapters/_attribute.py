@@ -24,7 +24,7 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseAdapter[T]):
         return self._s.real_name
 
     @property
-    def _slot_type(self) -> type[SlotTypeT]:
+    def slot_type(self) -> type[SlotTypeT]:
         return self._s.slot_type
 
     @property

@@ -2,9 +2,10 @@ import builtins
 import typing as t
 
 from utils import orm, text
+from utils.orm import Cursor
 from utils.rank import CommunityRank
 
-from . import BaseStructure, db, errors
+from . import BaseStructure, db, errors, list
 from .attribute import StaticAttribute
 from .list import Kind, List
 from .user import CommunityUser, JumpediaUser
@@ -81,47 +82,47 @@ class Community(BaseStructure):
                 community=self, id=list_id, real_name=name, norm_name=norm_name
             )
 
-            static_attr_id = list_obj._get_default_static_attribute(Kind.ID, -1)
+            static_attr_id_data = list.KIND_TO_PREDEFINED_DATA[Kind.ID]
 
             list_obj.create_attribute(
                 StaticAttribute,
-                static_attr_id.real_name,
+                static_attr_id_data.real_name,
                 (),
-                static_attr_id.slot_type,
-                static_attr_id.max_slots,
-                min_slots=static_attr_id.min_slots,
-                kind=static_attr_id.kind,
+                static_attr_id_data.slot_type,
+                static_attr_id_data.max_slots,
+                min_slots=static_attr_id_data.min_slots,
+                kind=static_attr_id_data.kind,
             )
 
-            del static_attr_id
+            del static_attr_id_data
 
-            static_attr_name = list_obj._get_default_static_attribute(Kind.NAME, -1)
+            static_attr_name_data = list.KIND_TO_PREDEFINED_DATA[Kind.NAME]
 
             list_obj.create_attribute(
                 StaticAttribute,
-                static_attr_name.real_name,
+                static_attr_name_data.real_name,
                 (),
-                static_attr_name.slot_type,
-                static_attr_name.max_slots,
-                min_slots=static_attr_name.min_slots,
-                kind=static_attr_name.kind,
+                static_attr_name_data.slot_type,
+                static_attr_name_data.max_slots,
+                min_slots=static_attr_name_data.min_slots,
+                kind=static_attr_name_data.kind,
             )
 
-            del static_attr_name
+            del static_attr_name_data
 
-            static_attr_alias = list_obj._get_default_static_attribute(Kind.ALIAS, -1)
+            static_attr_alias_data = list.KIND_TO_PREDEFINED_DATA[Kind.ALIAS]
 
             list_obj.create_attribute(
                 StaticAttribute,
-                static_attr_alias.real_name,
+                static_attr_alias_data.real_name,
                 (),
-                static_attr_alias.slot_type,
-                static_attr_alias.max_slots,
-                min_slots=static_attr_alias.min_slots,
-                kind=static_attr_alias.kind,
+                static_attr_alias_data.slot_type,
+                static_attr_alias_data.max_slots,
+                min_slots=static_attr_alias_data.min_slots,
+                kind=static_attr_alias_data.kind,
             )
 
-            del static_attr_alias
+            del static_attr_alias_data
 
         return list_obj
 
@@ -206,10 +207,12 @@ class Community(BaseStructure):
         selected_list_id: int | None,
         override_community_rank_if_user_exists: bool,
         override_selected_list_if_user_exists: bool,
+        *,
+        c: Cursor | None = None,
     ) -> CommunityUser:
         community_user = self.get_community_user_by_jumpedia_user(jumpedia_user)
 
-        with self.connector.cursor() as c:
+        with self.connector.cursor(c) as c:
             # Community user doesn't exist yet
             if community_user is None:
                 execute_data = c.execute(

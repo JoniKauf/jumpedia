@@ -36,6 +36,51 @@ class Kind(enum.IntEnum):
     ALIAS = 3
 
 
+class _StaticAttributePredefinedData(t.NamedTuple):
+    real_name: RealStr
+    norm_name: NormStr
+    slot_type: type[SlotTypeT]
+    position: int
+    min_slots: int
+    max_slots: int
+    kind: Kind
+
+
+KIND_TO_PREDEFINED_DATA: t.Final[
+    MappingProxyType[Kind, _StaticAttributePredefinedData]
+] = MappingProxyType(
+    {
+        Kind.ID: _StaticAttributePredefinedData(
+            real_name=RealStr(real_name := "Id"),
+            norm_name=NormStr(real_name),
+            slot_type=int,
+            position=0,
+            min_slots=1,
+            max_slots=1,
+            kind=Kind.ID,
+        ),
+        Kind.NAME: _StaticAttributePredefinedData(
+            real_name=RealStr(real_name := "Name"),
+            norm_name=NormStr(real_name),
+            slot_type=str,
+            position=1,
+            min_slots=1,
+            max_slots=1,
+            kind=Kind.NAME,
+        ),
+        Kind.ALIAS: _StaticAttributePredefinedData(
+            real_name=RealStr(real_name := "Alias"),
+            norm_name=NormStr(real_name),
+            slot_type=str,
+            position=1,
+            min_slots=0,
+            max_slots=32,
+            kind=Kind.ALIAS,
+        ),
+    }
+)
+
+
 type _RawAvmT = dict[int, tuple[SlotStr, ...]]
 
 
@@ -203,49 +248,9 @@ class List(BaseStructure):
     def _get_default_static_attribute(
         self, kind: Kind, id: int = -1, /
     ) -> StaticAttribute:
-        if kind.value == 1:
-            real_name = RealStr("Id")
-
+        if kind in (Kind.ID, Kind.NAME, Kind.ALIAS):
             return StaticAttribute(
-                list=self,
-                id=id,
-                real_name=real_name,
-                norm_name=NormStr(real_name),
-                slot_type=int,
-                position=0,
-                min_slots=1,
-                max_slots=1,
-                kind=kind,
-            )
-
-        if kind.value == 2:
-            real_name = RealStr("Name")
-
-            return StaticAttribute(
-                list=self,
-                id=id,
-                real_name=real_name,
-                norm_name=NormStr(real_name),
-                slot_type=str,
-                position=1,
-                min_slots=1,
-                max_slots=1,
-                kind=kind,
-            )
-
-        if kind.value == 3:
-            real_name = RealStr("Alias")
-
-            return StaticAttribute(
-                list=self,
-                id=id,
-                real_name=real_name,
-                norm_name=NormStr(real_name),
-                slot_type=str,
-                position=1,
-                min_slots=0,
-                max_slots=self.community.limits.attribute_task_value_slot_count_max,
-                kind=kind,
+                list=self, id=id, **KIND_TO_PREDEFINED_DATA[kind]._asdict()
             )
 
         t.assert_never(kind.value)
