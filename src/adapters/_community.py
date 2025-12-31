@@ -1,6 +1,7 @@
 import typing as t
 
 from discord_.errors import FeedbackError
+from discord_.utils_ import messaging
 from structures.community import Community
 from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
@@ -97,6 +98,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
                     + t"list selected as the default, therefore "
                     + t"nothing changed."
                 ),
+                explicit_message_status=messaging.MessageStatus.WARNING,
             )
 
         if (

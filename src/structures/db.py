@@ -549,7 +549,8 @@ def create_database(j: Jumpedia) -> None:
         c.raw_execute(
             f"""
             CREATE DATABASE `{db_name}`
-            CHARACTER SET = utf8mb4
+            CHARACTER SET utf8mb4 
+            COLLATE utf8mb4_bin
         """
         )
 

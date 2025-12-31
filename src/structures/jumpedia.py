@@ -96,7 +96,7 @@ class Jumpedia(BaseStructure):
             )
 
             comm.get_or_create_community_user(
-                creator, CommunityRank.OWNER, None, True, True, c=c
+                creator, CommunityRank.OWNER, None, True, True
             )
 
             return comm

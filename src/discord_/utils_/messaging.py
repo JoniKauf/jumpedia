@@ -144,9 +144,7 @@ def layout(
                 biggest = interp
 
         if biggest is None:
-            raise ValueError(
-                "Layout not shortable enough",
-            )
+            raise ValueError("Layout not shortable enough", s)
 
         id_ = id(biggest)
         new_length = max(MIN_LEN_MINUS_MORE, biggest_len // 2)

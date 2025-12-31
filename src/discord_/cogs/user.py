@@ -2,13 +2,13 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from adapters._community import CommunityAdapter
 from adapters._list import ListAdapter
 from adapters._user import UserAdapter
 from adapters.errors import ServerNotConnectedToACommunityFeedbackError
 from adapters.interaction import InteractionAdapter
 from discord_.errors import FeedbackError
-from discord_.utils_ import messaging
-from src.discord_.utils_ import shortcuts
+from discord_.utils_ import messaging, shortcuts
 from utils import text
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
@@ -25,41 +25,41 @@ class UserCog(cmds.GroupCog, group_name="user"):
         self, interaction: dc.Interaction, user: dc.User | None = None
     ) -> None:
         ia = InteractionAdapter(interaction)
-        jumpedia = ia.jumpedia
-        jumpedia_user = jumpedia.get_or_create_jumpedia_user_or_current(
-            UserAdapter(user, ia) if user is not None else None
+
+        jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
+            ia, user
+        )
+        jumpedia = jumpedia_user.jumpedia
+
+        NOT_IN_COMMUNITY = "<Not executed in a community>"
+
+        community_s = jumpedia._s.get_community_by_server_id(ia.current_server.id)
+        community_user = (
+            shortcuts.get_or_create_specified_or_current_community_user(
+                CommunityAdapter(community_s, jumpedia), jumpedia_user
+            )
+            if community_s is not None
+            else None
         )
 
-        jumpedia_rank: JumpediaRank = jumpedia_user.jumpedia_rank
-        community_rank: CommunityRank | None = None
-        server_rank: ServerRank | None = None
-        selected_list: ListAdapter | None = None
+        community_rank = NOT_IN_COMMUNITY
+        selected_list = NOT_IN_COMMUNITY
 
-        try:
-            community_user = (
-                jumpedia.get_current_community().get_or_create_community_user(
-                    jumpedia_user
-                )
-            )
-        except ServerNotConnectedToACommunityFeedbackError:
-            pass
-        else:
+        if community_user is not None:
             community_rank = community_user.community_rank
             selected_list = community_user.get_selected_list()
+            selected_list = selected_list.name if selected_list is not None else None
 
-        try:
-            server_rank = ia.current_member.server_rank
-        except FeedbackError:
-            pass
-
-        community = InteractionAdapter(interaction).jumpedia.get_current_community()
-
-        community.get_or_create_current_community_user().most_powerful_rank
+        server_rank: ServerRank | str = (
+            ia.current_member.server_rank
+            if isinstance(ia._s.user, dc.Member)
+            else "<Not executed on a server>"
+        )
 
         rank_info: list[tuple[str, AnyRankT | str]] = [
-            ("Server Rank", server_rank or "<Not on a server>"),
-            ("Community Rank", community_rank or "<Not in a community>"),
-            ("Jumpedia Rank", jumpedia_rank),
+            ("Server Rank", server_rank),
+            ("Community Rank", community_rank),
+            ("Jumpedia Rank", jumpedia_user.jumpedia_rank),
         ]
 
         await interaction.response.send_message(
@@ -71,7 +71,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
                         t"**{k}**: {v}"
                         for k, v in (
                             ("Name", jumpedia_user.name),
-                            ("Selected List", selected_list or None),
+                            ("Selected List", selected_list),
                             *rank_info,
                         )
                     ),
@@ -121,11 +121,16 @@ class UserCog(cmds.GroupCog, group_name="user"):
     async def set_community_rank(
         self, interaction: dc.Interaction, user: dc.User, community_rank: CommunityRank
     ) -> None:
-        community_user = shortcuts.get_or_create_specified_or_current_community_user(InteractionAdapter(interaction), user)
+        community_user = shortcuts.get_or_create_specified_or_current_community_user(
+            InteractionAdapter(interaction), user
+        )
 
         await interaction.response.send_message(
             community_user.set_community_rank(
-                community_rank, shortcuts.get_or_create_specified_or_current_community_user(community_user.community, None)
+                community_rank,
+                shortcuts.get_or_create_specified_or_current_community_user(
+                    community_user.community, None
+                ),
             )
         )
 

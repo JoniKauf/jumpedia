@@ -1,0 +1,2770 @@
+{
+    "roadblock rushdown": {
+        "time_given": "2025-05-07 19:58:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/481470302728224770/1369765994817519856/2025050602525501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681d0d7e&is=681bbbfe&hm=3f965304039f3bd0bd9fda7fc5d7b29d845ee364820625f69fa75724af4342de&"
+    },
+    "red lantern": {
+        "time_given": "2025-05-07 20:03:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1369104185425133589/2025050600004801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681c9f62&is=681b4de2&hm=fcb10586f6e9f2ca8e356eded0308090b5b98a4751af598127be52ebbc4fab37&"
+    },
+    "true fencing flyer": {
+        "time_given": "2025-05-07 20:05:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1369104186901401620/2025050504424201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681c9f62&is=681b4de2&hm=fa7dd7746cf9473785e2567beee01e934ca2bbfc9e58979b261f8e8257bf3b50&"
+    },
+    "shining skylight": {
+        "time_given": "2025-05-07 20:06:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1369104184254791832/2025050602112901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681c9f62&is=681b4de2&hm=f0613bc8d4a461f2a1e2c3e750199a9aaad4fabbed973f12a780731b7dc1a901&"
+    },
+    "shroomscope": {
+        "time_given": "2025-05-07 20:58:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1369780222072721450/2025050722583501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681d1abe&is=681bc93e&hm=6207df630d1f6d3991d8409ccc7b22f22e0e6923e7c9af006bbb1f07edfa0364&"
+    },
+    "hurdle herder": {
+        "time_given": "2025-05-08 20:27:51 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1370134532547678208/2025050822260101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681e64b8&is=681d1338&hm=75d7dec56e805a6adb95528d2cff94c0edd185643054d88e768009a6f32de4e6&"
+    },
+    "rusty railing": {
+        "time_given": "2025-05-08 21:29:29 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1370150404259577988/2025050823291201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681e7380&is=681d2200&hm=53636508ee69ccefa8c4cb2cfa7e68eadecfbacfd892b7d5e4fd78639dff100a&"
+    },
+    "treacherous torch": {
+        "time_given": "2025-05-09 03:23:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1370239747473150032/2025050905243401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681ec6b5&is=681d7535&hm=0a51c727b3ee55787c4aad6ba5781e6be7f6d905ddea0a9fd63403cf1f604d14&"
+    },
+    "toad traversal": {
+        "time_given": "2025-05-09 22:15:20 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1369773783077884004/2025050722325001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fb7bf&is=681e663f&hm=c3bfecd6e137420d97524b829f5f5e3b2a14fd336059d1afb5edb54528cbeb8c&"
+    },
+    "faraway forest": {
+        "time_given": "2025-05-09 22:52:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533399458222252/2025040607275601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd831&is=681e86b1&hm=8e79fa04c83973a5f4fff74194e46061cbd2d86eea53630a2aa7f92ad0e83d20&"
+    },
+    "cherry roof": {
+        "time_given": "2025-05-09 22:52:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533399999156284/2025051000184301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd831&is=681e86b1&hm=ce3b9acebb9ff158f19a527d33d264aa88010e49cd05ab79d60de13acdc5bdae&"
+    },
+    "luminary gardens": {
+        "time_given": "2025-05-09 22:53:02 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533400410062889/2025051000190601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd831&is=681e86b1&hm=a44c51a87f5b8ea3a34dc7d2ea53c51b99b54bc70f21cd75cca59b4ff1296698&"
+    },
+    "true dimensional shift": {
+        "time_given": "2025-05-09 22:53:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533400943005817/2025051000193101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=a7fd8f72458a4e4d3f4bbcd01110c184516fc8a08086e98cc5ff516ebe94c06b&"
+    },
+    "ravaging vines": {
+        "time_given": "2025-05-09 22:53:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533401337139403/2025051000195601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=4d29786562e2353a6e6ddbdee80e070f5154faa5b17c030e5fbd662ab7e10856&"
+    },
+    "camping disturber": {
+        "time_given": "2025-05-09 22:53:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533401769017484/2025051000202301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=1a12da5a42267e936544890db6fa9e7368cc6b9a3972af92bdcdea7014b5eb08&"
+    },
+    "toad's treehouse": {
+        "time_given": "2025-05-09 22:55:27 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533402255822878/2025051000204901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=34f6772b4e6c972a29ac825cafe59a27d6958f982012bb47d27d23ba297263e9&"
+    },
+    "royal intrusion": {
+        "time_given": "2025-05-09 22:55:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533402775785503/2025051000211301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=06624a209cfe50663cd67c31e40f07a90f7a795ddb5de194bf2f14c5d6191c23&"
+    },
+    "floral fountain": {
+        "time_given": "2025-05-09 22:56:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533403148943433/2025051000213801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=ffd5b3ea85abda92da16783c0e3d26ddc3f9e937a9e89ce325d4f608649fdb64&"
+    },
+    "metal cap": {
+        "time_given": "2025-05-09 22:56:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370533403677687818/2025051000222501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd832&is=681e86b2&hm=a1837c40fe98a2ab14f6a33434c9cd951ae08e9c14ca407690a1daa22ad8a001&"
+    },
+    "toad interspace": {
+        "time_given": "2025-05-09 22:58:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535255102197811/2025051000225701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=6ea9392ed057e0b2147f769628af729d6cdad889ffac4f4391d0ad035939091c&"
+    },
+    "passing picture": {
+        "time_given": "2025-05-09 22:58:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535255697657996/2025051000232601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=d48452e6f2725d52f874e130c455ac84686e1d4523a9f1bc1c23f212fdef9ed5&"
+    },
+    "mushroom tree vault assault": {
+        "time_given": "2025-05-09 22:58:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535256268079214/2025051000240201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=628cc85f403fa13bab59d59334e4a6208d608d643e7ce4195ba1e938b14357dd&"
+    },
+    "toad threshold": {
+        "time_given": "2025-05-09 22:59:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535256779657246/2025051000243701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=f9e9a8a5b70a19ff92f8c613e6b2d49637ab2a54adb8e7b4dc28560c9c4d0930&"
+    },
+    "mushroom god": {
+        "time_given": "2025-05-09 22:59:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535257526505512/2025051000251001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=727fd3f72a496b97e1b35c5725cc6e0b2510e49d9d5ed26050c096ca08d0cd4d&"
+    },
+    "wishing well": {
+        "time_given": "2025-05-09 22:59:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535258147131412/2025051000254901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ec&is=681e886c&hm=69a7cb969523133c03c504176ff20e2d37abf7e0ea2ccb48becee49d3d7e17d4&"
+    },
+    "silent stream": {
+        "time_given": "2025-05-09 22:59:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535258998439936/2025051000262001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ed&is=681e886d&hm=8a5375e83e63bd7e905ff1a1526f19593862dfdb3420a408464df70bd9622260&"
+    },
+    "babbling brook": {
+        "time_given": "2025-05-09 23:00:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535259967590420/2025051000264601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ed&is=681e886d&hm=7f48273249ed8bc26c12d243bec4e8e0de670e34b60ca3074327a26a339cd462&"
+    },
+    "garden escape": {
+        "time_given": "2025-05-09 23:00:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535260588081212/2025051000274301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ed&is=681e886d&hm=051d590aa1d70fc088a8cb0f3431af49875a7067eb51e305207cdbe3c0f5b9bb&"
+    },
+    "castle siege": {
+        "time_given": "2025-05-09 23:01:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535261255241800/2025051000281701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fd9ed&is=681e886d&hm=23257abaa322ee32b475a94cc0dbb3977a83fd96a2977287524ca42dff3d909e&"
+    },
+    "mushroom dog": {
+        "time_given": "2025-05-09 23:01:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535774986043563/2025051000285901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fda68&is=681e88e8&hm=655f0763bda47948e12cfb1f40b2d508d57876362c91ba94a30a52c486fc7482&"
+    },
+    "woods escape": {
+        "time_given": "2025-05-09 23:01:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535775636295831/2025051000292701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fda68&is=681e88e8&hm=bc21a5687332663e7aef94a798727f32a43fa0ef474c08b675d3facbd6c89a50&"
+    },
+    "castle siege 2.0": {
+        "time_given": "2025-05-09 23:02:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370535776131092500/2025051000295801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=681fda68&is=681e88e8&hm=ce5baf18d105b1392de22cab75ec7c4c4849da279934e6c712ad9f2b7f2ad07a&"
+    },
+    "froggy domain": {
+        "time_given": "2025-05-10 02:19:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585754677284974/2025040607293901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=477c2a01511db07781470a1d086b74364887dfd01859036c66a97c3d13c86661&"
+    },
+    "sky blocks": {
+        "time_given": "2025-05-10 02:20:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585755188985936/2025051003590201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=a77afd3e35c5ae7fe35281aa324e28db6d77cfef4d8cf7b205c41ea458622391&"
+    },
+    "top hat twist": {
+        "time_given": "2025-05-10 02:20:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585755633713263/2025051003593101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=37844157374cf3e36fb516abdb0a8de75c5a9e433e0d10ca14eb3e9fb6e54b70&"
+    },
+    "amphibian aversion": {
+        "time_given": "2025-05-10 02:20:52 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585756195622993/2025051004000001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=3e7c42a966f5bc988b6ea9af6190b32a0833ae3387213311ada6d5c65f70c7e8&"
+    },
+    "frogless": {
+        "time_given": "2025-05-10 02:21:20 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585756648603732/2025051004015801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=de2a33be0b24057e743e465573ac46596b919ee8ec113ece9f6fb60da71cff40&"
+    },
+    "froggy rail": {
+        "time_given": "2025-05-10 02:21:33 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585756975890648/2025051004023501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=0523c041cea7e1f4a81a79ccb5a584a8fe670af82f5c718292737b25115d5875&"
+    },
+    "pond blocks": {
+        "time_given": "2025-05-10 02:21:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585757479080026/2025051004030301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=5967bcfdea14fd6337a5e44de77d8d5d505cffc0b05d2e037ee2cd5a71827e79&"
+    },
+    "peachy peg": {
+        "time_given": "2025-05-10 02:22:17 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585757911224320/2025051004032501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f4&is=681eb774&hm=20fe9df0f94d4031bf2055cda8cb9b7ad94847080ba105052bd0bff2eca56473&"
+    },
+    "frogchamp": {
+        "time_given": "2025-05-10 02:23:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585758502617098/2025051004035401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f5&is=681eb775&hm=6f3ed08154d2b2c55b808d96d61ca905f9e5268996d80093655f301c57cc68f3&"
+    },
+    "true frogless": {
+        "time_given": "2025-05-10 02:24:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370585759060590732/2025051004041801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682008f5&is=681eb775&hm=308b5e7457b9470b0032622cdec7f162bba08d8fcef8f63a9d9ce249ee959f1f&"
+    },
+    "true greyscale twist": {
+        "time_given": "2025-05-10 02:24:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370586249353756763/2025051004045601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6820096a&is=681eb7ea&hm=af205474f64a1928ae0b466704c4ed8e8ecaee9c7eabd3c1ebd7185562ad71d8&"
+    },
+    "ship to ship": {
+        "time_given": "2025-05-10 02:24:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370586249861005332/2025051004053401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6820096a&is=681eb7ea&hm=89ec27834fefb4a62358924161630424065f31bbe6fe6d253544cc93d217920b&"
+    },
+    "truer cascade dram": {
+        "time_given": "2025-05-10 21:51:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1244417348115632179/1370880803604791376/2025051023520201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68211bbd&is=681fca3d&hm=221b56d08521fb1a1f50b4fb48b108a2d5404d6adc2957e9a95302a599371139&"
+    },
+    "rocky rumble": {
+        "time_given": "2025-05-10 23:05:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896956758691860/2025051100281001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212ac8&is=681fd948&hm=5dc450402e966d42b3b745f004e7d2c1aaa35f3d8316fc9156796e663c5a6abd&"
+    },
+    "stump crossing": {
+        "time_given": "2025-05-10 23:05:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896962018345060/2025051100285001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212ac9&is=681fd949&hm=61a0e11cd46abbe576a0b30b9c1b500b1fe6b8fefab434ea4ad9ac6a574f0bcd&"
+    },
+    "cascade mard 2.0": {
+        "time_given": "2025-05-10 23:06:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896962672398456/2025051100291201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212ac9&is=681fd949&hm=4c5ed752b2a750b978924c0f2976f079351f865df027b34546d080a9e34ed51e&"
+    },
+    "yellow koopa": {
+        "time_given": "2025-05-10 23:06:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896963222110278/2025051100294201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=167a4562bed92269366d9d905a0a624b9636d8c72001f7b66e5528016c08fd59&"
+    },
+    "triassic trampoline": {
+        "time_given": "2025-05-10 23:07:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896963700264980/2025051100301001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=efa01cd4184d0e7617e262163fa3d0769f9fb89efe910e34271b3d82cc846adc&"
+    },
+    "reptile rendezvous": {
+        "time_given": "2025-05-10 23:07:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896964043931669/2025051100303201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=119ec6e1b43a2c957dc6b5569451a0332be77fd5b19f936236f6800a7738d032&"
+    },
+    "cascade beans": {
+        "time_given": "2025-05-10 23:07:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896964446851092/2025051100305601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=c264c46a35037a0b506ed030e386de9a8f16d92a52960e93fccf8f1390f7ae1d&"
+    },
+    "mesozoic mount": {
+        "time_given": "2025-05-10 23:08:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896965138644992/2025051100314301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=bcc09b0b60bc67cb0b14de21228d4ed80dee7c3eb9af6529d4e37925e023b0ae&"
+    },
+    "ancient passageway": {
+        "time_given": "2025-05-10 23:08:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896965583376485/2025051100321001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=25c30bc06f5cb1c279e68f19d9694edea42b93bbc61c0ed1bfb816e5c07adc93&"
+    },
+    "broken boulders": {
+        "time_given": "2025-05-10 23:09:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370896966145409054/2025051100323901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212aca&is=681fd94a&hm=4df15c5123cb450803e35aa5bd9097e57f2f340eb93164271ba21cfb8b39856a&"
+    },
+    "life up founder": {
+        "time_given": "2025-05-10 23:09:21 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898363511341156/2025051100331201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c17&is=681fda97&hm=a1ea552f0666fff20a6f77c1f7e685cf305252f426663d68116a48e4cee4ce5e&"
+    },
+    "cascade dram": {
+        "time_given": "2025-05-10 23:09:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898364207468686/2025051100334301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c18&is=681fda98&hm=c83d8a2e1c99d6de0c7761e2efbe9598aad92a7be526b0298107973e47ada9cf&"
+    },
+    "bone narrow": {
+        "time_given": "2025-05-10 23:09:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898364794802387/2025051100341701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c18&is=681fda98&hm=0fdc852a6fa9fd73b5c494a186220f6ca1fd158eee56285f490ef8673d11f729&"
+    },
+    "stump to stump": {
+        "time_given": "2025-05-10 23:10:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898365331542137/2025051100344801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c18&is=681fda98&hm=2e8741988bc4ed83244d7abfe6fb99c33913e25c8e38f253760e5510ac018f73&"
+    },
+    "ancient debris": {
+        "time_given": "2025-05-10 23:10:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898366724046848/2025051100351301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c18&is=681fda98&hm=6cb503c54deb463e60d163210f1dda94dc25f3a3fd688994358e09ab84ad6adb&"
+    },
+    "cascade gap": {
+        "time_given": "2025-05-10 23:10:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898367604854878/2025051100355101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c18&is=681fda98&hm=f885672b6b19c50e2a30f2ddb61d9ab1576d52d6d98b9d22681d538cedf412b3&"
+    },
+    "jurassic leap": {
+        "time_given": "2025-05-10 23:10:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898368292716654/2025051100362601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c19&is=681fda99&hm=71e08f3320d4307f24504896a9b3d4b74fba088b9c90b9fad90e3334e2c2fa6e&"
+    },
+    "sedimentary staff": {
+        "time_given": "2025-05-10 23:11:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1370898369203146812/2025051100365601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68212c19&is=681fda99&hm=cd61cde12a6ad5f09f19da18f98082344a8735575520c5b2225dfa38adeb4165&"
+    },
+    "neighbourhood bypass": {
+        "time_given": "2025-05-11 19:01:32 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197482352115822/2025051119355301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ab&is=6820f12b&hm=a0f6b9bea9a3a34ed4ea0298122b3bf65568c3c57da98bdf74bb7eda20ab0075&"
+    },
+    "knucklotec's entrance": {
+        "time_given": "2025-05-11 19:02:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197483031728158/2025051119374101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ab&is=6820f12b&hm=d9c2de2a51b54c039f0b95df2f1f024c854da633d8917de34402d143ab842fd6&"
+    },
+    "hole in one": {
+        "time_given": "2025-05-11 19:02:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197483916591351/2025051119383701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ab&is=6820f12b&hm=af3428e86a9f32c3bd90f9fe6d9717b0c8a45e608fc38bbf3a9917732c105bc0&"
+    },
+    "inverted pillars": {
+        "time_given": "2025-05-11 19:03:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197484579422278/2025051119392801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ab&is=6820f12b&hm=496519cd0384b33fbc02cd26bd6a84549f5102b79db584209df3dca93fac2682&"
+    },
+    "moontree": {
+        "time_given": "2025-05-11 19:03:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197485342658603/2025051119401301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ac&is=6820f12c&hm=a3298a4b7ae31e38acb2e809306a3f23efe104e6cb47205251e98d2668bb90cb&"
+    },
+    "cutlery cove": {
+        "time_given": "2025-05-11 19:03:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197486256881826/2025051119404501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ac&is=6820f12c&hm=eca0bee8025e0642b45884bb4749729704325f4e8721c4e4994b5d543805b376&"
+    },
+    "dusty cliffside": {
+        "time_given": "2025-05-11 19:04:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197486701608970/2025051119411501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ac&is=6820f12c&hm=62baf11cf73abb325a12b3c025297d57a4d81025467d50ea2e0da71fbf47f69c&"
+    },
+    "quicksand conquest": {
+        "time_given": "2025-05-11 19:05:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197487108325436/2025051119415001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ac&is=6820f12c&hm=499cc913068633a92e80a2abb7bdbc68f065a16155bd080b2f3e9ebc72137410&"
+    },
+    "shop lifter": {
+        "time_given": "2025-05-11 19:05:14 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371197487607582740/2025051119424701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682242ac&is=6820f12c&hm=2ffc10733e2eeab186a067a139a59229676b8cdbfc012a133322ba476c661ae2&"
+    },
+    "prickly piercer": {
+        "time_given": "2025-05-12 01:23:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268127954042880/2025051119431701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228476&is=682132f6&hm=5ca22ba862cc4534fc638df63bc394c02901dac3cd1476c22c89972bca6d797d&"
+    },
+    "cage vault": {
+        "time_given": "2025-05-12 01:23:29 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268128629198960/2025051119440001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228476&is=682132f6&hm=cf4b6097ffae1d1f58c1d43b9ae23a86788b6c6db7796964b4e6bff385647735&"
+    },
+    "captureless god": {
+        "time_given": "2025-05-12 01:23:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268129166196776/2025051119443101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228476&is=682132f6&hm=5d33ba5793b4c857122dd5e331ec19c537ea478100ce26113cbc727e2313db8c&"
+    },
+    "cliffside escape": {
+        "time_given": "2025-05-12 01:23:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268129627443260/2025051119445601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=f06d84d603891106ffb61f8700a039474795a150ae1e29f48c9f1805e266ab60&"
+    },
+    "ice voyage": {
+        "time_given": "2025-05-12 01:24:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268130063781980/2025051119453401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=7e9acc880f1f288b4227e51abaeeea5e1d589db2f8d56c0918b81e04be5e2db7&"
+    },
+    "archaic ruins": {
+        "time_given": "2025-05-12 01:24:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268130776551434/2025051119461001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=27294b0d67c474f7b3cf022aec98d4bb74afb2c3ea3c4385bd1fff79307eaf8f&"
+    },
+    "yellow dram god": {
+        "time_given": "2025-05-12 01:24:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268131141451848/2025051119464701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=74be8412c9592f288a5b6cb7427ac46a565e9f137071b64ef345fe801740e7b4&"
+    },
+    "ailurophobia": {
+        "time_given": "2025-05-12 01:24:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268131510812702/2025051119471701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=5966ba84725312421f236c743a0536e67aa15a5a8d19fb75eabce4a32f9c31be&"
+    },
+    "jaxi friends": {
+        "time_given": "2025-05-12 01:25:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268131938635857/2025051119482201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=380af6a0dec9983a5b97454c984f3c77d14a11d98ee286146576bad9547805c8&"
+    },
+    "sunny scarecrow": {
+        "time_given": "2025-05-12 01:25:22 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371268132374708301/2025051119484601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68228477&is=682132f7&hm=87462ee07cf498550efca09ae8922709e7c2975bb8b45bacae561dc27853e1ce&"
+    },
+    "icicle heist": {
+        "time_given": "2025-05-12 01:25:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269552494874634/2025051119491601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285ca&is=6821344a&hm=56c64f3719fdec43fd3968ed1672c7ba0baf566742603f83958b69dfc31447ff&"
+    },
+    "lower sinking step": {
+        "time_given": "2025-05-12 01:25:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269553060970506/2025051119500901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285ca&is=6821344a&hm=989108882d7e7a6347ef58dd7fee74bda6bb2040c12d8ef6ef52477f054b65dd&"
+    },
+    "pillar to pillar": {
+        "time_given": "2025-05-12 01:26:02 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269553887121558/2025051119503601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285ca&is=6821344a&hm=51fa0b6041ef914726620c3b4c4f4191be906094cb20a339c8bf586bafd2b258&"
+    },
+    "sandy sign": {
+        "time_given": "2025-05-12 01:26:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269554541563974/2025051119510201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285ca&is=6821344a&hm=0ebe25157a5c191236dd94b5b8b2a02ce4b9c94b7126ec9fdd4e74c7aac91a11&"
+    },
+    "statue arrival": {
+        "time_given": "2025-05-12 01:26:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269555351191652/2025051119513201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285ca&is=6821344a&hm=62c161c812cb40019eb0491342cf648bd7e14be0a85bcb9b36589b977d56c90c&"
+    },
+    "cacti canyon": {
+        "time_given": "2025-05-12 01:26:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269556290584596/2025051120050001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285cb&is=6821344b&hm=a765d810ca35aeb5b0773fce0f50e87d5559ae9d936365ad78dabd86c6b03bf1&"
+    },
+    "reverse ailurophobia": {
+        "time_given": "2025-05-12 01:27:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269557032845463/2025051120080601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285cb&is=6821344b&hm=0ae8b89608292802ea2c0914694f88f4c5810feb757c2d38ba70be22049b8036&"
+    },
+    "upper ruins crossing": {
+        "time_given": "2025-05-12 01:27:17 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269557494349844/2025051120083501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285cb&is=6821344b&hm=4a8572ab707fee030a1b41b900309b6c8a50e305987d38cdb11bd94c9a3d1931&"
+    },
+    "toxic traverse": {
+        "time_given": "2025-05-12 01:27:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371269558010253342/2025051120314501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682285cb&is=6821344b&hm=9404229279710f0574d760884f3d4d74f7b6395d97e54dd80bed7fdf59c6066a&"
+    },
+    "antique ashes": {
+        "time_given": "2025-05-12 18:40:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555773678620712/2025051120322401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905a&is=68223eda&hm=b476238a8534b01471bb3aef351d43386fbc36bedad353bfdcb5bf23bf50dca7&"
+    },
+    "rocky ravine": {
+        "time_given": "2025-05-12 18:40:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555774333059184/2025051120331101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905a&is=68223eda&hm=048880e280683fe0e07688b87c659ccf6d9f191705ae5bd9fe37a588a142a588&"
+    },
+    "prickly prayers": {
+        "time_given": "2025-05-12 18:40:52 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555774907547789/2025051120335101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=940eaf2ad3ea2bdee8f7513f608f7fc51b0b2cba0f522191b2001191f089a4b8&"
+    },
+    "true 2d skip": {
+        "time_given": "2025-05-12 18:41:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555775453073533/2025051120342001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=dbbb84dd5f4e18f013d450633e9eca01514a5e1e13287b14ddf47134ecf43580&"
+    },
+    "neighbourhood impasse": {
+        "time_given": "2025-05-12 18:41:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555775914184834/2025051120345001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=d3693409e3ab50e7aadbf827c2a753dda9494db9ea0f72838f25e6b09369d812&"
+    },
+    "caveman": {
+        "time_given": "2025-05-12 18:41:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555776472289350/2025051120352301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=147ceb65dc7f30aeb673cb7b5801b25438d37c1607b859b26b1b9509c4d31e85&"
+    },
+    "cold cross": {
+        "time_given": "2025-05-12 18:41:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555777109557502/2025051120355601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=59bde06d5fb4f0f34c45fe9e378e07c467cbaba72da6478688f25f2205135031&"
+    },
+    "archaic ambition": {
+        "time_given": "2025-05-12 18:42:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555777755615342/2025051120362901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=43a3b5dcb6d7b4941bc89bce117ca686685fd6b919894d02797e4813c778169d&"
+    },
+    "launching pad": {
+        "time_given": "2025-05-12 18:42:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555778254733363/2025051120370801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=411cf71f4fb97e2e8dc2cf775039dd6e9da4e8bd5def692715ad3154ab566a3d&"
+    },
+    "frozen descent": {
+        "time_given": "2025-05-12 18:42:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555778774700032/2025051120375701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823905b&is=68223edb&hm=131ccf6674179f81c46bae3e4647b5904a45df2c5991c11de4536af4cb07d9e4&"
+    },
+    "among us": {
+        "time_given": "2025-05-12 18:42:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371555951697727589/2025051120382301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68239085&is=68223f05&hm=6ae4d17e0155bceb276fcca8f59a26a0f6ef2ac5d40c5f6b092ebcf556370c23&"
+    },
+    "true shop smasher": {
+        "time_given": "2025-05-12 19:00:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1371562495818600619/2025051221003201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823969d&is=6822451d&hm=d73e0db3c1a3ac6024c2e1ef5276c65ac829f5e3528062329f10d21109178ed7&"
+    },
+    "forest threshold": {
+        "time_given": "2025-05-12 21:53:22 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1371605099117281311/2025051223501601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823be4a&is=68226cca&hm=8f7e373254e8aeb13fdf4727ae36dfa85349c2e0ec01d6090a901314b525b62c&"
+    },
+    "cap entry": {
+        "time_given": "2025-05-12 22:24:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1371614007294693407/2025051300225601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823c696&is=68227516&hm=5e83ad59133d458074255201f32a00fdff8a623d8aa314c7bc256caf43beb3c3&"
+    },
+    "yellow pond crossing": {
+        "time_given": "2025-05-12 22:25:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1371614007957655662/2025051300232101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6823c696&is=68227516&hm=f241e1c224f40a2f0bc43deb58a3c7ded4052577160e8abaf1c804769aebb7a2&"
+    },
+    "tree hopper": {
+        "time_given": "2025-05-13 03:33:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1371691303523455056/2025051305315901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68240e93&is=6822bd13&hm=4a385a50d621f6eb3a511e38f801cce6754d5aa4fab19735c4a024828f3116b1&"
+    },
+    "true gothic suburbia": {
+        "time_given": "2025-05-13 03:46:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1371694907101548584/2025051305463801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682411ee&is=6822c06e&hm=9d2c709336d36c4870621047289c8eb9753791a6917d39f6464cfbd5e75d7d8c&"
+    },
+    "forsaken frame": {
+        "time_given": "2025-05-14 03:42:20 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1244417348115632179/1372055988462551121/2025051405365901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68256237&is=682410b7&hm=610674311367c6b5ff911bc45f5e82517710eeba9c0c289ad66593d44c33c693&"
+    },
+    "lost civilization": {
+        "time_given": "2025-05-14 03:43:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1244417348115632179/1372055989058011176/2025051405372101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68256237&is=682410b7&hm=80e0baa8ef1ebd7fdd1f3bcef3947877faac9eff44d7c0a9d1a2471ca4ca181b&"
+    },
+    "lefter bottom step": {
+        "time_given": "2025-05-14 03:43:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1244417348115632179/1372055989922037790/2025051405374701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68256237&is=682410b7&hm=cebf1ca2986ca383cd9fa8250c684dede8dbca2ff1390438e1fa2c49505fe658&"
+    },
+    "blumish board": {
+        "time_given": "2025-05-14 16:36:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1371628647504547930/2025051301232801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6825ce79&is=68247cf9&hm=89669ee49866e5506737cfbf1aea0dcbd36068cceb6851a7f710af9ba2946ec7&"
+    },
+    "flower power": {
+        "time_given": "2025-05-14 16:59:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255823983546479/2025051220335201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c53&is=6824cad3&hm=51f72ad64f67cd3e2b68cefc77cbd1bf5ee4d0f7520925dcaaab90eb1d0e8ad7&"
+    },
+    "lake skip": {
+        "time_given": "2025-05-14 17:00:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255824486994043/2025051220343101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c53&is=6824cad3&hm=f528036229d737a354cf492f4974eae8c540de45b724c4c1b2192c12bc22810b&"
+    },
+    "swaying breeze": {
+        "time_given": "2025-05-14 17:00:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255825007214733/2025051220350701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c53&is=6824cad3&hm=62d1ec9a068d4449b3ee13f8a98cea4cbc3aa26eb2a5596fdc4605e6d0e673ba&"
+    },
+    "lake bruncheon": {
+        "time_given": "2025-05-14 17:00:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255825569124473/2025051220353601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=d936485c17c858d9fffc4acda1293d2377529b171301f6bd2cb4a10100c0cd60&"
+    },
+    "odyssey oddity": {
+        "time_given": "2025-05-14 17:00:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255826085154876/2025051220355901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=50d56dd51aecf21e0adb8ed102fe6a15e6d9d93adc676c64fc564d651c3ea75b&"
+    },
+    "zipper enthusiast": {
+        "time_given": "2025-05-14 17:01:32 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255826567237803/2025051220363501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=41e4b4c0bc01d85123293dc4a3211c75b22c9b64d0e147b97edfb848e99c81e9&"
+    },
+    "lake crosser": {
+        "time_given": "2025-05-14 17:01:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255827230064670/2025051220374301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=0a5fc4f9101b325834356ab03cbd03b855605e7e43329430594a358c5e0f7ead&"
+    },
+    "scarecrowless": {
+        "time_given": "2025-05-14 17:01:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255827788038314/2025051220380901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=53f388c728552d2c321fdb6e182d513125aec4086525491172971df9ab23d8ae&"
+    },
+    "zipline junction": {
+        "time_given": "2025-05-14 17:02:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255828479840257/2025051220383901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=7c9bf7f12ea5f4f4b363c83c02f167ba848ecd00497f1e230ed68e58e74e15c9&"
+    },
+    "lakescope": {
+        "time_given": "2025-05-14 17:02:17 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372255829100859473/2025051220390701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261c54&is=6824cad4&hm=b4d793c8ce634b8b3ff57f037d3dde3eb06955017a560bea3f4264d9516eb53e&"
+    },
+    "true zipper ascent": {
+        "time_given": "2025-05-14 17:02:32 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372256578681438278/2025051220393900-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261d07&is=6824cb87&hm=bb32885f835c468df3eb7d1b3bad26ac98b0743802689f60296b7a96bd68e3b5&"
+    },
+    "luigi's ledge": {
+        "time_given": "2025-05-14 17:02:45 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372256579264708628/2025051220401601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261d07&is=6824cb87&hm=a6088a7899d5eb8ad8677b3759d248a1036b785b9208e049a122c739b7a53ffc&"
+    },
+    "zipper ascent": {
+        "time_given": "2025-05-14 17:02:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372256579964895312/2025051220411701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261d07&is=6824cb87&hm=ee91740ad507e11d70813f02ab136fdd6bea69b22e484210220ddd317b31731b&"
+    },
+    "luminous lamode": {
+        "time_given": "2025-05-14 17:03:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372256580774658118/2025051220490801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68261d08&is=6824cb88&hm=e1b4f2dc39db2aeeb059243b93408f1cb81597cbcd0797b236c579bc622f774f&"
+    },
+    "flower road skip": {
+        "time_given": "2025-05-14 17:50:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267253768392744/2025051419081801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f8&is=6824d578&hm=0663baa2d957bcf830054b05d18458f0baea5dee7a59c5d5278b630398889618&"
+    },
+    "uproot beans": {
+        "time_given": "2025-05-14 17:50:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267254527299614/2025051419085301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f8&is=6824d578&hm=75cd5d7c7dddccbe5446d31f932be22263b3a65296c8dbbf390d984a85bb04ae&"
+    },
+    "rocket hop": {
+        "time_given": "2025-05-14 17:50:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267255165095936/2025051419092201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=6e60d8504c940dc7e7154b3db5055752f7c0a0da16ff8a8fabf30eec451ca177&"
+    },
+    "tower below": {
+        "time_given": "2025-05-14 17:51:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267255810883737/2025051419095101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=4835e8f77278de480c809fd4e5d59cf25e117a70d48450404ecefe9771e1b6db&"
+    },
+    "iron road dram": {
+        "time_given": "2025-05-14 17:51:17 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267256423256114/2025051419102201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=2ba209fbb2bc2c98c65288b078797e577f955bbe3889bff5541b0e626d212bac&"
+    },
+    "love garden": {
+        "time_given": "2025-05-14 17:51:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267257002201088/2025051419110201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=09815c5acc79a29935ea27c611c00af27505a45ce92fdfae288174e01ffc72f8&"
+    },
+    "frantic fog": {
+        "time_given": "2025-05-14 17:51:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267257631084706/2025051419113401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=cad7345869c375448798c031af5152679f373bc1915acb13e5370e954458adbd&"
+    },
+    "battlefield bound": {
+        "time_given": "2025-05-14 17:52:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267258071617557/2025051419120701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=a3d3cbb1aaf5172365116be02c9447c8ee30030213d4c3672cf1f6c45c5f634a&"
+    },
+    "flower flight": {
+        "time_given": "2025-05-14 17:52:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267258566414366/2025051419123601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626f9&is=6824d579&hm=2b86e38bbf6dbee1f231fb58fbf785b35e18c6630d4aa8c7c4bb1bf95ed1c4df&"
+    },
+    "wooded mard": {
+        "time_given": "2025-05-14 17:52:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372267259170656417/2025051419131901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682626fa&is=6824d57a&hm=1a9cdb97b4623f95d6e8c856b622f3cc46e0acda077fb9e82c56250dae71f443&"
+    },
+    "shepherds shortcut": {
+        "time_given": "2025-05-14 17:52:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268926188392638/2025051419135101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262887&is=6824d707&hm=97999709937455b7cdc05c605481edd3360ce82fced6d003087034fc1780fe01&"
+    },
+    "cage vault 2.0": {
+        "time_given": "2025-05-14 17:53:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268926775328960/2025051419142401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262887&is=6824d707&hm=dea68af7affd9f6871567855b3f12df6869a9ccf4b87f1462adaf8c5fbf3c323&"
+    },
+    "mini sherm's edge": {
+        "time_given": "2025-05-14 17:53:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268927429775390/2025051419145401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262887&is=6824d707&hm=065d8f4307cbc78967e547c2ab0a2f4195754d2e2ad77d92d3a906b68c417c23&"
+    },
+    "goombavoid": {
+        "time_given": "2025-05-14 17:53:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268928016842883/2025051419153501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262887&is=6824d707&hm=b6b02daccfbe19fd517eb1b41c58835f11ba03c920c31b201e86164e3c5dd172&"
+    },
+    "nutty ascent": {
+        "time_given": "2025-05-14 17:53:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268928532746472/2025051419161401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=b142b726aa8d1f05f4c7929bdfe2181ef332e594ea7e541b70fe11ecf45f9e89&"
+    },
+    "poison frs": {
+        "time_given": "2025-05-14 17:54:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268929216413899/2025051419164601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=f7773709713900aa7ab97f448a00a978f78461f66c27121df871bb5b10348a04&"
+    },
+    "woodscope": {
+        "time_given": "2025-05-14 17:54:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268930474836089/2025051419173801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=7dd67405327ac646eb84c8a6562915282bb8f102c857aea64c4096c90032e536&"
+    },
+    "industrial revolution": {
+        "time_given": "2025-05-14 17:55:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268931170963607/2025051419180901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=68bae5c6487a83f68023e5f58653b35bc0017db2ec0fa404dfbedcc75254092e&"
+    },
+    "goomba garden": {
+        "time_given": "2025-05-14 17:59:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268929929449473/2025051419171101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=812300279b9474d78c8f78d8c97fd0a008004f9fad9a939499538ae9d63e6c56&"
+    },
+    "flushed rush": {
+        "time_given": "2025-05-14 18:00:17 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372268931758162154/2025051419183601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262888&is=6824d708&hm=44e7bf705af3493d185000a2be9c54f758cd0c9852cc34287d976f6450ad246d&"
+    },
+    "robotic forest": {
+        "time_given": "2025-05-14 18:00:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372269125191205047/2025051419190001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682628b6&is=6824d736&hm=7a9160efd7a4c9b02d4ee3b0212becb3533c67a288ed5777d8d68950e6d65a5b&"
+    },
+    "field flyer": {
+        "time_given": "2025-05-14 18:12:59 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372275150375878736/2025051420123501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68262e53&is=6824dcd3&hm=55ab59a4a834b84eb7596b6333f4eb9314ce4bc6083d3b8355673f1b93a4a525&"
+    },
+    "meme tree": {
+        "time_given": "2025-05-14 18:56:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286101930246229/2025051420293201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263886&is=6824e706&hm=d22a90059d6ea5aba517666a941504c761dd2ebf8429811453b464b407331209&"
+    },
+    "beetle bypass": {
+        "time_given": "2025-05-14 18:56:24 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286102693740564/2025051420300001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263886&is=6824e706&hm=66ddd13cecfe00bb158ea1921ee4936e8bde505425763b3c1f2339230f7583e8&"
+    },
+    "glydon't": {
+        "time_given": "2025-05-14 18:56:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286103310176266/2025051420304001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263886&is=6824e706&hm=75ffd38eaf467265196b90e32d974cc9ccea302170c3278fe58f107d2aebbe74&"
+    },
+    "banana collector": {
+        "time_given": "2025-05-14 18:56:51 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286103939186868/2025051420310201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=356caf5df9e066a814b18115fb0618f5acb911606ce8281eac1cd1455c04c245&"
+    },
+    "swaying poison": {
+        "time_given": "2025-05-14 18:57:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286104652353638/2025051420314101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=4e8882718e7cf429f28bc3f3323bf0fe02729177307471497efca6ef6ac46d05&"
+    },
+    "makes boiga": {
+        "time_given": "2025-05-14 18:57:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286105751130215/2025051420320601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=9c81c5cc01e405ddf51d09dc63de646c61b976db293f65726fb670bd8980a641&"
+    },
+    "amiibo stomper": {
+        "time_given": "2025-05-14 18:57:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286106531397905/2025051420324701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=bc4ef24ac89839f1dd56f5c879a230aa3bc634b8d9f3073c1a08f7d63da7bdc3&"
+    },
+    "klepto's vault assault": {
+        "time_given": "2025-05-14 18:57:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286107181646014/2025051420331201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=4e68269b304aafa23ff9c3887dd3ca365af0f921729696e116be6879faefb939&"
+    },
+    "klepto's gap": {
+        "time_given": "2025-05-14 18:58:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286107806466108/2025051420333601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263887&is=6824e707&hm=4b29d469621aad2b767fae56d996c2782d0a6c6d3a6c122198ee0de081ebc8e2&"
+    },
+    "lava overpass": {
+        "time_given": "2025-05-14 18:58:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372286108565508216/2025051420340301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68263888&is=6824e708&hm=c205e7aa98fce1478203b77b28abafa741361200857953dd517c78f89370afe0&"
+    },
+    "true cage triple": {
+        "time_given": "2025-05-14 19:03:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287651771711620/2025051420342801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f8&is=6824e878&hm=7d58c4a6bb8517b4f4b135135e9ffd2a98c9dc30cd30c286ecfb917ae62224a3&"
+    },
+    "heatwave havoc": {
+        "time_given": "2025-05-14 19:03:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287652526555187/2025051420345301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f8&is=6824e878&hm=7833be4c0ecdedc2c2da4a85d3e6b868075471e5f23cb72c9abc6d035a5864c8&"
+    },
+    "mountain scaler": {
+        "time_given": "2025-05-14 19:03:50 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287653462020096/2025051420352001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f8&is=6824e878&hm=47b9ba346bf80cff8fd9248ace5cedeea73fcfe04411f2a620b3a7fe9c9545e4&"
+    },
+    "tree ascent": {
+        "time_given": "2025-05-14 19:03:59 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287654233768127/2025051420360601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f8&is=6824e878&hm=1d6c1e59d1279b918c2b7146f4ff376974606664b20773bceabc3009752f859e&"
+    },
+    "makes yellow dram": {
+        "time_given": "2025-05-14 19:04:15 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287655152189500/2025051420362901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f8&is=6824e878&hm=7cd4806d1a8bb9ed5d8cc2d649f323068d8d69edc3d13e91f5a29437c65e3080&"
+    },
+    "trapeetle trespass": {
+        "time_given": "2025-05-14 19:04:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287655835865148/2025051420365101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f9&is=6824e879&hm=03cb05d6dbb61c55f033bdfecab9a95dac201f02eaa6ebf2b8ce7a8a8642f9ed&"
+    },
+    "magles lost": {
+        "time_given": "2025-05-14 19:04:51 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287656322666607/2025051420371901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f9&is=6824e879&hm=7e9a735d190ec471b81f9b0f4975b0db8f5f125d619fe3f919ccd1b61d1a02ab&"
+    },
+    "lost gap": {
+        "time_given": "2025-05-14 19:05:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287657010532433/2025051420375001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f9&is=6824e879&hm=7a8235b959d8890e1d9449fbdc478ba3bb7c916402533f8ee55166fbd9234ff0&"
+    },
+    "beetle block": {
+        "time_given": "2025-05-14 19:05:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372287658117824612/2025051420382601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682639f9&is=6824e879&hm=c92a6f773c5159f7d2b0708226c5336404d8e56173a2f1c551acdd885f92d79f&"
+    },
+    "vanish cap": {
+        "time_given": "2025-05-14 21:02:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372317909245755412/2025051422473801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68265625&is=682504a5&hm=d112702ec81ed72a5a2597b24cfcd3394f7776cc21469eca4b8e248329692169&"
+    },
+    "true rocket hop": {
+        "time_given": "2025-05-14 21:02:11 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372317909740687550/2025051423003901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68265626&is=682504a6&hm=8d1ebd2aa45e8e660233cc4823e10cf0cd80094ed177f96c6ff4264d68a9dc16&"
+    },
+    "true shop lifter": {
+        "time_given": "2025-05-15 02:57:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372407365697142885/2025051504493101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826a976&is=682557f6&hm=01bec69962a60f94eaba507223b298b473297f4835e720541f10951eefef31b2&"
+    },
+    "pillar prophecy": {
+        "time_given": "2025-05-15 02:58:22 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372407366535876688/2025051504503401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826a976&is=682557f6&hm=1477f765ae8ceb2bcebcbb739fcb779415765710de1fa6afd9683d53b09917ef&"
+    },
+    "oasis uprise": {
+        "time_given": "2025-05-15 02:58:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372407367475531827/2025051504510201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826a976&is=682557f6&hm=b94a54b0121d5a29e6b7a8c560aedc59019780f6276e731f62e7d6624b1e8513&"
+    },
+    "cloud overlook": {
+        "time_given": "2025-05-15 02:58:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372407368213594152/2025051504513801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826a976&is=682557f6&hm=09fe187012bc24faff5f3e2343eae8bb52c393531030afd66cddaf2f60666f1f&"
+    },
+    "little sheepy boi": {
+        "time_given": "2025-05-15 02:59:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372407369203585054/2025051504485401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826a976&is=682557f6&hm=36fe53c5fe9220510cd961bc55cb7c1d45b0a19294b7709999c0cee9a139daf2&"
+    },
+    "hellfall": {
+        "time_given": "2025-05-15 03:15:01 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1244417348115632179/1372411826557685921/2025051505153501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6826ad9d&is=68255c1d&hm=f37b40369d4d087073496eb57b814501ae3e01609e38da4c337f7d65455b284d&"
+    },
+    "sinking step": {
+        "time_given": "2025-05-15 17:39:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1372628459951620174/2025051519354701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6827775f&is=682625df&hm=91a80509ba8876d2f028b024b75b2ead982fe52fa68c7de9ba3d24c65a4df507&"
+    },
+    "swaying oasis": {
+        "time_given": "2025-05-15 20:17:22 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1372668225548062862/2025051522142601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68279c67&is=68264ae7&hm=a59f829cfd12087d4f5287eb7a952e815980d3d97a57703158d0e1d5b23c641e&"
+    },
+    "labyrinth legacy": {
+        "time_given": "2025-05-15 20:48:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1372677014825340938/2025051522452301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6827a497&is=68265317&hm=257dad186f8c76bc86f5018c3290e1091db69e83961617be70eecaf20b6a8c54&"
+    },
+    "girder crosser": {
+        "time_given": "2025-05-16 04:07:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1372786782692970893/2025051606052901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=68280ad2&is=6826b952&hm=e275469d5464f85fbd1741fdf98af4faec18263c3e99336c122d02f8f8a02544&"
+    },
+    "metropolitan monsoon": {
+        "time_given": "2025-05-17 17:49:33 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1373356478915678309/2025051719492800-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682a1d64&is=6828cbe4&hm=57f23478ea0856578c160c8a348cbefd48b1fff567b82116e4fe059a58a34142&"
+    },
+    "yellow poison": {
+        "time_given": "2025-05-17 19:21:33 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1373379519125127219/2025051721190201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682a32d9&is=6828e159&hm=77dc903739fe963dfba732207e45a5197873c4a172ca0d1f8796af5ae978ab0a&"
+    },
+    "pyrorail": {
+        "time_given": "2025-05-17 19:21:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1342154507882070177/1373379519678910636/2025051721192801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682a32d9&is=6828e159&hm=d549e5f05807a7bcd4b595fd0a9f6f5ce616ec02303c70211d64115ec82693c3&"
+    },
+    "metro impossible": {
+        "time_given": "2025-05-18 16:06:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691528920436878/2025051702320401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556e&is=682a03ee&hm=4ec084a1668a55f2cef250563f399185cc7ff92edaeb76eba7b72e1b94c15c06&"
+    },
+    "hedge rendezvous": {
+        "time_given": "2025-05-18 16:06:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691529532674238/2025051702323501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556e&is=682a03ee&hm=9883ce323f159033a9401b7580d0eb67235a27b34a1f9fc553f8b432ee6ffd55&"
+    },
+    "dumpster dive": {
+        "time_given": "2025-05-18 16:06:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691530094579783/2025051702330401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556e&is=682a03ee&hm=df3a5a21738d5c7714a92354c227026f21101c6c052a512d11e17a7f0a24fe0c&"
+    },
+    "festival dram": {
+        "time_given": "2025-05-18 16:06:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691530786902047/2025051702333401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556e&is=682a03ee&hm=cd74c9765c9543b59e938a855a25280b6db909ab0f37132ed9a91b31ad425427&"
+    },
+    "metallic madness": {
+        "time_given": "2025-05-18 16:07:15 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691531365584947/2025051702342801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=8b0ef8d6c53533a252bab0865f7cc98f15cc4ec2ef0fd7f005ce71d9df1e954f&"
+    },
+    "under construction": {
+        "time_given": "2025-05-18 16:07:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691531768103032/2025051702350101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=f7300d32639af1c0f5c1bc8e20bd58dcdf73dff5cb1b020fc531c05c6784d5ed&"
+    },
+    "mini construction skip": {
+        "time_given": "2025-05-18 16:07:42 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691532322017335/2025051702354601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=3004d12e6eaacf9312ef0a99e9c135ea8c3da0964fc4e3cead64caa46b4f094d&"
+    },
+    "car clash": {
+        "time_given": "2025-05-18 16:08:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691532896506056/2025051702362001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=91205ceceb087a890b532aa4d096e8bf87ff9de4d630ca3413ba7f1ea95efaa5&"
+    },
+    "airvent acceleration": {
+        "time_given": "2025-05-18 16:11:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691533567459408/2025051702364901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=94b3ae5e53b2625c2ba70e5c718fe4b33c7915a37372b9220f8d607b9bbd856f&"
+    },
+    "jaywalker": {
+        "time_given": "2025-05-18 16:13:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373691534062653571/2025051702371301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b556f&is=682a03ef&hm=1580dd82f3e7379dbfe89824ee41771bc0b6517208d0957e6bbf253622aa57f3&"
+    },
+    "groundless girders": {
+        "time_given": "2025-05-18 16:14:01 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693014932983818/2025051702374101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d0&is=682a0550&hm=8c88d6bae50b8a3337ce4643becca92a3a891c192559586588a0b9be4f1203d5&"
+    },
+    "water tower": {
+        "time_given": "2025-05-18 16:14:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693015604068442/2025051702380801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d0&is=682a0550&hm=0ab5f8190ad8c8116aa0f02601e61e90d395bcdc08f84dd2c2daf4eb64090c84&"
+    },
+    "rocket launch": {
+        "time_given": "2025-05-18 16:15:33 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693016660905994/2025051702385701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=986cabd7289af0dd317dfa1ed8fe3d03685ef77de164a3e956b0512914379e77&"
+    },
+    "high rise hop": {
+        "time_given": "2025-05-18 16:15:50 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693017461887059/2025051702392801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=eab1b21f7d5f0d2a3bc6be8bc480d961ba5840e53736d9992d627b9ab26b447f&"
+    },
+    "underground passageway": {
+        "time_given": "2025-05-18 16:16:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693018024054794/2025051702395601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=f3b2f78b8a1f1d1da8ddd8f758382e7a4e4932b8965a1f4a46768737e395c233&"
+    },
+    "uptown funk": {
+        "time_given": "2025-05-18 16:16:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693018523041864/2025051702401801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=3bebe610e7d4d5231210c3bcdcc2dabde09960e9873b20c69329ccc5b1e71b87&"
+    },
+    "skyscaler": {
+        "time_given": "2025-05-18 16:16:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693019081019473/2025051702405401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=fb5eaf5020ad0b7f6fac1ce554cb92921b9e0dfa8e6c53cac4827f9c5a0b2ed3&"
+    },
+    "hammer escape": {
+        "time_given": "2025-05-18 16:17:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693019592855724/2025051702411901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=7bb0826fc98359b348ca632e2b7077e66754ace9f1bb275c040bc8fb10c3c398&"
+    },
+    "metro mard": {
+        "time_given": "2025-05-18 16:17:14 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373693020142174301/2025051702414401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b56d1&is=682a0551&hm=10735b9bcc2f44ca885054bca89d866b31783716b80aba3c9a4d25a8b1d90930&"
+    },
+    "billboard cross": {
+        "time_given": "2025-05-18 16:17:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695757068144710/2025051702421101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595e&is=682a07de&hm=f21e2d89d716dd66029295967c7ed774170f6d6b2ca666aae489c27066bf53ad&"
+    },
+    "thunderstruck cityside": {
+        "time_given": "2025-05-18 16:18:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695757793886209/2025051702425201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595e&is=682a07de&hm=2ffbb55cc7cd3ee2b964ec8a5c9b234aeea88d7f5acbdf9a02b8d36ca6c1630b&"
+    },
+    "grate leap": {
+        "time_given": "2025-05-18 16:18:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695758423035914/2025051702432200-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595e&is=682a07de&hm=5c4e462ea48bc237166335673d538771607c4ca59788f9f1975ebaf198e64833&"
+    },
+    "metallic descent 2.0": {
+        "time_given": "2025-05-18 16:18:52 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695758972227644/2025051702435901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595e&is=682a07de&hm=05cb11d9ffbb2f5997d356c8c5f48ff828f4c62d5a775175daeb1c5c42046253&"
+    },
+    "city skylines": {
+        "time_given": "2025-05-18 16:19:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695759534522418/2025051702443001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=1669c50862d809d4dd59deef5852c9c6f6545f2a76db0c167cd2bb27806d7b02&"
+    },
+    "mini metallic descent": {
+        "time_given": "2025-05-18 16:19:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695760193032352/2025051702445801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=9c447c076fe5cf1cc06c2e1778a5d3d7f2c5e66cf9ce1012ddd7b993ae28c97d&"
+    },
+    "coconut mall": {
+        "time_given": "2025-05-18 16:19:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695760893214860/2025051702475301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=44984a7b4022cc0c10ae86f3961868db9a79cce951a7073e7cce19aafe7febab&"
+    },
+    "glittering gold": {
+        "time_given": "2025-05-18 16:19:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695761551855736/2025051702483501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=6159bfac09f57019ad721ae88e3b9193e6a9ee0dfa8a4b27beb3f8ecf54024e6&"
+    },
+    "reverse natural construction": {
+        "time_given": "2025-05-18 16:20:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695762201841794/2025051702500001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=450883431667d5404b78e9df9641f4aa587a33d007ae2532de5c478eb5e5d6bc&"
+    },
+    "night sky": {
+        "time_given": "2025-05-18 16:21:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373695762893901894/2025051702504101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b595f&is=682a07df&hm=b69805f6803805f32d548e5674ef9dc0b6a0a43b220712f50cacdf7e6cd5706f&"
+    },
+    "electrodynamics": {
+        "time_given": "2025-05-18 16:28:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697213133230120/2025051702511701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5ab9&is=682a0939&hm=f834fcf3b4af859b7620957168926ff586c34bbbd2a12be8bc00b9461dcf35c6&"
+    },
+    "tourist disturber": {
+        "time_given": "2025-05-18 16:29:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697213800382575/2025051702522001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5ab9&is=682a0939&hm=1fdf75e1d3ee75fd87743e03857f9282788a0a0c1538894b2191f037dcc03ca5&"
+    },
+    "construction skip": {
+        "time_given": "2025-05-18 16:29:29 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697214362423316/2025051702530101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5ab9&is=682a0939&hm=a2c56c4c1a6c11ee678505acf367d3d3a8760ee2190dedc29d23dac4b08aca30&"
+    },
+    "lower hurb jump": {
+        "time_given": "2025-05-18 16:29:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697215083839701/2025051720222501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5aba&is=682a093a&hm=d9d1cf500e14e0686b9f10264db321e3a2520f94bc52ae1e05bb52060640a8d8&"
+    },
+    "sky hedge": {
+        "time_given": "2025-05-18 16:29:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697215721246911/2025051803173801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5aba&is=682a093a&hm=b70d8ec65564a67cdd531737acf96e030448c82f9fc094352aacdc62c5976042&"
+    },
+    "floral flourish": {
+        "time_given": "2025-05-18 16:30:15 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697216367165511/2025051806042101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5aba&is=682a093a&hm=956deccd3dce9d26069d20b506289888fab5d4a7e52dbf8010a95ce5e893b74b&"
+    },
+    "airborne assault": {
+        "time_given": "2025-05-18 16:30:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697217252294756/2025051806045001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5aba&is=682a093a&hm=70122c87302799659096faa3b12c2f987fc9bd8919ec093bdff35aefa48fc990&"
+    },
+    "car insurance": {
+        "time_given": "2025-05-18 16:30:38 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373697218053148762/2025051806051601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5aba&is=682a093a&hm=54c40b0c0bc9eeeb6b83948f71be2606cb8ce1e3cf0416c754e43039b6ef38dc&"
+    },
+    "cafe crusade": {
+        "time_given": "2025-05-18 16:30:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373698644389396490/2025051818291301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b5c0e&is=682a0a8e&hm=30f951a3de48ac847a1fcf5e5e9506b56551e2e431adb9517d65986f8b2deaa5&"
+    },
+    "icicle shower": {
+        "time_given": "2025-05-18 18:22:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726973540569159/2025051819333501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=7d8776e5ed0e7a840ddd6ceee26310d0164fd06516a9a7377bc19db59a92a58a&"
+    },
+    "snowy umbrella": {
+        "time_given": "2025-05-18 18:22:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726974308257932/2025051819335601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=cbcc5ae3469bc0851b8b542d7b2c0f29eaaa1c54505e4a9311bda0cdf47ba12d&"
+    },
+    "snow dram": {
+        "time_given": "2025-05-18 18:22:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726974949720198/2025051819342401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=4033e689d36d11a64dedb986fe4b4705dd22d20e347dcf07aea56ff2ae91497a&"
+    },
+    "north pole": {
+        "time_given": "2025-05-18 18:22:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726975629328555/2025051819344901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=9061bbf397eaf8d4d9e690bf197579e6ea24934e3e0e8816c5a40610a2543361&"
+    },
+    "frozen peaks": {
+        "time_given": "2025-05-18 18:22:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726976178651247/2025051819354001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=23c8dc09a6eff67ea04a99707c3b02063e90908cc955d81214871a3080c362e5&"
+    },
+    "antarctic assault": {
+        "time_given": "2025-05-18 18:23:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726977248202913/2025051819361101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7671&is=682a24f1&hm=6399916c66e10e493c493e4bbbbd8834d11333b02c67c4b2987113381bac725c&"
+    },
+    "icicle gap": {
+        "time_given": "2025-05-18 18:23:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726978103967864/2025051819363201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7672&is=682a24f2&hm=f1aa96ca008821efb8eb611685cc4b4f5d19f8aa4ffccb75bb7f8f9266075018&"
+    },
+    "frosty traveller": {
+        "time_given": "2025-05-18 18:23:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373726978934312970/2025051819370301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7672&is=682a24f2&hm=078470f753845a352aaeb5cf79cca05f0a581f0b533a62faf4cc5004e3343044&"
+    },
+    "banzai bounce": {
+        "time_given": "2025-05-18 18:28:29 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728887426646126/2025051819351301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7839&is=682a26b9&hm=c2c4b6197c7e0e8ddb4db8e0452d9500003ceb59b67e6d19659e7150eb1502f5&"
+    },
+    "frosty traveller 2.0": {
+        "time_given": "2025-05-18 18:29:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728880585605160/2025051819372401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7837&is=682a26b7&hm=0edf64328b1098e5aea5d8569a729933ab0b6d50d31471cadccf5d306ceec22a&"
+    },
+    "frozen moon collector": {
+        "time_given": "2025-05-18 18:29:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728881206624327/2025051819375201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7837&is=682a26b7&hm=aa4369e444b970ab58015c900426ec6b53ebc52ff1db74b0a3eddf09e96f72d7&"
+    },
+    "icicle iceland": {
+        "time_given": "2025-05-18 18:29:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728882053742729/2025051819381901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7838&is=682a26b8&hm=aaf3664970203c20c35c3bb74ccc5dbf6eabf8774577cc76197587f026a5d38f&"
+    },
+    "avalanche": {
+        "time_given": "2025-05-18 18:30:02 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728882750132326/2025051819384601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7838&is=682a26b8&hm=9808bba528f4e0d63e8f28316bdf8ea244a72c1b63cc7108dfb24f885f548c14&"
+    },
+    "glacial gust": {
+        "time_given": "2025-05-18 18:30:21 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728883546787840/2025051819391701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7838&is=682a26b8&hm=72a454bbe4199a35513d0650975ced95aa87653b20041939891e8e764e6bf59d&"
+    },
+    "frostbite": {
+        "time_given": "2025-05-18 18:30:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728884406882504/2025051819394401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7838&is=682a26b8&hm=4ed7202dac4bb22b8a63dce268ab47fcf86ed02675f5cb52ffeae06ab24a62b6&"
+    },
+    "tyfoo terror": {
+        "time_given": "2025-05-18 18:30:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373728885388087547/2025051819400601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682b7838&is=682a26b8&hm=747af8898c6d14e94a3332d35e3ebe0fdbd99daa1342e942a83cab4098dcfa39&"
+    },
+    "seaside dram": {
+        "time_given": "2025-05-18 22:59:49 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795648238911609/2025051900325201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb666&is=682a64e6&hm=08084507c79abb154acce478dcb22c0b8e07d1ec144699595b621d9a7345e22c&"
+    },
+    "rocky shell": {
+        "time_given": "2025-05-18 23:00:00 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795648943689758/2025051900331501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb666&is=682a64e6&hm=b620f62a8e9fdabbe87b4be7772549295668a9b59142fe1662a2f908a2592b3a&"
+    },
+    "seaside mard 2.0": {
+        "time_given": "2025-05-18 23:00:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795649513980017/2025051900333901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb666&is=682a64e6&hm=d10ff25092b4c204d487b028d1c2480c263ba8f1cbc422e7f3c0d6188c5df0b3&"
+    },
+    "canyon climber": {
+        "time_given": "2025-05-18 23:00:27 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795650055176224/2025051900340801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb666&is=682a64e6&hm=9bc527c07622e89a97d58dbf26ac93ef4ac67e268b6d49111c99c3b5be4f6674&"
+    },
+    "aqua pillar": {
+        "time_given": "2025-05-18 23:00:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795650600173681/2025051900343701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb666&is=682a64e6&hm=90436e88a26d022130734518a3151eb9cf547a355f76ccb93de82360c384281a&"
+    },
+    "cliff climber": {
+        "time_given": "2025-05-18 23:00:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795651128786996/2025051900350001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb667&is=682a64e7&hm=cc9560559531dccfdb5862de3332a8b9f01b98db5cc032c99b42fd5efe01bb09&"
+    },
+    "seaside wall wrap": {
+        "time_given": "2025-05-18 23:00:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795651556610068/2025051900352401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb667&is=682a64e7&hm=f33d14c6817588462a624eb66bb7ee4687de55f0a11f822e34a129098e2eb68b&"
+    },
+    "jetstream jolt": {
+        "time_given": "2025-05-18 23:01:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795652114583693/2025051900354701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb667&is=682a64e7&hm=74cb9010e053e353e82017e3040c1d7912427361e55c8531168cbdd48736d1e6&"
+    },
+    "volley reacher": {
+        "time_given": "2025-05-18 23:01:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795653108498473/2025051900361001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb667&is=682a64e7&hm=5b46881a63ef90033c1bceff2a7c84c5c1c91858d2f5ca62ca153dc82a3cda1d&"
+    },
+    "seaside mard": {
+        "time_given": "2025-05-18 23:01:34 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373795653750100128/2025051900363601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb667&is=682a64e7&hm=12331ef1784af610dd5731d5ddc356783975c382d111a3f26fdd05538866b1e5&"
+    },
+    "barrel roll": {
+        "time_given": "2025-05-18 23:01:45 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796813332811897/2025051900365901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77c&is=682a65fc&hm=e15e98d43cbc6607a0bf5f74241305fb8a542f8cddad7a1f5a5cec63be0c99a3&"
+    },
+    "cannon crossing": {
+        "time_given": "2025-05-18 23:02:07 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796813798113330/2025051900373101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77c&is=682a65fc&hm=9f86459ab41793cd2c0195abaa53e57917305dbdadeb310c6aaad791347dc3bb&"
+    },
+    "sunny soar": {
+        "time_given": "2025-05-18 23:02:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796814423199744/2025051900380001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77c&is=682a65fc&hm=4e7af3e59b249cc2479dea79f0172285596c1f58a02502f482db9099051d3a8c&"
+    },
+    "seedshell": {
+        "time_given": "2025-05-18 23:02:53 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796814951813200/2025051900382300-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77c&is=682a65fc&hm=315a88190fab4b7a40eda57c7dac540450f630e3ebc932b9e4f1aad4df3643d2&"
+    },
+    "fountain fumble": {
+        "time_given": "2025-05-18 23:03:04 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796815412920502/2025051900384601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77c&is=682a65fc&hm=0d7e75a21f0d1cb4ead25dada99a312302e22d8d868f3d93444c075083c2180b&"
+    },
+    "gushen gap": {
+        "time_given": "2025-05-18 23:03:12 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1373796820916109344/2025051900392001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682bb77e&is=682a65fe&hm=7f6f9f88290995f765ecb32ea8eb2964a75f7502ca52040c7e2a904cd444190e&"
+    },
+    "fork room": {
+        "time_given": "2025-05-19 18:14:19 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084261715509320/2025051919170401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=5f66e584e6bd4b38a0439151fa347d976dc4dae3d5b7d4690198827df09574e8&"
+    },
+    "volbono valley": {
+        "time_given": "2025-05-19 18:14:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084262180946000/2025051919172901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=1c635e7b8f4bab0b69065c9c770081f19e6609832e0e592029372376da238610&"
+    },
+    "salt triple": {
+        "time_given": "2025-05-19 18:14:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084262914949160/2025051919175801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=020d7712527662a64475257e1beeee21a2987489a982ac196d9a3a35a86fd352&"
+    },
+    "mini torchlift": {
+        "time_given": "2025-05-19 18:14:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084263355613446/2025051919182501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=4bec1c42497ee354e8372b97b1f4d77d0e1e25a9d50a030510bd50269a04b9e7&"
+    },
+    "podoboo domain": {
+        "time_given": "2025-05-19 18:15:11 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084263846351038/2025051919185901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=7d1825dc34f4b705335c9e558f05e3bd2963e29969c02d53c30c38214544dbb3&"
+    },
+    "soup bath": {
+        "time_given": "2025-05-19 18:15:21 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084264521367673/2025051919193101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc331&is=682b71b1&hm=ddc285ee6f3686e7ee31756c900d0370b3906f5c0aee380d13e48872be366895&"
+    },
+    "pillar to pillar 2.0": {
+        "time_given": "2025-05-19 18:15:33 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084265226276874/2025051919201201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc332&is=682b71b2&hm=771f6aa1cc66f4ee534403458947478a8bcc891e7eb38590aa8f9b62d153c620&"
+    },
+    "lunch gap": {
+        "time_given": "2025-05-19 18:15:44 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084265771532288/2025051919204001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc332&is=682b71b2&hm=99573f8ac55c53d5f104e044bca833492af6cbb8870980485f2a585f50d24d2a&"
+    },
+    "yellow pegpog": {
+        "time_given": "2025-05-19 18:15:54 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084266270658670/2025051919210401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc332&is=682b71b2&hm=f4c7f2d212abe52ad2cf7c9457d3ca6f36656c9e1d634eee2fa7a23c5020757d&"
+    },
+    "eagles lunch": {
+        "time_given": "2025-05-19 18:16:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374084266832695406/2025051919215501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc332&is=682b71b2&hm=5fd8188e219f8df8604b16886e4b10b795d3f9b59db01cd1b6514616f4e791aa&"
+    },
+    "crystal climber": {
+        "time_given": "2025-05-19 18:16:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086022752633013/2025051919223101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=b953d05ac69728fd1f4ab99d68c892c0fe172adebd651264c2bb54738f0d3db2&"
+    },
+    "brownblox": {
+        "time_given": "2025-05-19 18:16:27 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086023172194304/2025051919230001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=c5e87af89a4a35fff76a536a3758c6aba6371f0a6034122889055a78f46f308c&"
+    },
+    "gourmet rise": {
+        "time_given": "2025-05-19 18:16:38 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086023755071578/2025051919233101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=c485cab3982f9f14824fe411ea5e1d939d32bfbe1eb8bbfcb1766c11331e568c&"
+    },
+    "veggietales": {
+        "time_given": "2025-05-19 18:16:50 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086024652783748/2025051919240501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=6fee644db3c517c081430664b358cc0a10f18993d8bc910bea05698c0793cfc8&"
+    },
+    "pegpoggies": {
+        "time_given": "2025-05-19 18:17:02 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086025445642311/2025051919243301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=97c3daa5f6d446ec73635357e77e5b6a8dcf8b80366b5d10689bd8b8c5f0d3f0&"
+    },
+    "gordon dramsay": {
+        "time_given": "2025-05-19 18:17:14 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086026196287528/2025051919250501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d5&is=682b7355&hm=1ed536293ce90e335828aa75592f51a98731e0dd35059edc74d4d76a0f2d31a3&"
+    },
+    "cooking cross": {
+        "time_given": "2025-05-19 18:17:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086027387605033/2025051919253401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d6&is=682b7356&hm=50cadc0e58e30ceabf65e518e07187445facf9d9ea8aa075e8a38d3033e9fb5b&"
+    },
+    "mini pan evader": {
+        "time_given": "2025-05-19 18:17:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086028289245195/2025051919263001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d6&is=682b7356&hm=f9dcad108d0b126c8ad9a1a1951ee1f01212e735744d1fcdfcd7e35f3bcd93c1&"
+    },
+    "backwards buffet": {
+        "time_given": "2025-05-19 18:17:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086029102809231/2025051919265901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d6&is=682b7356&hm=8cb7875827d54e01b1218be6b59552d2c6aef09c56998955383125d036c5e889&"
+    },
+    "ricotta cliffs": {
+        "time_given": "2025-05-19 18:17:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374086036258295938/2025051919273301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc4d8&is=682b7358&hm=891a319c1eb16dceb6574287bd256be236451dd7023af01a3ca0524297de48a6&"
+    },
+    "lunch mard": {
+        "time_given": "2025-05-19 18:18:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087680442236959/2025051919282001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc660&is=682b74e0&hm=9a6014976cd36a8fd27988b64fdfc449c47c17fc5082e6993e39e1bb5c2b7156&"
+    },
+    "bonkaroni": {
+        "time_given": "2025-05-19 18:18:24 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087681113329826/2025051919285001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc660&is=682b74e0&hm=8c77c39e3883c63dc66802d34b7a26cb1b72c6be83a4ec218c393b67b7c9b4e2&"
+    },
+    "spewart's stew": {
+        "time_given": "2025-05-19 18:18:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087681629225052/2025051919291801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc660&is=682b74e0&hm=ff1165f0d01b18468ab7cd67b46052a002e5d17380f6ad7166830edcda9e5bf9&"
+    },
+    "lava bypass": {
+        "time_given": "2025-05-19 18:18:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087682153644093/2025051919295101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc660&is=682b74e0&hm=3a0cea599b666a54b46f9a86ce6e3dcb281034bb031876e2725b8e5241882441&"
+    },
+    "magma crossing": {
+        "time_given": "2025-05-19 18:19:11 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087682703233074/2025051919303001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc660&is=682b74e0&hm=ebad569d13cff93482e9681651c35d588f1b8076911c3f2820d3f61f23a396fa&"
+    },
+    "moonicotti": {
+        "time_given": "2025-05-19 18:19:22 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087683395162202/2025051919305801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc661&is=682b74e1&hm=d969c4b0a767b1c0d58592771332263ae34d293ae1846317ee2cb8e409870e71&"
+    },
+    "capitalism": {
+        "time_given": "2025-05-19 18:19:32 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087683973840896/2025051919312301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc661&is=682b74e1&hm=76f8ee758d21efe589cc9b4ed5884bdd1ce5872b6a26d9cf8bd7fa25641c8d55&"
+    },
+    "yellow cheese vault assault": {
+        "time_given": "2025-05-19 18:19:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087684397731850/2025051919314801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc661&is=682b74e1&hm=2d51a3d543a304cf773d573c3ee1d58a0135d5105fa9890f360aa97d8e1b79f5&"
+    },
+    "amiibo lunch": {
+        "time_given": "2025-05-19 18:19:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087685022421082/2025051919321301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc661&is=682b74e1&hm=8ea1c35f28b2496ca7430e54494db6e4d12718e8937b0aa3ee072d9af49f64b7&"
+    },
+    "pan evader": {
+        "time_given": "2025-05-19 18:20:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087685903487096/2025051919324801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc661&is=682b74e1&hm=716db52bbb91edcced548f4a4cd2d993883a47d154f930ec6950f603014e5d9e&"
+    },
+    "heartbreak hit": {
+        "time_given": "2025-05-19 18:20:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374087860201722039/2025051919332101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cc68b&is=682b750b&hm=5ddfce0b88199f8093d03490b68d3feaee98e97e76b36e2e987ddfb6a3519cb5&"
+    },
+    "broken arches": {
+        "time_given": "2025-05-19 18:40:38 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094266686509187/2025051919582301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc82&is=682b7b02&hm=48cad8b8eba0af2255f7486873bedc0cee41ae3dbddc8b62e8a714e4e2b0ad93&"
+    },
+    "ruined mard": {
+        "time_given": "2025-05-19 18:40:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094267441746153/2025051919585501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc82&is=682b7b02&hm=5d2a0052f9ee8a38f65737768ffc377096e90943f1bd8f72b86ee9bb8b3a6b65&"
+    },
+    "ruined pillars": {
+        "time_given": "2025-05-19 18:40:58 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094268041400340/2025051919592401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc82&is=682b7b02&hm=f441a20a1a5ad34f739ce1a72923cc2d82c63f8ac893ea5fdd847c7d1a970c42&"
+    },
+    "mummy evader": {
+        "time_given": "2025-05-19 18:41:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094268615884850/2025051919595101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=8c9f8a23b1ec0413158a71a3a5379d35b7146641647113d256c977e1fbc545fb&"
+    },
+    "ruined dram": {
+        "time_given": "2025-05-19 18:41:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094269509406730/2025051920001401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=1e1b791a07ccc9bb947440c2ac86ac876cad86fa01a88be2adbc1aea3bf387c4&"
+    },
+    "crumbling ruins": {
+        "time_given": "2025-05-19 18:41:30 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094270319034368/2025051920004201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=8f35f25e59c18cecd3427f50ad69080c910ac292f735affce61df9ce56a8ae12&"
+    },
+    "ruined mard 2.0": {
+        "time_given": "2025-05-19 18:41:41 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094270813835335/2025051920010501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=3e234fa9ed11e3d49f7b358b0f8860e80460225b80a768caabcd87cf63bb1b89&"
+    },
+    "cadaver crossing": {
+        "time_given": "2025-05-19 18:41:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094271350837278/2025051920013101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=5e8b81b5b1d6dceee4a83bc89aa494a090d3b8858c7ec3e6db0e8f8b9e571bad&"
+    },
+    "dragon ascent": {
+        "time_given": "2025-05-19 18:42:04 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374094272080384081/2025051920020000-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ccc83&is=682b7b03&hm=41e3fdfa60d24fb7623984c68e99b13facba21496a0a19efbdde7cfa00eb2c85&"
+    },
+    "dark side impossible": {
+        "time_given": "2025-05-19 20:56:02 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374127557015765152/2025051922505901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ceb83&is=682b9a03&hm=16b67bc736f6b34777328e902535098890ec3c2ce05d5ff99bd343e11575cbaa&"
+    },
+    "fruity gap": {
+        "time_given": "2025-05-19 20:56:13 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374127557599035482/2025051922512701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ceb83&is=682b9a03&hm=cef9b1c8a032f1c0429e08a38cb7f018aaca59ebaa95be37c612016ed8596d7c&"
+    },
+    "sphinx hijinx": {
+        "time_given": "2025-05-19 21:08:46 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131557081677996/2025051922535501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3d&is=682b9dbd&hm=fef583bffb8ab10edab8425759ff0f5f490a6cd532e4aea393b11474e2b781cc&"
+    },
+    "magma meltdown": {
+        "time_given": "2025-05-19 21:08:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131557727604746/2025051922541001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3d&is=682b9dbd&hm=48b177e1046b892d6c78e9d9535008413a8c992debaf4b18b98a5595165b525f&"
+    },
+    "perilous pendulums": {
+        "time_given": "2025-05-19 21:09:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131558268538990/2025051922544701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3d&is=682b9dbd&hm=2ca07b309ca6cdbf2b869f237057ccce208b176fc8ed299b73cf116f96052b7a&"
+    },
+    "cobble cascade": {
+        "time_given": "2025-05-19 21:09:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131558847483904/2025051922553401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3d&is=682b9dbd&hm=f340c60224e22754d7a305b93f2e89aa1f01990a1ff2fa200c5f5ce9b4acb00f&"
+    },
+    "darkness descent": {
+        "time_given": "2025-05-19 21:09:35 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131559417905202/2025051922564101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3d&is=682b9dbd&hm=15c377544bc90ffc698a06a964ffa13a4c73f6addd9a8314a9d8a453b3225f23&"
+    },
+    "ring of fire": {
+        "time_given": "2025-05-19 21:09:45 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131560068157500/2025051922571101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3e&is=682b9dbe&hm=36abc76ca63fa395237159e8733a566381f9882b5e05cac9bddfe671bfaef93e&"
+    },
+    "statue stepup": {
+        "time_given": "2025-05-19 21:09:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131560747368591/2025051922574001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3e&is=682b9dbe&hm=64a3929185c2c879eaed890a622daceb934a56fbc039895da80a5f318d1cecef&"
+    },
+    "darker magma": {
+        "time_given": "2025-05-19 21:10:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374131561259339908/2025051922580701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cef3e&is=682b9dbe&hm=d26b295c3635ddbef2fc50b5e22bf79aae82d677210994d243938debc4c3cd0d&"
+    },
+    "mini yellow poison": {
+        "time_given": "2025-05-19 21:54:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141491282448444/2025051923083001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87d&is=682ba6fd&hm=5cd4153ac89f9195ef813ec9a7f57c329e413a96c6bdee6abb57e3b84501b95f&"
+    },
+    "golden glide": {
+        "time_given": "2025-05-19 21:54:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141491785633853/2025051923090101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87d&is=682ba6fd&hm=187127e235c708ae3c8faa3d30ac1f361f884a105ae06c7f5ec1bad238fc61a5&"
+    },
+    "shingle summit": {
+        "time_given": "2025-05-19 21:54:27 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141492565639368/2025051923092801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=504f0bb9442ff437bc2c2e34fb872f3f1938350f8083debb5cb2f64614a2491a&"
+    },
+    "roof descent": {
+        "time_given": "2025-05-19 21:54:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141493031338235/2025051923100301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=efdec4f4995bdea757cc830e126e4d256de5c275d458a3bf0235389e6f3a2e83&"
+    },
+    "bowser gap": {
+        "time_given": "2025-05-19 21:54:49 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141493681586308/2025051923101901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=f3dab16b4f252cec239b3cd7b5999e6f494f4348a0365a0758e63ebd2b343a61&"
+    },
+    "gatekeeper": {
+        "time_given": "2025-05-19 21:55:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141494277050494/2025051923104301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=b1ece2cd1de72a7f42be9ae856202c0e751c54c16419d8c1c656097fbbb4d0d7&"
+    },
+    "shingle leap": {
+        "time_given": "2025-05-19 21:55:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141494839214331/2025051923110900-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=b5d630e8e74bdd04c2ea9c3ad2d44f09aa3b0893e46b6523b31b073dd4fca376&"
+    },
+    "roof rising": {
+        "time_given": "2025-05-19 21:55:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141495350923315/2025051923183200-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=d4b0f381f13b8881d7e200b474070fede6a4c8872659bbcdc2ec166125356a29&"
+    },
+    "umbrella uprising": {
+        "time_given": "2025-05-19 21:55:59 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141495874945064/2025051923184601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87e&is=682ba6fe&hm=0f62582c0b2ac5584d30a3d29e560bc49a77f655caa710b9a3d73e0468aa4cd1&"
+    },
+    "courtyard cut": {
+        "time_given": "2025-05-19 21:56:09 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374141496437248101/2025051923190501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf87f&is=682ba6ff&hm=0f824e626d5da3b9a31e0c13922556e3223c0edeb0a35bfff5740e0dbb4e7882&"
+    },
+    "bowser mard": {
+        "time_given": "2025-05-19 21:56:21 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142963436748921/2025051923193101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dc&is=682ba85c&hm=155056967f993610013e119c3dea14d00bcfbedfc3b4bf98f425845e2173efb9&"
+    },
+    "roof hopper": {
+        "time_given": "2025-05-19 21:56:32 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142964301037660/2025051923195301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=ac58d098b1023f3de64d161dfdd178ca6bad0a70ec6414cd93fc644f57d6144d&"
+    },
+    "arena crossing": {
+        "time_given": "2025-05-19 21:56:43 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142964812484716/2025051923200801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=8227e52a9622f1fbb3fa05542de806d76629870c7e029320f7a5184d02878fd9&"
+    },
+    "stairway freefall": {
+        "time_given": "2025-05-19 21:56:59 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142965362069564/2025051923202301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=8ecfd1bf6c0f197028995e864384b2a4ae43cd5aef1c4d24c7393f32fbd1d304&"
+    },
+    "bowser's climb": {
+        "time_given": "2025-05-19 21:57:25 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142966465040524/2025051923204201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=876be1f126d64893d72469ba6327e820c8383e546504d25dcc13c7c32de92e3a&"
+    },
+    "spike vault assault": {
+        "time_given": "2025-05-19 21:57:36 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142966855241820/2025051923211301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=70ac4348f171cd575bc58ee55b79d7c12352c648c899396fa5e9f4a66e0a2378&"
+    },
+    "stair skipper": {
+        "time_given": "2025-05-19 21:57:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142967387783218/2025051923213101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=a2ee7e80723f0112cb9ac663c14b4c497b550761efe049e26b2a1638b6685985&"
+    },
+    "shingle shift": {
+        "time_given": "2025-05-19 21:57:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142967920722020/2025051923214901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9dd&is=682ba85d&hm=7e7d62ea18d2d7a14416d9fa6dac3c4aa80ab967e9d71a21eff562e1a80cdabd&"
+    },
+    "lantern lunge": {
+        "time_given": "2025-05-19 21:58:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374142968381964390/2025051923220801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cf9de&is=682ba85e&hm=c76cdc5162e881dca725dcf740f11d47b0c55bb3423b207f2a09b9e3a54928f5&"
+    },
+    "boxblocks": {
+        "time_given": "2025-05-19 21:58:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143860439253082/2025051923223201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab2&is=682ba932&hm=6b78b5914be00300ce2cf9a1d24e62397519e6eda0237bf122c1795821751f51&"
+    },
+    "courtyard beans": {
+        "time_given": "2025-05-19 21:58:28 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143860996964402/2025051923225601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab2&is=682ba932&hm=7d18d26519b52cac7a9e2179e47dd65a523368f12da8da521821ca0ae7a121e1&"
+    },
+    "cushion chasm": {
+        "time_given": "2025-05-19 21:58:37 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143861613662341/2025051923232001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab2&is=682ba932&hm=16c4a98553304363b9281015b0dcd27626f44bb8dd316ba9c4b56b6cf08f36cf&"
+    },
+    "rail crosser": {
+        "time_given": "2025-05-19 21:58:45 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143862339010580/2025051923234101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab3&is=682ba933&hm=5681d52a0e7437be86869e9d92f0d8abf9641c20255d5b1bc0c29b865210a286&"
+    },
+    "crate cross": {
+        "time_given": "2025-05-19 21:58:56 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143863358492773/2025051923241301-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab3&is=682ba933&hm=c3f78ede81e714749ba64d06938c3c9e3e9ae273f43dfaa5fe46344e0db17fb4&"
+    },
+    "yellow roof hopper": {
+        "time_given": "2025-05-19 21:59:05 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374143863979245658/2025051923244701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682cfab3&is=682ba933&hm=228f21c7247546e04f98f03821c4fe0341eef527bedd163d5e4475738eecb00d&"
+    },
+    "vertigo view 2.0": {
+        "time_given": "2025-05-22 00:57:14 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1374913727542857738/2025052202571801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682fc7b1&is=682e7631&hm=bd3c524d26e85ef859967602c31c04d5c7724cdaa7ab1f5e01b0dc6f08692825&"
+    },
+    "bonking tops": {
+        "time_given": "2025-05-22 04:08:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469869606018744340/1374959025371873350/2025052205572701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=682ff1e1&is=682ea061&hm=138ae6be266c43e1cb90e378a6f0e658837fa819f6cdde4b65150731065946b7&"
+    },
+    "dimensional divide": {
+        "time_given": "2025-05-22 18:57:03 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1371699354766807205/1375184470428221561/2025052220525701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830c3d7&is=682f7257&hm=e911d9f38408191162162b745891921928f227e169b5acc1cf7228e541d51b78&"
+    },
+    "galactic gorge": {
+        "time_given": "2025-05-22 19:36:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195072580030535/2025052221013901-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb7&is=682f7c37&hm=7e3d95ea6464affe611ada4be9347ab9c0b0180a716cf91f91574359e20e60df&"
+    },
+    "moon moon collector": {
+        "time_given": "2025-05-22 19:36:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195073423212645/2025052221024801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb7&is=682f7c37&hm=43e8d15be37d674f316a329734e467ec4809e7c6c514e06dd368367154a81e78&"
+    },
+    "abyssal leap": {
+        "time_given": "2025-05-22 19:36:48 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195074237038684/2025052221031501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb7&is=682f7c37&hm=361ea6f7c1333221890a6b342a70111966da667e2c4bc1ab0c7a866d6e360882&"
+    },
+    "cosmic canyon": {
+        "time_given": "2025-05-22 19:37:01 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195074962526470/2025052221034801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb7&is=682f7c37&hm=fb54b1e55952a22e0b97b76666a461532a98978f6fff9baf26d085966694452e&"
+    },
+    "galactic leap": {
+        "time_given": "2025-05-22 19:37:39 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195075969155192/2025052221071701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb8&is=682f7c38&hm=ca548483438d93bb7d10772d059955bbca4ffb60769d6c58e09742c26f418bb6&"
+    },
+    "zg leap": {
+        "time_given": "2025-05-22 19:37:55 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195076673798214/2025052221075701-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb8&is=682f7c38&hm=abaeb885efa7d383868a91af342b3011f2124bca2a79aeb8f3ac31a55f6def4a&"
+    },
+    "wedding rising": {
+        "time_given": "2025-05-22 19:38:10 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195077424447610/2025052221082201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb8&is=682f7c38&hm=3bc7921defc16fe32745a965a37c07f6c96e3843bdf7ba44a3472cd1c39c1f18&"
+    },
+    "table hopper": {
+        "time_given": "2025-05-22 19:38:23 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195078137614457/2025052221084601-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb8&is=682f7c38&hm=fc9628d441c6acc5148f9ebf464b9d23e089491e0a9e5f9cb27c997666acd49f&"
+    },
+    "lunar leap": {
+        "time_given": "2025-05-22 19:38:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195078997442632/2025052221092001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830cdb8&is=682f7c38&hm=c73b111ac1400f3ab56f55196084f5957b4f70b7c93b06301cc5aeb6b92aa309&"
+    },
+    "gratifying grate": {
+        "time_given": "2025-05-22 19:38:52 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195628929552434/2025052221094801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830ce3b&is=682f7cbb&hm=462afeceee9192c285338c772b8d7fab0b3da5f77b4ce7224959c2e60c0e3355&"
+    },
+    "moe eye gap": {
+        "time_given": "2025-05-22 19:39:06 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195629508235355/2025052221104101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830ce3b&is=682f7cbb&hm=2c709fd0101ae15a427d92fe3869dae46d439f4140f51812893dcd5b49204a12&"
+    },
+    "celestial chest": {
+        "time_given": "2025-05-22 19:39:18 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195630057820260/2025052221110801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830ce3c&is=682f7cbc&hm=bdc6598f14dedaa6f616b476b5d97f8107e22d89ac53bc6f82e1bf230f3256b7&"
+    },
+    "table dram": {
+        "time_given": "2025-05-22 19:39:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375195630565326900/2025052221121201-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830ce3c&is=682f7cbc&hm=b15dda3212c7d9dece905ab49e5cb2995a4af7880812beb543058fe52660805f&"
+    },
+    "nimble nimbus": {
+        "time_given": "2025-05-22 19:41:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279076643143770/2025051420170001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfb&is=682f6c7b&hm=d5748c7ca7495437862081159fa6d20263d8141313ebdc9c841a9a12e9083269&"
+    },
+    "heavenly hover": {
+        "time_given": "2025-05-22 19:42:26 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279077137940510/2025051420173001-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfb&is=682f6c7b&hm=2939caebfdf3bba81e8d05ce8bf0535cb4183c929be63e34b3cb4b3d40e7dc92&"
+    },
+    "cloudy stairs": {
+        "time_given": "2025-05-22 19:42:40 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279077737857204/2025051420181801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfb&is=682f6c7b&hm=377db411036b4f464b370bb84e9ca2a375f00f5855751862235f93438c4de112&"
+    },
+    "yellow cloudy stairs": {
+        "time_given": "2025-05-22 19:42:57 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279078249300219/2025051420185101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfb&is=682f6c7b&hm=09df8b152fd4b9cf6abb63cb8b8cd34dc69c29479ac952a214a3b15afa5c07e9&"
+    },
+    "cloud mard": {
+        "time_given": "2025-05-22 19:43:08 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279078828380281/2025051420192101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfc&is=682f6c7c&hm=6e907a02c0af92812247d6a629c0eec56b8c6ef3c058cbd9495f2e712e8ac6b5&"
+    },
+    "cloud dram": {
+        "time_given": "2025-05-22 19:43:21 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279079314784468/2025051420195501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfc&is=682f6c7c&hm=6f07d50dcc1e34e1f04707a686c91964dad18f4b763fcc1567b9a7e8317a9b58&"
+    },
+    "cloudtop cruise": {
+        "time_given": "2025-05-22 19:43:35 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1372279079843266690/2025051420202401-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830bdfc&is=682f6c7c&hm=783baed62b83b0356fe9cc11e06471323d2a37a87cb7ff609b9ad41c3d5b1815&"
+    },
+    "ancient step": {
+        "time_given": "2025-05-22 19:46:47 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/1032893474246246441/1375198158384005255/2025051520434101-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6830d096&is=682f7f16&hm=521074b3d3ac3dbdb46b9d8aa686d15dae8d2c368ece7ca7b7aedb95cb47ddf7&"
+    },
+    "canyon crossing": {
+        "time_given": "2025-05-25 00:53:31 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1375999862876934255/2025052502530801-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6833bb3c&is=683269bc&hm=18cdc8f344245fd4a5ac8060f0bbd65b695a51a40883e6ce7f35e36841fbc798&"
+    },
+    "lake leap": {
+        "time_given": "2025-05-25 21:25:16 (UTC)",
+        "proof": "https://cdn.discordapp.com/attachments/469973552607789066/1376310016889585746/2025052523255501-8AEDFF741E2D23FBED39474178692DAF.mov?ex=6834dc16&is=68338a96&hm=5d75b5c668b8df1060323630f460ecbca919dd81e50edecc6498a82d67b6faea&"
+    },
+    "true danger sign": {
+        "time_given": "2025-05-26 22:03:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1376681926605410396"
+    },
+    "neon night": {
+        "time_given": "2025-05-26 22:21:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1376686527534600282"
+    },
+    "arena guard": {
+        "time_given": "2025-05-27 01:08:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1376728638413602928"
+    },
+    "tostarena brickwork": {
+        "time_given": "2025-05-27 01:31:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1376734212178317393"
+    },
+    "ruins crossing": {
+        "time_given": "2025-05-27 01:48:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1376738601169326212"
+    },
+    "wall whacker": {
+        "time_given": "2025-05-31 23:59:40 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1378523133832593478"
+    },
+    "tower triumph": {
+        "time_given": "2025-06-01 00:21:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1378528684029513880"
+    },
+    "cryo plunge": {
+        "time_given": "2025-06-01 01:27:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1378545198220443720"
+    },
+    "true vault cascade mard": {
+        "time_given": "2025-06-01 02:10:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1378555918316470404"
+    },
+    "true lost gap": {
+        "time_given": "2025-06-07 02:08:19 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1380729823697178645"
+    },
+    "makes bacho": {
+        "time_given": "2025-06-07 02:15:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1380731790507114708"
+    },
+    "toxic incision": {
+        "time_given": "2025-06-07 02:25:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1380734169725796453"
+    },
+    "mushroom rise up": {
+        "time_given": "2025-06-08 02:09:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1381092475938275408"
+    },
+    "true flower power": {
+        "time_given": "2025-06-08 02:54:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1381103849502146570"
+    },
+    "true ridge rise": {
+        "time_given": "2025-06-12 01:10:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382527021577539594"
+    },
+    "golden tree mard": {
+        "time_given": "2025-06-12 03:10:37 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "sapling soar": {
+        "time_given": "2025-06-12 03:10:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "asterstem apex": {
+        "time_given": "2025-06-12 03:10:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "hilltop hedge": {
+        "time_given": "2025-06-12 03:10:55 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "scenic start": {
+        "time_given": "2025-06-12 03:11:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "foggy danger": {
+        "time_given": "2025-06-12 03:11:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382557558706929764"
+    },
+    "prepeace passageway": {
+        "time_given": "2025-06-12 15:52:00 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "truer cascade mard": {
+        "time_given": "2025-06-12 15:52:06 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "chomp cash": {
+        "time_given": "2025-06-12 15:52:13 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "goat's cave": {
+        "time_given": "2025-06-12 15:52:19 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "triassic balloons": {
+        "time_given": "2025-06-12 15:52:25 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "rock remnants": {
+        "time_given": "2025-06-12 15:52:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "prehistoric moon collector": {
+        "time_given": "2025-06-12 15:52:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382749034220884168"
+    },
+    "mini statue stepup": {
+        "time_given": "2025-06-12 19:00:14 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "quick sand evader": {
+        "time_given": "2025-06-12 19:00:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "freezing headache": {
+        "time_given": "2025-06-12 19:00:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "pyramid void": {
+        "time_given": "2025-06-12 19:00:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "crate collector": {
+        "time_given": "2025-06-12 19:00:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "cacti ruins": {
+        "time_given": "2025-06-12 19:00:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382796475930640434"
+    },
+    "operation overhang": {
+        "time_given": "2025-06-12 20:23:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "tunnel vision": {
+        "time_given": "2025-06-12 20:23:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "quiet crash": {
+        "time_given": "2025-06-12 20:23:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "vault overshop": {
+        "time_given": "2025-06-12 20:23:41 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "upper block mard": {
+        "time_given": "2025-06-12 20:23:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "goomba valley": {
+        "time_given": "2025-06-12 20:24:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "toad tumble": {
+        "time_given": "2025-06-12 20:24:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "moon juice jaunt": {
+        "time_given": "2025-06-12 20:24:17 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382816890044285119"
+    },
+    "makes lost": {
+        "time_given": "2025-06-13 00:06:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "poisonous pines": {
+        "time_given": "2025-06-13 00:06:16 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "remote evergreen": {
+        "time_given": "2025-06-13 00:06:23 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "klepto's moon collector": {
+        "time_given": "2025-06-13 00:06:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "bonneton bounce": {
+        "time_given": "2025-06-13 00:06:40 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "rotational riches": {
+        "time_given": "2025-06-13 00:06:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "rudimentary roots": {
+        "time_given": "2025-06-13 00:07:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382873261599232050"
+    },
+    "retro beans": {
+        "time_given": "2025-06-13 02:57:53 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "sherm's urban edge": {
+        "time_given": "2025-06-13 02:58:03 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "green power": {
+        "time_given": "2025-06-13 02:58:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "advertisement assault": {
+        "time_given": "2025-06-13 02:58:14 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "sign summit": {
+        "time_given": "2025-06-13 02:58:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "beanboard": {
+        "time_given": "2025-06-13 02:58:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "shivering scarecrow": {
+        "time_given": "2025-06-13 02:58:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "wooden framework": {
+        "time_given": "2025-06-13 02:58:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "chilly beans": {
+        "time_given": "2025-06-13 02:58:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "permafrost pipeline": {
+        "time_given": "2025-06-13 02:58:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382916568807374921"
+    },
+    "power plant plummet": {
+        "time_given": "2025-06-13 03:05:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382918618039451768"
+    },
+    "treasure hunter": {
+        "time_given": "2025-06-13 03:24:41 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382923485134983198"
+    },
+    "poisonous pillar": {
+        "time_given": "2025-06-13 03:24:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382923485134983198"
+    },
+    "pokio propulsion": {
+        "time_given": "2025-06-13 03:24:52 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382923485134983198"
+    },
+    "true capless lunch gap": {
+        "time_given": "2025-06-13 04:03:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1382932982377087050"
+    },
+    "great wall of lunch": {
+        "time_given": "2025-06-13 22:23:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383204249349128313"
+    },
+    "html": {
+        "time_given": "2025-06-14 17:15:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "floor bypass": {
+        "time_given": "2025-06-14 17:16:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "faraway fire": {
+        "time_given": "2025-06-14 17:16:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "salsa soar": {
+        "time_given": "2025-06-14 17:16:14 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "purple pegs": {
+        "time_given": "2025-06-14 17:16:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "spicy soar": {
+        "time_given": "2025-06-14 17:16:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "grilled corn": {
+        "time_given": "2025-06-14 17:16:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "lakitu's ledge": {
+        "time_given": "2025-06-14 17:16:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "mini flag charge escape": {
+        "time_given": "2025-06-14 17:16:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "temple top": {
+        "time_given": "2025-06-14 17:16:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383494581164707852"
+    },
+    "galaxy gap": {
+        "time_given": "2025-06-14 19:11:53 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "celestial canyon": {
+        "time_given": "2025-06-14 19:11:59 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "true galaxy collapse": {
+        "time_given": "2025-06-14 19:12:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "true dark side dram": {
+        "time_given": "2025-06-14 19:12:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "molten perspective": {
+        "time_given": "2025-06-14 19:12:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "magma miracle": {
+        "time_given": "2025-06-14 19:12:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383524042639675575"
+    },
+    "mummified beans": {
+        "time_given": "2025-06-15 02:00:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383627028040908973"
+    },
+    "elegant beans": {
+        "time_given": "2025-06-15 22:53:26 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1383942234340065371"
+    },
+    "right side": {
+        "time_given": "2025-06-18 00:48:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1384695897279041575"
+    },
+    "grassy gap": {
+        "time_given": "2025-06-18 22:38:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385025653237223464"
+    },
+    "stairway evader": {
+        "time_given": "2025-06-19 00:07:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385048019040337981"
+    },
+    "queso catastrophe": {
+        "time_given": "2025-06-19 18:39:32 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385328015990456360"
+    },
+    "pegpog": {
+        "time_given": "2025-06-19 18:49:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385330326632665273"
+    },
+    "yellow lunch gap": {
+        "time_given": "2025-06-20 23:01:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385756254454153236"
+    },
+    "true moonicotti": {
+        "time_given": "2025-06-20 23:41:00 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385766150272712775"
+    },
+    "firebro flash": {
+        "time_given": "2025-06-21 03:03:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1385817099552690342"
+    },
+    "icy melody": {
+        "time_given": "2025-06-21 19:11:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1386060760291082293"
+    },
+    "toad's lunge": {
+        "time_given": "2025-06-21 22:15:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1386107178099671262"
+    },
+    "taxi beans": {
+        "time_given": "2025-06-21 23:23:33 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1386124333394432011"
+    },
+    "table turmoil": {
+        "time_given": "2025-06-25 02:02:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387250878666375238"
+    },
+    "true arena crossing": {
+        "time_given": "2025-06-26 04:00:41 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387643428401184789"
+    },
+    "mummy massacre": {
+        "time_given": "2025-06-26 17:39:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387849183033167964"
+    },
+    "mummy masochist": {
+        "time_given": "2025-06-26 18:11:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387854080105386145"
+    },
+    "shard sidestep": {
+        "time_given": "2025-06-26 18:12:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387858093978943710"
+    },
+    "cannon leap": {
+        "time_given": "2025-06-26 18:20:14 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387859818085093508"
+    },
+    "torchlift": {
+        "time_given": "2025-06-26 18:24:46 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387861056365395989"
+    },
+    "luncheon legend": {
+        "time_given": "2025-06-26 18:44:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387865933577588826"
+    },
+    "speedway split": {
+        "time_given": "2025-06-26 19:10:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387872552201748512"
+    },
+    "vault galactic gorge": {
+        "time_given": "2025-06-26 20:47:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387896991643602994"
+    },
+    "verdant valley": {
+        "time_given": "2025-06-26 20:47:54 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387896991643602994"
+    },
+    "vault table hopper": {
+        "time_given": "2025-06-26 22:08:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387917292712624271"
+    },
+    "lunar frost": {
+        "time_given": "2025-06-27 02:41:23 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1387985999870562404"
+    },
+    "necrosis": {
+        "time_given": "2025-06-28 01:27:40 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388329758684872777"
+    },
+    "tree hugger": {
+        "time_given": "2025-06-29 03:13:46 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388718819043971103"
+    },
+    "losers gambit": {
+        "time_given": "2025-06-29 03:40:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388725694921703596"
+    },
+    "wiggler vault assault": {
+        "time_given": "2025-06-29 04:01:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388730853210849361"
+    },
+    "soup surge": {
+        "time_given": "2025-06-29 04:02:00 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388727348203094078"
+    },
+    "vegetable cross": {
+        "time_given": "2025-06-29 17:08:53 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1388928722421157909"
+    },
+    "treetop tumble": {
+        "time_given": "2025-06-30 16:58:07 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389288741373476965"
+    },
+    "klepto backtracking": {
+        "time_given": "2025-06-30 19:24:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389325630771953897"
+    },
+    "virtuous vines": {
+        "time_given": "2025-06-30 20:57:59 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389349048456187996"
+    },
+    "cliff bonker": {
+        "time_given": "2025-07-01 00:51:55 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389407846898208788"
+    },
+    "true grassy gap": {
+        "time_given": "2025-07-01 20:30:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389704553619783710"
+    },
+    "ladies' breakfast": {
+        "time_given": "2025-07-01 21:32:54 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389720153066967233"
+    },
+    "magmagical venture": {
+        "time_given": "2025-07-01 22:29:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389734503689224395"
+    },
+    "true cheesy climb": {
+        "time_given": "2025-07-01 22:32:03 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389735139076083732"
+    },
+    "true tilted towers": {
+        "time_given": "2025-07-02 00:50:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1389769744046887034"
+    },
+    "cage craziness": {
+        "time_given": "2025-07-02 18:20:33 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390034273364611072"
+    },
+    "breezy beans": {
+        "time_given": "2025-07-02 19:58:46 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390058994806030517"
+    },
+    "floral finding": {
+        "time_given": "2025-07-02 23:37:06 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390113655328346163"
+    },
+    "interstellar indication": {
+        "time_given": "2025-07-03 02:06:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390151637493874839"
+    },
+    "upper pegpog": {
+        "time_given": "2025-07-03 03:05:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390166365389979689"
+    },
+    "frozen lake crosser": {
+        "time_given": "2025-07-03 23:04:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390468254870274140"
+    },
+    "hedgehog": {
+        "time_given": "2025-07-04 03:17:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "true prehistoric pole": {
+        "time_given": "2025-07-04 03:18:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "true lake leap": {
+        "time_given": "2025-07-04 03:18:25 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "truer lake leap": {
+        "time_given": "2025-07-04 03:18:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "lake visitor": {
+        "time_given": "2025-07-04 03:18:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "cage cross": {
+        "time_given": "2025-07-04 03:19:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "heated headache": {
+        "time_given": "2025-07-04 03:19:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "construction evader": {
+        "time_given": "2025-07-04 03:19:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "silver snow": {
+        "time_given": "2025-07-04 03:19:52 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "misty riches": {
+        "time_given": "2025-07-04 03:19:58 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390531862769963039"
+    },
+    "great canal of lunch": {
+        "time_given": "2025-07-04 03:20:13 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390532374965653594"
+    },
+    "cheddar champion": {
+        "time_given": "2025-07-04 03:20:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390532374965653594"
+    },
+    "true cadaver crossing": {
+        "time_given": "2025-07-04 03:21:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390532374965653594"
+    },
+    "final fossil": {
+        "time_given": "2025-07-04 03:55:37 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390541300054622220"
+    },
+    "lettuce leap": {
+        "time_given": "2025-07-04 18:43:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390764852665909430"
+    },
+    "lethal launch": {
+        "time_given": "2025-07-04 19:00:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390768971707453631"
+    },
+    "indicational downfall": {
+        "time_given": "2025-07-06 03:33:37 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1391260185691164703"
+    },
+    "acrobatic a.c": {
+        "time_given": "2025-07-07 01:19:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1391589327938523326"
+    },
+    "burial grounds": {
+        "time_given": "2025-07-07 17:35:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1391834968891855061"
+    },
+    "eel evader": {
+        "time_given": "2025-07-07 18:22:40 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1391846565768990790"
+    },
+    "vault arena guard": {
+        "time_given": "2025-07-08 03:34:16 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390846878878269602"
+    },
+    "pyramid peril": {
+        "time_given": "2025-07-08 03:34:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390846878878269602"
+    },
+    "amphibian abyss": {
+        "time_given": "2025-07-08 03:35:26 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1390170218906648637"
+    },
+    "true forest threshold": {
+        "time_given": "2025-07-09 00:33:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1392302252697321473"
+    },
+    "vault toxic traverse": {
+        "time_given": "2025-07-09 01:07:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1392310531578265600"
+    },
+    "mix moon collector": {
+        "time_given": "2025-07-09 01:42:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1392319671138648074"
+    },
+    "true lunch gap": {
+        "time_given": "2025-07-24 17:25:52 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1397992921504022599"
+    },
+    "tidefool": {
+        "time_given": "2025-07-24 18:13:05 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1398004887287107645"
+    },
+    "desert gap": {
+        "time_given": "2025-07-24 22:46:19 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1398073551654879273"
+    },
+    "burnstile": {
+        "time_given": "2025-09-28 02:36:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1421686668196581457"
+    },
+    "icicle upbringing": {
+        "time_given": "2025-10-02 00:34:52 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1423105782467002380"
+    },
+    "koi collapse": {
+        "time_given": "2025-10-03 01:38:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1423483434550038691"
+    },
+    "true metro mard": {
+        "time_given": "2025-10-05 01:37:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424208673957347411"
+    },
+    "true treasure hunter": {
+        "time_given": "2025-10-05 02:20:07 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424219203761737770"
+    },
+    "salty splashdown": {
+        "time_given": "2025-10-05 18:03:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424456898618331250"
+    },
+    "mind break": {
+        "time_given": "2025-10-06 05:38:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424631695897792553"
+    },
+    "podoboo punishment": {
+        "time_given": "2025-10-07 00:42:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424919810415792151"
+    },
+    "gratuitous girders": {
+        "time_given": "2025-10-07 01:28:03 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1424931041134645270"
+    },
+    "cafe catapult": {
+        "time_given": "2025-10-23 21:52:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1431037350338760804"
+    },
+    "icicle freefall": {
+        "time_given": "2025-10-25 20:39:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1431743851470651544"
+    },
+    "imaginary intersection": {
+        "time_given": "2025-10-25 22:21:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1431768103900938302"
+    },
+    "upper statue arrival": {
+        "time_given": "2025-10-25 22:28:36 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1431771237025321064"
+    },
+    "rhythmic ascent": {
+        "time_given": "2025-10-26 01:42:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1431820063392010250"
+    },
+    "volcanic volition": {
+        "time_given": "2025-10-27 03:30:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1432142278167892121"
+    },
+    "yellow necrophobia": {
+        "time_given": "2025-10-29 04:02:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1432942012998484029"
+    },
+    "yellow sandy arena crosser": {
+        "time_given": "2025-10-30 22:51:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1433588816916119745"
+    },
+    "sandy moon collector": {
+        "time_given": "2025-11-01 04:17:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1434023432516927648"
+    },
+    "top step 2.0": {
+        "time_given": "2025-11-01 04:17:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1434033454000902235"
+    },
+    "magmato masquerade": {
+        "time_given": "2025-11-01 17:00:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1434225365533982851"
+    },
+    "streetlight epidemic": {
+        "time_given": "2025-11-02 00:10:28 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1434333761050378320"
+    },
+    "riveting ribcage": {
+        "time_given": "2025-11-03 18:48:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1434977369285984296"
+    },
+    "flying gardener": {
+        "time_given": "2025-11-05 19:33:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1435700315864436778"
+    },
+    "slippery slope": {
+        "time_given": "2025-11-05 22:00:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1435750497750618342"
+    },
+    "kenophobia": {
+        "time_given": "2025-11-11 21:05:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1437910967089631394"
+    },
+    "lunch sign": {
+        "time_given": "2025-11-11 21:05:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1437911055136329889"
+    },
+    "bullet bypass": {
+        "time_given": "2025-11-15 02:25:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439073978294599732"
+    },
+    "safari scan": {
+        "time_given": "2025-11-15 02:25:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439076263934427269"
+    },
+    "ladies' lunch": {
+        "time_given": "2025-11-15 02:33:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439080583174029378"
+    },
+    "stairway downfall": {
+        "time_given": "2025-11-15 02:38:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439081869609140265"
+    },
+    "snail attack!": {
+        "time_given": "2025-11-15 02:59:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439086047572004865"
+    },
+    "blocked target": {
+        "time_given": "2025-11-15 03:23:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439093301486551153"
+    },
+    "flowery fountain": {
+        "time_given": "2025-11-15 04:03:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439103169887080589"
+    },
+    "amiibo animosity": {
+        "time_given": "2025-11-15 20:43:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439354931898351817"
+    },
+    "yellow frogs": {
+        "time_given": "2025-11-16 00:48:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439416738516045995"
+    },
+    "domain dram": {
+        "time_given": "2025-11-20 19:32:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441149218919289073"
+    },
+    "yellow royale stairway": {
+        "time_given": "2025-11-20 19:44:25 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441151350812573706"
+    },
+    "paragoomba uprising": {
+        "time_given": "2025-11-20 21:01:17 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441171445253144616"
+    },
+    "prehistoric pipe": {
+        "time_given": "2025-11-21 01:22:16 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441236962999799939"
+    },
+    "1p god": {
+        "time_given": "2025-11-22 17:14:25 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441839058254037183"
+    },
+    "overshoot gratifying grate": {
+        "time_given": "2025-11-22 17:15:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441277389463097424"
+    },
+    "precipitating park": {
+        "time_given": "2025-11-22 17:16:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1439116518075142225"
+    },
+    "slippery spikes": {
+        "time_given": "2025-11-22 17:19:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441289581122027520"
+    },
+    "pyrospike": {
+        "time_given": "2025-11-22 17:19:43 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441292711272644669"
+    },
+    "propaganda bypass": {
+        "time_given": "2025-11-22 17:24:06 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1437551951717077063"
+    },
+    "true shopping spring": {
+        "time_given": "2025-11-22 17:45:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441846965682831472"
+    },
+    "true natural construction": {
+        "time_given": "2025-11-22 20:57:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441894649756123136"
+    },
+    "resplendent rainfall": {
+        "time_given": "2025-11-22 23:40:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441936020911423548"
+    },
+    "mini hoarding hike": {
+        "time_given": "2025-11-23 02:07:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1441868860591444152"
+    },
+    "triassic triple": {
+        "time_given": "2025-11-23 19:34:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236571595182211"
+    },
+    "sand shroud": {
+        "time_given": "2025-11-23 19:34:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236607787962473"
+    },
+    "eternal evening": {
+        "time_given": "2025-11-23 19:34:37 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236645507076157"
+    },
+    "little sheepy bonk": {
+        "time_given": "2025-11-23 19:35:26 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236692114440444"
+    },
+    "true yellow bambu mata": {
+        "time_given": "2025-11-23 19:35:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236728340381756"
+    },
+    "yellow cheese": {
+        "time_given": "2025-11-23 19:36:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442236763924992132"
+    },
+    "yellow scavenger": {
+        "time_given": "2025-11-23 19:48:13 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442240282149257447"
+    },
+    "reverse makes yellow dram": {
+        "time_given": "2025-11-23 20:18:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442247770919669821"
+    },
+    "yellow blue blocks": {
+        "time_given": "2025-11-23 21:45:17 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442269196439523338"
+    },
+    "liminal leap": {
+        "time_given": "2025-11-23 21:45:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442269629975232536"
+    },
+    "yellow pegs": {
+        "time_given": "2025-11-23 23:09:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442289946537758801"
+    },
+    "purple pleasure": {
+        "time_given": "2025-11-23 23:10:06 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442290156429115465"
+    },
+    "rooftop ascent": {
+        "time_given": "2025-11-23 23:10:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442290469307416707"
+    },
+    "nature's overtaking": {
+        "time_given": "2025-11-23 23:10:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442290907788476592"
+    },
+    "yellow statue arrival": {
+        "time_given": "2025-11-24 00:20:05 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442307443018305587"
+    },
+    "tram skipper": {
+        "time_given": "2025-11-24 00:20:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442308607034003602"
+    },
+    "yellow tree climber": {
+        "time_given": "2025-11-24 00:26:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442310136453664872"
+    },
+    "shady hat": {
+        "time_given": "2025-11-24 00:42:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442314139169984724"
+    },
+    "yellow cascade mard": {
+        "time_given": "2025-11-24 00:52:00 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442316684131303424"
+    },
+    "granite growth": {
+        "time_given": "2025-11-24 01:00:41 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442318895141753054"
+    },
+    "truer yellow blocks": {
+        "time_given": "2025-11-24 01:01:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442312753724522627"
+    },
+    "advertisement accident": {
+        "time_given": "2025-11-24 03:10:19 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442351451828650044"
+    },
+    "overshoot truer cascade mard": {
+        "time_given": "2025-11-24 06:05:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442395416770379896"
+    },
+    "true yellow pond crossing": {
+        "time_given": "2025-11-25 03:45:37 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442722188263424040"
+    },
+    "yellow swing": {
+        "time_given": "2025-11-25 18:16:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442941819871694948"
+    },
+    "true cannon leap": {
+        "time_given": "2025-11-25 18:16:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442941900750585999"
+    },
+    "robotic vault assault": {
+        "time_given": "2025-11-25 18:41:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442948105895936040"
+    },
+    "yellow yapper": {
+        "time_given": "2025-11-25 21:45:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442989848729358356"
+    },
+    "yellow lava plunge": {
+        "time_given": "2025-11-25 21:45:28 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442994462610559132"
+    },
+    "melody moon collector": {
+        "time_given": "2025-11-25 22:04:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1442999189138047097"
+    },
+    "yellow yeast collector": {
+        "time_given": "2025-11-25 22:39:14 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443007794952536254"
+    },
+    "gourmet gap": {
+        "time_given": "2025-11-25 22:47:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443009985784057856"
+    },
+    "true boxblocks": {
+        "time_given": "2025-11-25 23:30:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443020643435151491"
+    },
+    "spike driver": {
+        "time_given": "2025-11-25 23:38:46 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443023013674221700"
+    },
+    "true cloudy stairs": {
+        "time_given": "2025-11-26 00:22:05 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443033607110135919"
+    },
+    "true wisdom tree": {
+        "time_given": "2025-11-26 00:42:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443038716183576606"
+    },
+    "poisonous plunge": {
+        "time_given": "2025-11-26 02:15:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443062578396921969"
+    },
+    "lower cholesterol crossing": {
+        "time_given": "2025-11-26 23:09:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443377747270439044"
+    },
+    "cavern falls": {
+        "time_given": "2025-11-27 00:13:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443394089658875995"
+    },
+    "truer crate cross": {
+        "time_given": "2025-11-27 18:42:03 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443673168396161084"
+    },
+    "true magma crossing": {
+        "time_given": "2025-11-27 19:20:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443682828045778995"
+    },
+    "lunaire pipe": {
+        "time_given": "2025-11-27 19:36:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443686407682916382"
+    },
+    "city slammer": {
+        "time_given": "2025-11-27 19:48:12 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443689505650507816"
+    },
+    "true cloud overlook": {
+        "time_given": "2025-11-27 20:55:32 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443706655081762978"
+    },
+    "true lunch sign 2.0": {
+        "time_given": "2025-11-28 00:50:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443765016581902398"
+    },
+    "overshoot zg leap": {
+        "time_given": "2025-11-28 02:41:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443793868222107729"
+    },
+    "truest crate cross": {
+        "time_given": "2025-11-28 04:48:38 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1443825495128145970"
+    },
+    "jizo jaunt": {
+        "time_given": "2025-11-28 21:37:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444079526626988083"
+    },
+    "chuck crossing": {
+        "time_given": "2025-11-28 22:21:03 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444090553292816474"
+    },
+    "shinglestalk": {
+        "time_given": "2025-11-28 23:11:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444103289036603412"
+    },
+    "castle catastrophe": {
+        "time_given": "2025-11-29 00:36:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1422769097569075283"
+    },
+    "fossil fall": {
+        "time_given": "2025-11-29 00:51:36 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444128027591053438"
+    },
+    "tropical turret": {
+        "time_given": "2025-11-29 21:24:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444438808371138651"
+    },
+    "true rolling stones": {
+        "time_given": "2025-11-30 03:20:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444527845585195250"
+    },
+    "blue burns": {
+        "time_given": "2025-11-30 03:37:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444532584863502337"
+    },
+    "burning bonker": {
+        "time_given": "2025-11-30 04:02:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444538716189364296"
+    },
+    "lower colorful cactus": {
+        "time_given": "2025-11-30 23:29:58 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444830913400672317"
+    },
+    "spring party": {
+        "time_given": "2025-11-30 23:30:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444832662010335412"
+    },
+    "true night sky": {
+        "time_given": "2025-11-30 23:37:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444834740627574844"
+    },
+    "lucky lunge": {
+        "time_given": "2025-12-01 00:19:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444845065636679771"
+    },
+    "legend's lunch": {
+        "time_given": "2025-12-01 01:02:40 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444856006017290320"
+    },
+    "sombrero seeker": {
+        "time_given": "2025-12-01 02:51:10 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444883300027203708"
+    },
+    "maggrons lost": {
+        "time_given": "2025-12-01 02:58:26 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444885179394162698"
+    },
+    "true tree hopper": {
+        "time_given": "2025-12-01 03:33:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444894109457186989"
+    },
+    "snowy scarecrow": {
+        "time_given": "2025-12-01 03:42:04 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444896240893427842"
+    },
+    "wedding vault assault": {
+        "time_given": "2025-12-01 04:53:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444914230338916413"
+    },
+    "true jaxi's candlelight": {
+        "time_given": "2025-12-01 18:22:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445117710462877727"
+    },
+    "hedge hopper": {
+        "time_given": "2025-12-01 20:12:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445145303807164548"
+    },
+    "natural construction": {
+        "time_given": "2025-12-01 20:28:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445149292678615302"
+    },
+    "vault galactic gorge 2.0": {
+        "time_given": "2025-12-01 20:35:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445150732520259755"
+    },
+    "cascade lake crosser": {
+        "time_given": "2025-12-01 22:25:07 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445178561219788893"
+    },
+    "charged core": {
+        "time_given": "2025-12-01 22:55:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445186326373728326"
+    },
+    "space jam": {
+        "time_given": "2025-12-02 01:10:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445220479186239529"
+    },
+    "cosmic corner": {
+        "time_given": "2025-12-02 01:11:29 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1444116685069094933"
+    },
+    "ice field": {
+        "time_given": "2025-12-02 18:14:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445477997518782655"
+    },
+    "reverse cage cross": {
+        "time_given": "2025-12-02 19:23:51 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445495413997043913"
+    },
+    "crazy toad": {
+        "time_given": "2025-12-02 22:04:52 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445536166005968986"
+    },
+    "bouncy shell": {
+        "time_given": "2025-12-02 22:05:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445536347832979477"
+    },
+    "peach pounce": {
+        "time_given": "2025-12-02 22:06:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445536481304248362"
+    },
+    "forky fishermen": {
+        "time_given": "2025-12-02 22:07:01 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445536716415832104"
+    },
+    "cutlery crossover": {
+        "time_given": "2025-12-02 22:08:48 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445537103390703646"
+    },
+    "shingle's choice": {
+        "time_given": "2025-12-03 02:05:43 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445596600129814538"
+    },
+    "reverse poison pass": {
+        "time_given": "2025-12-03 18:10:23 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445839326691721358"
+    },
+    "painting beans": {
+        "time_given": "2025-12-03 23:56:16 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445926426644709376"
+    },
+    "great leap of sand": {
+        "time_given": "2025-12-04 04:34:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1445995950387630112"
+    },
+    "rotten pole": {
+        "time_given": "2025-12-04 04:52:39 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446001087617433600"
+    },
+    "dromophobia": {
+        "time_given": "2025-12-04 18:48:15 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446211359930061005"
+    },
+    "yellow praying": {
+        "time_given": "2025-12-05 00:26:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446296466032300062"
+    },
+    "true yellow provolone pass": {
+        "time_given": "2025-12-05 00:55:36 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446303325032026284"
+    },
+    "true yellow koopa": {
+        "time_given": "2025-12-05 01:10:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446307741953036368"
+    },
+    "true waterloo": {
+        "time_given": "2025-12-05 02:32:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446328301420417025"
+    },
+    "hot cheetos": {
+        "time_given": "2025-12-05 20:15:44 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446595742276784324"
+    },
+    "true fossil hopper": {
+        "time_given": "2025-12-05 20:38:18 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446600257650557038"
+    },
+    "truer tree hopper": {
+        "time_given": "2025-12-05 23:45:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446648543703072961"
+    },
+    "fossil field": {
+        "time_given": "2025-12-06 03:28:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1446665725120090245"
+    },
+    "truer ring of fire": {
+        "time_given": "2025-12-07 00:19:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1447019283879034921"
+    },
+    "truer shop lifter": {
+        "time_given": "2025-12-08 05:13:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1447455323752501329"
+    },
+    "beachside beanstalk": {
+        "time_given": "2025-12-08 19:52:19 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1447676963488796763"
+    },
+    "streetlight sojourn": {
+        "time_given": "2025-12-08 20:07:25 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1447680854955524281"
+    },
+    "sandy table dram": {
+        "time_given": "2025-12-09 20:13:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1448044660948996259"
+    },
+    "true tree vault assault": {
+        "time_given": "2025-12-13 01:25:16 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1449210411378278660"
+    },
+    "impact event": {
+        "time_given": "2025-12-13 01:53:33 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1449217428369444934"
+    },
+    "purple tomato collector": {
+        "time_given": "2025-12-13 18:12:36 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1449463963615105096"
+    },
+    "bulb injury": {
+        "time_given": "2025-12-13 21:56:34 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1449520005288034437"
+    },
+    "reverse moe eye gap": {
+        "time_given": "2025-12-15 21:03:21 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1450231475008966747"
+    },
+    "yellow sandy arena crosser full landing": {
+        "time_given": "2025-12-16 02:35:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1450315196806725692"
+    },
+    "ancient relic": {
+        "time_given": "2025-12-18 00:34:35 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1451008850726752366"
+    },
+    "photophobia": {
+        "time_given": "2025-12-18 01:30:30 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1451023504844783758"
+    },
+    "lunatic monsoon": {
+        "time_given": "2025-12-18 01:48:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1451027886407422112"
+    },
+    "terra transcendence": {
+        "time_given": "2025-12-20 00:57:02 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1451736118835019919"
+    },
+    "aquatic honors": {
+        "time_given": "2025-12-20 20:08:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452029660379611278"
+    },
+    "aerodynamic ascendence": {
+        "time_given": "2025-12-21 19:22:45 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452380564261834762"
+    },
+    "true galactic crunch": {
+        "time_given": "2025-12-21 19:36:27 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452384002437681379"
+    },
+    "matsuri": {
+        "time_given": "2025-12-22 03:45:57 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452505621667516416"
+    },
+    "treacherous token": {
+        "time_given": "2025-12-22 23:57:28 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452812152443375768"
+    },
+    "bullet panorama": {
+        "time_given": "2025-12-23 00:26:50 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452819618921189499"
+    },
+    "truer modern escape": {
+        "time_given": "2025-12-23 00:51:55 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452825950491508917"
+    },
+    "waterboarding": {
+        "time_given": "2025-12-23 02:48:08 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452855181891993784"
+    },
+    "yellow yearn": {
+        "time_given": "2025-12-23 04:22:49 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1452878938551357621"
+    },
+    "deadbeat boulevard": {
+        "time_given": "2025-12-23 23:01:47 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453160515625943254"
+    },
+    "epidemic escape": {
+        "time_given": "2025-12-25 19:56:55 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453835034208506030"
+    },
+    "railing ravage": {
+        "time_given": "2025-12-25 20:02:28 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453840278912766037"
+    },
+    "yellow valley": {
+        "time_given": "2025-12-25 20:06:09 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453841202133602496"
+    },
+    "inferno launch": {
+        "time_given": "2025-12-25 20:15:22 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453843520342196446"
+    },
+    "poison falls": {
+        "time_given": "2025-12-25 21:00:11 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453854800079749357"
+    },
+    "slippery ledge": {
+        "time_given": "2025-12-25 21:07:42 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453856674107490375"
+    },
+    "torch terror": {
+        "time_given": "2025-12-26 03:01:23 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453945353807204475"
+    },
+    "relaxless bulb injury": {
+        "time_given": "2025-12-26 03:25:20 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453951576380145715"
+    },
+    "yellow hydraulic corrosion": {
+        "time_given": "2025-12-26 03:32:13 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1453953349136285989"
+    },
+    "jizo's domain": {
+        "time_given": "2025-12-26 21:29:31 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1454224000606802059"
+    },
+    "reverse mossy staircase": {
+        "time_given": "2025-12-27 23:16:56 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1454310715442860285"
+    },
+    "vault lost legend": {
+        "time_given": "2025-12-28 01:42:24 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1454650601718944005"
+    },
+    "true neighbourhood impasse": {
+        "time_given": "2025-12-30 04:39:46 (UTC)",
+        "proof": "https://discord.com/channels/469869605570084886/469973552607789066/1455419864956145705"
+    }
+}

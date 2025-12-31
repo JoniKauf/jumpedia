@@ -22,7 +22,9 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Show information about a list.")
     async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list((InteractionAdapter(interaction), None), list)
+        list_obj = shortcuts.get_specified_or_selected_or_default_list(
+            InteractionAdapter(interaction), None, list
+        )
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 
@@ -47,9 +49,9 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Browse all lists of the community.")
     async def browse(self, interaction: dc.Interaction) -> None:
-        ia = InteractionAdapter(interaction)
-
-        lists = shortcuts.get_current_community(InteractionAdapter(interaction)).get_lists()
+        lists = shortcuts.get_current_community(
+            InteractionAdapter(interaction)
+        ).get_lists()
 
         listing: Template
 
@@ -63,32 +65,6 @@ class ListCog(cmds.GroupCog, group_name="list"):
                 "All Lists",
                 listing,
                 messaging.MessageStatus.INFO,
-            )
-        )
-
-    @acmds.command(description="Set the default selected list of the community.")
-    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def set_default_selected(
-        self, interaction: dc.Interaction, list: str | None = None
-    ) -> None:
-        community = shortcuts.get_current_community(InteractionAdapter(interaction))
-
-        if list is not None:
-            selected_list = community.get_list(list).name
-        else:
-            selected_list = None
-
-        community.set_default_selected_list(selected_list)
-
-        await interaction.response.send_message(
-            messaging.layout(
-                "Default Selected List Set",
-                (
-                    t"The default selected list has successfully been changed to `{list}`!"
-                    if list is not None
-                    else t"The default selected list has successfully been changed to be unset."
-                ),
-                messaging.MessageStatus.SUCCESS,
             )
         )
 
@@ -109,8 +85,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Delete an existing list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def delete(self, interaction: dc.Interaction, list: str) -> None:
-        list_s = shortcuts.get_current_community(InteractionAdapter(interaction)).get_list(list)._s
+    async def nuke(self, interaction: dc.Interaction, list: str) -> None:
+        list_s = (
+            shortcuts.get_current_community(InteractionAdapter(interaction))
+            .get_list(list)
+            ._s
+        )
 
         await modal.delete_structure_confirmation(
             interaction,

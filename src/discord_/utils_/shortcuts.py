@@ -4,20 +4,40 @@ import discord as dc
 
 from adapters import errors
 from adapters._community import CommunityAdapter
-from adapters._list import ListAdapter
 from adapters._jumpedia import JumpediaAdapter
+from adapters._list import ListAdapter
 from adapters._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
 from adapters.interaction import InteractionAdapter
 from utils.rank import CommunityRank, JumpediaRank
 
 
-def get_current_community(data: InteractionAdapter) -> CommunityAdapter:
-    ia: InteractionAdapter = data
-    jumpedia: JumpediaAdapter = data.jumpedia
+def _get_jumpedia_and_interaction(
+    data: JumpediaAdapter | InteractionAdapter, /
+) -> tuple[InteractionAdapter, JumpediaAdapter]:
+    if isinstance(data, InteractionAdapter):
+        return data, data.jumpedia
+
+    return data.interaction, data
+
+
+@t.overload
+def get_current_community(jumpedia: JumpediaAdapter, /) -> CommunityAdapter:
+    pass
+
+
+@t.overload
+def get_current_community(interaction: InteractionAdapter, /) -> CommunityAdapter:
+    pass
+
+
+def get_current_community(
+    data: JumpediaAdapter | InteractionAdapter, /
+) -> CommunityAdapter:
+    interaction, jumpedia = _get_jumpedia_and_interaction(data)
 
     del data
 
-    community_s = jumpedia._s.get_community_by_server_id(ia.current_server.id)
+    community_s = jumpedia._s.get_community_by_server_id(interaction.current_server.id)
 
     if community_s is None:
         raise errors.ServerNotConnectedToACommunityFeedbackError()
@@ -25,44 +45,128 @@ def get_current_community(data: InteractionAdapter) -> CommunityAdapter:
     return CommunityAdapter(community_s, jumpedia)
 
 
+@t.overload
 def get_or_create_specified_or_current_jumpedia_user(
-    data: JumpediaAdapter | InteractionAdapter,
+    jumpedia: JumpediaAdapter,
     user: None | dc.User,
+    /,
     *,
     override_jumpedia_rank: JumpediaRank | None = None,
 ) -> JumpediaUserAdapter:
-    jumpedia: JumpediaAdapter = data if isinstance(data, JumpediaAdapter) else data.jumpedia
-    
+    pass
+
+
+@t.overload
+def get_or_create_specified_or_current_jumpedia_user(
+    interaction: InteractionAdapter,
+    user: None | dc.User,
+    /,
+    *,
+    override_jumpedia_rank: JumpediaRank | None = None,
+) -> JumpediaUserAdapter:
+    pass
+
+
+def get_or_create_specified_or_current_jumpedia_user(
+    data: JumpediaAdapter | InteractionAdapter,
+    user: None | dc.User,
+    /,
+    *,
+    override_jumpedia_rank: JumpediaRank | None = None,
+) -> JumpediaUserAdapter:
+    jumpedia: JumpediaAdapter = (
+        data if isinstance(data, JumpediaAdapter) else data.jumpedia
+    )
+
     del data
 
     return jumpedia.get_or_create_jumpedia_user(
-        jumpedia.interaction.current_user if user is None else UserAdapter(user, jumpedia.interaction),
+        (
+            jumpedia.interaction.current_user
+            if user is None
+            else UserAdapter(user, jumpedia.interaction)
+        ),
         override_jumpedia_rank=override_jumpedia_rank,
     )
 
 
+@t.overload
 def get_or_create_specified_or_current_community_user(
-    data: CommunityAdapter | InteractionAdapter,
+    community: CommunityAdapter,
+    user: JumpediaUserAdapter,
+    /,
+    *,
+    override_community_rank: CommunityRank | None = None,
+) -> CommunityUserAdapter:
+    pass
+
+
+@t.overload
+def get_or_create_specified_or_current_community_user(
+    community: CommunityAdapter,
     user: dc.User | None,
+    /,
     *,
     override_jumpedia_rank: JumpediaRank | None = None,
     override_community_rank: CommunityRank | None = None,
 ) -> CommunityUserAdapter:
-    community: CommunityAdapter
-    ia: InteractionAdapter
+    pass
 
-    if isinstance(data, InteractionAdapter):
+
+@t.overload
+def get_or_create_specified_or_current_community_user(
+    jumpedia: JumpediaAdapter,
+    user: dc.User | None,
+    /,
+    *,
+    override_jumpedia_rank: JumpediaRank | None = None,
+    override_community_rank: CommunityRank | None = None,
+) -> CommunityUserAdapter:
+    pass
+
+
+@t.overload
+def get_or_create_specified_or_current_community_user(
+    interaction: InteractionAdapter,
+    user: dc.User | None,
+    /,
+    *,
+    override_jumpedia_rank: JumpediaRank | None = None,
+    override_community_rank: CommunityRank | None = None,
+) -> CommunityUserAdapter:
+    pass
+
+
+def get_or_create_specified_or_current_community_user(
+    data: CommunityAdapter | JumpediaAdapter | InteractionAdapter,
+    user: dc.User | JumpediaUserAdapter | None,
+    /,
+    *,
+    override_jumpedia_rank: JumpediaRank | None = None,
+    override_community_rank: CommunityRank | None = None,
+) -> CommunityUserAdapter:
+    if isinstance(user, JumpediaUserAdapter):
+        assert isinstance(data, CommunityAdapter)
+
+        return data.get_or_create_community_user(
+            user, override_community_rank=override_community_rank
+        )
+
+    interaction: InteractionAdapter
+    community: CommunityAdapter
+
+    if isinstance(data, InteractionAdapter | JumpediaAdapter):
+        interaction, _ = _get_jumpedia_and_interaction(data)
         community = get_current_community(data)
-        ia = data
     else:
         community = data
-        ia = community.jumpedia.interaction
+        interaction = community.jumpedia.interaction
 
     del data
 
     return community.get_or_create_community_user(
         get_or_create_specified_or_current_jumpedia_user(
-            ia, user, override_jumpedia_rank=override_jumpedia_rank
+            interaction, user, override_jumpedia_rank=override_jumpedia_rank
         ),
         override_community_rank=override_community_rank,
     )
@@ -70,8 +174,9 @@ def get_or_create_specified_or_current_community_user(
 
 @t.overload
 def get_specified_or_selected_or_default_list(
-    data: CommunityUserAdapter | tuple[CommunityAdapter | InteractionAdapter, dc.User | None],
+    user: CommunityUserAdapter,
     list: str | None,
+    /,
     *,
     error: t.Literal[True] = ...,
 ) -> ListAdapter:
@@ -80,8 +185,81 @@ def get_specified_or_selected_or_default_list(
 
 @t.overload
 def get_specified_or_selected_or_default_list(
-    data: CommunityUserAdapter | tuple[CommunityAdapter | InteractionAdapter, dc.User | None],
+    user: CommunityUserAdapter,
     list: str | None,
+    /,
+    *,
+    error: t.Literal[False],
+) -> ListAdapter | None:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    community: CommunityAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
+    *,
+    error: t.Literal[True] = ...,
+) -> ListAdapter:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    community: CommunityAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
+    *,
+    error: t.Literal[False],
+) -> ListAdapter | None:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    jumpedia: JumpediaAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
+    *,
+    error: t.Literal[True] = ...,
+) -> ListAdapter:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    jumpedia: JumpediaAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
+    *,
+    error: t.Literal[False],
+) -> ListAdapter | None:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    interaction: InteractionAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
+    *,
+    error: t.Literal[True] = ...,
+) -> ListAdapter:
+    pass
+
+
+@t.overload
+def get_specified_or_selected_or_default_list(
+    interaction: InteractionAdapter,
+    user: dc.User | None,
+    list: str | None,
+    /,
     *,
     error: t.Literal[False],
 ) -> ListAdapter | None:
@@ -89,17 +267,32 @@ def get_specified_or_selected_or_default_list(
 
 
 def get_specified_or_selected_or_default_list(
-    data: CommunityUserAdapter | tuple[CommunityAdapter | InteractionAdapter, dc.User | None],
-    list: str | None,
+    data: (
+        CommunityUserAdapter | CommunityAdapter | JumpediaAdapter | InteractionAdapter
+    ),
+    user_or_list: str | dc.User | None,
+    optional_list: str | None = None,
+    /,
     *,
     error: bool = True,
 ) -> ListAdapter | None:
     community_user: CommunityUserAdapter
+    list: str | None
 
-    if isinstance(data, tuple):
-        community_user = get_or_create_specified_or_current_community_user(*data)
-    else:
+    if isinstance(data, CommunityUserAdapter):
+        assert user_or_list is None or isinstance(user_or_list, str)
+
         community_user = data
+        list = user_or_list
+
+    else:
+        assert user_or_list is None or isinstance(user_or_list, dc.User)
+        assert optional_list is None or isinstance(optional_list, str)
+
+        list = optional_list
+        community_user = get_or_create_specified_or_current_community_user(
+            data, user_or_list
+        )
 
     del data
 

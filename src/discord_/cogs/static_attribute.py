@@ -33,7 +33,9 @@ async def info(
     attribute: str,
     list: str | None = None,
 ) -> None:
-    list_obj = shortcuts.get_specified_or_selected_or_default_list((InteractionAdapter(interaction), None), list)
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
+    )
 
     attr = list_obj.get_attribute(type, attribute)
 
@@ -61,7 +63,9 @@ async def info(
 async def browse(
     interaction: dc.Interaction, type: type[AnyAttributeT], list: str | None
 ) -> None:
-    list_obj = shortcuts.get_specified_or_selected_or_default_list((InteractionAdapter(interaction), None), list)
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
+    )
 
     await interaction.response.send_message(
         messaging.layout(
@@ -85,7 +89,9 @@ async def create(
     collection: str | None,
     list: str | None,
 ) -> None:
-    list_obj = shortcuts.get_specified_or_selected_or_default_list((InteractionAdapter(interaction), None), list)
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
+    )
 
     attr = list_obj.create_attribute(
         type, name, slot_type.value, max_slots, aliases, collection
@@ -106,7 +112,9 @@ async def delete(
     syn: str,
     list: str | None,
 ) -> None:
-    list_obj = shortcuts.get_specified_or_selected_or_default_list((InteractionAdapter(interaction), None), list)
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
+    )
 
     attr_s = list_obj.get_attribute(type, syn)._s
 

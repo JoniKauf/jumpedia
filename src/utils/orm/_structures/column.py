@@ -18,6 +18,9 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
     def __init__(self, types: tuple[TypeForm[TValue], ...]) -> None:
         self._type = types
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({', '.join(f"{k!r}={v!r}" for k, v in self.__dict__.items())})"
+
     def __set_name__(self, owner: type[TOwner], name: str) -> None:
         _utils.validate_identifier(name)
 

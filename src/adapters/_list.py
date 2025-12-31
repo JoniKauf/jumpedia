@@ -1,14 +1,10 @@
-import collections
 import itertools
-import types
 import typing as t
 
 from discord_.errors import FeedbackError
-from src.adapters._user import CommunityUserAdapter
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
-    BaseAttribute,
     StaticAttribute,
     TaskAttribute,
     UserAttribute,
@@ -20,6 +16,7 @@ from structures.errors import (
     CollectionEntryNotFoundError,
     CollectionEntrySynNotUniqueError,
     CommunityUserAlreadyHasTaskError,
+    CommunityUserDoesNotHaveTaskError,
     NotUniqueStringError,
     StructureCountLimitReachedError,
     SynsAlreadyTakenError,
@@ -29,7 +26,7 @@ from structures.task import Task
 from utils import text
 from utils.expression_parsing.errors import BaseExpressionParsingError
 
-from . import BaseAdapter, BaseStructureAdapter, _parsing, errors
+from . import BaseStructureAdapter, _parsing, errors
 from ._attribute import (
     AnyAttributeAdapterT,
     StaticAttributeAdapter,
@@ -37,6 +34,7 @@ from ._attribute import (
     UserAttributeAdapter,
 )
 from ._task import TaskAdapter
+from ._user import CommunityUserAdapter
 
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
@@ -154,6 +152,11 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def get_tasks(self) -> list[TaskAdapter]:
         return [TaskAdapter(task, self) for task in self._s.get_tasks()]
+
+    def get_tasks_of_user(self, user: CommunityUserAdapter) -> list[TaskAdapter]:
+        return [
+            TaskAdapter(task, self) for task in self._s.get_tasks_of_user(user._s.id)
+        ]
 
     def get_task(self, syn: str) -> TaskAdapter:
         return TaskAdapter(_require_task_with_syn(text.NormStr(syn), self._s), self)
@@ -353,19 +356,36 @@ class ListAdapter(BaseStructureAdapter[List]):
         syn: str,
         community_user: CommunityUserAdapter,
         user_attribute_value_mapping: str | None = None,
-    ) -> None:
-        task = _require_task_with_syn(text.NormStr(syn), self._s)
+    ) -> TaskAdapter:
+        task_s = _require_task_with_syn(text.NormStr(syn), self._s)
 
         avm = _validate_and_convert_attribute_value_mapping(
             user_attribute_value_mapping, UserAttribute, self._s
         )
 
         try:
-            self._s.give_task_to_community_user(task.id, community_user._s.id, avm)
+            self._s.give_task_to_community_user(task_s.id, community_user._s.id, avm)
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRangeFeedbackError(e)
         except CollectionEntryNotFoundError as e:
             raise errors.CollectionEntryNotFoundFeedbackError(e)
-        except CommunityUserAlreadyHasTaskError as e:
-            raise FeedbackError("Task Already Obtained", t"The user `{community_user}` has already obtained the task `{task}`!")
-        
+        except CommunityUserAlreadyHasTaskError:
+            raise FeedbackError(
+                "Task Already Given",
+                t"The user `{community_user}` has already been given the task `{task_s.name}`!",
+            )
+
+        return TaskAdapter(task_s, self)
+
+    def remove_task_from_user(
+        self, syn: str, community_user: CommunityUserAdapter
+    ) -> None:
+        task_s = _require_task_with_syn(text.NormStr(syn), self._s)
+
+        try:
+            self._s.remove_task_from_community_user(task_s.id, community_user._s.id)
+        except CommunityUserDoesNotHaveTaskError:
+            raise FeedbackError(
+                "Task Not Given Yet",
+                t"The user `{community_user}` has not been given the task `{task_s.name}` yet, therefore nothing changed!",
+            )

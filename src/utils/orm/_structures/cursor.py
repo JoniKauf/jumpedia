@@ -9,6 +9,7 @@ from .._query import ExecutableQuery, FetchableQuery, Query
 from .._query.insert import InsertQuery, InsertReturningQuery
 
 if t.TYPE_CHECKING:
+    from .connector import Connector
     from .model import Model
 
 
@@ -19,17 +20,17 @@ class ExecuteData[T1: int | None, T2: int | None]:
 
 
 class Cursor:
-    def __init__(self, conn: mariadb.Connection) -> None:
-        self._mariadb_connection = conn
-        self._mariadb_cursor = conn.cursor(dictionary=True)
+    def __init__(self, connector: Connector, connection: mariadb.Connection) -> None:
+        self._connector: Connector = connector
+        self._mariadb_connection = connection
+        self._mariadb_cursor = connection.cursor(dictionary=True)
 
         self._mariadb_cursor.execute(
-            "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"
+            "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED"
         )
-        self._ctx_count: int = 0
 
     def __enter__(self) -> Cursor:
-        self._ctx_count += 1
+        self._connector._existing_refs += 1
         return self
 
     def __exit__(
@@ -38,11 +39,6 @@ class Cursor:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self._ctx_count -= 1
-
-        if self._ctx_count > 0:
-            return
-
         if not self._mariadb_connection.autocommit:
             if exc_value is None:
                 self._mariadb_connection.commit()
@@ -50,7 +46,13 @@ class Cursor:
                 self._mariadb_connection.rollback()
 
         self._mariadb_cursor.close()
-        self._mariadb_connection.close()
+
+        self._connector._existing_refs -= 1
+
+        if self._connector._existing_refs <= 0:
+            self._mariadb_connection.close()
+            self._connector._existing_refs = 0
+            self._connector._existing_conn = None
 
     def _core_execute(self, query: Query, /) -> None:
         sql, data = query._to_sql()
@@ -144,6 +146,9 @@ class Cursor:
 
     def raw_fetchall(self) -> list[dict[str, t.Any]]:
         return self._mariadb_cursor.fetchall()
+
+    def commit(self) -> None:
+        return self._mariadb_connection.commit()
 
 
 __all__ = ["ExecuteData", "Cursor"]

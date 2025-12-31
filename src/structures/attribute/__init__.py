@@ -1,16 +1,16 @@
 import itertools
 import typing as t
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from utils import orm, text
 
 from .. import BaseStructure, db, errors
+from . import slot_str
 from .collection import Collection, CollectionEntry
 from .slot_str import SlotStr, SlotTypeT
 
 if t.TYPE_CHECKING:
-    from ..community import Kind
     from ..list import Kind, List
 
 
@@ -153,13 +153,15 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         with self.connector.cursor() as c:
             entry_rows = c.fetch_all(
-                AttributeCollectionEntryTable.select("*").where(
+                AttributeCollectionEntryTable.select("*")
+                .where(
                     (
                         AttributeCollectionEntryTable.attribute_id,
                         orm.Operator.EQ,
                         self.id,
                     )
                 )
+                .order_by(AttributeCollectionEntryTable.index)
             )
 
             if not entry_rows:

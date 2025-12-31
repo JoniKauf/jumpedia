@@ -7,6 +7,7 @@ from adapters._jumpedia import JumpediaAdapter
 from adapters._user import JumpediaUserAdapter
 from adapters.interaction import InteractionAdapter
 from discord_.errors import FeedbackError
+from discord_.utils_ import shortcuts
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 MAX_NAME_LENGTH: t.Final[int] = 32
@@ -72,7 +73,9 @@ def validate_allowed(
             return jumpedia_and_user
 
         jumpedia = InteractionAdapter(interaction).jumpedia
-        jumpedia_user = jumpedia.get_or_create_current_jumpedia_user()
+        jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
+            jumpedia, None
+        )
 
         jumpedia_and_user = (jumpedia, jumpedia_user)
 
@@ -106,11 +109,9 @@ def validate_allowed(
 
         jumpedia, jumpedia_user = get_jumpedia_and_jumpedia_user()
 
-        community_rank = (
-            jumpedia.get_current_community()
-            .get_or_create_community_user(jumpedia_user)
-            .community_rank
-        )
+        community_rank = shortcuts.get_or_create_specified_or_current_community_user(
+            shortcuts.get_current_community(jumpedia), jumpedia_user
+        ).community_rank
 
         return community_rank
 

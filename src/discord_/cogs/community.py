@@ -4,14 +4,12 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters._user import UserAdapter
 from adapters.interaction import InteractionAdapter
-from discord_.utils_ import shortcuts
 from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from ..utils_ import messaging, modal, predicate
+from ..utils_ import messaging, modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -90,7 +88,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @acmds.command(description="Delete a community.")
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
-    async def delete(self, interaction: dc.Interaction) -> None:
+    async def nuke(self, interaction: dc.Interaction) -> None:
         ia = InteractionAdapter(interaction)
         community = shortcuts.get_current_community(ia)
 
@@ -137,12 +135,18 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         self, interaction: dc.Interaction, user: dc.User
     ) -> None:
         community = shortcuts.get_current_community(InteractionAdapter(interaction))
-        transfer_jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(community.jumpedia, user)
+        transfer_jumpedia_user = (
+            shortcuts.get_or_create_specified_or_current_jumpedia_user(
+                community.jumpedia, user
+            )
+        )
 
         async def after_submit(interaction: dc.Interaction, success: bool) -> None:
             if success:
                 current_community_user = (
-                    shortcuts.get_or_create_specified_or_current_community_user(community, None)
+                    shortcuts.get_or_create_specified_or_current_community_user(
+                        community, None
+                    )
                 )
 
                 community.get_or_create_community_user(
@@ -173,5 +177,31 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 f"Enter the other user's name to confirm:",
                 lambda s: s == transfer_jumpedia_user.name,
                 after_submit,
+            )
+        )
+
+    @acmds.command(description="Set the default selected list of the community.")
+    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
+    async def set_default_selected_list(
+        self, interaction: dc.Interaction, list: str | None = None
+    ) -> None:
+        community = shortcuts.get_current_community(InteractionAdapter(interaction))
+
+        if list is not None:
+            selected_list = community.get_list(list).name
+        else:
+            selected_list = None
+
+        community.set_default_selected_list(selected_list)
+
+        await interaction.response.send_message(
+            messaging.layout(
+                "Default Selected List Set",
+                (
+                    t"The default selected list has successfully been changed to `{list}`!"
+                    if list is not None
+                    else t"The default selected list has successfully been changed to be unset."
+                ),
+                messaging.MessageStatus.SUCCESS,
             )
         )

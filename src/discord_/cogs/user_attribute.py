@@ -50,7 +50,7 @@ class UserttributeCog(cmds.GroupCog, group_name="user_attribute"):
 
     @acmds.command(description="Delete an existing user attribute.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def delete(
+    async def nuke(
         self, interaction: dc.Interaction, user_attribute: str, list: str | None = None
     ) -> None:
         await static_attribute.delete(interaction, UserAttribute, user_attribute, list)

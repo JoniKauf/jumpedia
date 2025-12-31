@@ -50,7 +50,7 @@ class TaskttributeCog(cmds.GroupCog, group_name="task_attribute"):
 
     @acmds.command(description="Delete an existing task attribute.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def delete(
+    async def nuke(
         self, interaction: dc.Interaction, task_attribute: str, list: str | None = None
     ) -> None:
         await static_attribute.delete(interaction, TaskAttribute, task_attribute, list)

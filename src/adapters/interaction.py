@@ -33,7 +33,9 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         # used a single jumpedia command, they will find information.
         self.jumpedia.get_or_create_jumpedia_user(
             self.current_user,
-            override_jumpedia_rank=(JumpediaRank.JONIKAUF if is_joni(self._s) else None)
+            override_jumpedia_rank=(
+                JumpediaRank.JONIKAUF if is_joni(self._s) else None
+            ),
         )
 
     @cached_property

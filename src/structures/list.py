@@ -2,6 +2,7 @@ import builtins
 import enum
 import itertools
 import typing as t
+from pprint import pprint
 from types import MappingProxyType
 
 from utils import orm, text
@@ -72,14 +73,13 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             real_name=RealStr(real_name := "Alias"),
             norm_name=NormStr(real_name),
             slot_type=str,
-            position=1,
+            position=2,
             min_slots=0,
             max_slots=32,
             kind=Kind.ALIAS,
         ),
     }
 )
-
 
 type _RawAvmT = dict[int, tuple[SlotStr, ...]]
 
@@ -264,6 +264,7 @@ class List(BaseStructure):
         slot_type: type[SlotTypeT],
         max_slots: int,
         *,
+        position: int,
         min_slots: int,
         kind: Kind,
     ) -> T:
@@ -290,16 +291,23 @@ class List(BaseStructure):
         slot_type: type[SlotTypeT],
         max_slots: int,
         *,
+        position: int = -1,
         min_slots: int = 0,
         kind: Kind | None = None,
         collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
     ) -> T:
+        assert position >= -1
+
+        assert (position >= 0) == issubclass(
+            type, StaticAttribute
+        ), "Typing not followed on attribute creation #1"
+
         assert (min_slots or kind) != issubclass(
             type, BaseNonStaticAttribute
-        ), "Typing not followed on attribute creation #1"
+        ), "Typing not followed on attribute creation #2"
         assert not (
             issubclass(type, StaticAttribute) and collection
-        ), "Typing not followed on attribute creation #2"
+        ), "Typing not followed on attribute creation #3"
 
         (real_name, *real_aliases), (norm_name, *norm_aliases) = (
             utils_.handled_unique_reals_and_norms((real_name, *real_aliases))
@@ -323,7 +331,8 @@ class List(BaseStructure):
                 self.community.limits.attribute_task_value_slot_count_max,
             )
 
-        position = max(attr.position for attr in attrs) + 1 if attrs else 0
+        if position == -1:
+            position = max(attr.position for attr in attrs) + 1 if attrs else 0
 
         AttributeTable = t.cast(
             builtins.type[db.AbstractAttributeTable], type.tables.attribute
@@ -622,6 +631,23 @@ class List(BaseStructure):
             self._task_row_to_obj(data) for data in self._fetch_tasks_from_table(*where)
         ]
 
+    def get_tasks_of_user(self, community_user_id: int) -> list[Task]:
+        with self.connector.cursor() as c:
+            rows = c.fetch_all(
+                db.ListTaskCommunityUser.select(db.ListTaskCommunityUser.task_id).where(
+                    (
+                        db.ListTaskCommunityUser.community_user_id,
+                        db.Operator.EQ,
+                        community_user_id,
+                    )
+                )
+            )
+
+        if not rows:
+            return []
+
+        return self.get_tasks_by_id(*(row.id for row in rows))
+
     def get_tasks_by_id(self, id: int, /, *ids: int) -> list[Task]:
         rows = self._fetch_tasks_from_table((db.Task.id, orm.Operator.IN, (id, *ids)))
         return list(map(self._task_row_to_obj, rows))
@@ -755,13 +781,13 @@ class List(BaseStructure):
     @t.overload
     def get_task_attribute_value_mappings(
         self, /
-    ) -> tuple[list[StaticAttribute | TaskAttribute], list[AttributeValueMapping]]:
+    ) -> tuple[list[AttributeValueMapping], list[StaticAttribute | TaskAttribute]]:
         pass
 
     @t.overload
     def get_task_attribute_value_mappings(
         self, community_user_id: int, /
-    ) -> tuple[list[AnyAttributeT], list[UserAttributeValueMapping]]:
+    ) -> tuple[list[UserAttributeValueMapping], list[AnyAttributeT]]:
         pass
 
     def get_task_attribute_value_mappings(

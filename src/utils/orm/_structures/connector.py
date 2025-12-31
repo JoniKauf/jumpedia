@@ -4,12 +4,11 @@ from dataclasses import InitVar, dataclass, field
 from types import MappingProxyType
 
 import mariadb
-import mariadb.connectionpool
 
 from .cursor import Cursor
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Connector:
     host: str
     user: str
@@ -17,9 +16,14 @@ class Connector:
     database_name: str | None
     port: int = 3306
     autocommit: bool = False
-    converter: MappingProxyType[int, t.Callable[[t.Any], t.Any]] = MappingProxyType({})
+    converter: MappingProxyType[int, t.Callable[[t.Any], t.Any]] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     kwargs: InitVar[t.Mapping[str, t.Any]] = MappingProxyType({})
+
     _create_connection: t.Callable[[], mariadb.Connection] = field(init=False, default=None)  # type: ignore
+    _existing_conn: mariadb.Connection | None = field(init=False, default=None)
+    _existing_refs: int = 0
 
     def __post_init__(
         self,
@@ -41,16 +45,16 @@ class Connector:
             ),
         )
 
-    def cursor(self, c: Cursor | None = None) -> Cursor:
-        if c is not None:
-            return c
+    def cursor(self) -> Cursor:
+        if self._existing_conn is not None:
+            return Cursor(self, self._existing_conn)
 
-        RETRIES: int = 5
-        DELAY: float = 0.5
+        RETRIES: int = 10
+        DELAY: float = 0.25
 
         for i in range(RETRIES):
             try:
-                c = self._create_connection()
+                conn = self._create_connection()
             except mariadb.Error as e:
                 time.sleep(DELAY)
 
@@ -59,9 +63,11 @@ class Connector:
             else:
                 break
 
-        assert c is not None
+        assert conn is not None
 
-        return Cursor(c)
+        self._existing_conn = conn
+
+        return Cursor(self, conn)
 
 
 __all__ = ["Connector"]

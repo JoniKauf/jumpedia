@@ -1,7 +1,6 @@
 import typing as t
 
 from discord_.errors import FeedbackError
-from discord_.utils_ import shortcuts
 from structures.community import Community, CommunityLimits
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
@@ -22,6 +21,7 @@ if t.TYPE_CHECKING:
 
 
 __conn_data = secret.listen().DATABASE_CONNECTION_DATA
+__conn_data_meta = __conn_data | {"database_name": None}
 
 _JUMPEDIA = Jumpedia(
     id=1,
@@ -32,9 +32,11 @@ _JUMPEDIA = Jumpedia(
         attribute_syn_length_max=64,
         attribute_task_value_slot_length_max=255,
     ),
-    connector=Connector(**__conn_data, database_name="jumpedia"),
-    meta_connector=Connector(**__conn_data, database_name=None),
+    connector=Connector(**__conn_data),
+    meta_connector=Connector(**__conn_data_meta),  # type: ignore
 )
+
+del __conn_data, __conn_data_meta
 
 
 def _require_community_with_name(name: text.NormStr, jumpedia_s: Jumpedia) -> Community:
@@ -65,7 +67,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def create_community(
         self, name: str, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(self, None)
+        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.current_user)
 
         try:
             comm = self._s.create_community(
