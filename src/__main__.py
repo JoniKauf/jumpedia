@@ -24,8 +24,8 @@ def __main() -> None:
             "Developed for CPython, other Python implementation may not be compatible!"
         )
 
-    one_to_two.main()
-    # import discord_
+    # one_to_two.main()
+    import discord_.run
 
 
 if __name__ == "__main__":

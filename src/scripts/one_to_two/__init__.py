@@ -195,9 +195,10 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
         32,
     )
 
-    old_to_new["proof"] = list.create_attribute(
-        UserAttribute, RealStr("Proof"), (), str, 1
-    )
+    if not unproven:
+        old_to_new["proof"] = list.create_attribute(
+            UserAttribute, RealStr("Proof"), (), str, 1
+        )
 
     return old_to_new
 
@@ -345,46 +346,51 @@ def main():
 
     CONNECTOR = orm.Connector(**secret.listen().DATABASE_CONNECTION_DATA)
 
-    # with CONNECTOR.cursor() as c:
-    #     c.raw_execute(f"DROP SCHEMA {CONNECTOR.database_name}")
+    while True:
+        input("Locked rn!")
 
-    # db.create_database(_JUMPEDIA)
+    with CONNECTOR.cursor() as c:
+        c.raw_execute(f"DROP SCHEMA {CONNECTOR.database_name}")
 
-    # community = _JUMPEDIA.create_community(
-    #     RealStr("SMO Trickjumping"),
-    #     469869605570084886,
-    #     _JUMPEDIA.get_or_create_jumpedia_user(
-    #         679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
-    #     ),
-    #     CommunityLimits(32, 32, _32_BIT_INTEGER_LIMIT, 32, 32, 1024, 32),
-    # )
+    db.create_database(_JUMPEDIA)
 
-    # main_list = community.create_list(RealStr("Main"))
+    community = _JUMPEDIA.create_community(
+        RealStr("SMO Trickjumping"),
+        469869605570084886,
+        _JUMPEDIA.get_or_create_jumpedia_user(
+            679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
+        ),
+        CommunityLimits(32, 32, _32_BIT_INTEGER_LIMIT, 32, 32, 1024, 32),
+    )
 
-    # community.set_default_selected_list(main_list.id)
+    main_list = community.create_list(RealStr("Main"))
 
-    # unproven_list = community.create_list(RealStr("Unproven"))
+    community.set_default_selected_list(main_list.id)
 
-    # print("Creating attributes...")
-    # OLD_TO_NEW_ATTRS = create_attributes(main_list, False)
-    # OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(unproven_list, True)
-    # print("Created attributes!")
+    unproven_list = community.create_list(RealStr("Unproven"))
 
-    # print("Creating tasks...")
-    # TASKS = create_tasks(main_list, OLD_TO_NEW_ATTRS, False)
-    # TASKS_UNPROVEN = create_tasks(unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
-    # print("Created tasks!")
+    print("Creating attributes...")
+    OLD_TO_NEW_ATTRS = create_attributes(main_list, False)
+    OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(unproven_list, True)
+    print("Created attributes!")
 
-    main_list = _JUMPEDIA.get_community_by_name(
-        NormStr("SMO Trickjumping")
-    ).get_list_by_name(NormStr("Main"))
+    print("Creating tasks...")
+    TASKS = create_tasks(main_list, OLD_TO_NEW_ATTRS, False)
+    _ = create_tasks(unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
+    print("Created tasks!")
 
-    assert main_list is not None
+    proof_attr: UserAttribute = OLD_TO_NEW_ATTRS["proof"]  # type: ignore
 
-    proof_attr = tuple(
-        main_list.get_attributes_by_name(UserAttribute, NormStr("proof")).values()
-    )[0]
-    TASKS = main_list.get_tasks()
+    # main_list = _JUMPEDIA.get_community_by_name(
+    #     NormStr("SMO Trickjumping")
+    # ).get_list_by_name(NormStr("Main"))
+
+    # assert main_list is not None
+
+    # proof_attr = tuple(
+    #     main_list.get_attributes_by_name(UserAttribute, NormStr("proof")).values()
+    # )[0]
+    # TASKS = main_list.get_tasks()
 
     print("Giving users tasks...")
     give_jumps_to_users(main_list, proof_attr, {task.norm_name: task for task in TASKS})
