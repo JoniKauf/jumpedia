@@ -2,6 +2,7 @@ import typing as t
 from dataclasses import dataclass
 
 from structures import BaseStructure
+from utils.text import RealStr
 
 
 @t.dataclass_transform(frozen_default=True)
@@ -36,6 +37,14 @@ class BaseAdapter[T](metaclass=_AdapterMeta):
 
 
 class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
+    @property
+    def id(self) -> int:
+        return self._s.id
+
+    @property
+    def name(self) -> str:
+        return self._s.name
+
     def __str__(self) -> str:
         return self._s.name
 

@@ -15,7 +15,7 @@ class GenericVisitError(BaseExpressionParsingError):
 class WrongVisitError(BaseExpressionParsingError):
     def __init__(
         self,
-        received: ast.AST,
+        received: ast.AST | None,
         expected: type[ast.AST] | tuple[type[ast.AST], ...] | None,
     ) -> None:
         self.received = received
@@ -37,7 +37,6 @@ class MaxTokenCountExceecedError(BaseExpressionParsingError):
 
 class MaxSrcLengthExceededError(BaseExpressionParsingError):
     pass
-
 
 class ImplicitConcatOfStringsError(BaseExpressionParsingError):
     def __init__(self, left: str, right: str) -> None:

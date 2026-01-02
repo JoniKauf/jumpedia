@@ -1,11 +1,19 @@
+from structures.task import Task
+from structures.attribute.collection import Collection
+import functools
 import ast
 import typing as t
-from types import MappingProxyType
+from types import EllipsisType, MappingProxyType
+from xml.parsers.expat import expat_CAPI
 
 from discord_.errors import FeedbackError
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_str import SlotTypeT
-from structures.task.attribute_value_mapping import AttributeValueMapping
+from structures.task.attribute_value_mapping import (
+    AnyAttributeValueMappingT,
+    AttributeValueMapping,
+    UserAttributeValueMapping,
+)
 from utils import text
 from utils.expression_parsing import errors as ep_errors
 from utils.expression_parsing.parser import ExpressionParser, ExpressionParserConfig
@@ -17,8 +25,8 @@ from utils.text import NormStr
 
 from . import errors
 
-type FilterAvmCollectionT = MappingProxyType[int, dict[NormStr, frozenset[SlotTypeT]]]
-type FilterAttributesT = MappingProxyType[NormStr, AnyAttributeT]
+type FilterAvmCollectionT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
+type FilterAttributesT = dict[NormStr, AnyAttributeT]
 
 
 _CHILD_TYPE_TO_STR: dict[type[ast.expr], str] = {
@@ -29,20 +37,15 @@ _CHILD_TYPE_TO_STR: dict[type[ast.expr], str] = {
 }
 
 
-_GENERAL_ERROR = FeedbackError(
-    "Invalid Syntax Error", t"The entered syntax is invalid!"
-)
-
-
 def validate_children_type[T: ast.AST](
-    children: t.Iterable[ast.AST], child_type: type[T]
+    children: t.Iterable[ast.AST], child_type: type[T] | tuple[type[T], ...]
 ) -> tuple[T, ...]:
     ch = tuple(children)
 
     if child_type is not ast.AST:
         for child in ch:
             if not isinstance(child, child_type):
-                raise _GENERAL_ERROR
+                raise TypeError(child, child_type)
 
     return ch  # type: ignore
 
@@ -76,7 +79,7 @@ def visit_Dict_and_validate_constant_to_list_and_no_star_and_unique_keys(
     node: ast.Dict, visitor: BaseExpressionVisitor
 ) -> t.Any:
     if None in node.keys:
-        raise _GENERAL_ERROR
+        raise ep_errors.WrongVisitError(None, None)
 
     keys = t.cast(list[ast.AST], node.keys)
     values = node.values
@@ -106,58 +109,57 @@ _CONFIG_PARSER = ExpressionParserConfig(_KIBIBYTE * _KIBIBYTE * 2, _KIBIBYTE * 4
 _CONFIG_VISITOR = ExpressionVisitorConfig(255)
 
 
-_OP_TO_FUNC: dict[
-    type[ast.AST], t.Callable[[SlotTypeT, frozenset[SlotTypeT]], bool]
+_OP_TO_FUNC: t.Final[
+    dict[type[ast.AST], t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
 ] = {
-    ast.Eq: lambda v, tav: v in tav,
-    ast.NotEq: lambda v, tav: v not in tav,
-    ast.Lt: lambda v, tav: any(
-        v < s for s in tav  # pyright: ignore[reportOperatorIssue]
+    ast.Is: lambda tav, v: v in tav,
+    ast.IsNot: lambda tav, v: v not in tav,
+    ast.Lt: lambda tav, v: any(
+        s < v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
-    ast.LtE: lambda v, tav: any(
-        v <= s for s in tav  # pyright: ignore[reportOperatorIssue]
+    ast.LtE: lambda tav, v: any(
+        s <= v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
-    ast.Gt: lambda v, tav: any(
-        v > s for s in tav  # pyright: ignore[reportOperatorIssue]
+    ast.Gt: lambda tav, v: any(
+        s > v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
-    ast.GtE: lambda v, tav: any(
-        v >= s for s in tav  # pyright: ignore[reportOperatorIssue]
+    ast.GtE: lambda tav, v: any(
+        s >= v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
 }
 
+_ORDER_OPS: t.Final[frozenset[type[ast.AST]]] = frozenset(
+    (ast.Lt, ast.LtE, ast.Gt, ast.GtE)
+)
 
-class FilterVisitor(
+
+class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
     BaseExpressionVisitor[
-        list[AttributeValueMapping], [t.Iterable[AttributeValueMapping]]
+        list[T],
+        [t.Iterable[T], dict[NormStr, AnyAttributeT], set[AnyAttributeT]],
     ],
     body_type=(ast.BoolOp, ast.Compare),
 ):
     def start_visit(
-        self, node: ast.AST, avms: t.Iterable[AttributeValueMapping]
-    ) -> list[AttributeValueMapping]:
-        attribute_value_mappings: dict[int, AttributeValueMapping] = {
-            id(avm): avm for avm in avms
+        self,
+        node: ast.AST,
+        avms: t.Iterable[T],
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT]
+    ) -> list[T]:
+        attribute_value_mappings: dict[int, T] = {id(avm): avm for avm in avms}
+
+        favmc: FilterAvmCollectionT = {
+            id(avm): {
+                attr.norm_name: frozenset(attr.slot_type(NormStr(slot)) for slot in val)
+                for attr, val in avm.combined.items()
+            }
+            for avm in attribute_value_mappings.values()
         }
 
-        favmc: FilterAvmCollectionT = MappingProxyType(
-            {
-                id(avm): {
-                    attr.norm_name: frozenset(map(attr.slot_type, val))
-                    for attr, val in avm.combined.items()
-                }
-                for avm in attribute_value_mappings.values()
-            }
+        result: FilterAvmCollectionT = super().visit(
+            node, favmc, attributes, used_attributes
         )
-
-        attributes: FilterAttributesT = MappingProxyType(
-            {
-                attr.norm_name: attr
-                for avm in attribute_value_mappings.values()
-                for attr in avm.combined
-            }
-        )
-
-        result: FilterAvmCollectionT = super().visit(node, favmc, attributes)
 
         return list(attribute_value_mappings[id] for id in result)
 
@@ -166,22 +168,30 @@ class FilterVisitor(
         node: ast.BoolOp,
         favmc: FilterAvmCollectionT,
         attributes: FilterAttributesT,
+        used_attributes: set[AnyAttributeT],
     ) -> t.Any:
         assert isinstance(node.op, ast.And | ast.Or)
 
-        values = validate_children_type(node.values, ast.Compare)
+        values = validate_children_type(node.values, (ast.Compare, ast.BoolOp))
+
+        favmc = favmc.copy()
 
         if isinstance(node.op, ast.Or):
-            remaining = favmc
+            remaining_to_check = favmc
             result: dict[int, dict[NormStr, frozenset[SlotTypeT]]] = {}
 
             for v in values:
-                if not remaining:
+                if not remaining_to_check:
                     break
 
-                new: FilterAvmCollectionT = self.visit(v, remaining, attributes)
-                remaining = dict(remaining.items() - new.items())
-                result |= new
+                checked_successfully: FilterAvmCollectionT = self.visit(
+                    v, remaining_to_check, attributes, used_attributes
+                )
+
+                for k in checked_successfully:
+                    remaining_to_check.pop(k, None)
+
+                result |= checked_successfully
 
             return result
 
@@ -190,8 +200,10 @@ class FilterVisitor(
                 if not favmc:
                     break
 
-                new: FilterAvmCollectionT = self.visit(v, favmc, attributes)
-                favmc = MappingProxyType(dict(favmc.items() & new.items()))
+                checked_successfully: FilterAvmCollectionT = self.visit(
+                    v, favmc, attributes, used_attributes
+                )
+                favmc = {k: v for k, v in favmc.items() if k in checked_successfully}
 
             return favmc
 
@@ -202,6 +214,7 @@ class FilterVisitor(
         node: ast.Compare,
         favmc: FilterAvmCollectionT,
         attributes: FilterAttributesT,
+        used_attributes: set[AnyAttributeT],
     ) -> t.Any:
         if len(node.ops) > 1:
             raise ep_errors.WrongVisitError(node.ops[1], None)
@@ -211,11 +224,11 @@ class FilterVisitor(
         op_func = _OP_TO_FUNC.get(op.__class__)
 
         if op_func is None:
-            raise FeedbackError("Invalid Comparison", t"The comparison")
+            raise ep_errors.WrongVisitError(op_func, tuple(_OP_TO_FUNC))
 
         left, right = node.left, node.comparators[0]
 
-        LEFT_RIGHT_TYPE = ast.Constant
+        LEFT_RIGHT_TYPE = (ast.Constant, ast.Name)
 
         if not isinstance(left, LEFT_RIGHT_TYPE):
             raise ep_errors.WrongVisitError(left, LEFT_RIGHT_TYPE)
@@ -223,33 +236,154 @@ class FilterVisitor(
         if not isinstance(right, LEFT_RIGHT_TYPE):
             raise ep_errors.WrongVisitError(right, LEFT_RIGHT_TYPE)
 
-        attr_name: NormStr = self.visit(right, None)
-        attr = attributes.get(attr_name)
+        attr_syn: NormStr = self.visit(left, True, op)
+        attr = attributes.get(attr_syn)
 
         if attr is None:
             raise errors.StructureNotFoundViaSynFeedbackError(
-                attr_name, BaseAttribute, False
+                attr_syn, BaseAttribute, False
             )
 
-        value: SlotTypeT = self.visit(left, attr)
+        used_attributes.add(attr)
 
-        return MappingProxyType(
-            {i: tav for i, tav in favmc.items() if op_func(value, tav[attr_name])}
-        )
+        value_str: NormStr | EllipsisType = self.visit(right, False, op)
+        attr_name: NormStr = attr.norm_name
 
-    def visit_Constant(
-        self, node: ast.Constant, attribute: AnyAttributeT | None
-    ) -> t.Any:
-        c = visit_Constant_and_validate_str(node, self)
+        if value_str is Ellipsis:
+            MUST_BE_EMPTY = isinstance(op, ast.Is)
 
-        if attribute is None:
-            return c
+            return {
+                i: tav
+                for i, tav in favmc.items()
+                if (not tav.get(attr_name)) is MUST_BE_EMPTY
+            }
 
-        return attribute.slot_type(c)
+        collection = attr.get_collection()
 
+        if collection:
+            value = collection.get_entry_by_syn(value_str).collection_index
+
+            return {
+                i: tav
+                for i, tav in favmc.items()
+                if op_func(
+                    frozenset(
+                        collection.get_entry_by_syn(slot).collection_index
+                        for slot in tav.get(attr_name, frozenset())
+                    ),
+                    value,
+                )
+            }
+        
+        value = attr.slot_type(value_str)
+
+        return {
+            i: tav
+            for i, tav in favmc.items()
+            if op_func(tav.get(attr_name, frozenset()), value)
+        }
+
+    def visit_Name(self, node: ast.Name, attr: bool, op: ast.cmpop) -> t.Any:
+        return self.visit_Constant(ast.Constant(node.id), attr, op)
+
+    def visit_Constant(self, node: ast.Constant, attr: bool, op: ast.cmpop) -> t.Any:
+        if not attr and op not in _ORDER_OPS and node.value is Ellipsis:
+            return node.value
+
+        return NormStr(visit_Constant_and_validate_str(node, self))
+
+class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](BaseExpressionVisitor[list[T], [t.Iterable[T], dict[NormStr, AnyAttributeT], set[AnyAttributeT]]], body_type=(ast.Tuple, ast.Name, ast.Constant, ast.UnaryOp)):
+    def start_visit(
+        self,
+        node: ast.AST,
+        avms: t.Iterable[T],
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT]
+    ) -> list[T]:
+        sorts: list[tuple[AnyAttributeT, bool]]
+
+        if isinstance(ast, ast.Tuple):
+            sorts = self.visit(node, attributes, used_attributes)
+        else:
+            sorts = self.visit(ast.Tuple([node]), attributes, used_attributes)  # type: ignore
+
+        attr_to_coll: dict[AnyAttributeT, Collection] = {attr: attr.get_collection() for attr, _ in sorts}
+        task_to_sort_value: dict[Task, list[tuple[t.Any, ...]]] = {}
+
+        for avm in avms:
+            result: list[tuple[t.Any, ...]] = []
+
+            for attr, _ in sorts:
+                coll = attr_to_coll[attr]
+
+                if coll:
+                    result.append(tuple(coll.get_entry_by_syn(NormStr(slot)).id for slot in avm.combined.get(attr, ())))
+                else:
+                    result.append(tuple(attr.slot_type(NormStr(slot)) for slot in avm.combined.get(attr)))
+
+            task_to_sort_value[avm.task] = result
+
+        def cmp_key(a: T, b: T) -> int:
+            values_a = task_to_sort_value[a.task]
+            values_b = task_to_sort_value[b.task]
+
+            for va, vb, (_, asc) in zip(values_a, values_b, sorts):
+                if va < vb:
+                    return -1 if asc else 1
+
+                if va > vb:
+                    return 1 if asc else -1
+            
+            return 0
+                
+        return sorted(avms, key=functools.cmp_to_key(cmp_key))  # type: ignore
+
+    def visit_Tuple(self, node: ast.Tuple, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
+        elts = validate_children_type(node.elts, (ast.Name, ast.Constant, ast.UnaryOp))
+        
+        result: list[tuple[AnyAttributeT, bool]] = []
+
+        for elem in elts:
+            v: AnyAttributeT | tuple[AnyAttributeT, t.Literal[False]] = self.visit(elem, attributes, used_attributes)
+
+            if isinstance(v, tuple):
+                result.append(v)
+            else:
+                result.append((v, True))
+
+        return result
+
+    def visit_UnaryOp(self, node: ast.UnaryOp, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]):
+        if not isinstance(node.op, ast.USub):
+            raise ep_errors.WrongVisitError(node, ast.USub)
+
+        if not isinstance(node.operand, ast.Name | ast.Constant):
+            raise ep_errors.WrongVisitError(node, (ast.Name, ast.Constant))
+        
+        return (self.visit(node.operand, attributes, used_attributes), False)
+
+    def visit_Name(self, node: ast.Name, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
+        return self.visit_Constant(ast.Constant(node.id), attributes, used_attributes)
+
+    def visit_Constant(self, node: ast.Constant, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
+        attr_syn = NormStr(visit_Constant_and_validate_str(node, self))
+        attr = attributes.get(attr_syn)
+
+        if not attr:
+            raise errors.StructureNotFoundViaSynFeedbackError(
+                attr_syn, BaseAttribute, False
+            )
+        
+        used_attributes.add(attr)
+
+        return attr
 
 FILTER_PARSER = ExpressionParser(
     FilterVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER
+)
+
+SORT_VISITOR = ExpressionParser(
+    SortVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER
 )
 
 

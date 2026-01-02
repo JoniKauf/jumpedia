@@ -2,7 +2,6 @@ import builtins
 import enum
 import itertools
 import typing as t
-from pprint import pprint
 from types import MappingProxyType
 
 from utils import orm, text
@@ -29,7 +28,7 @@ from .user import CommunityUser
 
 if t.TYPE_CHECKING:
     from .community import Community
-
+import functools
 
 class Kind(enum.IntEnum):
     ID = 1
@@ -178,10 +177,10 @@ class List(BaseStructure):
 
         return None
 
-    def get_all_attributes_flat(self) -> tuple[AnyAttributeT, ...]:
-        return tuple(
+    def get_all_attributes_flat(self) -> list[AnyAttributeT]:
+        return [
             attr for type in ALL_ATTRIBUTE_TYPES for attr in self.get_attributes(type)
-        )
+        ]
 
     def get_all_attributes(
         self,
@@ -244,6 +243,53 @@ class List(BaseStructure):
             )
 
         return self._attribute_row_to_obj(StaticAttribute, row)
+
+    def get_attribute_alias_mapping[T: AnyAttributeT](
+        self, type: type[T], attribute_id: int, /, *attribute_ids: int
+    ) -> dict[RealStr, T]:
+        AttributeAliasTable = t.cast(
+            builtins.type[db.AbstractAttributeAliasTable], type.tables.attribute_alias
+        )
+
+        with self.connector.cursor() as c:
+            rows = c.fetch_all(
+                AttributeAliasTable.select(
+                    AttributeAliasTable.attribute_id,
+                    AttributeAliasTable.real_alias,
+                ).where(
+                    (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                    (
+                        AttributeAliasTable.attribute_id,
+                        orm.Operator.IN,
+                        (attribute_id, *attribute_ids),
+                    ),
+                )
+            )
+
+        attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
+            k: tuple(r.real_alias for r in g)
+            for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
+        }
+
+        if not attr_id_to_aliases:
+            return {}
+
+        return {
+            alias: attr
+            for attr in self.get_attributes_by_id(type, *attr_id_to_aliases)
+            for alias in attr_id_to_aliases[attr.id]
+        }
+
+    def get_all_attribute_alias_mappings(
+        self, attribute_id: int, /, *attribute_ids: int
+    ) -> dict[RealStr, AnyAttributeT]:
+        return {
+            k: v
+            for type in ALL_ATTRIBUTE_TYPES
+            for k, v in self.get_attribute_alias_mapping(
+                type, attribute_id, *attribute_ids
+            ).items()
+        }
 
     def _get_default_static_attribute(
         self, kind: Kind, id: int = -1, /
@@ -587,15 +633,6 @@ class List(BaseStructure):
         AttributeAliasTable: type[db.AbstractAttributeAliasTable] = type.tables.attribute_alias  # type: ignore
         count = len(norm_aliases)
 
-        x = AttributeAliasTable.insert(
-            AttributeAliasTable.attribute_id.bind(
-                *itertools.repeat(attribute_id, count)
-            ),
-            AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
-            AttributeAliasTable.norm_alias.bind(*norm_aliases),
-            AttributeAliasTable.real_alias.bind(*real_aliases),
-        )._to_sql()
-
         c.execute(
             AttributeAliasTable.insert(
                 AttributeAliasTable.attribute_id.bind(
@@ -635,18 +672,19 @@ class List(BaseStructure):
         with self.connector.cursor() as c:
             rows = c.fetch_all(
                 db.ListTaskCommunityUser.select(db.ListTaskCommunityUser.task_id).where(
+                    (db.ListTaskCommunityUser.list_id, orm.Operator.EQ, self.id),
                     (
                         db.ListTaskCommunityUser.community_user_id,
-                        db.Operator.EQ,
+                        orm.Operator.EQ,
                         community_user_id,
-                    )
+                    ),
                 )
             )
 
         if not rows:
             return []
 
-        return self.get_tasks_by_id(*(row.id for row in rows))
+        return self.get_tasks_by_id(*(row.task_id for row in rows))
 
     def get_tasks_by_id(self, id: int, /, *ids: int) -> list[Task]:
         rows = self._fetch_tasks_from_table((db.Task.id, orm.Operator.IN, (id, *ids)))
@@ -706,14 +744,13 @@ class List(BaseStructure):
 
         return None
 
-    def _get_attributes_and_data_for_non_static_attribute_value_mapping[
+    def _get_data_for_non_static_attribute_value_mapping[
         T: BaseNonStaticAttribute
     ](
-        self, c: orm.Cursor, type: type[T], community_user_id: int
+        self, c: orm.Cursor, type: type[T], community_user_id: int, attributes: t.Iterable[T]
     ) -> tuple[dict[tuple[int, int], T], dict[int, dict[int, _RawAvmT]]]:
-        task_attrs = self.get_attributes(type)
-        id_to_attr = {(attr.type_id, attr.id): attr for attr in task_attrs}
-        del task_attrs
+        id_to_attr = {(attr.type_id, attr.id): attr for attr in attributes}
+        del attributes
 
         AttributeTaskValueTable = type.tables.task_attribute_value
 
@@ -758,42 +795,36 @@ class List(BaseStructure):
             t.assert_never(AttributeTaskValueTable)
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
-        value: list[SlotStr] = []
-        prev_ta: tuple[int, int] = (-1, -1)
 
-        for row in rows:
-            ta = (row.task_id, row.attribute_id)
-
-            if prev_ta == ta:
-                value.append(row.slot_slot)
-            else:
-                raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = tuple(value)
-                value = [
-                    row.slot_slot
-                ]  # DO NOT CLEAR (or at least copy for data if so), otherwise list is in data is affected
-                prev_ta = ta
-
-        if value:
-            raw_data[prev_ta[0]][type.type_id][prev_ta[1]] = tuple(value)
+        for k, g in itertools.groupby(
+            rows, lambda row: (row.task_id, row.attribute_id)
+        ):
+            raw_data.setdefault(k[0], {}).setdefault(type.type_id, {})[k[1]] = tuple(
+                row.slot_slot for row in g
+            )
 
         return (id_to_attr, raw_data)
 
     @t.overload
     def get_task_attribute_value_mappings(
-        self, /
+        self, community_user_id: None = ..., task_ids: t.Iterable[int] | None = ..., attribute_ids: dict[int, t.Iterable[int]] | None = ..., /
     ) -> tuple[list[AttributeValueMapping], list[StaticAttribute | TaskAttribute]]:
         pass
 
     @t.overload
     def get_task_attribute_value_mappings(
-        self, community_user_id: int, /
+        self, community_user_id: int, task_ids: t.Sequence[int] | None = ..., attribute_ids: dict[int, t.Iterable[int]] | None = ..., /
     ) -> tuple[list[UserAttributeValueMapping], list[AnyAttributeT]]:
         pass
 
     def get_task_attribute_value_mappings(
-        self, community_user_id: int | None = None, /
+        self,
+        community_user_id: int | None = None,
+        task_ids: t.Iterable[int] | None = None,
+        attribute_ids: dict[int, t.Iterable[int]] | None = None,
+        /,
     ) -> tuple[list[t.Any], list[t.Any]]:
-        community_user = None
+        community_user: CommunityUser | None = None
 
         if community_user_id is not None:
             community_user = self.community.get_community_user_by_id(community_user_id)
@@ -803,12 +834,42 @@ class List(BaseStructure):
 
         del community_user_id
 
-        id_to_task: dict[int, Task] = {task.id: task for task in self.get_tasks()}
+        def get_attributes[T: AnyAttributeT](type: type[T]) -> list[T]:
+            if attribute_ids is None:
+                return self.get_attributes(type)
+            
+            attr_ids = attribute_ids.get(type.type_id)
+
+            if not attr_ids:
+                return []
+
+            return self.get_attributes_by_id(type, *attr_ids)
+
+        tasks: list[Task] = []
+
+        if task_ids is None:
+            tasks = self.get_tasks()
+        elif task_ids:
+            tasks = self.get_tasks_by_id(*task_ids)
+        else:
+            if community_user is None:
+                return (
+                    [],
+                    get_attributes(StaticAttribute)
+                    + get_attributes(TaskAttribute),
+                )
+
+            return ([], functools.reduce(list.__add__, map(get_attributes, ALL_ATTRIBUTE_TYPES), []))
+
+        id_to_task: dict[int, Task] = {task.id: task for task in tasks}
+
+        del task_ids, tasks
+
         type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
 
-        ATTRIBUTES_TYPES_TO_HANDLE = (
+        ATTRIBUTE_TYPES_TO_HANDLE = (
             (StaticAttribute, TaskAttribute)
             if community_user is None
             else ALL_ATTRIBUTE_TYPES
@@ -816,7 +877,8 @@ class List(BaseStructure):
 
         with self.connector.cursor() as c:
             # --- Static Attribute ---
-            static_attrs = self.get_attributes(StaticAttribute)
+            if attribute_ids is None:
+                static_attrs = get_attributes(StaticAttribute)
 
             type_id_and_id_to_attribute |= {
                 (attr.type_id, attr.id): attr for attr in static_attrs
@@ -829,12 +891,14 @@ class List(BaseStructure):
 
             for id, task in id_to_task.items():
                 # Set all nested dictionaries once here
-                raw_data[id] = {typ.type_id: {} for typ in ATTRIBUTES_TYPES_TO_HANDLE}
+                raw_data[id] = {typ.type_id: {} for typ in ATTRIBUTE_TYPES_TO_HANDLE}
 
-                static_avm: _RawAvmT = raw_data[id][StaticAttribute.type_id]
+                task_static_attr_data = raw_data[id][StaticAttribute.type_id]
 
-                static_avm[id_attr.id] = (self._task_id_to_slot(id),)
-                static_avm[name_attr.id] = (task.slot_name,)
+                task_static_attr_data[id_attr.id] = (self._task_id_to_slot(id),)
+                task_static_attr_data[name_attr.id] = (
+                    self._task_real_name_to_slot(task.slot_name),
+                )
 
             rows = c.fetch_all(
                 db.TaskAlias.select(
@@ -845,32 +909,46 @@ class List(BaseStructure):
             task_id_to_aliases = itertools.groupby(rows, lambda row: row.task_id)
 
             for task_id, aliases in task_id_to_aliases:
-                raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = tuple(
-                    alias.slot_alias for alias in aliases
+                raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = (
+                    self._task_real_aliases_to_slot_value(tuple(aliases))
                 )
 
             # --- Task Attribute ---
 
-            attr_mapping, new_data = (
-                self._get_attributes_and_data_for_non_static_attribute_value_mapping(
-                    c, TaskAttribute, -1
+            attr_mapping, task_attribute_data = (
+                self._get_data_for_non_static_attribute_value_mapping(
+                    c, TaskAttribute, -1, get_attributes(TaskAttribute)
                 )
             )
 
             type_id_and_id_to_attribute |= attr_mapping
-            raw_data.update(new_data)
+
+            # .update or |= does NOT work because it only combines the most outer layer, while nested layers get overwritten!!
+            for k, attr_type_dct in raw_data.items():
+                raw_data[k][TaskAttribute.type_id] = task_attribute_data.get(k, {}).get(
+                    TaskAttribute.type_id, {}
+                )
+
+            del task_attribute_data
 
             # --- User Attribute ---
 
             if community_user is not None:
-                attr_mapping, new_data = (
-                    self._get_attributes_and_data_for_non_static_attribute_value_mapping(
-                        c, UserAttribute, community_user.jumpedia_user.id
+                attr_mapping, user_attribute_data = (
+                    self._get_data_for_non_static_attribute_value_mapping(
+                        c, UserAttribute, community_user.id, get_attributes(UserAttribute)
                     )
                 )
 
                 type_id_and_id_to_attribute |= attr_mapping
-                raw_data.update(new_data)
+
+                # .update or |= does NOT work because it only combines the most outer layer, while nested layers get overwritten!!
+                for k, attr_type_dct in raw_data.items():
+                    raw_data[k][UserAttribute.type_id] = user_attribute_data.get(
+                        k, {}
+                    ).get(UserAttribute.type_id, {})
+
+                del user_attribute_data
 
         # --- Final Conversion ---
 
@@ -881,10 +959,10 @@ class List(BaseStructure):
                 MappingProxyType(
                     {
                         type_id_and_id_to_attribute[(typ.type_id, attr_id)]: value
-                        for attr_id, value in data[typ.type_id].items()
+                        for attr_id, value in data.get(typ.type_id, {}).items()
                     }
                 )
-                for typ in ATTRIBUTES_TYPES_TO_HANDLE
+                for typ in ATTRIBUTE_TYPES_TO_HANDLE
             )
 
             static_and_task_avm: tuple[AvmT[StaticAttribute], AvmT[TaskAttribute]] = (
@@ -898,7 +976,7 @@ class List(BaseStructure):
             else:
                 final.append(UserAttributeValueMapping(avm, community_user, avms[2]))  # type: ignore
 
-        return list(type_id_and_id_to_attribute.values()), final
+        return (final, list(type_id_and_id_to_attribute.values()))
 
     def create_task(
         self,
@@ -1349,11 +1427,12 @@ class List(BaseStructure):
 
             c.execute(
                 db.TaskUserAttributeValue.delete().where(
+                    (db.TaskUserAttributeValue.list_id, orm.Operator.EQ, self.id),
                     (
                         db.TaskUserAttributeValue.list_task_community_user_id,
                         orm.Operator.EQ,
                         row.id,
-                    )
+                    ),
                 )
             )
 

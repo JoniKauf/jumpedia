@@ -26,7 +26,7 @@ from structures.task import Task
 from utils import text
 from utils.expression_parsing.errors import BaseExpressionParsingError
 
-from . import BaseStructureAdapter, _parsing, errors
+from . import BaseStructureAdapter, errors
 from ._attribute import (
     AnyAttributeAdapterT,
     StaticAttributeAdapter,
@@ -38,6 +38,8 @@ from ._user import CommunityUserAdapter
 
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
+
+from . import parsing
 
 
 @t.overload
@@ -103,7 +105,7 @@ def _validate_and_convert_attribute_value_mapping[T: AnyAttributeT](
 ) -> dict[int, t.Sequence[text.RealStr]]:
     avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
         text.NormStr(k): tuple(map(text.RealStr, v))
-        for k, v in _parsing.MAPPING_PARSER.parse(raw_avm or "{}").items()
+        for k, v in parsing.MAPPING_PARSER.parse(raw_avm or "{}").items()
     }
 
     norm_name_to_attr = {
@@ -132,7 +134,7 @@ def _validate_and_convert_attribute_value_mapping[T: AnyAttributeT](
 
 def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
     try:
-        return tuple(map(text.RealStr, _parsing.LIST_PARSER.parse(aliases or "[]")))
+        return tuple(map(text.RealStr, parsing.LIST_PARSER.parse(aliases or "[]")))
     except BaseExpressionParsingError:
         raise FeedbackError(
             "Invalid Alias Format",
@@ -196,7 +198,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         self._s.edit_task_name(task._s.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
-        real_aliases = tuple(map(text.RealStr, _parsing.LIST_PARSER.parse(aliases)))
+        real_aliases = tuple(map(text.RealStr, parsing.LIST_PARSER.parse(aliases)))
 
         task = self.get_task(syn)
         self._s.edit_task_aliases(task._s.id, real_aliases)
@@ -313,7 +315,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
         real_collection = tuple(
             (text.RealStr(name), tuple(map(text.RealStr, aliases)))
-            for name, aliases in _parsing.LIST_OF_NAME_ALIASES_PARSER.parse(
+            for name, aliases in parsing.LIST_OF_NAME_ALIASES_PARSER.parse(
                 collection or "[]"
             )
         )

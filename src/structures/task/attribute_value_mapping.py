@@ -11,6 +11,8 @@ if t.TYPE_CHECKING:
 
 type AvmT[T: AnyAttributeT] = MappingProxyType[T, tuple[SlotStr, ...]]
 
+type AnyAttributeValueMappingT = AttributeValueMapping | UserAttributeValueMapping
+
 
 @dataclass(frozen=True, slots=True)
 class AttributeValueMapping:
@@ -42,6 +44,10 @@ class UserAttributeValueMapping:
     _combined_cache: dict[AnyAttributeT, tuple[SlotStr, ...]] = field(
         init=False, default_factory=dict
     )
+
+    @property
+    def task(self) -> Task:
+        return self.attribute_value_mapping.task
 
     @property
     def static_attribute_value_mapping(self) -> AvmT[StaticAttribute]:

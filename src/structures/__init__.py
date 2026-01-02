@@ -1,6 +1,7 @@
 import typing as t
 from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import cached_property
 
 from utils import orm, text
 
