@@ -1,13 +1,13 @@
 import ast
 import functools
 import typing as t
-from types import EllipsisType, MappingProxyType
-from xml.parsers.expat import expat_CAPI
+from types import EllipsisType
 
 from discord_.errors import FeedbackError
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.attribute.slot_str import SlotTypeT
+from structures.errors import CollectionEntryNotFoundError
 from structures.task import Task
 from structures.task.attribute_value_mapping import (
     AnyAttributeValueMappingT,
@@ -21,7 +21,7 @@ from utils.expression_parsing.visitor import (
     BaseExpressionVisitor,
     ExpressionVisitorConfig,
 )
-from utils.text import NormStr
+from utils.text import NormStr, RealStr
 
 from . import errors
 
@@ -246,7 +246,9 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         used_attributes.add(attr)
 
-        value_str: NormStr | EllipsisType = self.visit(right, False, op)
+        value_str_real: RealStr | EllipsisType = self.visit(right, False, op)
+        value_str = NormStr(value_str_real)
+
         attr_name: NormStr = attr.norm_name
 
         if value_str is Ellipsis:
@@ -261,7 +263,12 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         collection = attr.get_collection()
 
         if collection:
-            value = collection.get_entry_by_syn(value_str).collection_index
+            try:
+                entry = collection.get_entry_by_syn(value_str)
+            except KeyError:
+                raise errors.CollectionEntryNotFoundFeedbackError(
+                    CollectionEntryNotFoundError(value_str_real, collection)
+                )
 
             return {
                 i: tav
@@ -271,7 +278,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
                         collection.get_entry_by_syn(slot).collection_index
                         for slot in tav.get(attr_name, frozenset())
                     ),
-                    value,
+                    entry.collection_index,
                 )
             }
 
@@ -290,7 +297,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         if not attr and op not in _ORDER_OPS and node.value is Ellipsis:
             return node.value
 
-        return NormStr(visit_Constant_and_validate_str(node, self))
+        return RealStr(visit_Constant_and_validate_str(node, self))
 
 
 class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](

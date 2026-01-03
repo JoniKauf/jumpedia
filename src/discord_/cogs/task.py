@@ -1,6 +1,6 @@
-from structures.list import Kind
-from src.structures.attribute import StaticAttribute
 import builtins
+import enum
+import itertools
 import pprint
 import typing as t
 from collections import deque
@@ -10,15 +10,14 @@ from types import EllipsisType
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-from attr import frozen
-from docutils.nodes import header
 
 from adapters import parsing
 from adapters.interaction import InteractionAdapter
 from discord_.errors import FeedbackError
 from discord_.utils_ import messaging, shortcuts
-from structures.attribute import AnyAttributeT
+from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
+from structures.list import Kind
 from structures.task.attribute_value_mapping import (
     AttributeValueMapping,
     UserAttributeValueMapping,
@@ -35,6 +34,7 @@ _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
     {char: rf"\{char}" for char in r"$&\`*_~#+-.!|()[]{}<>"}
 )
 _DELIM: t.Final[str] = "|"
+_DIV: t.Final[str] = ":---"
 
 
 def _escape_cell(c: tuple[str, ...], /) -> str:
@@ -49,8 +49,30 @@ def _escape_cell(c: tuple[str, ...], /) -> str:
     return "<br/>".join(f"`{s}`".replace("|", r"\|") for s in c)
 
 
-def _row_to_str(row: t.Iterable[tuple[str, ...]], raw: bool = False) -> str:
-    return f"{_DELIM}{_DELIM.join(map('<br/>'.join, row) if raw else map(_escape_cell, row))}{_DELIM}"
+class RowToStrMode(enum.Enum):
+    HEADER = 0
+    DIVIDER = 1
+    BODY = 2
+
+
+def _row_to_str(
+    row: t.Iterable[tuple[str, ...]],
+    mode: RowToStrMode = RowToStrMode.BODY,
+    pos: int = 0,
+) -> str:
+    if mode is RowToStrMode.BODY:
+        # {_DELIM}**{pos}**
+        return f"{_DELIM}{_DELIM.join(map(_escape_cell, row))}"
+
+    if mode is RowToStrMode.HEADER:
+        # {_DELIM}**#**
+        return f"{_DELIM}{_DELIM.join(map(_escape_cell, row))}"
+
+    if mode is RowToStrMode.DIVIDER:
+        # {_DELIM}{_DIV}
+        return f"{_DELIM}{_DELIM.join(map('<br/>'.join, row))}"
+
+    t.assert_never(mode)
 
 
 def _task_data_table_to_gist_files(
@@ -68,8 +90,8 @@ def _task_data_table_to_gist_files(
 
     if headers is not None:
         headers_str_rev = (
-            _row_to_str(((":---",) for _ in range(len(headers))), True),
-            _row_to_str((h,) for h in headers),
+            _row_to_str(((_DIV,) for _ in range(len(headers))), RowToStrMode.DIVIDER),
+            _row_to_str(((h,) for h in headers), RowToStrMode.HEADER),
         )
 
     del headers
@@ -111,9 +133,9 @@ async def _browse(
     list_obj = shortcuts.get_specified_or_selected_or_default_list(community_user, list)
 
     await interaction.response.defer()
-
     msg = await interaction.followup.send("Retrieving data...", suppress_embeds=True)
 
+    # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
         avms, attrs = list_obj._s.get_task_attribute_value_mappings(None)
     else:
@@ -129,17 +151,27 @@ async def _browse(
         sorted(attrs, key=lambda a: a.position)
     )
 
-    used_attributes: set[AnyAttributeT] = set(attr for attr in ATTRS_SORTED if isinstance(attr, StaticAttribute) and attr.kind is Kind.NAME)
+    del attrs
+
+    # --- Filter, Sort and other... --
+    used_attributes: set[AnyAttributeT] = set(
+        attr
+        for attr in ATTRS_SORTED
+        if isinstance(attr, StaticAttribute) and attr.kind is Kind.NAME
+    )
     syn_to_attr: dict[NormStr, AnyAttributeT] = {}
 
-    if attrs and (filter or sort):
+    assert len(used_attributes) == 1
+
+    if filter or sort:
         for alias, attr in list_obj._s.get_all_attribute_alias_mappings(
-            *(attr.id for attr in attrs)
+            *(attr.id for attr in ATTRS_SORTED)
         ).items():
             syn_to_attr[NormStr(alias)] = attr
 
-        syn_to_attr |= {attr.norm_name: attr for attr in attrs}
+        syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
 
+    # - Filter -
     if filter:
         await msg.edit(content="Filtering data...")
 
@@ -159,6 +191,7 @@ async def _browse(
             t"There is no task that matches the specified criteria!",
         )
 
+    # - Sort -
     if sort:
         await msg.edit(content="Sorting data...")
 
@@ -169,23 +202,33 @@ async def _browse(
                 "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."
             )
 
+    del syn_to_attr
+
+    # --- Convert to text ---
     await msg.edit(content="Converting data into text...")
 
+    used_attributes_sorted = tuple(
+        attr for attr in ATTRS_SORTED if attr in used_attributes
+    )
+
     table: tuple[tuple[tuple[SlotStr, ...], ...], ...] = tuple(
-        tuple(avm.combined.get(attr, ()) for attr in ATTRS_SORTED) for avm in avms
+        tuple(avm.combined.get(attr, ()) for attr in used_attributes_sorted)
+        for avm in avms
     )
 
     files = _task_data_table_to_gist_files(
-        table, tuple(attr.real_name for attr in ATTRS_SORTED)
+        table, tuple(attr.real_name for attr in used_attributes_sorted)
     )
 
-    await msg.edit(content="Sending data to GitHub gist...")
+    # --- Data to gists ---
+    await msg.edit(content="Sending text to GitHub gist...")
 
     urls = tuple(
         gist.create_gist({f"Task Data #{str(i).zfill(3)}.md": file})
         for i, file in enumerate(files, 1)
     )
 
+    # --- Success ---
     await msg.edit(
         content=messaging.layout(
             "All Tasks",

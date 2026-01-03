@@ -114,7 +114,7 @@ class CollectionEntryNotFoundFeedbackError(FeedbackError):
     def __init__(self, e: errors.CollectionEntryNotFoundError) -> None:
         super().__init__(
             "Collection Entry Not Found",
-            t"The specified collection entry `{e.real_slot}` could not be found in the collection of the {e.collection.attribute.__class__.type_name} `{e.collection.attribute}`!",
+            t"The specified collection entry `{e.real_slot}` could not be found in the collection of the {e.collection.attribute.__class__.type_name} `{e.collection.attribute.name}`!",
         )
 
 
