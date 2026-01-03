@@ -155,16 +155,16 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
                 await interaction.response.send_message(
                     messaging.layout(
-                        f"Ownership Transferred",
+                        "Ownership Transferred",
                         t"The ownership of the community `{community}` has successfully been transferred to `{transfer_jumpedia_user}`!",
-                        message_status=messaging.MessageStatus.SUCCESS,
                         additional=t"The rank of `{current_community_user}` has been set to `{CommunityRank.ADMINISTRATOR}`.",
+                        message_status=messaging.MessageStatus.SUCCESS,
                     )
                 )
             else:
                 await interaction.response.send_message(
                     messaging.layout(
-                        f"Ownership Transfer Aborted",
+                        "Ownership Transfer Aborted",
                         t"The ownership of the community `{community}` stays in your hands, because the name entered was not the specified user's name (`{transfer_jumpedia_user}`)!",
                         messaging.MessageStatus.WARNING,
                     )

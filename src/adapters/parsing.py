@@ -1,14 +1,14 @@
-from structures.task import Task
-from structures.attribute.collection import Collection
-import functools
 import ast
+import functools
 import typing as t
 from types import EllipsisType, MappingProxyType
 from xml.parsers.expat import expat_CAPI
 
 from discord_.errors import FeedbackError
 from structures.attribute import AnyAttributeT, BaseAttribute
+from structures.attribute.collection import Collection
 from structures.attribute.slot_str import SlotTypeT
+from structures.task import Task
 from structures.task.attribute_value_mapping import (
     AnyAttributeValueMappingT,
     AttributeValueMapping,
@@ -145,7 +145,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         node: ast.AST,
         avms: t.Iterable[T],
         attributes: dict[NormStr, AnyAttributeT],
-        used_attributes: set[AnyAttributeT]
+        used_attributes: set[AnyAttributeT],
     ) -> list[T]:
         attribute_value_mappings: dict[int, T] = {id(avm): avm for avm in avms}
 
@@ -274,7 +274,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
                     value,
                 )
             }
-        
+
         value = attr.slot_type(value_str)
 
         return {
@@ -292,22 +292,29 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         return NormStr(visit_Constant_and_validate_str(node, self))
 
-class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](BaseExpressionVisitor[list[T], [t.Iterable[T], dict[NormStr, AnyAttributeT], set[AnyAttributeT]]], body_type=(ast.Tuple, ast.Name, ast.Constant, ast.UnaryOp)):
+
+class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
+    BaseExpressionVisitor[
+        list[T], [t.Iterable[T], dict[NormStr, AnyAttributeT], set[AnyAttributeT]]
+    ],
+    body_type=(ast.UnaryOp, ast.BinOp),
+):
     def start_visit(
         self,
         node: ast.AST,
         avms: t.Iterable[T],
         attributes: dict[NormStr, AnyAttributeT],
-        used_attributes: set[AnyAttributeT]
+        used_attributes: set[AnyAttributeT],
     ) -> list[T]:
-        sorts: list[tuple[AnyAttributeT, bool]]
+        assert isinstance(node, ast.Expression)
 
-        if isinstance(ast, ast.Tuple):
-            sorts = self.visit(node, attributes, used_attributes)
-        else:
-            sorts = self.visit(ast.Tuple([node]), attributes, used_attributes)  # type: ignore
+        sorts: tuple[tuple[AnyAttributeT, bool], ...] = self.visit(
+            node, attributes, used_attributes
+        )
 
-        attr_to_coll: dict[AnyAttributeT, Collection] = {attr: attr.get_collection() for attr, _ in sorts}
+        attr_to_coll: dict[AnyAttributeT, Collection] = {
+            attr: attr.get_collection() for attr, _ in sorts
+        }
         task_to_sort_value: dict[Task, list[tuple[t.Any, ...]]] = {}
 
         for avm in avms:
@@ -317,9 +324,19 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](BaseExpr
                 coll = attr_to_coll[attr]
 
                 if coll:
-                    result.append(tuple(coll.get_entry_by_syn(NormStr(slot)).id for slot in avm.combined.get(attr, ())))
+                    result.append(
+                        tuple(
+                            coll.get_entry_by_syn(NormStr(slot)).id
+                            for slot in avm.combined.get(attr, ())
+                        )
+                    )
                 else:
-                    result.append(tuple(attr.slot_type(NormStr(slot)) for slot in avm.combined.get(attr)))
+                    result.append(
+                        tuple(
+                            attr.slot_type(NormStr(slot))
+                            for slot in avm.combined.get(attr)
+                        )
+                    )
 
             task_to_sort_value[avm.task] = result
 
@@ -333,39 +350,67 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](BaseExpr
 
                 if va > vb:
                     return 1 if asc else -1
-            
+
             return 0
-                
+
         return sorted(avms, key=functools.cmp_to_key(cmp_key))  # type: ignore
 
-    def visit_Tuple(self, node: ast.Tuple, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
-        elts = validate_children_type(node.elts, (ast.Name, ast.Constant, ast.UnaryOp))
-        
-        result: list[tuple[AnyAttributeT, bool]] = []
-
-        for elem in elts:
-            v: AnyAttributeT | tuple[AnyAttributeT, t.Literal[False]] = self.visit(elem, attributes, used_attributes)
-
-            if isinstance(v, tuple):
-                result.append(v)
-            else:
-                result.append((v, True))
-
-        return result
-
-    def visit_UnaryOp(self, node: ast.UnaryOp, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]):
-        if not isinstance(node.op, ast.USub):
+    def visit_UnaryOp(
+        self,
+        node: ast.UnaryOp,
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT],
+    ):
+        if not isinstance(node.op, ast.USub | ast.UAdd):
             raise ep_errors.WrongVisitError(node, ast.USub)
 
         if not isinstance(node.operand, ast.Name | ast.Constant):
             raise ep_errors.WrongVisitError(node, (ast.Name, ast.Constant))
-        
-        return (self.visit(node.operand, attributes, used_attributes), False)
 
-    def visit_Name(self, node: ast.Name, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
+        return (
+            (
+                self.visit(node.operand, attributes, used_attributes),
+                isinstance(node.op, ast.UAdd),
+            ),
+        )
+
+    def visit_BinOp(
+        self,
+        node: ast.BinOp,
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT],
+    ):
+        if not isinstance(node.left, ast.BinOp | ast.UnaryOp):
+            raise ep_errors.WrongVisitError(node, (ast.BinOp, ast.UnaryOp))
+
+        if not isinstance(node.op, ast.Sub | ast.Add):
+            raise ep_errors.WrongVisitError(node, ast.USub)
+
+        if not isinstance(node.right, ast.Name | ast.Constant):
+            raise ep_errors.WrongVisitError(node, ast.BinOp)
+
+        return (
+            *self.visit(node.left, attributes, used_attributes),
+            (
+                self.visit(node.right, attributes, used_attributes),
+                isinstance(node.op, ast.Add),
+            ),
+        )
+
+    def visit_Name(
+        self,
+        node: ast.Name,
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT],
+    ) -> t.Any:
         return self.visit_Constant(ast.Constant(node.id), attributes, used_attributes)
 
-    def visit_Constant(self, node: ast.Constant, attributes: dict[NormStr, AnyAttributeT], used_attributes: set[AnyAttributeT]) -> t.Any:
+    def visit_Constant(
+        self,
+        node: ast.Constant,
+        attributes: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT],
+    ) -> t.Any:
         attr_syn = NormStr(visit_Constant_and_validate_str(node, self))
         attr = attributes.get(attr_syn)
 
@@ -373,10 +418,11 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](BaseExpr
             raise errors.StructureNotFoundViaSynFeedbackError(
                 attr_syn, BaseAttribute, False
             )
-        
+
         used_attributes.add(attr)
 
         return attr
+
 
 FILTER_PARSER = ExpressionParser(
     FilterVisitor(config=_CONFIG_VISITOR), config=_CONFIG_PARSER

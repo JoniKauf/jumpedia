@@ -28,7 +28,9 @@ from .user import CommunityUser
 
 if t.TYPE_CHECKING:
     from .community import Community
+
 import functools
+
 
 class Kind(enum.IntEnum):
     ID = 1
@@ -744,10 +746,12 @@ class List(BaseStructure):
 
         return None
 
-    def _get_data_for_non_static_attribute_value_mapping[
-        T: BaseNonStaticAttribute
-    ](
-        self, c: orm.Cursor, type: type[T], community_user_id: int, attributes: t.Iterable[T]
+    def _get_data_for_non_static_attribute_value_mapping[T: BaseNonStaticAttribute](
+        self,
+        c: orm.Cursor,
+        type: type[T],
+        community_user_id: int,
+        attributes: t.Iterable[T],
     ) -> tuple[dict[tuple[int, int], T], dict[int, dict[int, _RawAvmT]]]:
         id_to_attr = {(attr.type_id, attr.id): attr for attr in attributes}
         del attributes
@@ -807,13 +811,21 @@ class List(BaseStructure):
 
     @t.overload
     def get_task_attribute_value_mappings(
-        self, community_user_id: None = ..., task_ids: t.Iterable[int] | None = ..., attribute_ids: dict[int, t.Iterable[int]] | None = ..., /
+        self,
+        community_user_id: None = ...,
+        task_ids: t.Iterable[int] | None = ...,
+        attribute_ids: dict[int, t.Iterable[int]] | None = ...,
+        /,
     ) -> tuple[list[AttributeValueMapping], list[StaticAttribute | TaskAttribute]]:
         pass
 
     @t.overload
     def get_task_attribute_value_mappings(
-        self, community_user_id: int, task_ids: t.Sequence[int] | None = ..., attribute_ids: dict[int, t.Iterable[int]] | None = ..., /
+        self,
+        community_user_id: int,
+        task_ids: t.Sequence[int] | None = ...,
+        attribute_ids: dict[int, t.Iterable[int]] | None = ...,
+        /,
     ) -> tuple[list[UserAttributeValueMapping], list[AnyAttributeT]]:
         pass
 
@@ -837,7 +849,7 @@ class List(BaseStructure):
         def get_attributes[T: AnyAttributeT](type: type[T]) -> list[T]:
             if attribute_ids is None:
                 return self.get_attributes(type)
-            
+
             attr_ids = attribute_ids.get(type.type_id)
 
             if not attr_ids:
@@ -855,11 +867,15 @@ class List(BaseStructure):
             if community_user is None:
                 return (
                     [],
-                    get_attributes(StaticAttribute)
-                    + get_attributes(TaskAttribute),
+                    get_attributes(StaticAttribute) + get_attributes(TaskAttribute),
                 )
 
-            return ([], functools.reduce(list.__add__, map(get_attributes, ALL_ATTRIBUTE_TYPES), []))
+            return (
+                [],
+                functools.reduce(
+                    list.__add__, map(get_attributes, ALL_ATTRIBUTE_TYPES), []
+                ),
+            )
 
         id_to_task: dict[int, Task] = {task.id: task for task in tasks}
 
@@ -936,7 +952,10 @@ class List(BaseStructure):
             if community_user is not None:
                 attr_mapping, user_attribute_data = (
                     self._get_data_for_non_static_attribute_value_mapping(
-                        c, UserAttribute, community_user.id, get_attributes(UserAttribute)
+                        c,
+                        UserAttribute,
+                        community_user.id,
+                        get_attributes(UserAttribute),
                     )
                 )
 

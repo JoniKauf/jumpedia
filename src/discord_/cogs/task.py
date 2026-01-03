@@ -1,4 +1,5 @@
-from utils.expression_parsing.errors import BaseExpressionParsingError
+from structures.list import Kind
+from src.structures.attribute import StaticAttribute
 import builtins
 import pprint
 import typing as t
@@ -23,6 +24,7 @@ from structures.task.attribute_value_mapping import (
     UserAttributeValueMapping,
 )
 from utils import gist
+from utils.expression_parsing.errors import BaseExpressionParsingError
 from utils.rank import CommunityRank
 from utils.text import NormStr
 
@@ -127,34 +129,30 @@ async def _browse(
         sorted(attrs, key=lambda a: a.position)
     )
 
-    used_attributes: set[AnyAttributeT] = set()
+    used_attributes: set[AnyAttributeT] = set(attr for attr in ATTRS_SORTED if isinstance(attr, StaticAttribute) and attr.kind is Kind.NAME)
+    syn_to_attr: dict[NormStr, AnyAttributeT] = {}
+
+    if attrs and (filter or sort):
+        for alias, attr in list_obj._s.get_all_attribute_alias_mappings(
+            *(attr.id for attr in attrs)
+        ).items():
+            syn_to_attr[NormStr(alias)] = attr
+
+        syn_to_attr |= {attr.norm_name: attr for attr in attrs}
 
     if filter:
         await msg.edit(content="Filtering data...")
 
-        syn_to_attr: dict[NormStr, AnyAttributeT] = {}
-
-        if attrs:
-            for alias, attr in list_obj._s.get_all_attribute_alias_mappings(
-                *(attr.id for attr in attrs)
-            ).items():
-                syn_to_attr[NormStr(alias)] = attr
-
-            syn_to_attr |= {attr.norm_name: attr for attr in attrs}
-
         try:
             avms = parsing.FILTER_PARSER.parse(
-                filter,
-                avms,
-                syn_to_attr,
-                used_attributes
+                filter, avms, syn_to_attr, used_attributes
             )
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Filter Syntax",
-                t"The syntax specified for the filter is invalid."
+                t"The syntax specified for the filter is invalid.",
             )
-    
+
     if not avms:
         raise FeedbackError(
             "No Matching Tasks",
@@ -165,16 +163,10 @@ async def _browse(
         await msg.edit(content="Sorting data...")
 
         try:
-            avms = parsing.SORT_VISITOR.parse(
-                sort,
-                avms,
-                syn_to_attr,
-                used_attributes
-            )
+            avms = parsing.SORT_VISITOR.parse(sort, avms, syn_to_attr, used_attributes)
         except BaseExpressionParsingError:
             raise FeedbackError(
-                "Invalid Sort Syntax",
-                t"The syntax specified for the sort is invalid."
+                "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."
             )
 
     await msg.edit(content="Converting data into text...")

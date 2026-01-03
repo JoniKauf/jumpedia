@@ -27,7 +27,7 @@ class ExpressionParser[T, **P]:
             return
 
         if self.config.TOKEN_COUNT_MAX < 1:
-            raise errors.MaxTokenCountExceecedError()
+            raise errors.MaxTokenCountExceededError()
 
         count = 1
 
@@ -35,7 +35,7 @@ class ExpressionParser[T, **P]:
             count += 1
 
             if count > self.config.TOKEN_COUNT_MAX:
-                raise errors.MaxTokenCountExceecedError()
+                raise errors.MaxTokenCountExceededError()
 
             # Disallow inplicit string concat
             if prev_tok.type == tokenize.STRING and tok.type == tokenize.STRING:
@@ -56,4 +56,7 @@ class ExpressionParser[T, **P]:
         # Throws TokenError when syntax wrong
         self._validate_tokens(s)
 
-        return self.visitor.start_visit(ast.parse(s, mode="eval"), *args, **kwargs)
+        try:
+            return self.visitor.start_visit(ast.parse(s, mode="eval"), *args, **kwargs)
+        except SyntaxError:
+            raise errors.InvalidSyntaxError()

@@ -1,5 +1,4 @@
 import ast
-import typing as t
 
 
 class BaseExpressionParsingError(Exception):
@@ -31,12 +30,17 @@ class EmptySrcError(BaseExpressionParsingError):
     pass
 
 
-class MaxTokenCountExceecedError(BaseExpressionParsingError):
+class MaxTokenCountExceededError(BaseExpressionParsingError):
     pass
 
 
 class MaxSrcLengthExceededError(BaseExpressionParsingError):
     pass
+
+
+class InvalidSyntaxError(BaseExpressionParsingError):
+    pass
+
 
 class ImplicitConcatOfStringsError(BaseExpressionParsingError):
     def __init__(self, left: str, right: str) -> None:
