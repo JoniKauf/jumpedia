@@ -22,10 +22,6 @@ class WrongVisitError(BaseExpressionParsingError):
         super().__init__()
 
 
-class NewlineInSrcError(BaseExpressionParsingError):
-    pass
-
-
 class EmptySrcError(BaseExpressionParsingError):
     pass
 

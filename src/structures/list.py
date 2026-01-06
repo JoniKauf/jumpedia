@@ -247,7 +247,7 @@ class List(BaseStructure):
         return self._attribute_row_to_obj(StaticAttribute, row)
 
     def get_attribute_alias_mapping[T: AnyAttributeT](
-        self, type: type[T], attribute_id: int, /, *attribute_ids: int
+        self, type: type[T]
     ) -> dict[RealStr, T]:
         AttributeAliasTable = t.cast(
             builtins.type[db.AbstractAttributeAliasTable], type.tables.attribute_alias
@@ -260,11 +260,6 @@ class List(BaseStructure):
                     AttributeAliasTable.real_alias,
                 ).where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                    (
-                        AttributeAliasTable.attribute_id,
-                        orm.Operator.IN,
-                        (attribute_id, *attribute_ids),
-                    ),
                 )
             )
 
@@ -283,14 +278,12 @@ class List(BaseStructure):
         }
 
     def get_all_attribute_alias_mappings(
-        self, attribute_id: int, /, *attribute_ids: int
+        self,
     ) -> dict[RealStr, AnyAttributeT]:
         return {
             k: v
             for type in ALL_ATTRIBUTE_TYPES
-            for k, v in self.get_attribute_alias_mapping(
-                type, attribute_id, *attribute_ids
-            ).items()
+            for k, v in self.get_attribute_alias_mapping(type).items()
         }
 
     def _get_default_static_attribute(
@@ -816,7 +809,11 @@ class List(BaseStructure):
         task_ids: t.Iterable[int] | None = ...,
         attribute_ids: dict[int, t.Iterable[int]] | None = ...,
         /,
-    ) -> tuple[list[AttributeValueMapping], list[StaticAttribute | TaskAttribute]]:
+    ) -> tuple[
+        list[AttributeValueMapping],
+        list[StaticAttribute | TaskAttribute],
+        tuple[type[StaticAttribute], type[TaskAttribute]],
+    ]:
         pass
 
     @t.overload
@@ -826,7 +823,11 @@ class List(BaseStructure):
         task_ids: t.Sequence[int] | None = ...,
         attribute_ids: dict[int, t.Iterable[int]] | None = ...,
         /,
-    ) -> tuple[list[UserAttributeValueMapping], list[AnyAttributeT]]:
+    ) -> tuple[
+        list[UserAttributeValueMapping],
+        list[AnyAttributeT],
+        tuple[type[StaticAttribute], type[TaskAttribute], type[UserAttribute]],
+    ]:
         pass
 
     def get_task_attribute_value_mappings(
@@ -835,7 +836,7 @@ class List(BaseStructure):
         task_ids: t.Iterable[int] | None = None,
         attribute_ids: dict[int, t.Iterable[int]] | None = None,
         /,
-    ) -> tuple[list[t.Any], list[t.Any]]:
+    ) -> tuple[list[t.Any], list[t.Any], tuple[t.Any, ...]]:
         community_user: CommunityUser | None = None
 
         if community_user_id is not None:
@@ -845,6 +846,12 @@ class List(BaseStructure):
                 raise errors.StructureNotFoundError(CommunityUser)
 
         del community_user_id
+
+        ATTRIBUTE_TYPES_TO_HANDLE = (
+            (StaticAttribute, TaskAttribute)
+            if community_user is None
+            else ALL_ATTRIBUTE_TYPES
+        )
 
         def get_attributes[T: AnyAttributeT](type: type[T]) -> list[T]:
             if attribute_ids is None:
@@ -868,13 +875,17 @@ class List(BaseStructure):
                 return (
                     [],
                     get_attributes(StaticAttribute) + get_attributes(TaskAttribute),
+                    ATTRIBUTE_TYPES_TO_HANDLE,
                 )
 
             return (
                 [],
                 functools.reduce(
-                    list.__add__, map(get_attributes, ALL_ATTRIBUTE_TYPES), []
+                    list.__add__,
+                    map(get_attributes, ALL_ATTRIBUTE_TYPES),
+                    [],
                 ),
+                ATTRIBUTE_TYPES_TO_HANDLE,
             )
 
         id_to_task: dict[int, Task] = {task.id: task for task in tasks}
@@ -884,12 +895,6 @@ class List(BaseStructure):
         type_id_and_id_to_attribute: dict[tuple[int, int], AnyAttributeT] = {}
 
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
-
-        ATTRIBUTE_TYPES_TO_HANDLE = (
-            (StaticAttribute, TaskAttribute)
-            if community_user is None
-            else ALL_ATTRIBUTE_TYPES
-        )
 
         with self.connector.cursor() as c:
             # --- Static Attribute ---
@@ -995,7 +1000,11 @@ class List(BaseStructure):
             else:
                 final.append(UserAttributeValueMapping(avm, community_user, avms[2]))  # type: ignore
 
-        return (final, list(type_id_and_id_to_attribute.values()))
+        return (
+            final,
+            list(type_id_and_id_to_attribute.values()),
+            ATTRIBUTE_TYPES_TO_HANDLE,
+        )
 
     def create_task(
         self,

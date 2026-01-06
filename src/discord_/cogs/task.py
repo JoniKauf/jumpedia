@@ -1,7 +1,5 @@
 import builtins
 import enum
-import itertools
-import pprint
 import typing as t
 from collections import deque
 from string.templatelib import Interpolation, Template
@@ -15,13 +13,12 @@ from adapters import parsing
 from adapters.interaction import InteractionAdapter
 from discord_.errors import FeedbackError
 from discord_.utils_ import messaging, shortcuts
-from structures.attribute import AnyAttributeT, StaticAttribute
+from structures.attribute import (
+    AnyAttributeT,
+    StaticAttribute,
+)
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
-from structures.task.attribute_value_mapping import (
-    AttributeValueMapping,
-    UserAttributeValueMapping,
-)
 from utils import gist
 from utils.expression_parsing.errors import BaseExpressionParsingError
 from utils.rank import CommunityRank
@@ -50,9 +47,9 @@ def _escape_cell(c: tuple[str, ...], /) -> str:
 
 
 class RowToStrMode(enum.Enum):
-    HEADER = 0
-    DIVIDER = 1
-    BODY = 2
+    HEADER = enum.auto()
+    DIVIDER = enum.auto()
+    BODY = enum.auto()
 
 
 def _row_to_str(
@@ -79,7 +76,7 @@ def _task_data_table_to_gist_files(
     table: t.Iterable[t.Iterable[tuple[str, ...]]],
     headers: t.Sequence[str] | None = None,
     *,
-    soft_split_limit: int = 500_000,
+    soft_split_limit: int = 1_000_000,
 ) -> list[str]:
     result: list[str] = []
 
@@ -119,32 +116,103 @@ def _task_data_table_to_gist_files(
     return result
 
 
+async def _info(
+    interaction: dc.Interaction,
+    task: str,
+    user: dc.User | None | EllipsisType,
+    list: str | None,
+) -> None:
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
+    )
+
+    avm = list_obj.get_task(task).get_attribute_value_mapping(
+        None
+        if user is Ellipsis
+        else shortcuts.get_or_create_specified_or_current_community_user(
+            list_obj.community, user
+        )
+    )
+
+    elems: builtins.list[str | Interpolation] = []
+
+    for attr, v in avm.combined.items():
+        elems.append(Interpolation(f"**{attr.name.replace('*', r'\*')}**: "))
+
+        if not v:
+            elems.append(str(...))
+        else:
+            elems.append(f"`{'`, `'.join(v)}`")
+
+        elems.append("\n")
+
+    if elems:
+        elems.pop()
+
+    await interaction.response.send_message(
+        messaging.layout(
+            "Task Info",
+            Template(*elems),
+            message_status=messaging.MessageStatus.INFO,
+        )
+    )
+
+
+class Yield(enum.Enum):
+    DEFAULT = enum.auto()
+    ONLY_NAME = enum.auto()
+    ALL = enum.auto()
+
+
 async def _browse(
     interaction: dc.Interaction,
     filter: str | None,
     sort: str | None,
+    yield_: Yield,
     user: dc.User | None | EllipsisType,
+    missing: bool,
     list: str | None,
 ) -> None:
-    community_user = shortcuts.get_or_create_specified_or_current_community_user(
-        InteractionAdapter(interaction), None if user is Ellipsis else user
+    assert missing is (user is not Ellipsis)
+
+    # Get the list of the executing user, not the specified user
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(
+        InteractionAdapter(interaction), None, list
     )
 
-    list_obj = shortcuts.get_specified_or_selected_or_default_list(community_user, list)
+    community_user = shortcuts.get_or_create_specified_or_current_community_user(
+        list_obj.community, None if user is Ellipsis else user
+    )
 
     await interaction.response.defer()
     msg = await interaction.followup.send("Retrieving data...", suppress_embeds=True)
 
+    ATTRIBUTE_TYPES_TO_HANDLE: tuple[type[AnyAttributeT], ...]
+
     # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
-        avms, attrs = list_obj._s.get_task_attribute_value_mappings(None)
+        avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
+            list_obj._s.get_task_attribute_value_mappings(None)
+        )
     else:
         user_task_ids = tuple(
             task._s.id for task in list_obj.get_tasks_of_user(community_user)
         )
 
-        avms, attrs = list_obj._s.get_task_attribute_value_mappings(
-            community_user._s.id, user_task_ids
+        task_ids_to_fetch: tuple[int, ...]
+
+        if not missing:
+            task_ids_to_fetch = user_task_ids
+        else:
+            task_ids_to_fetch = tuple(
+                set(task.id for task in list_obj.get_tasks()).difference(user_task_ids)
+            )
+
+        # Don't include user attribute values when missing, because those don't have any values, because well they are missing
+        avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
+            list_obj._s.get_task_attribute_value_mappings(
+                None if missing else community_user._s.id, task_ids_to_fetch
+            )
         )
 
     ATTRS_SORTED: t.Final[tuple[AnyAttributeT, ...]] = tuple(
@@ -153,23 +221,27 @@ async def _browse(
 
     del attrs
 
+    NAME_ATTR: AnyAttributeT | None = None
+
+    for attr in ATTRS_SORTED:
+        if isinstance(attr, StaticAttribute) and attr.kind is Kind.NAME:
+            NAME_ATTR = attr
+            break
+
+    assert NAME_ATTR is not None
+
     # --- Filter, Sort and other... --
-    used_attributes: set[AnyAttributeT] = set(
-        attr
-        for attr in ATTRS_SORTED
-        if isinstance(attr, StaticAttribute) and attr.kind is Kind.NAME
-    )
+    used_attributes: set[AnyAttributeT] = set()
     syn_to_attr: dict[NormStr, AnyAttributeT] = {}
 
-    assert len(used_attributes) == 1
-
     if filter or sort:
-        for alias, attr in list_obj._s.get_all_attribute_alias_mappings(
-            *(attr.id for attr in ATTRS_SORTED)
-        ).items():
-            syn_to_attr[NormStr(alias)] = attr
+        for attr_type in ATTRIBUTE_TYPES_TO_HANDLE:
+            for alias, attr in list_obj._s.get_attribute_alias_mapping(
+                attr_type
+            ).items():
+                syn_to_attr[NormStr(alias)] = attr
 
-        syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
+            syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
 
     # - Filter -
     if filter:
@@ -192,11 +264,13 @@ async def _browse(
         )
 
     # - Sort -
-    if sort:
-        await msg.edit(content="Sorting data...")
+    await msg.edit(content="Sorting data...")
 
+    if not sort:
+        avms = parsing.sort(avms, [(NAME_ATTR, True)])
+    else:
         try:
-            avms = parsing.SORT_VISITOR.parse(sort, avms, syn_to_attr, used_attributes)
+            avms = parsing.SORT_PARSER.parse(sort, avms, syn_to_attr, used_attributes)
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."
@@ -207,17 +281,29 @@ async def _browse(
     # --- Convert to text ---
     await msg.edit(content="Converting data into text...")
 
-    used_attributes_sorted = tuple(
-        attr for attr in ATTRS_SORTED if attr in used_attributes
-    )
+    # - Yield -
+    attribute_yield: set[AnyAttributeT]
+
+    if yield_ is Yield.DEFAULT:
+        attribute_yield = {NAME_ATTR} | used_attributes
+    elif yield_ is Yield.ONLY_NAME:
+        attribute_yield = {NAME_ATTR}
+    elif yield_ is Yield.ALL:
+        attribute_yield = set(ATTRS_SORTED)
+    else:
+        t.assert_never(yield_)
 
     table: tuple[tuple[tuple[SlotStr, ...], ...], ...] = tuple(
-        tuple(avm.combined.get(attr, ()) for attr in used_attributes_sorted)
+        tuple(
+            avm.combined.get(attr, ())
+            for attr in ATTRS_SORTED
+            if attr in attribute_yield
+        )
         for avm in avms
     )
 
     files = _task_data_table_to_gist_files(
-        table, tuple(attr.real_name for attr in used_attributes_sorted)
+        table, tuple(attr.real_name for attr in ATTRS_SORTED if attr in attribute_yield)
     )
 
     # --- Data to gists ---
@@ -248,66 +334,61 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    @acmds.command(description="Get information about a task.")
+    @acmds.command()
     async def info(
         self, interaction: dc.Interaction, task: str, list: str | None = None
     ) -> None:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            InteractionAdapter(interaction), None, list
-        )
+        await _info(interaction, task, ..., list)
 
-        avm = list_obj.get_task(task).get_attribute_value_mapping(
-            shortcuts.get_or_create_specified_or_current_community_user(
-                list_obj.community, None
-            )
-        )
+    @acmds.command()
+    async def info_user(
+        self,
+        interaction: dc.Interaction,
+        task: str,
+        user: dc.User | None = None,
+        list: str | None = None,
+    ) -> None:
+        await _info(interaction, task, user, list)
 
-        elems: builtins.list[str | Interpolation] = []
-
-        for attr, v in avm.combined.items():
-            elems.append(Interpolation(f"**{attr.name.replace('*', '\\*')}**: "))
-
-            if not v:
-                elems.append(str(None))
-            else:
-                elems.append(f"`{'`, `'.join(v)}`")
-
-            elems.append("\n")
-
-        elems.pop()
-
-        await interaction.response.send_message(
-            messaging.layout(
-                "Task Info",
-                Template(*elems),
-                message_status=messaging.MessageStatus.INFO,
-            )
-        )
-
-    browse_group = acmds.Group(name="browse", description="Browse tasks.")
-
-    @browse_group.command(name="all", description="Browse all tasks.")
-    async def browse_all(
+    @acmds.command()
+    @acmds.rename(yield_="yield")
+    async def browse(
         self,
         interaction: dc.Interaction,
         filter: str | None = None,
         sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
         list: str | None = None,
     ) -> None:
-        await _browse(interaction, filter, sort, ..., list)
+        await _browse(interaction, filter, sort, yield_, ..., False, list)
 
-    @browse_group.command(name="user", description="Browse all tasks of a user.")
+    @acmds.command()
+    @acmds.rename(yield_="yield")
     async def browse_user(
         self,
         interaction: dc.Interaction,
         filter: str | None = None,
         sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
         user: dc.User | None = None,
         list: str | None = None,
     ) -> None:
-        await _browse(interaction, filter, sort, user, list)
+        await _browse(interaction, filter, sort, yield_, user, False, list)
 
-    @acmds.command(description="Create a new task.")
+    @acmds.command()
+    @acmds.rename(yield_="yield")
+    async def browse_missing(
+        self,
+        interaction: dc.Interaction,
+        filter: str | None = None,
+        sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
+        user: dc.User | None = None,
+        list: str | None = None,
+    ) -> None:
+        await _browse(interaction, filter, sort, yield_, user, True, list)
+
+    @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.HELPER))
     async def create(
         self,
@@ -331,7 +412,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
             )
         )
 
-    @acmds.command(description="Delete an existing task.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     async def nuke(
         self, interaction: dc.Interaction, task: str, list: str | None = None
@@ -350,7 +431,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
             )
         )
 
-    @acmds.command(description="Give a task to a user.")
+    @acmds.command()
     async def give(
         self,
         interaction: dc.Interaction,

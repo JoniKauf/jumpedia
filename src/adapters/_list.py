@@ -100,48 +100,34 @@ def _require_attribute_with_syn[T: AnyAttributeT](
     return attribute
 
 
-def _validate_and_convert_attribute_value_mapping[T: AnyAttributeT](
-    raw_avm: str | None, attribute_type: type[T], list: List
-) -> dict[int, t.Sequence[text.RealStr]]:
-    avm: dict[text.NormStr, tuple[text.RealStr, ...]] = {
-        text.NormStr(k): tuple(map(text.RealStr, v))
-        for k, v in parsing.MAPPING_PARSER.parse(raw_avm or "{}").items()
-    }
-
-    norm_name_to_attr = {
-        attr.norm_name: attr for attr in list.get_attributes(attribute_type)
-    }
-
-    for k, g in itertools.groupby(avm, lambda k: norm_name_to_attr.get(k)):
-        g = tuple(g)
-
-        if k is None:
-            raise errors.StructureNotFoundViaSynFeedbackError(
-                g[0], attribute_type, False
-            )
-
-        if len(g) > 1:
-            raise FeedbackError(
-                "Attributes Not Unique",
-                t"The attribute `{k.real_name}` was specified multiple times in the attribute value mapping, probably by using different aliases for the same attribute!",
-            )
-
-    return {
-        norm_name_to_attr[attr_norm_name].id: value
-        for attr_norm_name, value in avm.items()
-    }
-
-
 def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
+    if not aliases:
+        return ()
+
     try:
-        return tuple(map(text.RealStr, parsing.LIST_PARSER.parse(aliases or "[]")))
+        aliases = parsing.LIST_PARSER.parse(aliases)
     except BaseExpressionParsingError:
         raise FeedbackError(
             "Invalid Alias Format",
             t"The syntax used to specify the aliases `{aliases}` is invalid!",
-            additional=t'The syntax should represent a list of strings, so `["alias1", "alias2"]` would be a valid for example.',
+            additional=t'The syntax should represent a list of strings, so `alias1 "alias2"` would be a valid for example.',
         )
 
+    return tuple(map(text.RealStr, aliases))
+
+
+def _get_norm_syn_to_attribute_s[T: AnyAttributeT](type: type[T], *types: type[T]) -> dict[text.NormStr, T]:
+    syn_to_attr: dict[text.NormStr, T] = {}
+
+    for attr_type in (type, *types):
+        for alias, attr in list_obj._s.get_attribute_alias_mapping(
+            attr_type
+        ).items():
+            syn_to_attr[NormStr(alias)] = attr
+
+        syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
+
+    return syn_to_attr
 
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
@@ -169,9 +155,13 @@ class ListAdapter(BaseStructureAdapter[List]):
         real_name = text.RealStr(name)
 
         real_aliases = _parse_aliases(aliases)
+        attributes = {
+            text.NormStr(k): v
+            for k, v in self._s.get_attribute_alias_mapping(TaskAttribute).items()
+        }
 
-        avm = _validate_and_convert_attribute_value_mapping(
-            task_attribute_value_mapping, TaskAttribute, self._s
+        avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
+            task_attribute_value_mapping, attributes
         )
 
         try:
@@ -208,9 +198,12 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         task = self.get_task(syn)
 
-        avm = _validate_and_convert_attribute_value_mapping(
-            task_attribute_value_mapping, TaskAttribute, self._s
-        )
+        avm: dict[int, t.Sequence[text.RealStr]] 
+
+        if task_attribute_value_mapping:
+            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(task_attribute_value_mapping, _get_norm_syn_to_attribute_s(TaskAttribute))
+        else:
+            avm = {}
 
         self._s.edit_task_attribute_value_mapping(task._s.id, avm)
 
@@ -361,9 +354,12 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> TaskAdapter:
         task_s = _require_task_with_syn(text.NormStr(syn), self._s)
 
-        avm = _validate_and_convert_attribute_value_mapping(
-            user_attribute_value_mapping, UserAttribute, self._s
-        )
+        avm: dict[int, t.Sequence[text.RealStr]]
+
+        if user_attribute_value_mapping:
+            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(syn, _get_norm_syn_to_attribute_s(UserAttribute))
+        else:
+            avm = {}
 
         try:
             self._s.give_task_to_community_user(task_s.id, community_user._s.id, avm)
@@ -391,3 +387,4 @@ class ListAdapter(BaseStructureAdapter[List]):
                 "Task Not Given Yet",
                 t"The user `{community_user}` has not been given the task `{task_s.name}` yet, therefore nothing changed!",
             )
+        

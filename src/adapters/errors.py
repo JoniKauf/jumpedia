@@ -10,7 +10,7 @@ from utils.rank import AnyRankT
 
 class StructureNotFoundViaSynFeedbackError(FeedbackError):
     def __init__(
-        self, syn: str, structure_type: type[BaseStructure], only_name: bool
+        self, syn: str, structure_type: type[BaseStructure], only_name: bool = False
     ) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",

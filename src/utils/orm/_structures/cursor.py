@@ -26,7 +26,7 @@ class Cursor:
         self._mariadb_cursor = connection.cursor(dictionary=True)
 
         self._mariadb_cursor.execute(
-            "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED"
+            "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"
         )
 
     def __enter__(self) -> Cursor:
