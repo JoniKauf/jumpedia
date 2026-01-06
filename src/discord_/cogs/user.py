@@ -110,9 +110,9 @@ class UserCog(cmds.GroupCog, group_name="user"):
                 (
                     t"Your selected list "
                     if ia_community_user == set_community_user
-                    else t"The selected list of the user `{set_community_user}` "
+                    else t"The selected list of the user {set_community_user:c} "
                 )
-                + t"has successfully been set to `{list_obj}`!",
+                + t"has successfully been set to {list_obj:c}!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

@@ -61,3 +61,6 @@ class BaseStructure(metaclass=_StructureMeta):
 
     def __eq__(self, value: object) -> bool:
         return self.__class__ is value.__class__ and self.id == value.id  # type: ignore
+
+    def __str__(self) -> str:
+        return self.name

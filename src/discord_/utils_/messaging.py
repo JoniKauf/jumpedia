@@ -61,6 +61,8 @@ def utf16_code_units(s: str) -> int:
 def discord_message_too_long(s: str) -> bool:
     return utf16_code_units(s) > MAX_DISCORD_CODE_UNITS
 
+def embed_join(elem: str, *elems: str) -> str:
+    return f"`{"`, `".join((elem, *elems))}`"
 
 def layout(
     header: str,
@@ -91,21 +93,28 @@ def layout(
     interp_to_data: dict[int, _InterpolationData] = {}
 
     for i, interp in enumerate(final_templ.interpolations):
-        if "p" in interp.format_spec:
-            interp_to_data[id(interp)] = data = _InterpolationData(
+        if not interp.format_spec:
+            interp_to_data[id(interp)] = _InterpolationData(
+                text.apply_f_to_interpolation_value(interp) or " ", True
+            )
+
+        elif interp.format_spec == "p":
+            interp_to_data[id(interp)] = _InterpolationData(
                 str(interp.value), False
             )
+
+        elif interp.format_spec == "c":
+            to_join: t.Iterable[str]
+
+            if isinstance(interp.value, str) or not isinstance(interp.value, t.Iterable):
+                to_join = (str(interp.value),)
+            else:
+                to_join = map(str, interp.value)
+
+            interp_to_data[id(interp)] = _InterpolationData(embed_join(*to_join), False)
+        
         else:
-            interp_to_data[id(interp)] = data = _InterpolationData(
-                text.apply_f_to_interpolation_value(interp), True
-            )
-
-        prev_str, next_str = final_templ.strings[i], final_templ.strings[i + 1]
-
-        if prev_str.endswith("`") and next_str.startswith("`"):
-            interp_to_data[id(interp)] = _InterpolationData(
-                data.evaluated.replace("`", "´"), data.shortable
-            )
+            raise ValueError(f"Format Spec of {interp!r} is invalid")
 
     MIN_LEN: int = 8
     MORE: str = "..."

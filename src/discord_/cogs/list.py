@@ -78,7 +78,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         await interaction.response.send_message(
             messaging.layout(
                 "List Created",
-                t"The list `{new_list.name}` has successfully been created!",
+                t"The list {new_list.name:c} has successfully been created!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

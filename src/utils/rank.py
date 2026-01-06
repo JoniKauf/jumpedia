@@ -40,7 +40,7 @@ class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
         type_name = self.__class__.type_name
         type_name = type_name.title() if title else type_name.lower()
 
-        return f"{type_name} `{self}`"
+        return f"{type_name} {self:c}"
 
 
 class CommunityRank(_BaseRank):

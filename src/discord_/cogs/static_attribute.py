@@ -100,7 +100,7 @@ async def create(
     await interaction.response.send_message(
         messaging.layout(
             f"{type.type_name.title()} Created",
-            t"The {type.type_name.lower()} `{attr.name:p}` has successfully been created!",
+            t"The {type.type_name.lower()} {attr.name:p:c} has successfully been created!",
             messaging.MessageStatus.SUCCESS,
         )
     )

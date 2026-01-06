@@ -56,7 +56,7 @@ class Column[TOwner: Model, TValue](_utils.SqlString):
 
     @property
     def unqualified(self) -> str:
-        return f"`{self.name}`"
+        return f"{self.name:c}"
 
     @property
     def name(self) -> str:

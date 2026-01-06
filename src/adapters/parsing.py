@@ -1,9 +1,13 @@
+from collections import deque
+from dataclasses import dataclass
+import discord_.utils_.messaging
+import itertools
 import abc
 import ast
 import enum
 import functools
 import io
-import itertools
+import builtins
 import keyword
 import re
 import tokenize as tok
@@ -30,7 +34,7 @@ from utils.expression_parsing.visitor import (
     ExpressionVisitorConfig,
 )
 from utils.text import NormStr, RealStr
-
+from discord_.utils_ import messaging
 from . import errors
 
 type FilterAvmCollectionT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
@@ -142,13 +146,13 @@ def visit_string_like_and_validate(
     if not isinstance(s, str):
         raise FeedbackError(
             "String Expected",
-            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received `{s}` instead!',
+            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received {s:c} instead!',
         )
 
     if len(s) > visitor.config.STR_LEN_MAX:
         raise FeedbackError(
             "String Length Hard Limit Reached",
-            t"The string `{text.shorten(s)}` of length `{len(s)}` has surpassed the hard limit of `{visitor.config.STR_LEN_MAX}` characters!",
+            t"The string {text.shorten(s):c} of length {len(s):c} has surpassed the hard limit of {visitor.config.STR_LEN_MAX:c} characters!",
         )
 
     return s
@@ -769,8 +773,8 @@ class AttributeValueMappingVisitor(
             if attr in result:
                 raise FeedbackError(
                     "Not Unique Key Error",
-                    t"The attribute `{attr.name}` was specified multiple times as a key!",
-                    additional=t"It is both specified by `{k_real}` and `{used_syns[attr]}`.",
+                    t"The attribute {attr.name:c} was specified multiple times as a key!",
+                    additional=t"It is both specified by {k_real:c} and {used_syns[attr]:c}.",
                 )
 
             used_syns[attr] = k_real
@@ -850,28 +854,224 @@ class BaseAdvancedParser[T, **P](abc.ABC):
         pass
 
 
-class State(enum.Enum):
-    ATTR = enum.auto()
-    OP = enum.auto()
-    VALUE = enum.auto()
-    BOOL_OP = enum.auto()
 
-class FilterTokenParser(BaseAdvancedParser[str, [AttributeValueMapping, dict[NormStr, AnyAttributeT]]]):
+# ---- PUSHBACK ITERATOR ----
+class PushbackIterator:
+    """A tiny iterator wrapper that supports pushing characters back to the front."""
+    def __init__(self, it: t.Iterator[str]):
+        self._it = iter(it)
+        self._buf = deque()  # left side is the next element to yield
+
+    def push(self, ch: str) -> None:
+        self._buf.appendleft(ch)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> str:
+        if self._buf:
+            return self._buf.popleft()
+        return next(self._it)
+
+# ---- EXAMPLE AST/RECORD (you already suggested this) ----
+@dataclass(frozen=True, slots=True)
+class ExprTriple:
+    attr: t.Any
+    op: t.Callable[[t.FrozenSet[object], object], bool]
+    value: object
+
+
+class FilterTokenParser[T: AttributeValueMapping](BaseAdvancedParser[list[T], [t.Sequence[T], dict[NormStr, AnyAttributeT]]]):
+    OP_TO_FUNC: t.Final[
+        dict[str, t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
+    ] = {
+        'is': lambda tav, v: v in tav,
+        'isnt': (isnt := lambda tav, v: v not in tav),
+        'isnot': isnt,
+        "isn't": isnt,
+        '<': lambda tav, v: any(
+            s < v for s in tav  # pyright: ignore[reportOperatorIssue]
+        ),
+        '<=': lambda tav, v: any(
+            s <= v for s in tav  # pyright: ignore[reportOperatorIssue]
+        ),
+        '>': lambda tav, v: any(
+            s > v for s in tav  # pyright: ignore[reportOperatorIssue]
+        ),
+        '>=': lambda tav, v: any(
+            s >= v for s in tav  # pyright: ignore[reportOperatorIssue]
+        ),
+    }
+
+    @classmethod
+    def _skip_space_possibly_end(cls, iterator: t.Iterator[str]) -> str:
+        c: str = ''
+
+        for c in iterator:
+            if not c.isspace():
+                break
+        
+        # If the string would end in a space then we would have stripped it away before
+        assert c or not c.isspace()
+        
+        return c
     
+    @classmethod
+    def _parse_identifer(cls, prev: str, iterator: t.Iterator[str]) -> tuple[str, bool]:
+        assert prev  # Check outside to throw better error
 
+        result: list[str] = []
+        quoted: bool
+
+        if prev != '"':
+            quoted = True
+
+            for c in iterator:
+                if c.isspace():
+                    break
+                
+                result.append(c)
+
+        else:
+            quoted = False
+
+            escaped: bool = False
+            c: str = ""
+
+            for c in iterator:
+                if escaped:
+                    if c not in r'\"':
+                        raise FeedbackError(
+                            "Invalid Escaped Character",
+                            t"The character {c:c} is not valid after a `\\`!",
+                            additional=t"The only characters that can and must be escaped are `\\` and `\"`."
+                        )
+                    
+                    result.append(c)
+                    escaped = False
+
+                elif c == '\\':
+                    escaped = True
+
+                elif c == '"':
+                    break
+
+                else:
+                    result.append(c)
+
+            if c != '"':
+                raise FeedbackError(
+                    "Missing Closing Quotation Mark",
+                    t"The string {text.shorten(''.join(result), 16):c} is missing a closing quote (`\"`)!"
+                )
+
+        return (''.join(result), quoted)
     
-    def parse(self, s: str, avm: AttributeValueMapping, syn_to_attr: dict[NormStr, AnyAttributeT]) -> str:
-        state: State = State.ATTR
-        count: int = 0
+    @classmethod
+    def _parse_op(cls, prev: str, iterator: t.Iterator[str]) -> tuple[t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool], str]:
+        """
+        Parse an operator starting with `prev` (first non-space char).
+        Returns (callable, op_name_str).
+        """
+        assert prev
+        OP_TO_FUNC = cls.OP_TO_FUNC
 
-        for token in tok.tokenize(io.BytesIO().readline):
-            count += 1
+        # normalize keys to lowercase for matching
+        ops_lower = {k.lower(): v for k, v in OP_TO_FUNC.items()}
 
-            if not token.string.strip():
-                continue
+        s: str = ''
+        remaining: set[str] = set(ops_lower.keys())
+        candidate: str | None = None
 
-            if state is State.ATTR:
-                pass
+        for c in itertools.chain(prev, iterator):
+            if not remaining:
+                break
+
+            if c.isspace():
+                break
+
+            s += c.lower()
+            
+            old_remaining, remaining = remaining, set()
+
+            for op_name in old_remaining:
+                if op_name == s:
+                    candidate = s
+
+                elif op_name.startswith(s):
+                    remaining.add(op_name)
+
+        if candidate is None:
+            raise FeedbackError(
+                "Operator Not Found",
+                t"The operator {s:c} is invalid!",
+                additional=t"The only allowed operators are {OP_TO_FUNC:c}!"
+            )
+
+        return (ops_lower[candidate], candidate)
+    
+    @classmethod
+    def _parse_triple(cls, prev: str, iterator: t.Iterator[str], syn_to_attr: dict) -> tuple[AnyAttributeT, t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool], str | EllipsisType]:
+        """
+        Parse one atomic triple: <attr> <op> <value>.
+        `prev` is first non-space char at start of the attribute.
+        Returns (attr_object, op_callable, value_parsed).
+        """
+        # parse attribute name (prev belongs to attribute)
+        attr_name_raw, _ = cls._parse_identifer(prev, iterator)
+
+        attr = syn_to_attr.get(NormStr(attr_name_raw))
+
+        if attr is None:
+            raise errors.StructureNotFoundViaSynFeedbackError(attr_name_raw, BaseAttribute)
+
+        # operator: skip spaces then parse operator (we expect a non-space start)
+        op_prev = cls._skip_space_possibly_end(iterator)
+
+        if not op_prev:
+            raise FeedbackError(
+                "Operator Expected",
+                t"After the filter attribute {attr_name_raw:c} an operator was expected, but the string ended."
+            )
+        
+        op_callable, op_name_raw = cls._parse_op(op_prev, iterator)
+
+        # value: skip spaces then parse identifier / string
+        val_prev = cls._skip_space_possibly_end(iterator)
+
+        if not val_prev:
+            raise FeedbackError(
+                "Value Expected",
+                t"After the filter operator {op_name_raw:c} a value was expected, but the string ended."
+            )
+        
+        value_raw, quoted = cls._parse_identifer(val_prev, iterator)
+
+        # interpret "empty" (unquoted) as ellipsis sentinel; otherwise keep raw
+        if not quoted and value_raw.lower() == "empty":
+            value = ...
+        else:
+            value = value_raw
+
+        return (attr, op_callable, value)
+
+        
+
+    @classmethod
+    def parse(cls, s: str, avms: t.Sequence[T], syn_to_attr: dict[NormStr, AnyAttributeT]) -> list[T]:
+        s = s.strip()
+
+        if not s:
+            return list(avms)
+        
+        iterator = iter(s)
+        parens: int = 0
+
+        for c in iterator:
+
+        
+            
+        
             
             
 

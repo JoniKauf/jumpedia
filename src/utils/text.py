@@ -67,6 +67,8 @@ def shorten_many(
 class EmptyStringError(ValueError):
     pass
 
+class DoubleBacktickError(ValueError):
+    pass
 
 class RealStr(str):
     def __new__(cls, s: str) -> t.Self:
@@ -80,6 +82,9 @@ class RealStr(str):
         if not s:
             raise EmptyStringError()
 
+        if "``" in s:
+            raise DoubleBacktickError()
+            
         return super().__new__(cls, s)
 
 

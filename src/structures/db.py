@@ -548,7 +548,7 @@ def create_database(j: Jumpedia) -> None:
 
         c.raw_execute(
             f"""
-            CREATE DATABASE `{db_name}`
+            CREATE DATABASE {db_name:c}
             CHARACTER SET utf8mb4 
             COLLATE utf8mb4_bin
         """
@@ -1016,7 +1016,7 @@ def create_database(j: Jumpedia) -> None:
             try:
                 c.raw_execute(
                     f"""
-                    DROP DATABASE `{j.connector.database_name}`
+                    DROP DATABASE {j.connector.database_name:c}
                 """
                 )
             except Exception as e2:

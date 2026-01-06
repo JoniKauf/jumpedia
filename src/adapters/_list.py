@@ -109,7 +109,7 @@ def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
     except BaseExpressionParsingError:
         raise FeedbackError(
             "Invalid Alias Format",
-            t"The syntax used to specify the aliases `{aliases}` is invalid!",
+            t"The syntax used to specify the aliases {aliases:c} is invalid!",
             additional=t'The syntax should represent a list of strings, so `alias1 "alias2"` would be a valid for example.',
         )
 
@@ -370,7 +370,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         except CommunityUserAlreadyHasTaskError:
             raise FeedbackError(
                 "Task Already Given",
-                t"The user `{community_user}` has already been given the task `{task_s.name}`!",
+                t"The user {community_user:c} has already been given the task {task_s.name:c}!",
             )
 
         return TaskAdapter(task_s, self)
@@ -385,6 +385,6 @@ class ListAdapter(BaseStructureAdapter[List]):
         except CommunityUserDoesNotHaveTaskError:
             raise FeedbackError(
                 "Task Not Given Yet",
-                t"The user `{community_user}` has not been given the task `{task_s.name}` yet, therefore nothing changed!",
+                t"The user {community_user:c} has not been given the task {task_s.name:c} yet, therefore nothing changed!",
             )
         

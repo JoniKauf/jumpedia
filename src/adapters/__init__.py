@@ -62,4 +62,4 @@ class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
         else:
             type_name = type_name.lower()
 
-        return f"{type_name} `{self}`"
+        return f"{type_name} {self:c}"

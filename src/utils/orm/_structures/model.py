@@ -28,7 +28,7 @@ class _ModelMeta(type, _utils.SqlString):
     _table_name: str
 
     def __str__(self) -> str:
-        return f"`{self._table_name}`"
+        return f"{self._table_name:c}"
 
     @property
     def table_name(self) -> str:
