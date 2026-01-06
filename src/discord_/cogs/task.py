@@ -13,10 +13,7 @@ from adapters import parsing
 from adapters.interaction import InteractionAdapter
 from discord_.errors import FeedbackError
 from discord_.utils_ import messaging, shortcuts
-from structures.attribute import (
-    AnyAttributeT,
-    StaticAttribute,
-)
+from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
 from utils import gist
@@ -43,7 +40,7 @@ def _escape_cell(c: tuple[str, ...], /) -> str:
     if "`" in c:
         return "<br/>".join(f"<code>{s.translate(_ESCAPE_TABLE)}</code>" for s in c)
 
-    return "<br/>".join(f"{s:c}".replace("|", r"\|") for s in c)
+    return "<br/>".join(f"`{s}`".replace("|", r"\|") for s in c)
 
 
 class RowToStrMode(enum.Enum):
@@ -55,7 +52,7 @@ class RowToStrMode(enum.Enum):
 def _row_to_str(
     row: t.Iterable[tuple[str, ...]],
     mode: RowToStrMode = RowToStrMode.BODY,
-    pos: int = 0,
+    # pos: int = 0,
 ) -> str:
     if mode is RowToStrMode.BODY:
         # {_DELIM}**{pos}**
@@ -128,7 +125,7 @@ async def _info(
 
     avm = list_obj.get_task(task).get_attribute_value_mapping(
         None
-        if user is Ellipsis
+        if user is ...
         else shortcuts.get_or_create_specified_or_current_community_user(
             list_obj.community, user
         )
@@ -181,11 +178,14 @@ async def _browse(
     )
 
     community_user = shortcuts.get_or_create_specified_or_current_community_user(
-        list_obj.community, None if user is Ellipsis else user
+        list_obj.community, None if user is ... else user
     )
 
     await interaction.response.defer()
-    msg = await interaction.followup.send("Retrieving data...", suppress_embeds=True)
+    msg = t.cast(
+        dc.Message,
+        await interaction.followup.send("Retrieving data...", suppress_embeds=True),
+    )
 
     ATTRIBUTE_TYPES_TO_HANDLE: tuple[type[AnyAttributeT], ...]
 
@@ -248,14 +248,18 @@ async def _browse(
         await msg.edit(content="Filtering data...")
 
         try:
-            avms = parsing.FILTER_PARSER.parse(
-                filter, avms, syn_to_attr, used_attributes
+            avms, filter_used_attributes = parsing.FilterStringParser().parse(
+                filter,
+                avms,
+                syn_to_attr,
             )
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Filter Syntax",
                 t"The syntax specified for the filter is invalid.",
             )
+
+        used_attributes |= filter_used_attributes
 
     if not avms:
         raise FeedbackError(
@@ -270,7 +274,7 @@ async def _browse(
         avms = parsing.sort(avms, [(NAME_ATTR, True)])
     else:
         try:
-            avms = parsing.SORT_PARSER.parse(sort, avms, syn_to_attr, used_attributes)
+            avms = parsing.SORT_PARSER.parse(sort, avms, syn_to_attr)
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."

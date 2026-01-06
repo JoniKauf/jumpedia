@@ -81,7 +81,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Created",
-                t"The community {community.name:p:c} was successfully created and is now connected to this server!",
+                t"The community {community.name:c} was successfully created and is now connected to this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -109,7 +109,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Connected",
-                t"This server has successfully been connected to the community {community.name:p:c}!",
+                t"This server has successfully been connected to the community {community.name:c}!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -124,7 +124,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Disconnected",
-                t"The community {community.name:p:c} has successfully been disconnected from this server!",
+                t"The community {community.name:c} has successfully been disconnected from this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

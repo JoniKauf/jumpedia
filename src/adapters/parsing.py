@@ -1,27 +1,22 @@
-from collections import deque
-from dataclasses import dataclass
-import discord_.utils_.messaging
-import itertools
-import abc
 import ast
 import enum
 import functools
 import io
-import builtins
+import itertools
 import keyword
 import re
 import tokenize as tok
 import typing as t
-from types import EllipsisType, MappingProxyType
+from collections import deque
+from types import EllipsisType
 
 from discord_.errors import FeedbackError
 from structures.attribute import AnyAttributeT, BaseAttribute
-from structures.attribute.collection import Collection
+from structures.attribute.collection import Collection, CollectionEntry
 from structures.attribute.slot_str import SlotStr, SlotTypeT
 from structures.errors import CollectionEntryNotFoundError
 from structures.task import Task
 from structures.task.attribute_value_mapping import (
-    AnyAttributeValueMappingT,
     AttributeValueMapping,
     UserAttributeValueMapping,
 )
@@ -34,7 +29,7 @@ from utils.expression_parsing.visitor import (
     ExpressionVisitorConfig,
 )
 from utils.text import NormStr, RealStr
-from discord_.utils_ import messaging
+
 from . import errors
 
 type FilterAvmCollectionT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
@@ -193,9 +188,7 @@ def _pre_process_general(
 
         if token.type == tok.NUMBER:
             tokens.append(
-                tok.TokenInfo(
-                    token.type, f'"{token.string}"', (-1, -1), (-1, -1), ""
-                )
+                tok.TokenInfo(token.type, f'"{token.string}"', (-1, -1), (-1, -1), "")
             )
         else:
             tokens.append(token)
@@ -264,7 +257,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
     ) -> list[T]:
         attribute_value_mappings: dict[int, T] = {id(avm): avm for avm in avms}
 
-        favmc: FilterAvmCollectionT = {
+        fast_avm: FilterAvmCollectionT = {
             id(avm): {
                 attr.norm_name: frozenset(attr.slot_type(NormStr(slot)) for slot in val)
                 for attr, val in avm.combined.items()
@@ -273,7 +266,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         }
 
         result: FilterAvmCollectionT = super().visit(
-            node, favmc, attributes, used_attributes
+            node, fast_avm, attributes, used_attributes
         )
 
         return list(attribute_value_mappings[id] for id in result)
@@ -281,7 +274,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
     def visit_BoolOp(
         self,
         node: ast.BoolOp,
-        favmc: FilterAvmCollectionT,
+        fast_avm: FilterAvmCollectionT,
         attributes: FilterAttributesT,
         used_attributes: set[AnyAttributeT],
     ) -> t.Any:
@@ -289,10 +282,10 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         values = validate_children_type(node.values, (ast.Compare, ast.BoolOp))
 
-        favmc = favmc.copy()
+        fast_avm = fast_avm.copy()
 
         if isinstance(node.op, ast.Or):
-            remaining_to_check = favmc
+            remaining_to_check = fast_avm
             result: dict[int, dict[NormStr, frozenset[SlotTypeT]]] = {}
 
             for v in values:
@@ -312,22 +305,24 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         if isinstance(node.op, ast.And):
             for v in values:
-                if not favmc:
+                if not fast_avm:
                     break
 
                 checked_successfully: FilterAvmCollectionT = self.visit(
-                    v, favmc, attributes, used_attributes
+                    v, fast_avm, attributes, used_attributes
                 )
-                favmc = {k: v for k, v in favmc.items() if k in checked_successfully}
+                fast_avm = {
+                    k: v for k, v in fast_avm.items() if k in checked_successfully
+                }
 
-            return favmc
+            return fast_avm
 
         t.assert_never(node.op)
 
     def visit_Compare(
         self,
         node: ast.Compare,
-        favmc: FilterAvmCollectionT,
+        fast_avm: FilterAvmCollectionT,
         attributes: FilterAttributesT,
         used_attributes: set[AnyAttributeT],
     ) -> t.Any:
@@ -369,7 +364,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
             return {
                 i: tav
-                for i, tav in favmc.items()
+                for i, tav in fast_avm.items()
                 if (not tav.get(attr_name)) is MUST_BE_EMPTY
             }
 
@@ -387,7 +382,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
             return {
                 i: tav
-                for i, tav in favmc.items()
+                for i, tav in fast_avm.items()
                 if op_func(
                     frozenset(
                         collection.get_entry_by_syn(slot).collection_index
@@ -401,7 +396,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         return {
             i: tav
-            for i, tav in favmc.items()
+            for i, tav in fast_avm.items()
             if op_func(tav.get(attr_name, frozenset()), value)
         }
 
@@ -512,7 +507,9 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         return (
             (
-                self._handle_expected_string_like(node.operand, attributes, used_attributes),
+                self._handle_expected_string_like(
+                    node.operand, attributes, used_attributes
+                ),
                 isinstance(node.op, ast.UAdd),
             ),
         )
@@ -535,15 +532,18 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         return (
             *self.visit(node.left, attributes, used_attributes),
             (
-                self._handle_expected_string_like(node.right, attributes, used_attributes),
+                self._handle_expected_string_like(
+                    node.right, attributes, used_attributes
+                ),
                 isinstance(node.op, ast.Add),
             ),
         )
 
-    def _handle_expected_string_like(self, 
-        node: ast.AST, 
+    def _handle_expected_string_like(
+        self,
+        node: ast.AST,
         attributes: dict[NormStr, AnyAttributeT],
-        used_attributes: set[AnyAttributeT]
+        used_attributes: set[AnyAttributeT],
     ):
         attr_syn = NormStr(visit_string_like_and_validate(node, self))
         attr = attributes.get(attr_syn)
@@ -557,6 +557,7 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
 
         return attr
 
+
 def _pre_process_aliases(s: str, parser: ExpressionParser) -> str:
     s, tokens = _pre_process_general(s, parser)
 
@@ -569,9 +570,7 @@ def _pre_process_aliases(s: str, parser: ExpressionParser) -> str:
 
 class AliasVisitor(BaseExpressionVisitor[list[str], []], body_type=ast.List):
     def visit_List(self, node: ast.List) -> t.Any:
-        return [
-            visit_string_like_and_validate(n, self) for n in node.elts
-        ]
+        return [visit_string_like_and_validate(n, self) for n in node.elts]
 
 
 class _SynState(enum.Enum):
@@ -840,30 +839,43 @@ LIST_OF_NAME_ALIASES_PARSER = ExpressionParser(
 )
 
 
-class TokenParserConfig(t.NamedTuple):
-    max_tokens: int
-    max_length: int
+import typing as t
+from collections import deque
+
+# ---- You already have these in your codebase; kept here for reference usage ----
+# NormStr, BaseAttribute, CollectionEntryNotFoundError, errors, FeedbackError,
+# RealStr, visit_string_like_and_validate  <-- assumed available in scope
+
+# ---- operator -> callable mapping (string keys) ----
+# Match this to the semantics your FilterVisitor used earlier.
+_OP_TO_FUNC_NORM: t.Final[
+    dict[str, t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
+] = {
+    k.strip().lower(): v
+    for k, v in {
+        "is": lambda tav, v: v in tav,
+        "is not": (lambda tav, v: v not in tav),
+        "<": lambda tav, v: any(s < v for s in tav),
+        "<=": lambda tav, v: any(s <= v for s in tav),
+        ">": lambda tav, v: any(s > v for s in tav),
+        ">=": lambda tav, v: any(s >= v for s in tav),
+    }.items()
+}
+
+_OP_MAX = max(map(len, _OP_TO_FUNC_NORM))
 
 
-class BaseAdvancedParser[T, **P](abc.ABC):
-    def __init__(self, config: TokenParserConfig) -> None:
-        self.config = config
-
-    @abc.abstractmethod
-    def parse(self, s: str, *args: P.args, **kwargs: P.kwargs) -> T:
-        pass
-
-
-
-# ---- PUSHBACK ITERATOR ----
+# ---- small pushback iterator to allow lookahead / unread ----
 class PushbackIterator:
-    """A tiny iterator wrapper that supports pushing characters back to the front."""
     def __init__(self, it: t.Iterator[str]):
         self._it = iter(it)
-        self._buf = deque()  # left side is the next element to yield
+        self._buf: deque[str] = deque()
 
     def push(self, ch: str) -> None:
         self._buf.appendleft(ch)
+
+    def pushmany(self, iterable: t.Iterable[str]) -> None:
+        self._buf.extendleft(iterable)
 
     def __iter__(self):
         return self
@@ -873,210 +885,441 @@ class PushbackIterator:
             return self._buf.popleft()
         return next(self._it)
 
-# ---- EXAMPLE AST/RECORD (you already suggested this) ----
-@dataclass(frozen=True, slots=True)
-class ExprTriple:
-    attr: t.Any
-    op: t.Callable[[t.FrozenSet[object], object], bool]
-    value: object
+
+type FastAvmT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
+type FastAvmFuncT = t.Callable[[FastAvmT], FastAvmT]
 
 
-class FilterTokenParser[T: AttributeValueMapping](BaseAdvancedParser[list[T], [t.Sequence[T], dict[NormStr, AnyAttributeT]]]):
-    OP_TO_FUNC: t.Final[
-        dict[str, t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
-    ] = {
-        'is': lambda tav, v: v in tav,
-        'isnt': (isnt := lambda tav, v: v not in tav),
-        'isnot': isnt,
-        "isn't": isnt,
-        '<': lambda tav, v: any(
-            s < v for s in tav  # pyright: ignore[reportOperatorIssue]
-        ),
-        '<=': lambda tav, v: any(
-            s <= v for s in tav  # pyright: ignore[reportOperatorIssue]
-        ),
-        '>': lambda tav, v: any(
-            s > v for s in tav  # pyright: ignore[reportOperatorIssue]
-        ),
-        '>=': lambda tav, v: any(
-            s >= v for s in tav  # pyright: ignore[reportOperatorIssue]
-        ),
-    }
+class FilterStringParser:
+    def __init__(self) -> None:
+        self._norm_str_from_str_cache: dict[SlotStr, NormStr] = {}
+        self._slot_type_cache: dict[tuple[AnyAttributeT, NormStr], SlotTypeT] = {}
+        self._collection_cache: dict[AnyAttributeT, Collection] = {}
+        self._collection_entry_cache: dict[
+            tuple[AnyAttributeT, SlotTypeT], CollectionEntry
+        ] = {}
 
-    @classmethod
-    def _skip_space_possibly_end(cls, iterator: t.Iterator[str]) -> str:
-        c: str = ''
+    def _get_cached_norm_str(self, slot: SlotStr) -> NormStr:
+        try:
+            return self._norm_str_from_str_cache[slot]
+        except KeyError:
+            v = NormStr(slot)
+            self._norm_str_from_str_cache[slot] = NormStr(slot)
+            return v
 
-        for c in iterator:
-            if not c.isspace():
-                break
-        
-        # If the string would end in a space then we would have stripped it away before
-        assert c or not c.isspace()
-        
-        return c
-    
-    @classmethod
-    def _parse_identifer(cls, prev: str, iterator: t.Iterator[str]) -> tuple[str, bool]:
-        assert prev  # Check outside to throw better error
+    def _get_cached_slot_type(
+        self, attr: AnyAttributeT, slot_str: SlotStr
+    ) -> SlotTypeT:
+        norm_str = self._get_cached_norm_str(slot_str)
+        key = (attr, norm_str)
 
-        result: list[str] = []
-        quoted: bool
+        try:
+            return self._slot_type_cache[key]
+        except KeyError:
+            v = attr.slot_type(norm_str)
+            self._slot_type_cache[key] = v
+            return v
 
-        if prev != '"':
-            quoted = True
+    def _get_cached_collection(self, attr: AnyAttributeT) -> Collection:
+        try:
+            return self._collection_cache[attr]
+        except KeyError:
+            v = attr.get_collection()
+            self._collection_cache[attr] = v
+            return v
 
-            for c in iterator:
-                if c.isspace():
-                    break
-                
-                result.append(c)
+    def _get_cached_collection_entry(
+        self, attr: AnyAttributeT, slot_str: SlotTypeT
+    ) -> CollectionEntry:
+        key = (attr, slot_str)
 
-        else:
-            quoted = False
+        try:
+            return self._collection_entry_cache[key]
+        except KeyError:
+            v = self._get_cached_collection(attr).get_entry_by_syn(
+                NormStr(str(slot_str))
+            )
+            self._collection_entry_cache[key] = v
+            return v
 
-            escaped: bool = False
-            c: str = ""
+    def _skip_space_possibly_end(self, it: PushbackIterator) -> str:
+        """Consume whitespace and return the first non-space char or '' if iterator exhausted."""
 
-            for c in iterator:
+        try:
+            while True:
+                ch = next(it)
+                if not ch.isspace():
+                    return ch
+        except StopIteration:
+            return ""
+
+    def _parse_identifer(self, prev: str, it: PushbackIterator) -> tuple[str, bool]:
+        """
+        Parse an identifier or quoted string.
+        Returns (text, quoted_flag).
+        - prev is the first non-space character (must be provided by caller).
+        - quoted_flag True means it was quoted (double quotes).
+        """
+        assert prev, "prev must be provided"
+
+        if prev == '"':
+            buf: list[str] = []
+            escaped = False
+
+            for ch in it:
                 if escaped:
-                    if c not in r'\"':
+                    if ch not in r"\"":
                         raise FeedbackError(
                             "Invalid Escaped Character",
-                            t"The character {c:c} is not valid after a `\\`!",
-                            additional=t"The only characters that can and must be escaped are `\\` and `\"`."
+                            t"The character {ch:c} is not valid after a `\\`!",
+                            additional=t'The only characters that can and must be escaped are `\\` and `"`.',
                         )
-                    
-                    result.append(c)
+
+                    buf.append(ch)
                     escaped = False
 
-                elif c == '\\':
+                elif ch == "\\":
                     escaped = True
 
-                elif c == '"':
-                    break
+                elif ch == '"':
+                    return ("".join(buf), True)
 
                 else:
-                    result.append(c)
+                    buf.append(ch)
 
-            if c != '"':
-                raise FeedbackError(
-                    "Missing Closing Quotation Mark",
-                    t"The string {text.shorten(''.join(result), 16):c} is missing a closing quote (`\"`)!"
-                )
-
-        return (''.join(result), quoted)
-    
-    @classmethod
-    def _parse_op(cls, prev: str, iterator: t.Iterator[str]) -> tuple[t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool], str]:
-        """
-        Parse an operator starting with `prev` (first non-space char).
-        Returns (callable, op_name_str).
-        """
-        assert prev
-        OP_TO_FUNC = cls.OP_TO_FUNC
-
-        # normalize keys to lowercase for matching
-        ops_lower = {k.lower(): v for k, v in OP_TO_FUNC.items()}
-
-        s: str = ''
-        remaining: set[str] = set(ops_lower.keys())
-        candidate: str | None = None
-
-        for c in itertools.chain(prev, iterator):
-            if not remaining:
-                break
-
-            if c.isspace():
-                break
-
-            s += c.lower()
-            
-            old_remaining, remaining = remaining, set()
-
-            for op_name in old_remaining:
-                if op_name == s:
-                    candidate = s
-
-                elif op_name.startswith(s):
-                    remaining.add(op_name)
-
-        if candidate is None:
+            # EOF reached without closing quote
             raise FeedbackError(
-                "Operator Not Found",
-                t"The operator {s:c} is invalid!",
-                additional=t"The only allowed operators are {OP_TO_FUNC:c}!"
+                "Missing Closing Quotation Mark",
+                t"The string {''.join(buf):c} is missing a closing quote (`\"`)!",
             )
 
-        return (ops_lower[candidate], candidate)
-    
-    @classmethod
-    def _parse_triple(cls, prev: str, iterator: t.Iterator[str], syn_to_attr: dict) -> tuple[AnyAttributeT, t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool], str | EllipsisType]:
-        """
-        Parse one atomic triple: <attr> <op> <value>.
-        `prev` is first non-space char at start of the attribute.
-        Returns (attr_object, op_callable, value_parsed).
-        """
-        # parse attribute name (prev belongs to attribute)
-        attr_name_raw, _ = cls._parse_identifer(prev, iterator)
+        else:
+            # unquoted identifier (stops at whitespace or parentheses)
+            buf: list[str] = [prev]
 
+            for ch in it:
+                if ch.isspace():
+                    return ("".join(buf), False)
+
+                if ch in "()":
+                    # push delimiter back for caller
+                    it.push(ch)
+                    return ("".join(buf), False)
+
+                buf.append(ch)
+
+            return ("".join(buf), False)
+
+    def _parse_op(self, prev: str, it: PushbackIterator) -> str:
+        """
+        Parse an operator (longest-match) starting with `prev` (first non-space char).
+        Returns (op_name_str_lower, op_display_text).
+        """
+
+        assert prev
+
+        it.push(prev)
+
+        op_padded = "".join(itertools.islice(it, _OP_MAX)).lower()
+        op: str | None = None
+
+        for op_try in sorted(_OP_TO_FUNC_NORM, key=len, reverse=True):
+            if op_padded.startswith(op_try):
+                op = op_try
+                break
+
+        if op is None:
+            raise FeedbackError(
+                "Operator Not Found",
+                t"The operator {op_padded.partition(" ")[0]:c} is invalid!",
+                additional=t"The only allowed operators are {_OP_TO_FUNC_NORM:c}!",
+            )
+
+        not_used: str = op_padded.removeprefix(op)
+
+        it.pushmany(reversed(not_used))
+
+        return op
+
+    def _parse_triple(
+        self,
+        prev: str,
+        it: PushbackIterator,
+        syn_to_attr: dict[NormStr, AnyAttributeT],
+        used_attributes: set[AnyAttributeT],
+    ) -> FastAvmFuncT:
+        """
+        Parse `<attr> <op> <value>` starting with `prev` (first char of attr).
+        Return a function f(fast_avm) -> filtered_fast_avm
+        """
+
+        # parse attr
+        attr_name_raw, _ = self._parse_identifer(prev, it)
         attr = syn_to_attr.get(NormStr(attr_name_raw))
 
         if attr is None:
-            raise errors.StructureNotFoundViaSynFeedbackError(attr_name_raw, BaseAttribute)
+            raise errors.StructureNotFoundViaSynFeedbackError(
+                attr_name_raw, BaseAttribute
+            )
 
-        # operator: skip spaces then parse operator (we expect a non-space start)
-        op_prev = cls._skip_space_possibly_end(iterator)
+        used_attributes.add(attr)
+
+        # parse op
+        op_prev = self._skip_space_possibly_end(it)
 
         if not op_prev:
             raise FeedbackError(
                 "Operator Expected",
-                t"After the filter attribute {attr_name_raw:c} an operator was expected, but the string ended."
+                t"After the filter attribute {attr_name_raw:c} an operator was expected, but the string ended.",
             )
-        
-        op_callable, op_name_raw = cls._parse_op(op_prev, iterator)
 
-        # value: skip spaces then parse identifier / string
-        val_prev = cls._skip_space_possibly_end(iterator)
+        op_name = self._parse_op(op_prev, it)
+        op_func = _OP_TO_FUNC_NORM[op_name]
+
+        # parse value
+        val_prev = self._skip_space_possibly_end(it)
 
         if not val_prev:
             raise FeedbackError(
                 "Value Expected",
-                t"After the filter operator {op_name_raw:c} a value was expected, but the string ended."
+                t"After the filter operator {op_name:c} a value was expected, but the string ended.",
             )
-        
-        value_raw, quoted = cls._parse_identifer(val_prev, iterator)
 
-        # interpret "empty" (unquoted) as ellipsis sentinel; otherwise keep raw
+        value_raw, quoted = self._parse_identifer(val_prev, it)
+
+        # interpret unquoted "empty" as Ellipsis sentinel
         if not quoted and value_raw.lower() == "empty":
-            value = ...
+            parsed_value = ...
         else:
-            value = value_raw
+            parsed_value = value_raw
 
-        return (attr, op_callable, value)
+        # create and return a filter function that applies this triple to a fast_avm dict
+        attr_name_norm = attr.norm_name  # attribute key used in fast_avm
 
-        
+        def triple_filter(fast_avm: FastAvmT) -> FastAvmT:
+            # If value is Ellipsis, handle emptiness check.
+            if parsed_value is ...:
+                must_be_empty = op_name.lower() == "is"
 
-    @classmethod
-    def parse(cls, s: str, avms: t.Sequence[T], syn_to_attr: dict[NormStr, AnyAttributeT]) -> list[T]:
+                return {
+                    i: tav
+                    for i, tav in fast_avm.items()
+                    if (not tav.get(attr_name_norm)) is must_be_empty
+                }
+
+            # If the attribute has a collection, map provided value to collection entry index
+            collection = self._get_cached_collection(attr)
+
+            if collection:
+                try:
+                    entry = collection.get_entry_by_syn(NormStr(parsed_value))
+                except KeyError:
+                    # same behaviour as FilterVisitor: collection entry not found -> raise feedback
+                    raise errors.CollectionEntryNotFoundFeedbackError(
+                        CollectionEntryNotFoundError(RealStr(parsed_value), collection)
+                    )
+
+                # build result by translating tav slots to collection indices and applying op_func
+                return {
+                    i: tav
+                    for i, tav in fast_avm.items()
+                    if op_func(
+                        frozenset(
+                            self._get_cached_collection_entry(
+                                attr, slot
+                            ).collection_index
+                            for slot in tav.get(attr_name_norm, frozenset())
+                        ),
+                        entry.collection_index,
+                    )
+                }
+
+            # non-collection: convert value via attr.slot_type and apply op_func
+            value_typed = attr.slot_type(NormStr(parsed_value))
+
+            return {
+                i: tav
+                for i, tav in fast_avm.items()
+                if op_func(tav.get(attr_name_norm, frozenset()), value_typed)
+            }
+
+        return triple_filter
+
+    # --------- grammar-driven composition of filters ----------
+    def parse[T: AttributeValueMapping](
+        self, s: str, avms: t.Sequence[T], syn_to_attr: dict[NormStr, AnyAttributeT]
+    ) -> tuple[list[T], set[AnyAttributeT]]:
+        """
+        Parse string `s` and immediately apply the filter to `avms`.
+        Returns the filtered list of avms (original order preserved).
+        """
         s = s.strip()
+        used_attributes: set[AnyAttributeT] = set()
 
         if not s:
-            return list(avms)
-        
-        iterator = iter(s)
-        parens: int = 0
+            return list(avms), used_attributes
 
-        for c in iterator:
+        it = PushbackIterator(iter(s))
 
-        
-            
-        
-            
-            
+        # Build initial fast_avm from avms (same structure used in your FilterVisitor.start_visit)
+        attribute_value_mappings: dict[int, T] = {id(avm): avm for avm in avms}
 
-        
+        fast_avm_initial: FastAvmT = {
+            id(avm): {
+                attr.norm_name: frozenset(
+                    self._get_cached_slot_type(attr, slot) for slot in val
+                )
+                for attr, val in avm.combined.items()
+            }
+            for avm in attribute_value_mappings.values()
+        }
+        # -------------------------
 
-            
+        # parser helpers that build filter functions
+        def parse_factor() -> FastAvmFuncT:
+            prev = self._skip_space_possibly_end(it)
 
-                
+            if not prev:
+                raise FeedbackError(
+                    "Unexpected End", t"Expected expression but reached the end."
+                )
+
+            if prev == "(":
+                node_fn = parse_or()
+                rem = self._skip_space_possibly_end(it)
+
+                if rem != ")":
+                    raise FeedbackError(
+                        "Missing Closing Parenthesis",
+                        t"Expected `)` to close expression.",
+                    )
+                return node_fn
+
+            # parse triple starting at prev
+            triple_fn = self._parse_triple(prev, it, syn_to_attr, used_attributes)
+
+            return triple_fn
+
+        def parse_and() -> FastAvmFuncT:
+            left_fn = parse_factor()
+
+            while True:
+                prev = self._skip_space_possibly_end(it)
+
+                if not prev:
+                    return left_fn
+
+                # try to read a word starting at prev
+                word, quoted = self._parse_identifer(prev, it)
+
+                if quoted or word.lower() != "and":
+                    # not an 'and' token -> push the characters back
+                    it.pushmany(reversed(word))
+
+                    return left_fn
+
+                # matched 'and', parse next factor and combine logically
+                right_fn: FastAvmFuncT = parse_factor()
+
+                # compose new left_fn that, given fast_avm, applies left then intersects with right
+                prev_left: FastAvmFuncT = left_fn
+
+                def make_and(lf: FastAvmFuncT, rf: FastAvmFuncT):
+                    def and_fn(fast_avm: FastAvmT) -> FastAvmT:
+                        if not fast_avm:
+                            return {}
+
+                        checked = lf(fast_avm)
+
+                        if not checked:
+                            return {}
+
+                        # rf must be applied to current checked subset (short-circuit)
+                        # produce intersection as in FilterVisitor
+                        checked2 = rf(checked)
+
+                        # intersection with the original 'fast_avm' keys to preserve tav objects
+                        # (but checked2 is already subset of checked)
+                        return {
+                            k: fast_avm[k] for k in checked2.keys() if k in fast_avm
+                        }
+
+                    return and_fn
+
+                left_fn = make_and(prev_left, right_fn)
+
+        def parse_or() -> FastAvmFuncT:
+            left_fn = parse_and()
+
+            while True:
+                prev = self._skip_space_possibly_end(it)
+
+                if not prev:
+                    return left_fn
+
+                word, quoted = self._parse_identifer(prev, it)
+
+                if quoted or word.lower() != "or":
+                    for ch in reversed(word):
+                        it.push(ch)
+                    return left_fn
+
+                right_fn = parse_and()
+
+                prev_left = left_fn
+
+                def make_or(lf: FastAvmFuncT, rf: FastAvmFuncT):
+                    def or_fn(fast_avm: FastAvmT) -> FastAvmT:
+                        if not fast_avm:
+                            return {}
+
+                        remaining_to_check = fast_avm.copy()
+                        result: FastAvmT = {}
+
+                        # iterate left-right terms in sequence, short-circuiting as in FilterVisitor
+                        for term_fn in (lf, rf):
+                            if not remaining_to_check:
+                                break
+
+                            checked = term_fn(remaining_to_check)
+
+                            # remove matched keys from remaining_to_check
+                            for k in checked.keys():
+                                remaining_to_check.pop(k, None)
+
+                            # union with result
+                            result |= checked
+
+                        return result
+
+                    return or_fn
+
+                left_fn = make_or(prev_left, right_fn)
+
+        # build root filter function
+        root_fn = parse_or()
+
+        # ensure no trailing garbage
+        rem = self._skip_space_possibly_end(it)
+
+        if rem:
+            # build short trailing excerpt for message
+            trailing = [rem]
+
+            for ch in it:
+                trailing.append(ch)
+                if len(trailing) >= 16:
+                    break
+
+            raise FeedbackError(
+                "Unexpected Trailing Input",
+                t"The entered string ends with {''.join(trailing):c}, which is not valid!",
+            )
+
+        # apply root filter function to initial fast_avm
+        result_fast_avm = root_fn(fast_avm_initial)
+
+        # preserve original order of avms
+        filtered_avms = [avm for avm in avms if id(avm) in result_fast_avm]
+
+        return filtered_avms, used_attributes

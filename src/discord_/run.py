@@ -11,7 +11,7 @@ import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from adapters.errors import EmptyStringFeedbackError, DoubleBacktickFeedbackError
+from adapters.errors import DoubleBacktickFeedbackError, EmptyStringFeedbackError
 from discord_.utils_ import messaging
 from utils import secret, text
 

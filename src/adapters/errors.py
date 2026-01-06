@@ -133,12 +133,13 @@ class EmptyStringFeedbackError(FeedbackError):
             t'You entered an empty or whitespace-only string (`""`), which is not allowed!',
         )
 
+
 class DoubleBacktickFeedbackError(FeedbackError):
     def __init__(self) -> None:
         super().__init__(
             "Double Backtick",
-            t'You entered a string that contains a double backtick (``` ```), which is not allowed!',
-            additional=t"The reason it is not allowed is because otherwise it would be impossible to correctly format such messages inside Discord."
+            t"You entered a string that contains a double backtick (``` ```), which is not allowed!",
+            additional=t"The reason it is not allowed is because otherwise it would be impossible to correctly format such messages inside Discord.",
         )
 
 

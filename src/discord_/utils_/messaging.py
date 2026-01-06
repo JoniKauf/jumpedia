@@ -61,8 +61,10 @@ def utf16_code_units(s: str) -> int:
 def discord_message_too_long(s: str) -> bool:
     return utf16_code_units(s) > MAX_DISCORD_CODE_UNITS
 
+
 def embed_join(elem: str, *elems: str) -> str:
     return f"`{"`, `".join((elem, *elems))}`"
+
 
 def layout(
     header: str,
@@ -99,20 +101,20 @@ def layout(
             )
 
         elif interp.format_spec == "p":
-            interp_to_data[id(interp)] = _InterpolationData(
-                str(interp.value), False
-            )
+            interp_to_data[id(interp)] = _InterpolationData(str(interp.value), False)
 
         elif interp.format_spec == "c":
             to_join: t.Iterable[str]
 
-            if isinstance(interp.value, str) or not isinstance(interp.value, t.Iterable):
+            if isinstance(interp.value, str) or not isinstance(
+                interp.value, t.Iterable
+            ):
                 to_join = (str(interp.value),)
             else:
                 to_join = map(str, interp.value)
 
             interp_to_data[id(interp)] = _InterpolationData(embed_join(*to_join), False)
-        
+
         else:
             raise ValueError(f"Format Spec of {interp!r} is invalid")
 

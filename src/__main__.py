@@ -5,8 +5,8 @@ from scripts import one_to_two
 
 
 def __main() -> None:
-    if not sys.argv or "from_main" not in sys.argv:
-        raise RuntimeError("Please start by running main.py!")
+    # if not sys.argv or "from_main" not in sys.argv:
+    # raise RuntimeError("Please start by running main.py!")
 
     # --- Set global defaults ---
     # import logging

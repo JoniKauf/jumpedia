@@ -1,7 +1,7 @@
 import itertools
 import typing as t
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from utils import orm, text
 

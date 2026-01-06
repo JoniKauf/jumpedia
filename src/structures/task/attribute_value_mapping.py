@@ -13,6 +13,7 @@ type AvmT[T: AnyAttributeT] = MappingProxyType[T, tuple[SlotStr, ...]]
 
 type AnyAttributeValueMappingT = AttributeValueMapping | UserAttributeValueMapping
 
+
 @dataclass(frozen=True, slots=True)
 class AttributeValueMapping:
     task: Task
@@ -38,6 +39,7 @@ class AttributeValueMapping:
 
     def __eq__(self, value: object) -> bool:
         return self.__class__ is value.__class__ and self.task.id == value.task.id  # type: ignore
+
 
 @dataclass(frozen=True, slots=True)
 class UserAttributeValueMapping(AttributeValueMapping):

@@ -116,18 +116,19 @@ def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
     return tuple(map(text.RealStr, aliases))
 
 
-def _get_norm_syn_to_attribute_s[T: AnyAttributeT](type: type[T], *types: type[T]) -> dict[text.NormStr, T]:
+def _get_norm_syn_to_attribute_s[T: AnyAttributeT](
+    type: type[T], *types: type[T]
+) -> dict[text.NormStr, T]:
     syn_to_attr: dict[text.NormStr, T] = {}
 
     for attr_type in (type, *types):
-        for alias, attr in list_obj._s.get_attribute_alias_mapping(
-            attr_type
-        ).items():
+        for alias, attr in list_obj._s.get_attribute_alias_mapping(attr_type).items():
             syn_to_attr[NormStr(alias)] = attr
 
         syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
 
     return syn_to_attr
+
 
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
@@ -198,10 +199,13 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         task = self.get_task(syn)
 
-        avm: dict[int, t.Sequence[text.RealStr]] 
+        avm: dict[int, t.Sequence[text.RealStr]]
 
         if task_attribute_value_mapping:
-            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(task_attribute_value_mapping, _get_norm_syn_to_attribute_s(TaskAttribute))
+            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
+                task_attribute_value_mapping,
+                _get_norm_syn_to_attribute_s(TaskAttribute),
+            )
         else:
             avm = {}
 
@@ -357,7 +361,9 @@ class ListAdapter(BaseStructureAdapter[List]):
         avm: dict[int, t.Sequence[text.RealStr]]
 
         if user_attribute_value_mapping:
-            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(syn, _get_norm_syn_to_attribute_s(UserAttribute))
+            avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
+                syn, _get_norm_syn_to_attribute_s(UserAttribute)
+            )
         else:
             avm = {}
 
@@ -387,4 +393,3 @@ class ListAdapter(BaseStructureAdapter[List]):
                 "Task Not Given Yet",
                 t"The user {community_user:c} has not been given the task {task_s.name:c} yet, therefore nothing changed!",
             )
-        
