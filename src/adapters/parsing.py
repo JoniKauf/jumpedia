@@ -1217,6 +1217,7 @@ class FilterStringParser:
                     it.pushmany(reversed(word))
 
                     return left_fn
+                
 
                 # matched 'and', parse next factor and combine logically
                 right_fn: FastAvmFuncT = parse_factor()
