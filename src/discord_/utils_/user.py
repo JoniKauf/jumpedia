@@ -53,7 +53,7 @@ def identifier_to_id(identifier: str | int) -> int:
 def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
     return FeedbackError(
         "Not Permitted",
-        t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:c}!",
+        t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",
     )
 
 

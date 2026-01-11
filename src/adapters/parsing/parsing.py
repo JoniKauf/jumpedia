@@ -30,7 +30,7 @@ from utils.expression_parsing.visitor import (
 )
 from utils.text import NormStr, RealStr
 
-from . import errors
+from .. import errors
 
 type FilterAvmCollectionT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
 type FilterAttributesT = dict[NormStr, AnyAttributeT]
@@ -141,13 +141,13 @@ def visit_string_like_and_validate(
     if not isinstance(s, str):
         raise FeedbackError(
             "String Expected",
-            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received {s:c} instead!',
+            t'Expected a value that represents a string (`"text wrapped in quotes"`), but received {s:,} instead!',
         )
 
     if len(s) > visitor.config.STR_LEN_MAX:
         raise FeedbackError(
             "String Length Hard Limit Reached",
-            t"The string {text.shorten(s):c} of length {len(s):c} has surpassed the hard limit of {visitor.config.STR_LEN_MAX:c} characters!",
+            t"The string {text.shorten(s):,} of length {len(s):,} has surpassed the hard limit of {visitor.config.STR_LEN_MAX:,} characters!",
         )
 
     return s
@@ -772,8 +772,8 @@ class AttributeValueMappingVisitor(
             if attr in result:
                 raise FeedbackError(
                     "Not Unique Key Error",
-                    t"The attribute {attr.name:c} was specified multiple times as a key!",
-                    additional=t"It is both specified by {k_real:c} and {used_syns[attr]:c}.",
+                    t"The attribute {attr.name:,} was specified multiple times as a key!",
+                    additional=t"It is both specified by {k_real:,} and {used_syns[attr]:,}.",
                 )
 
             used_syns[attr] = k_real
@@ -971,7 +971,7 @@ class FilterStringParser:
                     if ch not in r"\"":
                         raise FeedbackError(
                             "Invalid Escaped Character",
-                            t"The character {ch:c} is not valid after a `\\`!",
+                            t"The character {ch:,} is not valid after a `\\`!",
                             additional=t'The only characters that can and must be escaped are `\\` and `"`.',
                         )
 
@@ -990,7 +990,7 @@ class FilterStringParser:
             # EOF reached without closing quote
             raise FeedbackError(
                 "Missing Closing Quotation Mark",
-                t"The string {''.join(buf):c} is missing a closing quote (`\"`)!",
+                t"The string {''.join(buf):,} is missing a closing quote (`\"`)!",
             )
 
         else:
@@ -1031,8 +1031,8 @@ class FilterStringParser:
         if op is None:
             raise FeedbackError(
                 "Operator Not Found",
-                t"The operator {op_padded.partition(" ")[0]:c} is invalid!",
-                additional=t"The only allowed operators are {_OP_TO_FUNC_NORM:c}!",
+                t"The operator {op_padded.partition(" ")[0]:,} is invalid!",
+                additional=t"The only allowed operators are {_OP_TO_FUNC_NORM:,}!",
             )
 
         not_used: str = op_padded.removeprefix(op)
@@ -1070,7 +1070,7 @@ class FilterStringParser:
         if not op_prev:
             raise FeedbackError(
                 "Operator Expected",
-                t"After the filter attribute {attr_name_raw:c} an operator was expected, but the string ended.",
+                t"After the filter attribute {attr_name_raw:,} an operator was expected, but the string ended.",
             )
 
         op_name = self._parse_op(op_prev, it)
@@ -1082,7 +1082,7 @@ class FilterStringParser:
         if not val_prev:
             raise FeedbackError(
                 "Value Expected",
-                t"After the filter operator {op_name:c} a value was expected, but the string ended.",
+                t"After the filter operator {op_name:,} a value was expected, but the string ended.",
             )
 
         value_raw, quoted = self._parse_identifer(val_prev, it)
@@ -1314,7 +1314,7 @@ class FilterStringParser:
 
             raise FeedbackError(
                 "Unexpected Trailing Input",
-                t"The entered string ends with {''.join(trailing):c}, which is not valid!",
+                t"The entered string ends with {''.join(trailing):,}, which is not valid!",
             )
 
         # apply root filter function to initial fast_avm

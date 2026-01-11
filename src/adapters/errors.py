@@ -14,7 +14,7 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
     ) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",
-            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias "}{syn:c} could not be found!",
+            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias "}{syn:,} could not be found!",
         )
 
 
@@ -37,7 +37,7 @@ class SynsAlreadyTakenFeedbackError(FeedbackError):
 
         super().__init__(
             f"{next(iter(e.structures.values())).__class__.type_name.title()} {names[many].title()} Or {aliases[many].title()} Already Taken",
-            t"The specified {names[many].lower():p} or {aliases[many].lower():p} ({syns:c}) {are[many].lower():p} already taken!",
+            t"The specified {names[many].lower():p} or {aliases[many].lower():p} ({syns:,}) {are[many].lower():p} already taken!",
         )
 
 
@@ -73,7 +73,7 @@ class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
     def __init__(self, e: errors.ServerAlreadyConnectedToCommunityError) -> None:
         super().__init__(
             "Server Already Connected To A Community",
-            t"This server is already connected to a community ({e.community.name:c})!",
+            t"This server is already connected to a community ({e.community.name:,})!",
         )
 
 
@@ -97,7 +97,7 @@ class SynNotUniqueFeedbackError(FeedbackError):
     def __init__(self, e: errors.NotUniqueStringError) -> None:
         super().__init__(
             "Name Or Aliases Not Unique",
-            t"The name or alias {e.given:c} has been specified multiple times, but they must be unique!",
+            t"The name or alias {e.given:,} has been specified multiple times, but they must be unique!",
         )
 
 
@@ -106,7 +106,7 @@ class AttributeValueSlotCountOutOfRangeFeedbackError(FeedbackError):
         super().__init__(
             "Attribute Value Slot Count Out Of Range",
             t"The specified value has not enough or too many slots!",
-            additional=t"The value {list(e.value):c} has {len(e.value):c} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:c} requires between {e.attribute.min_slots:c} and {e.attribute.max_slots:c} slots in a value.",
+            additional=t"The value {list(e.value):,} has {len(e.value):,} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:,} requires between {e.attribute.min_slots:,} and {e.attribute.max_slots:,} slots in a value.",
         )
 
 
@@ -114,7 +114,7 @@ class CollectionEntryNotFoundFeedbackError(FeedbackError):
     def __init__(self, e: errors.CollectionEntryNotFoundError) -> None:
         super().__init__(
             "Collection Entry Not Found",
-            t"The specified collection entry {e.real_slot:c} could not be found in the collection of the {e.collection.attribute.__class__.type_name} {e.collection.attribute.name:c}!",
+            t"The specified collection entry {e.real_slot:,} could not be found in the collection of the {e.collection.attribute.__class__.type_name} {e.collection.attribute.name:,}!",
         )
 
 
@@ -122,7 +122,7 @@ class CollectionEntrySynNotUniqueFeedbackError(FeedbackError):
     def __init__(self, e: errors.CollectionEntrySynNotUniqueError) -> None:
         super().__init__(
             "Collection Entry Value Or Alias Not Unique",
-            t"The collection entry's value or alias {e.duplicate:c} has been specified multiple times, but they must be unique!",
+            t"The collection entry's value or alias {e.duplicate:,} has been specified multiple times, but they must be unique!",
         )
 
 
@@ -151,7 +151,7 @@ class AttributeMinSlotsOrMaxSlotsOutOfRangeFeedbackError(FeedbackError):
             additional=t"`min_slots` must be at least {e.min_min}, while `max_slots` must be at least 1, bigger than `min_slots` and below the community's limit of {e.max_max}.",
             paragraphs=(
                 t"The following statement must be valid: `max_slots ≥ 1 and {e.min_min} ≤ min_slots ≤ max_slots ≤ {e.max_max}`.\n"
-                t"The values you entered result in this statement: {e.max} ≥ 1 and {e.min_min} ≤ {e.min} ≤ {e.max} ≤ {e.max_max:c}.",
+                t"The values you entered result in this statement: {e.max} ≥ 1 and {e.min_min} ≤ {e.min} ≤ {e.max} ≤ {e.max_max:,}.",
             ),
         )
 

@@ -47,7 +47,7 @@ def _require_community_with_name(name: text.NormStr, jumpedia_s: Jumpedia) -> Co
     if community is None:
         raise FeedbackError(
             "Community Not Found",
-            t"A community with the name {name:c} could not be found!",
+            t"A community with the name {name:,} could not be found!",
         )
 
     return community

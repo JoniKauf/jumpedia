@@ -411,7 +411,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         await interaction.response.send_message(
             messaging.layout(
                 "Task Created",
-                t"The task {task.name:c} has successfully been created!",
+                t"The task {task.name:,} has successfully been created!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -430,7 +430,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         await interaction.response.send_message(
             messaging.layout(
                 "Task Delete",
-                t"The task {task:c} has successfully been deleted!",
+                t"The task {task:,} has successfully been deleted!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -460,7 +460,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         await interaction.response.send_message(
             messaging.layout(
                 "Task Given",
-                t"The task {task_obj.name:c} has successfully been given to {community_user.name:c}!",
+                t"The task {task_obj.name:,} has successfully been given to {community_user.name:,}!",
                 messaging.MessageStatus.SUCCESS,
             )
         )

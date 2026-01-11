@@ -63,8 +63,15 @@ def discord_message_too_long(s: str) -> bool:
 
 
 def embed_join(elem: str, *elems: str) -> str:
-    return f"`{"`, `".join((elem, *elems))}`"
+    return f"``{"``, ``".join((elem, *elems))}``"
 
+def embed_human_join(elem: str, *elems: str, human_sep: str = 'and') -> str:
+    elems = (elem, *elems)
+
+    if len(elems) < 2:
+        return embed_join(*elems)
+    
+    return f"{embed_join(*elems[:-1])} {human_sep} {embed_join(elems[-1])}"
 
 def layout(
     header: str,
@@ -103,7 +110,18 @@ def layout(
         elif interp.format_spec == "p":
             interp_to_data[id(interp)] = _InterpolationData(str(interp.value), False)
 
-        elif interp.format_spec == "c":
+        elif interp.format_spec in (',', '&', '|'):
+            format_func: t.Callable[[str, *tuple[str, ...]], str]
+
+            if interp.format_spec == ',':
+                format_func = embed_join
+            elif interp.format_spec == '&':
+                format_func = embed_human_join
+            elif interp.format_spec == '|':
+                format_func = lambda elem, *elems: embed_human_join(elem, *elems, human_sep='or')
+            else:
+                t.assert_never(interp.format_spec)
+            
             to_join: t.Iterable[str]
 
             if isinstance(interp.value, str) or not isinstance(
@@ -113,7 +131,7 @@ def layout(
             else:
                 to_join = map(str, interp.value)
 
-            interp_to_data[id(interp)] = _InterpolationData(embed_join(*to_join), False)
+            interp_to_data[id(interp)] = _InterpolationData(format_func(*to_join), False)
 
         else:
             raise ValueError(f"Format Spec of {interp!r} is invalid")

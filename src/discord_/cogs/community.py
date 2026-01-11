@@ -81,7 +81,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Created",
-                t"The community {community.name:c} was successfully created and is now connected to this server!",
+                t"The community {community.name:,} was successfully created and is now connected to this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -109,7 +109,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Connected",
-                t"This server has successfully been connected to the community {community.name:c}!",
+                t"This server has successfully been connected to the community {community.name:,}!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -124,7 +124,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         await interaction.response.send_message(
             messaging.layout(
                 "Community Disconnected",
-                t"The community {community.name:c} has successfully been disconnected from this server!",
+                t"The community {community.name:,} has successfully been disconnected from this server!",
                 messaging.MessageStatus.SUCCESS,
             )
         )
@@ -156,8 +156,8 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 await interaction.response.send_message(
                     messaging.layout(
                         "Ownership Transferred",
-                        t"The ownership of the community {community:c} has successfully been transferred to {transfer_jumpedia_user:c}!",
-                        additional=t"The rank of {current_community_user:c} has been set to {CommunityRank.ADMINISTRATOR:c}.",
+                        t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
+                        additional=t"The rank of {current_community_user:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
                         message_status=messaging.MessageStatus.SUCCESS,
                     )
                 )
@@ -165,7 +165,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 await interaction.response.send_message(
                     messaging.layout(
                         "Ownership Transfer Aborted",
-                        t"The ownership of the community {community:c} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:c})!",
+                        t"The ownership of the community {community:,} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:,})!",
                         messaging.MessageStatus.WARNING,
                     )
                 )
@@ -198,7 +198,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             messaging.layout(
                 "Default Selected List Set",
                 (
-                    t"The default selected list has successfully been changed to {list:c}!"
+                    t"The default selected list has successfully been changed to {list:,}!"
                     if list is not None
                     else t"The default selected list has successfully been changed to be unset."
                 ),

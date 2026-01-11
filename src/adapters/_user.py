@@ -84,7 +84,7 @@ def _get_set_rank_error(
             "Cannot Set Rank Of More Powerful User",
             t"You cannot set the rank of a user more powerful than you!",
             additional=(
-                t"The user {set_user:c} has the "
+                t"The user {set_user:,} has the "
                 t"{set_best_rank.mention()}, "
                 t"but you have the less powerful "
                 t"{executing_best_rank.mention()}."
@@ -97,7 +97,7 @@ def _get_set_rank_error(
             t"You cannot set the rank of a user to a rank that is equally or more powerful than yours!",
             additional=(
                 t"The {rank.mention()} "
-                t"you are trying set for {set_user:c} is equally or more powerful "
+                t"you are trying set for {set_user:,} is equally or more powerful "
                 t"than your {executing_best_rank.mention()}."
             ),
         )
@@ -109,7 +109,7 @@ def _get_set_rank_error(
     ):
         return FeedbackError(
             "User Already Has Specified Rank",
-            t"The user {set_user:c} already has the {rank.mention()}, therefore nothing changed!",
+            t"The user {set_user:,} already has the {rank.mention()}, therefore nothing changed!",
             explicit_message_status=messaging.MessageStatus.WARNING,
         )
 
@@ -132,7 +132,7 @@ def get_success_msg(
 ):
     return messaging.layout(
         f"{rank.__class__.type_name.title()} Set",
-        t"The jumpedia rank of {set_user:c} has successfully been set to {rank:c}!",
+        t"The jumpedia rank of {set_user:,} has successfully been set to {rank:,}!",
         message_status=messaging.MessageStatus.SUCCESS,
     )
 
@@ -253,12 +253,12 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             start = (
                 "You already have"
                 if self == executing_community_user
-                else f"The user {self:c} already has"
+                else f"The user {self:,} already has"
             )
             selection = (
                 "no selected list"
                 if selected_list is None
-                else f"the selected list {selected_list:c}"
+                else f"the selected list {selected_list:,}"
             )
 
             raise FeedbackError(
