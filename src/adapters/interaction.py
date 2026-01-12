@@ -3,6 +3,9 @@ from functools import cached_property
 import discord as dc
 
 from discord_.errors import FeedbackError
+from utils import secret
+from utils.orm._structures.connector import Connector
+from utils.orm._structures.cursor import Cursor
 from utils.rank import JumpediaRank
 
 from . import BaseAdapter
@@ -24,6 +27,14 @@ def is_joni(interaction: dc.Interaction) -> bool:
     return interaction.user.id == 679564566769827841
 
 
+__CONNECTOR=Connector(**(__conn_data := secret.listen().DATABASE_CONNECTION_DATA))
+__META_CONNECTOR=Connector(**__conn_data | {"database_name": None})  # type: ignore
+
+del __conn_data
+
+
+
+
 class InteractionAdapter(BaseAdapter[dc.Interaction]):
     def __post_init__(self) -> None:
         # If a user interacts with Jumpedia, we want to save them.
@@ -38,6 +49,15 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
             ),
         )
 
+
+    @property
+    def _c(self) -> Cursor:
+        return __CONNECTOR.cursor()
+    
+    @property
+    def _c_meta(self) -> Cursor:
+        return __META_CONNECTOR.cursor()
+    
     @cached_property
     def current_server(self) -> ServerAdapter:
         user = _require_member(self._s.user)
@@ -60,3 +80,4 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:
         return JumpediaAdapter(_JUMPEDIA, self)
+    

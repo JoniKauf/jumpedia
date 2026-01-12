@@ -25,10 +25,6 @@ class Cursor:
         self._mariadb_connection = connection
         self._mariadb_cursor = connection.cursor(dictionary=True)
 
-        self._mariadb_cursor.execute(
-            "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ"
-        )
-
     def __enter__(self) -> Cursor:
         self._connector._existing_refs += 1
         return self

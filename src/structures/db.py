@@ -1,6 +1,9 @@
 import types
 import typing as t
 
+from structures import attribute
+from structures.attribute.slot_str import SLOT_TYPES
+from structures.list import Kind
 from utils.orm import *
 from utils.text import NormStr, RealStr
 
@@ -107,13 +110,17 @@ class CommunityUser(Model, table_name=SNAKE):
 # --- Static Attribute ---
 
 
-class StaticAttribute(Model, table_name=SNAKE):
+class Attribute(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
 
     @column(int)
     def list_id(self):
+        pass
+    
+    @column(int)
+    def type(self):
         pass
 
     @column(NormStr)
@@ -140,12 +147,12 @@ class StaticAttribute(Model, table_name=SNAKE):
     def max_slots(self):
         pass
 
-    @column(int)
+    @column(int, types.NoneType)
     def kind(self):
         pass
 
 
-class StaticAttributeAlias(Model, table_name=SNAKE):
+class AttributeAlias(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
@@ -167,66 +174,7 @@ class StaticAttributeAlias(Model, table_name=SNAKE):
         pass
 
 
-# --- Task Attribute ---
-
-
-class TaskAttribute(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def list_id(self):
-        pass
-
-    @column(NormStr)
-    def norm_name(self):
-        pass
-
-    @column(RealStr)
-    def real_name(self):
-        pass
-
-    @column(int)
-    def slot_type(self):
-        pass
-
-    @column(int)
-    def position(self):
-        pass
-
-    @column(int)
-    def min_slots(self):
-        pass
-
-    @column(int)
-    def max_slots(self):
-        pass
-
-
-class TaskAttributeAlias(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def attribute_id(self):
-        pass
-
-    @column(int)
-    def list_id(self):
-        pass
-
-    @column(NormStr)
-    def norm_alias(self):
-        pass
-
-    @column(RealStr)
-    def real_alias(self):
-        pass
-
-
-class TaskAttributeCollectionEntry(Model, table_name=SNAKE):
+class AttributeCollectionEntry(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
@@ -248,7 +196,7 @@ class TaskAttributeCollectionEntry(Model, table_name=SNAKE):
         pass
 
 
-class TaskAttributeCollectionEntryAlias(Model, table_name=SNAKE):
+class AttributeCollectionEntryAlias(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
@@ -268,112 +216,6 @@ class TaskAttributeCollectionEntryAlias(Model, table_name=SNAKE):
     @column(SlotStr)
     def slot_alias(self):
         pass
-
-
-# --- User Attribute ---
-
-
-class UserAttribute(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def list_id(self):
-        pass
-
-    @column(NormStr)
-    def norm_name(self):
-        pass
-
-    @column(RealStr)
-    def real_name(self):
-        pass
-
-    @column(int)
-    def slot_type(self):
-        pass
-
-    @column(int)
-    def position(self):
-        pass
-
-    @column(int)
-    def min_slots(self):
-        pass
-
-    @column(int)
-    def max_slots(self):
-        pass
-
-
-class UserAttributeAlias(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def attribute_id(self):
-        pass
-
-    @column(int)
-    def list_id(self):
-        pass
-
-    @column(NormStr)
-    def norm_alias(self):
-        pass
-
-    @column(RealStr)
-    def real_alias(self):
-        pass
-
-
-class UserAttributeCollectionEntry(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def attribute_id(self):
-        pass
-
-    @column(int)
-    def index(self):
-        pass
-
-    @column(NormStr)
-    def norm_slot(self):
-        pass
-
-    @column(SlotStr)
-    def slot_slot(self):
-        pass
-
-
-class UserAttributeCollectionEntryAlias(Model, table_name=SNAKE):
-    @column(int)
-    def id(self):
-        pass
-
-    @column(int)
-    def attribute_collection_entry_id(self):
-        pass
-
-    @column(int)
-    def attribute_id(self):
-        pass
-
-    @column(NormStr)
-    def norm_alias(self):
-        pass
-
-    @column(SlotStr)
-    def slot_alias(self):
-        pass
-
-
-# --- Task ---
 
 
 class Task(Model, table_name=SNAKE):
@@ -416,7 +258,7 @@ class TaskAlias(Model, table_name=SNAKE):
         pass
 
 
-class TaskTaskAttributeValue(Model, table_name=SNAKE):
+class TaskAttributeValue(Model, table_name=SNAKE):
     @column(int)
     def list_id(self):
         pass
@@ -438,7 +280,7 @@ class TaskTaskAttributeValue(Model, table_name=SNAKE):
         pass
 
 
-class ListTaskCommunityUser(Model, table_name=SNAKE):
+class CommunityUserTask(Model, table_name=SNAKE):
     @column(int)
     def id(self):
         pass
@@ -456,21 +298,25 @@ class ListTaskCommunityUser(Model, table_name=SNAKE):
         pass
 
 
-class TaskUserAttributeValue(Model, table_name=SNAKE):
+class CommunityUserTaskAttributeValue(Model, table_name=SNAKE):
     @column(int)
-    def list_task_community_user_id(self):
+    def id(self):
+        pass
+
+    @column(int)
+    def community_user_task_id(self):
         pass
 
     @column(int)
     def list_id(self):
         pass
-
+    
     @column(int)
-    def task_id(self):
+    def community_user_id(self):
         pass
 
     @column(int)
-    def community_user_id(self):
+    def task_id(self):
         pass
 
     @column(int)
@@ -484,47 +330,6 @@ class TaskUserAttributeValue(Model, table_name=SNAKE):
     @column(SlotStr)
     def slot_slot(self):
         pass
-
-
-# Union types to represent attribute tables
-type AnyAttributeTable = StaticAttribute | TaskAttribute | UserAttribute
-type AnyAttributeAliasTable = StaticAttributeAlias | TaskAttributeAlias | UserAttributeAlias
-type AnyAttributeCollectionEntryTable = TaskAttributeCollectionEntry | UserAttributeCollectionEntry
-type AnyAttributeCollectionEntryAliasTable = TaskAttributeCollectionEntryAlias | UserAttributeCollectionEntryAlias
-type AnyTaskAttributeValueTable = TaskTaskAttributeValue | TaskUserAttributeValue
-
-
-# Intersection types to be type safe and make type checker shut up for queries
-class AbstractAttributeTable(
-    StaticAttribute, TaskAttribute, UserAttribute, table_name=""
-):
-    pass
-
-
-class AbstractAttributeAliasTable(
-    StaticAttributeAlias, TaskAttributeAlias, UserAttributeAlias, table_name=""
-):
-    pass
-
-
-class AbstractAttributeCollectionEntryTable(
-    TaskAttributeCollectionEntry, UserAttributeCollectionEntry, table_name=""
-):
-    pass
-
-
-class AbstractAttributeCollectionEntryAliasTable(
-    TaskAttributeCollectionEntryAlias,
-    UserAttributeCollectionEntryAlias,
-    table_name="",
-):
-    pass
-
-
-class AbstractTaskAttributeValueTable(
-    TaskTaskAttributeValue, TaskUserAttributeValue, table_name=""
-):
-    pass
 
 
 def create_database(j: Jumpedia) -> None:
@@ -608,8 +413,6 @@ def create_database(j: Jumpedia) -> None:
             """
             )
 
-            from . import user
-
             c.raw_execute(
                 f"""
                 CREATE TABLE {JumpediaUser} (
@@ -645,88 +448,50 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {StaticAttribute} (
-                    {StaticAttribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {StaticAttribute.list_id} INT UNSIGNED NOT NULL,
-                    {StaticAttribute.kind} TINYINT NOT NULL,
-                    {StaticAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {StaticAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {StaticAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
-                    {StaticAttribute.position} TINYINT UNSIGNED NOT NULL,
-                    {StaticAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
-                    {StaticAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
+                CREATE TABLE {Attribute} (
+                    {Attribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {Attribute.list_id} INT UNSIGNED NOT NULL,
+                    {Attribute.type} TINYINT UNSIGNED NOT NULL,
+                    {Attribute.kind} TINYINT UNSIGNED,
+                    {Attribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                    {Attribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                    {Attribute.slot_type} TINYINT UNSIGNED NOT NULL,
+                    {Attribute.position} TINYINT UNSIGNED NOT NULL,
+                    {Attribute.min_slots} TINYINT UNSIGNED NOT NULL,
+                    {Attribute.max_slots} TINYINT UNSIGNED NOT NULL,
 
-                    FOREIGN KEY ({StaticAttribute.list_id.unqualified})
+                    FOREIGN KEY ({Attribute.list_id.unqualified})
                         REFERENCES {List}({List.id.unqualified})
                         ON DELETE CASCADE,
 
-                    UNIQUE ({StaticAttribute.list_id.unqualified}, {StaticAttribute.kind.unqualified}),
-                    UNIQUE ({StaticAttribute.list_id.unqualified}, {StaticAttribute.norm_name.unqualified}),
-                    UNIQUE ({StaticAttribute.list_id.unqualified}, {StaticAttribute.position.unqualified})
+                    UNIQUE ({Attribute.list_id.unqualified}, {Attribute.kind.unqualified}),
+                    UNIQUE ({Attribute.list_id.unqualified}, {Attribute.norm_name.unqualified}),
+                    UNIQUE ({Attribute.list_id.unqualified}, {Attribute.position.unqualified}),
+
+                    CHECK ({Attribute.type.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)}),
+                    CHECK ({Attribute.kind.unqualified} IS NULL OR {Attribute.kind.unqualified} < {max(Kind._value2member_map_)}),
+                    CHECK ({Attribute.slot_type} < {len(SLOT_TYPES)})
                 )
             """
             )
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {StaticAttributeAlias} (
-                    {StaticAttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {StaticAttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
-                    {StaticAttributeAlias.list_id} INT UNSIGNED NOT NULL,
-                    {StaticAttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {StaticAttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                CREATE TABLE {AttributeAlias} (
+                    {AttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {AttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
+                    {AttributeAlias.list_id} INT UNSIGNED NOT NULL,
+                    {AttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                    {AttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
 
-                    FOREIGN KEY ({StaticAttributeAlias.attribute_id.unqualified})
-                        REFERENCES {StaticAttribute}({StaticAttribute.id.unqualified})
+                    FOREIGN KEY ({AttributeAlias.attribute_id.unqualified})
+                        REFERENCES {Attribute}({Attribute.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({StaticAttributeAlias.list_id.unqualified})
+                    FOREIGN KEY ({AttributeAlias.list_id.unqualified})
                         REFERENCES {List}({List.id.unqualified})
                         ON DELETE CASCADE,
 
-                    UNIQUE ({StaticAttributeAlias.list_id.unqualified}, {StaticAttributeAlias.norm_alias.unqualified})
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {TaskAttribute} (
-                    {TaskAttribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {TaskAttribute.list_id} INT UNSIGNED NOT NULL,
-                    {TaskAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {TaskAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {TaskAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
-                    {TaskAttribute.position} TINYINT UNSIGNED NOT NULL,
-                    {TaskAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
-                    {TaskAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
-
-                    FOREIGN KEY ({TaskAttribute.list_id.unqualified})
-                        REFERENCES {List}({List.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE ({TaskAttribute.list_id.unqualified}, {TaskAttribute.norm_name.unqualified}),
-                    UNIQUE ({TaskAttribute.list_id.unqualified}, {TaskAttribute.position.unqualified})
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {TaskAttributeAlias} (
-                    {TaskAttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {TaskAttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
-                    {TaskAttributeAlias.list_id} INT UNSIGNED NOT NULL,
-                    {TaskAttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {TaskAttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-
-                    FOREIGN KEY ({TaskAttributeAlias.attribute_id.unqualified})
-                        REFERENCES {TaskAttribute}({TaskAttribute.id.unqualified})
-                        ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskAttributeAlias.list_id.unqualified})
-                        REFERENCES {List}({List.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE ({TaskAttributeAlias.list_id.unqualified}, {TaskAttributeAlias.norm_alias.unqualified})
+                    UNIQUE ({AttributeAlias.list_id.unqualified}, {AttributeAlias.norm_alias.unqualified}),
                 )
             """
             )
@@ -735,24 +500,24 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {TaskAttributeCollectionEntry} (
-                    {TaskAttributeCollectionEntry.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {TaskAttributeCollectionEntry.attribute_id} INT UNSIGNED NOT NULL,
-                    {TaskAttributeCollectionEntry.index} INT UNSIGNED NOT NULL,
-                    {TaskAttributeCollectionEntry.norm_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-                    {TaskAttributeCollectionEntry.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {AttributeCollectionEntry} (
+                    {AttributeCollectionEntry.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {AttributeCollectionEntry.attribute_id} INT UNSIGNED NOT NULL,
+                    {AttributeCollectionEntry.index} TINYINT UNSIGNED NOT NULL,
+                    {AttributeCollectionEntry.norm_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {AttributeCollectionEntry.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
-                    FOREIGN KEY ({TaskAttributeCollectionEntry.attribute_id.unqualified})
-                        REFERENCES {TaskAttribute}({TaskAttribute.id.unqualified})
+                    FOREIGN KEY ({AttributeCollectionEntry.attribute_id.unqualified})
+                        REFERENCES {Attribute}({Attribute.id.unqualified})
                         ON DELETE CASCADE,
 
                     UNIQUE (
-                        {TaskAttributeCollectionEntry.attribute_id.unqualified},
-                        {TaskAttributeCollectionEntry.norm_slot.unqualified}
+                        {AttributeCollectionEntry.attribute_id.unqualified},
+                        {AttributeCollectionEntry.norm_slot.unqualified}
                     ),
                     UNIQUE (
-                        {TaskAttributeCollectionEntry.attribute_id.unqualified},
-                        {TaskAttributeCollectionEntry.index.unqualified}
+                        {AttributeCollectionEntry.attribute_id.unqualified},
+                        {AttributeCollectionEntry.index.unqualified}
                     )
                 )
             """
@@ -760,115 +525,23 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {TaskAttributeCollectionEntryAlias} (
-                    {TaskAttributeCollectionEntryAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {TaskAttributeCollectionEntryAlias.attribute_id} INT UNSIGNED NOT NULL,
-                    {TaskAttributeCollectionEntryAlias.attribute_collection_entry_id} INT UNSIGNED NOT NULL,
-                    {TaskAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-                    {TaskAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {AttributeCollectionEntryAlias} (
+                    {AttributeCollectionEntryAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {AttributeCollectionEntryAlias.attribute_id} INT UNSIGNED NOT NULL,
+                    {AttributeCollectionEntryAlias.attribute_collection_entry_id} INT UNSIGNED NOT NULL,
+                    {AttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                    {AttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
-                    FOREIGN KEY ({TaskAttributeCollectionEntryAlias.attribute_collection_entry_id.unqualified})
-                        REFERENCES {TaskAttributeCollectionEntry}({TaskAttributeCollectionEntry.id.unqualified})
+                    FOREIGN KEY ({AttributeCollectionEntryAlias.attribute_collection_entry_id.unqualified})
+                        REFERENCES {AttributeCollectionEntry}({AttributeCollectionEntry.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskAttributeCollectionEntryAlias.attribute_id.unqualified})
-                        REFERENCES {TaskAttribute}({TaskAttribute.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE (
-                        {TaskAttributeCollectionEntryAlias.attribute_id.unqualified},
-                        {TaskAttributeCollectionEntryAlias.norm_alias.unqualified}
-                    )
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {UserAttribute} (
-                    {UserAttribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {UserAttribute.list_id} INT UNSIGNED NOT NULL,
-                    {UserAttribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {UserAttribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {UserAttribute.slot_type} TINYINT UNSIGNED NOT NULL,
-                    {UserAttribute.position} TINYINT UNSIGNED NOT NULL,
-                    {UserAttribute.min_slots} TINYINT UNSIGNED NOT NULL,
-                    {UserAttribute.max_slots} TINYINT UNSIGNED NOT NULL,
-
-                    FOREIGN KEY ({UserAttribute.list_id.unqualified})
-                        REFERENCES {List}({List.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE ({UserAttribute.list_id.unqualified}, {UserAttribute.norm_name.unqualified}),
-                    UNIQUE ({UserAttribute.list_id.unqualified}, {UserAttribute.position.unqualified})
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {UserAttributeAlias} (
-                    {UserAttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {UserAttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
-                    {UserAttributeAlias.list_id} INT UNSIGNED NOT NULL,
-                    {UserAttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                    {UserAttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-
-                    FOREIGN KEY ({UserAttributeAlias.attribute_id.unqualified})
-                        REFERENCES {UserAttribute}({UserAttribute.id.unqualified})
-                        ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeAlias.list_id.unqualified})
-                        REFERENCES {List}({List.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE ({UserAttributeAlias.list_id.unqualified}, {UserAttributeAlias.norm_alias.unqualified})
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {UserAttributeCollectionEntry} (
-                    {UserAttributeCollectionEntry.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {UserAttributeCollectionEntry.attribute_id} INT UNSIGNED NOT NULL,
-                    {UserAttributeCollectionEntry.index} INT UNSIGNED NOT NULL,
-                    {UserAttributeCollectionEntry.norm_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-                    {UserAttributeCollectionEntry.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-
-                    FOREIGN KEY ({UserAttributeCollectionEntry.attribute_id.unqualified})
-                        REFERENCES {UserAttribute}({UserAttribute.id.unqualified})
+                    FOREIGN KEY ({AttributeCollectionEntryAlias.attribute_id.unqualified})
+                        REFERENCES {Attribute}({Attribute.id.unqualified})
                         ON DELETE CASCADE,
 
                     UNIQUE (
-                        {UserAttributeCollectionEntry.attribute_id.unqualified},
-                        {UserAttributeCollectionEntry.norm_slot.unqualified}
-                    ),
-                    UNIQUE (
-                        {UserAttributeCollectionEntry.attribute_id.unqualified},
-                        {UserAttributeCollectionEntry.index.unqualified}
-                    )
-                )
-            """
-            )
-
-            c.raw_execute(
-                f"""
-                CREATE TABLE {UserAttributeCollectionEntryAlias} (
-                    {UserAttributeCollectionEntryAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {UserAttributeCollectionEntryAlias.attribute_id} INT UNSIGNED NOT NULL,
-                    {UserAttributeCollectionEntryAlias.attribute_collection_entry_id} INT UNSIGNED NOT NULL,
-                    {UserAttributeCollectionEntryAlias.norm_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-                    {UserAttributeCollectionEntryAlias.slot_alias} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
-
-                    FOREIGN KEY ({UserAttributeCollectionEntryAlias.attribute_collection_entry_id.unqualified})
-                        REFERENCES {UserAttributeCollectionEntry}({UserAttributeCollectionEntry.id.unqualified})
-                        ON DELETE CASCADE,
-                    FOREIGN KEY ({UserAttributeCollectionEntryAlias.attribute_id.unqualified})
-                        REFERENCES {UserAttribute}({UserAttribute.id.unqualified})
-                        ON DELETE CASCADE,
-
-                    UNIQUE (
-                        {UserAttributeCollectionEntryAlias.attribute_id.unqualified},
-                        {UserAttributeCollectionEntryAlias.norm_alias.unqualified}
+                        {AttributeCollectionEntryAlias.attribute_id.unqualified},
+                        {AttributeCollectionEntryAlias.norm_alias.unqualified}
                     )
                 )
             """
@@ -915,28 +588,28 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {TaskTaskAttributeValue} (
-                    {TaskTaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
-                    {TaskTaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
-                    {TaskTaskAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
-                    {TaskTaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
-                    {TaskTaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {TaskAttributeValue} (
+                    {TaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
+                    {TaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
+                    {TaskAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
+                    {TaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
+                    {TaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
                     PRIMARY KEY (
-                        {TaskTaskAttributeValue.list_id.unqualified},
-                        {TaskTaskAttributeValue.task_id.unqualified}, 
-                        {TaskTaskAttributeValue.attribute_id.unqualified},
-                        {TaskTaskAttributeValue.index.unqualified}
+                        {TaskAttributeValue.list_id.unqualified},
+                        {TaskAttributeValue.task_id.unqualified}, 
+                        {TaskAttributeValue.attribute_id.unqualified},
+                        {TaskAttributeValue.index.unqualified}
                     ),
                     
-                    FOREIGN KEY ({TaskTaskAttributeValue.list_id.unqualified})
+                    FOREIGN KEY ({TaskAttributeValue.list_id.unqualified})
                         REFERENCES {List}({List.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskTaskAttributeValue.task_id.unqualified})
+                    FOREIGN KEY ({TaskAttributeValue.task_id.unqualified})
                         REFERENCES {Task}({Task.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskTaskAttributeValue.attribute_id.unqualified})
-                        REFERENCES {TaskAttribute}({TaskAttribute.id.unqualified})
+                    FOREIGN KEY ({TaskAttributeValue.attribute_id.unqualified})
+                        REFERENCES {Attribute}({Attribute.id.unqualified})
                         ON DELETE CASCADE
                 )
             """
@@ -944,26 +617,26 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {ListTaskCommunityUser} (
-                    {ListTaskCommunityUser.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    {ListTaskCommunityUser.list_id} INT UNSIGNED NOT NULL,
-                    {ListTaskCommunityUser.task_id} INT UNSIGNED NOT NULL,
-                    {ListTaskCommunityUser.community_user_id} INT UNSIGNED NOT NULL,
+                CREATE TABLE {CommunityUserTask} (
+                    {CommunityUserTask.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {CommunityUserTask.list_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTask.community_user_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTask.task_id} INT UNSIGNED NOT NULL,
 
-                    FOREIGN KEY ({ListTaskCommunityUser.list_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTask.list_id.unqualified})
                         REFERENCES {List}({List.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({ListTaskCommunityUser.task_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTask.task_id.unqualified})
                         REFERENCES {Task}({Task.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({ListTaskCommunityUser.community_user_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTask.community_user_id.unqualified})
                         REFERENCES {CommunityUser}({CommunityUser.id.unqualified})
                         ON DELETE CASCADE,
 
                     UNIQUE (
-                        {ListTaskCommunityUser.list_id.unqualified}, 
-                        {ListTaskCommunityUser.task_id.unqualified},
-                        {ListTaskCommunityUser.community_user_id.unqualified}
+                        {CommunityUserTask.list_id.unqualified}, 
+                        {CommunityUserTask.task_id.unqualified},
+                        {CommunityUserTask.community_user_id.unqualified}
                     )
                 )
                 """
@@ -971,43 +644,43 @@ def create_database(j: Jumpedia) -> None:
 
             c.raw_execute(
                 f"""
-                CREATE TABLE {TaskUserAttributeValue} (
-                    {TaskUserAttributeValue.list_task_community_user_id} BIGINT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.list_id} INT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.task_id} INT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.community_user_id} INT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.index} TINYINT UNSIGNED NOT NULL,
-                    {TaskUserAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+                CREATE TABLE {CommunityUserTaskAttributeValue} (
+                    {CommunityUserTaskAttributeValue.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    {CommunityUserTaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.community_user_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.community_user_task_id} BIGINT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
+                    {CommunityUserTaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
-                    PRIMARY KEY (
-                        {TaskUserAttributeValue.list_id.unqualified},
-                        {TaskUserAttributeValue.task_id.unqualified},
-                        {TaskUserAttributeValue.community_user_id.unqualified}, 
-                        {TaskUserAttributeValue.attribute_id.unqualified},
-                        {TaskUserAttributeValue.index.unqualified}
-                    ),
-
-                    FOREIGN KEY ({TaskUserAttributeValue.list_task_community_user_id.unqualified})
-                        REFERENCES {ListTaskCommunityUser}({ListTaskCommunityUser.id.unqualified})
+                    FOREIGN KEY ({CommunityUserTaskAttributeValue.community_user_task_id.unqualified})
+                        REFERENCES {CommunityUserTask}({CommunityUserTask.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskUserAttributeValue.list_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTaskAttributeValue.list_id.unqualified})
                         REFERENCES {List}({List.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskUserAttributeValue.task_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTaskAttributeValue.task_id.unqualified})
                         REFERENCES {Task}({Task.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskUserAttributeValue.community_user_id.unqualified})
+                    FOREIGN KEY ({CommunityUserTaskAttributeValue.community_user_id.unqualified})
                         REFERENCES {CommunityUser}({CommunityUser.id.unqualified})
                         ON DELETE CASCADE,
-                    FOREIGN KEY ({TaskUserAttributeValue.attribute_id.unqualified})
-                        REFERENCES {UserAttribute}({UserAttribute.id.unqualified})
+                    FOREIGN KEY ({CommunityUserTaskAttributeValue.attribute_id.unqualified})
+                        REFERENCES {Attribute}({Attribute.id.unqualified})
                         ON DELETE CASCADE,
 
                     UNIQUE (
-                        {TaskUserAttributeValue.list_task_community_user_id.unqualified},
-                        {TaskUserAttributeValue.attribute_id.unqualified},
-                        {TaskUserAttributeValue.index.unqualified}
+                        {CommunityUserTaskAttributeValue.community_user_task_id.unqualified},
+                        {CommunityUserTaskAttributeValue.attribute_id.unqualified},
+                        {CommunityUserTaskAttributeValue.index.unqualified}
+                    ),
+                    UNIQUE (
+                        {CommunityUserTaskAttributeValue.list_id.unqualified},
+                        {CommunityUserTaskAttributeValue.community_user_id.unqualified}, 
+                        {CommunityUserTaskAttributeValue.task_id.unqualified},
+                        {CommunityUserTaskAttributeValue.attribute_id.unqualified},
+                        {CommunityUserTaskAttributeValue.index.unqualified}
                     )
                 )
             """

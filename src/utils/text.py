@@ -90,6 +90,9 @@ class RealStr(str):
         return super().__new__(cls, s)
 
 
+# DO NOT ADD ANY ADDITIONAL METHODS!
+# This is because the database technically just returns str, but we type it as RealStr, NormStr, SlotStr.
+# It is already checked before inserting, so it is safe to pretend it is the custom str class.
 class NormStr(str):
     def __new__(cls, s: str) -> t.Self:
         if not isinstance(s, RealStr):
@@ -118,6 +121,7 @@ class NormStr(str):
 
         # Dict order is preserved
         return (tuple(mapping.values()), tuple(mapping))
+
 
 
 def apply_f_to_interpolation_value(interpolation: Interpolation):

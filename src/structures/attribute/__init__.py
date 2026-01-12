@@ -3,6 +3,7 @@ import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from structures.list import AttributeCollectionEntryAliasTable, AttributeCollectionEntryTable
 from utils import orm, text
 
 from .. import BaseStructure, db, errors
@@ -37,7 +38,6 @@ type AttributeTypeId = t.Literal[0, 1, 2]
 
 
 class BaseAttribute(BaseStructure):
-    tables: t.ClassVar[AttributeTables]
     type_id: t.ClassVar[AttributeTypeId]
 
     list: List
@@ -56,10 +56,6 @@ class BaseAttribute(BaseStructure):
     @property
     def required(self) -> bool:
         return self.min_slots > 0
-
-    @property
-    def connector(self) -> orm.Connector:
-        return self.list.connector
 
     # --- Methods ---
 
@@ -111,8 +107,6 @@ class RawCollectionEntryItem(t.NamedTuple):
 class BaseNonStaticAttribute(BaseAttribute):
     kind: None = None
 
-    tables: t.ClassVar[BaseNonStaticAttributeTables]
-
     def __post_init__(self) -> None:
         super().__post_init__()
 
@@ -142,15 +136,6 @@ class BaseNonStaticAttribute(BaseAttribute):
         return tuple(result)
 
     def get_collection(self) -> Collection:
-        AttributeCollectionEntryTable = t.cast(
-            type[db.AbstractAttributeCollectionEntryTable],
-            self.__class__.tables.attribute_collection_entry,
-        )
-        AttributeCollectionEntryAliasTable = t.cast(
-            type[db.AbstractAttributeCollectionEntryAliasTable],
-            self.__class__.tables.attribute_collection_entry_alias,
-        )
-
         with self.connector.cursor() as c:
             entry_rows = c.fetch_all(
                 AttributeCollectionEntryTable.select("*")
@@ -213,15 +198,6 @@ class BaseNonStaticAttribute(BaseAttribute):
             raise errors.CollectionEntryLimitReachedError(
                 self.list.community.limits.attribute_collection_entry_count_max
             )
-
-        AttributeCollectionEntryTable = t.cast(
-            type[db.AbstractAttributeCollectionEntryTable],
-            self.__class__.tables.attribute_collection_entry,
-        )
-        AttributeCollectionEntryAliasTable = t.cast(
-            type[db.AbstractAttributeCollectionEntryAliasTable],
-            self.__class__.tables.attribute_collection_entry_alias,
-        )
 
         norm_syns: set[text.NormStr] = set()
 
@@ -325,31 +301,16 @@ class BaseNonStaticAttribute(BaseAttribute):
 
 
 class StaticAttribute(BaseAttribute):
-    tables = AttributeTables(db.StaticAttribute, db.StaticAttributeAlias)
     type_id = 0
 
     kind: Kind
 
 
 class TaskAttribute(BaseNonStaticAttribute):
-    tables = BaseNonStaticAttributeTables(
-        db.TaskAttribute,
-        db.TaskAttributeAlias,
-        db.TaskAttributeCollectionEntry,
-        db.TaskAttributeCollectionEntryAlias,
-        db.TaskTaskAttributeValue,
-    )
     type_id = 1
 
 
 class UserAttribute(BaseNonStaticAttribute):
-    tables = BaseNonStaticAttributeTables(
-        db.UserAttribute,
-        db.UserAttributeAlias,
-        db.UserAttributeCollectionEntry,
-        db.UserAttributeCollectionEntryAlias,
-        db.TaskUserAttributeValue,
-    )
     type_id = 2
 
 
@@ -372,6 +333,10 @@ def type_id_to_type(type_id: t.Literal[1]) -> type[TaskAttribute]:
 def type_id_to_type(type_id: t.Literal[2]) -> type[UserAttribute]:
     pass
 
+@t.overload
+def type_id_to_type(type_id: int) -> type[AnyAttributeT]:
+    pass
 
-def type_id_to_type(type_id: AttributeTypeId) -> type[AnyAttributeT]:
+
+def type_id_to_type(type_id: int) -> type[AnyAttributeT]:
     return ALL_ATTRIBUTE_TYPES[type_id]

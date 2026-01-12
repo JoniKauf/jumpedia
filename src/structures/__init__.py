@@ -51,11 +51,7 @@ class BaseStructure(metaclass=_StructureMeta):
     @property
     @abstractmethod
     def name(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def connector(self) -> orm.Connector: ...
-
+    
     def __hash__(self) -> int:
         return hash(self.id)
 

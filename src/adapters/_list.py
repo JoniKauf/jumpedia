@@ -90,7 +90,7 @@ def _require_task_with_syn(norm_syn: text.NormStr, list: List) -> Task:
 def _require_attribute_with_syn[T: AnyAttributeT](
     norm_syn: text.NormStr, attribute_type: type[T], list: List
 ) -> T:
-    attribute = list.get_single_attribute_by_syn(attribute_type, norm_syn)
+    attribute = list.get_single_attribute_of_type_by_syn(attribute_type, norm_syn)
 
     if attribute is None:
         raise errors.StructureNotFoundViaSynFeedbackError(
@@ -216,7 +216,7 @@ class ListAdapter(BaseStructureAdapter[List]):
     def get_attributes_flat(self) -> list[AnyAttributeAdapterT]:
         return [
             _get_attribute_adapter(attr, self)
-            for attr in self._s.get_all_attributes_flat()
+            for attr in self._s.get_attributes()
         ]
 
     @t.overload
@@ -235,7 +235,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def get_attributes(self, type: type[AnyAttributeT]) -> list[AnyAttributeAdapterT]:  # type: ignore
         return [
-            _get_attribute_adapter(attr, self) for attr in self._s.get_attributes(type)
+            _get_attribute_adapter(attr, self) for attr in self._s.get_attributes_of_type(type)
         ]
 
     def get_all_attributes(
@@ -247,7 +247,7 @@ class ListAdapter(BaseStructureAdapter[List]):
     ]:
         return tuple(
             [_get_attribute_adapter(attr, self) for attr in attrs]
-            for attrs in self._s.get_all_attributes()
+            for attrs in self._s.get_attributes_grouped()
         )  # type: ignore
 
     @t.overload

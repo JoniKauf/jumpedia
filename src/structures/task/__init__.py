@@ -79,7 +79,7 @@ class Task(BaseStructure):
         name = self.slot_name
         aliases = self.get_slot_aliases()
 
-        static_attrs = self.list.get_attributes(StaticAttribute)
+        static_attrs = self.list.get_attributes_of_type(StaticAttribute)
         static_attrs.sort(key=lambda attr: attr.kind)
 
         id_attr, name_attr, alias_attr = static_attrs
@@ -96,7 +96,7 @@ class Task(BaseStructure):
 
         with self.connector.cursor() as c:
             id_to_task_attr = {
-                attr.id: attr for attr in self.list.get_attributes(TaskAttribute)
+                attr.id: attr for attr in self.list.get_attributes_of_type(TaskAttribute)
             }
 
             rows = c.fetch_all(
@@ -127,19 +127,19 @@ class Task(BaseStructure):
                 return avm
 
             id_to_user_attr = {
-                attr.id: attr for attr in self.list.get_attributes(UserAttribute)
+                attr.id: attr for attr in self.list.get_attributes_of_type(UserAttribute)
             }
 
             rows = c.fetch_all(
-                db.TaskUserAttributeValue.select(
-                    db.TaskUserAttributeValue.slot_slot,
-                    db.TaskUserAttributeValue.index,
-                    db.TaskUserAttributeValue.attribute_id,
+                db.CommunityUserTaskAttributeValue.select(
+                    db.CommunityUserTaskAttributeValue.slot_slot,
+                    db.CommunityUserTaskAttributeValue.index,
+                    db.CommunityUserTaskAttributeValue.attribute_id,
                 ).where(
-                    (db.TaskUserAttributeValue.list_id, orm.Operator.EQ, self.list.id),
-                    (db.TaskUserAttributeValue.task_id, orm.Operator.EQ, self.id),
+                    (db.CommunityUserTaskAttributeValue.list_id, orm.Operator.EQ, self.list.id),
+                    (db.CommunityUserTaskAttributeValue.task_id, orm.Operator.EQ, self.id),
                     (
-                        db.TaskUserAttributeValue.community_user_id,
+                        db.CommunityUserTaskAttributeValue.community_user_id,
                         orm.Operator.EQ,
                         community_user_id,
                     ),
