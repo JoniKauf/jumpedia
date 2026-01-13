@@ -236,7 +236,7 @@ async def _browse(
 
     if filter or sort:
         for attr_type in ATTRIBUTE_TYPES_TO_HANDLE:
-            for alias, attr in list_obj._s.get_attribute_alias_mapping(
+            for alias, attr in list_obj._s.get_attribute_alias_mappings_of_type(
                 attr_type
             ).items():
                 syn_to_attr[NormStr(alias)] = attr

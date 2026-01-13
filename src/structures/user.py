@@ -23,12 +23,7 @@ class JumpediaUser(BaseStructure):
     @property
     def name(self) -> str:
         return self.user_name
-
-    @property
-    def connector(self) -> orm.Connector:
-        return self.jumpedia.connector
-
-
+    
 class CommunityUser(BaseStructure):
     jumpedia_user: JumpediaUser
     community: Community
@@ -39,21 +34,16 @@ class CommunityUser(BaseStructure):
     def name(self) -> str:
         return self.jumpedia_user.name
 
-    @property
-    def connector(self) -> orm.Connector:
-        return self.jumpedia_user.connector
-
-    def get_selected_list(self) -> List | None:
+    def get_selected_list(self, c: orm.Cursor, /) -> List | None:
         if self.selected_list_id is None:
             return None
 
-        with self.connector.cursor() as c:
-            row = c.fetch_one(
-                db.List.select("*").where(
-                    (db.List.community_id, orm.Operator.EQ, self.community.id),
-                    (db.List.id, orm.Operator.EQ, self.selected_list_id),
-                )
+        row = c.fetch_one(
+            db.List.select("*").where(
+                (db.List.community_id, orm.Operator.EQ, self.community.id),
+                (db.List.id, orm.Operator.EQ, self.selected_list_id),
             )
+        )
 
         if row is None:
             return None

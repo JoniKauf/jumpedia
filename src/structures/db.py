@@ -120,7 +120,7 @@ class Attribute(Model, table_name=SNAKE):
         pass
     
     @column(int)
-    def type(self):
+    def type_id(self):
         pass
 
     @column(NormStr)
@@ -163,6 +163,10 @@ class AttributeAlias(Model, table_name=SNAKE):
 
     @column(int)
     def list_id(self):
+        pass
+
+    @column(int)
+    def attribute_type_id(self):
         pass
 
     @column(NormStr)
@@ -451,7 +455,7 @@ def create_database(j: Jumpedia) -> None:
                 CREATE TABLE {Attribute} (
                     {Attribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     {Attribute.list_id} INT UNSIGNED NOT NULL,
-                    {Attribute.type} TINYINT UNSIGNED NOT NULL,
+                    {Attribute.type_id} TINYINT UNSIGNED NOT NULL,
                     {Attribute.kind} TINYINT UNSIGNED,
                     {Attribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
                     {Attribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
@@ -468,7 +472,7 @@ def create_database(j: Jumpedia) -> None:
                     UNIQUE ({Attribute.list_id.unqualified}, {Attribute.norm_name.unqualified}),
                     UNIQUE ({Attribute.list_id.unqualified}, {Attribute.position.unqualified}),
 
-                    CHECK ({Attribute.type.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)}),
+                    CHECK ({Attribute.type_id.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)}),
                     CHECK ({Attribute.kind.unqualified} IS NULL OR {Attribute.kind.unqualified} < {max(Kind._value2member_map_)}),
                     CHECK ({Attribute.slot_type} < {len(SLOT_TYPES)})
                 )
@@ -481,6 +485,7 @@ def create_database(j: Jumpedia) -> None:
                     {AttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     {AttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
                     {AttributeAlias.list_id} INT UNSIGNED NOT NULL,
+                    {AttributeAlias.attribute_type_id} TINYINT UNSIGNED NOT NULL,
                     {AttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
                     {AttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
 
@@ -492,6 +497,8 @@ def create_database(j: Jumpedia) -> None:
                         ON DELETE CASCADE,
 
                     UNIQUE ({AttributeAlias.list_id.unqualified}, {AttributeAlias.norm_alias.unqualified}),
+
+                    CHECK ({AttributeAlias.attribute_type_id.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)})
                 )
             """
             )

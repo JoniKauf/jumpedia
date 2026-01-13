@@ -36,6 +36,7 @@ del __conn_data
 
 
 class InteractionAdapter(BaseAdapter[dc.Interaction]):
+
     def __post_init__(self) -> None:
         # If a user interacts with Jumpedia, we want to save them.
         #
@@ -50,12 +51,12 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         )
 
 
-    @property
-    def _c(self) -> Cursor:
+    @cached_property
+    def cursor(self) -> Cursor:
         return __CONNECTOR.cursor()
     
-    @property
-    def _c_meta(self) -> Cursor:
+    @cached_property
+    def cursor_meta(self) -> Cursor:
         return __META_CONNECTOR.cursor()
     
     @cached_property

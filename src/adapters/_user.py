@@ -1,5 +1,5 @@
 import typing as t
-from functools import cached_property
+from functools import cached_property, wraps
 
 import discord as dc
 
@@ -135,7 +135,6 @@ def get_success_msg(
         t"The jumpedia rank of {set_user:,} has successfully been set to {rank:,}!",
         message_status=messaging.MessageStatus.SUCCESS,
     )
-
 
 class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     jumpedia: JumpediaAdapter

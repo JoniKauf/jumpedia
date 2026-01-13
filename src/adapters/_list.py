@@ -158,7 +158,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         real_aliases = _parse_aliases(aliases)
         attributes = {
             text.NormStr(k): v
-            for k, v in self._s.get_attribute_alias_mapping(TaskAttribute).items()
+            for k, v in self._s.get_attribute_alias_mappings_of_type(TaskAttribute).items()
         }
 
         avm = parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(

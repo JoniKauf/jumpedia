@@ -20,20 +20,6 @@ SORT_KEY_NONE_NUMBER: t.Final[int] = (
     max(abs(slot_str.NUMBER_MIN), abs(slot_str.NUMBER_MAX)) + 1
 )
 
-
-@dataclass(frozen=True, slots=True)
-class AttributeTables:
-    attribute: type[db.AnyAttributeTable]
-    attribute_alias: type[db.AnyAttributeAliasTable]
-
-
-@dataclass(frozen=True, slots=True)
-class BaseNonStaticAttributeTables(AttributeTables):
-    attribute_collection_entry: type[db.AnyAttributeCollectionEntryTable]
-    attribute_collection_entry_alias: type[db.AnyAttributeCollectionEntryAliasTable]
-    task_attribute_value: type[db.AnyTaskAttributeValueTable]
-
-
 type AttributeTypeId = t.Literal[0, 1, 2]
 
 
@@ -65,30 +51,28 @@ class BaseAttribute(BaseStructure):
 
     def _get_aliases_rows(
         self,
-        table: type[db.AbstractAttributeAliasTable],
-        column: orm.Column[db.AbstractAttributeAliasTable, t.Any],
-    ) -> list[db.AbstractAttributeAliasTable]:
-        with self.connector.cursor() as c:
-            return c.fetch_all(
-                table.select(column).where(
-                    (table.list_id, orm.Operator.EQ, self.list.id),
-                    (table.attribute_id, orm.Operator.EQ, self.id),
-                )
+        c: orm.Cursor,
+        column: orm.Column[db.AttributeAlias, t.Any],
+    ) -> list[db.AttributeAlias]:
+        return c.fetch_all(
+            db.AttributeAlias.select(column).where(
+                (db.AttributeAlias.list_id, orm.Operator.EQ, self.list.id),
+                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, self.__class__.type_id),
+                (db.AttributeAlias.attribute_id, orm.Operator.EQ, self.id),
             )
+        )
 
-    def get_real_aliases(self) -> frozenset[text.RealStr]:
-        AttributeAliasTable = self.__class__.tables.attribute_alias
-        return frozenset(row.real_alias for row in self._get_aliases_rows(AttributeAliasTable, AttributeAliasTable.real_alias))  # type: ignore
+    def get_real_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
+        return frozenset(row.real_alias for row in self._get_aliases_rows(c, db.AttributeAlias.real_alias))
 
-    def get_norm_aliases(self) -> frozenset[text.NormStr]:
-        AttributeAliasTable = self.__class__.tables.attribute_alias
-        return frozenset(row.norm_alias for row in self._get_aliases_rows(AttributeAliasTable, AttributeAliasTable.norm_alias))  # type: ignore
+    def get_norm_aliases(self, c: orm.Cursor, /) -> frozenset[text.NormStr]:
+        return frozenset(row.norm_alias for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)) 
 
-    def get_collection(self) -> Collection:
+    def get_collection(self, c: orm.Cursor, /) -> Collection:
         return Collection(attribute=self, entries=())
 
     def real_to_slot_value(
-        self, value: t.Sequence[text.RealStr]
+        self, c: orm.Cursor, value: t.Sequence[text.RealStr], /
     ) -> tuple[SlotStr, ...]:
         if not (self.min_slots <= len(value) <= self.max_slots):
             raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self)
@@ -114,10 +98,10 @@ class BaseNonStaticAttribute(BaseAttribute):
             raise RuntimeError
 
     def real_to_slot_value(
-        self, value: t.Sequence[text.RealStr]
+        self, c: orm.Cursor, value: t.Sequence[text.RealStr]
     ) -> tuple[SlotStr, ...]:
-        converted = super().real_to_slot_value(value)
-        collection = self.get_collection()
+        converted = super().real_to_slot_value(c, value)
+        collection = self.get_collection(c)
 
         if not collection:
             return converted
@@ -135,35 +119,34 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         return tuple(result)
 
-    def get_collection(self) -> Collection:
-        with self.connector.cursor() as c:
-            entry_rows = c.fetch_all(
-                AttributeCollectionEntryTable.select("*")
-                .where(
-                    (
-                        AttributeCollectionEntryTable.attribute_id,
-                        orm.Operator.EQ,
-                        self.id,
-                    )
-                )
-                .order_by(AttributeCollectionEntryTable.index)
-            )
-
-            if not entry_rows:
-                return Collection(attribute=self, entries=())
-
-            alias_rows = c.fetch_all(
-                AttributeCollectionEntryAliasTable.select(
-                    AttributeCollectionEntryAliasTable.attribute_collection_entry_id,
-                    AttributeCollectionEntryAliasTable.slot_alias,
-                ).where(
-                    (
-                        AttributeCollectionEntryAliasTable.attribute_id,
-                        orm.Operator.EQ,
-                        self.id,
-                    )
+    def get_collection(self, c: orm.Cursor, /) -> Collection:
+        entry_rows = c.fetch_all(
+            AttributeCollectionEntryTable.select("*")
+            .where(
+                (
+                    AttributeCollectionEntryTable.attribute_id,
+                    orm.Operator.EQ,
+                    self.id,
                 )
             )
+            .order_by(AttributeCollectionEntryTable.index)
+        )
+
+        if not entry_rows:
+            return Collection(attribute=self, entries=())
+
+        alias_rows = c.fetch_all(
+            AttributeCollectionEntryAliasTable.select(
+                AttributeCollectionEntryAliasTable.attribute_collection_entry_id,
+                AttributeCollectionEntryAliasTable.slot_alias,
+            ).where(
+                (
+                    AttributeCollectionEntryAliasTable.attribute_id,
+                    orm.Operator.EQ,
+                    self.id,
+                )
+            )
+        )
 
         entry_id_to_aliases: defaultdict[int, set[slot_str.SlotStr]] = defaultdict(set)
 
@@ -187,6 +170,7 @@ class BaseNonStaticAttribute(BaseAttribute):
 
     def set_collection(
         self,
+        c: orm.Cursor,
         collection: t.Sequence[tuple[text.RealStr, t.Iterable[text.RealStr]]],
     ) -> Collection:
         count = len(collection)
@@ -230,74 +214,73 @@ class BaseNonStaticAttribute(BaseAttribute):
                     combined_real_aliases[i].add(slot_syn)
                     combined_norm_aliases[i].add(norm_syn)
 
-        with self.connector.cursor() as c:
-            c.execute(
-                AttributeCollectionEntryTable.delete().where(
-                    (
-                        AttributeCollectionEntryTable.attribute_id,
-                        orm.Operator.EQ,
-                        self.id,
-                    )
+        c.execute(
+            AttributeCollectionEntryTable.delete().where(
+                (
+                    AttributeCollectionEntryTable.attribute_id,
+                    orm.Operator.EQ,
+                    self.id,
                 )
             )
+        )
 
-            rows = c.fetch_all(
-                AttributeCollectionEntryTable.insert(
-                    AttributeCollectionEntryTable.attribute_id.bind(
-                        *itertools.repeat(self.id, count)
-                    ),
-                    AttributeCollectionEntryTable.index.bind(*range(0, count)),
-                    AttributeCollectionEntryTable.norm_slot.bind(*norm_slots),
-                    AttributeCollectionEntryTable.slot_slot.bind(*type_slots),
-                ).returning(
-                    AttributeCollectionEntryTable.index,
-                    AttributeCollectionEntryTable.id,
-                )
+        rows = c.fetch_all(
+            AttributeCollectionEntryTable.insert(
+                AttributeCollectionEntryTable.attribute_id.bind(
+                    *itertools.repeat(self.id, count)
+                ),
+                AttributeCollectionEntryTable.index.bind(*range(0, count)),
+                AttributeCollectionEntryTable.norm_slot.bind(*norm_slots),
+                AttributeCollectionEntryTable.slot_slot.bind(*type_slots),
+            ).returning(
+                AttributeCollectionEntryTable.index,
+                AttributeCollectionEntryTable.id,
             )
+        )
 
-            idx_to_id: list[int] = [0 for _ in range(count)]
+        idx_to_id: list[int] = [0 for _ in range(count)]
 
-            for row in rows:
-                idx_to_id[row.index] = row.id
+        for row in rows:
+            idx_to_id[row.index] = row.id
 
-            combined_aliases_count = 0
-            entry_ids: list[int] = []
+        combined_aliases_count = 0
+        entry_ids: list[int] = []
 
-            for i, aliases in enumerate(combined_norm_aliases):
-                entry_id = idx_to_id[i]
-                aliases_count = len(aliases)
+        for i, aliases in enumerate(combined_norm_aliases):
+            entry_id = idx_to_id[i]
+            aliases_count = len(aliases)
 
-                combined_aliases_count += aliases_count
-                entry_ids.extend(itertools.repeat(entry_id, aliases_count))
+            combined_aliases_count += aliases_count
+            entry_ids.extend(itertools.repeat(entry_id, aliases_count))
 
-            c.execute(
-                AttributeCollectionEntryAliasTable.insert(
-                    AttributeCollectionEntryAliasTable.attribute_id.bind(
-                        *itertools.repeat(self.id, combined_aliases_count)
-                    ),
-                    AttributeCollectionEntryAliasTable.attribute_collection_entry_id.bind(
-                        *entry_ids
-                    ),
-                    AttributeCollectionEntryAliasTable.norm_alias.bind(
-                        *itertools.chain(*combined_norm_aliases)
-                    ),
-                    AttributeCollectionEntryAliasTable.slot_alias.bind(
-                        *itertools.chain(*combined_real_aliases)
-                    ),
-                )
+        c.execute(
+            AttributeCollectionEntryAliasTable.insert(
+                AttributeCollectionEntryAliasTable.attribute_id.bind(
+                    *itertools.repeat(self.id, combined_aliases_count)
+                ),
+                AttributeCollectionEntryAliasTable.attribute_collection_entry_id.bind(
+                    *entry_ids
+                ),
+                AttributeCollectionEntryAliasTable.norm_alias.bind(
+                    *itertools.chain(*combined_norm_aliases)
+                ),
+                AttributeCollectionEntryAliasTable.slot_alias.bind(
+                    *itertools.chain(*combined_real_aliases)
+                ),
             )
+        )
 
-            entries: tuple[CollectionEntry, ...] = tuple(
-                CollectionEntry(
-                    id=idx_to_id[i],
-                    collection_index=i,
-                    value=type_slots[i],
-                    aliases=frozenset(combined_real_aliases[i]),
-                )
-                for i in range(count)
+        entries: tuple[CollectionEntry, ...] = tuple(
+            CollectionEntry(
+                id=idx_to_id[i],
+                collection_index=i,
+                value=type_slots[i],
+                aliases=frozenset(combined_real_aliases[i]),
             )
+            for i in range(count)
+        )
 
-            return Collection(attribute=self, entries=entries)
+        return Collection(attribute=self, entries=entries)
 
 
 class StaticAttribute(BaseAttribute):

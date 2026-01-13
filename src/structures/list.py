@@ -1,4 +1,3 @@
-import builtins
 import enum
 import itertools
 import typing as t
@@ -127,7 +126,7 @@ class List(BaseStructure):
         *where: tuple[t.Any, orm.Operator, t.Any],
     ) -> list[T]:
         return self._get_attributes_inner(
-            c, (db.Attribute.type, orm.Operator.EQ, type.type_id), *where
+            c, (db.Attribute.type_id, orm.Operator.EQ, type.type_id), *where
         )   # type: ignore
 
     @t.overload
@@ -145,7 +144,7 @@ class List(BaseStructure):
     def _attribute_row_to_obj(
         self, row: db.Attribute, expected_type: type[AnyAttributeT] | None = None
     ) -> AnyAttributeT:
-        found_type = attribute.type_id_to_type(row.type)  # type: ignore
+        found_type = attribute.type_id_to_type(row.type_id)  # type: ignore
 
         assert expected_type is None or expected_type is found_type
 
@@ -188,6 +187,7 @@ class List(BaseStructure):
                 db.AttributeAlias.real_alias,
             ).where(
                 (db.AttributeAlias.list_id, orm.Operator.EQ, self.id),
+                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, type.type_id),
                 (
                     db.AttributeAlias.norm_alias,
                     orm.Operator.IN,
@@ -311,9 +311,40 @@ class List(BaseStructure):
         
         return rows[0]
 
-    def get_attribute_alias_mapping[T: AnyAttributeT](
+    def get_attribute_alias_mappings_of_type[T: AnyAttributeT](
         self, c: orm.Cursor, type: type[T], /
     ) -> dict[RealStr, T]:
+        AttributeAliasTable = db.AttributeAlias
+
+        rows = c.fetch_all(
+            AttributeAliasTable.select(
+                AttributeAliasTable.attribute_id,
+                AttributeAliasTable.real_alias,
+            ).where(
+                (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, type.type_id),
+            )
+        )
+
+        attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
+            k: tuple(r.real_alias for r in g)
+            for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
+        }
+
+        if not attr_id_to_aliases:
+            return {}
+
+        return {
+            alias: attr
+            for attr in self.get_attributes_of_type_by_id(c, type, *attr_id_to_aliases)
+            for alias in attr_id_to_aliases[attr.id]
+        }
+
+    def get_attribute_alias_mappings(
+        self,
+        c: orm.Cursor,
+        /,
+    ) -> dict[RealStr, AnyAttributeT]:
         AttributeAliasTable = db.AttributeAlias
 
         rows = c.fetch_all(
@@ -335,19 +366,8 @@ class List(BaseStructure):
 
         return {
             alias: attr
-            for attr in self.get_attributes_of_type_by_id(c, type, *attr_id_to_aliases)
+            for attr in self.get_attributes_by_id(c, *attr_id_to_aliases)
             for alias in attr_id_to_aliases[attr.id]
-        }
-
-    def get_all_attribute_alias_mappings(
-        self,
-        c: orm.Cursor,
-        /,
-    ) -> dict[RealStr, AnyAttributeT]:
-        return {
-            k: v
-            for type in ALL_ATTRIBUTE_TYPES
-            for k, v in self.get_attribute_alias_mapping(c, type).items()
         }
 
     def _get_default_static_attribute(
@@ -483,7 +503,7 @@ class List(BaseStructure):
             assert isinstance(
                 attribute, BaseNonStaticAttribute
             ), "Typing not followed on attribute creation #4"
-            attribute.set_collection(collection)
+            attribute.set_collection(c, collection)
 
         return attribute
 
@@ -541,12 +561,13 @@ class List(BaseStructure):
         assert execute_data.affected_row_count == 1
 
         # If the new name is an alias, remove the alias
-        if norm_name in attribute.get_norm_aliases():
+        if norm_name in attribute.get_norm_aliases(c):
             AttributeAliasTable = db.AttributeAlias
 
             c.execute(
                 AttributeAliasTable.delete().where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                    (AttributeAliasTable.attribute_type_id, orm.Operator.EQ, type.type_id),
                     (
                         AttributeAliasTable.attribute_id,
                         orm.Operator.EQ,
@@ -596,6 +617,7 @@ class List(BaseStructure):
         c.execute(
             AttributeAliasTable.delete().where(
                 (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
+                (AttributeAliasTable.attribute_type_id, orm.Operator.EQ, type.type_id),
                 (
                     AttributeAliasTable.attribute_id,
                     orm.Operator.EQ,
@@ -628,7 +650,7 @@ class List(BaseStructure):
         # Convert ids to attributes and validate value
         for attr_id, v in attribute_value_mapping.items():
             attr = id_to_attr[attr_id]
-            val = attr.real_to_slot_value(v)
+            val = attr.real_to_slot_value(c, v)
 
             avm[attr] = val
 
@@ -637,7 +659,7 @@ class List(BaseStructure):
     def _insert_attribute_aliases(
         self,
         c: orm.Cursor,
-        type: type[BaseAttribute],
+        type: type[AnyAttributeT],
         attribute_id: int,
         real_aliases: t.Sequence[RealStr],
         norm_aliases: t.Sequence[NormStr],
@@ -654,6 +676,7 @@ class List(BaseStructure):
                     *itertools.repeat(attribute_id, count)
                 ),
                 AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
+                AttributeAliasTable.attribute_type_id.bind(*itertools.repeat(type.type_id, count)),
                 AttributeAliasTable.norm_alias.bind(*norm_aliases),
                 AttributeAliasTable.real_alias.bind(*real_aliases),
             )
@@ -661,20 +684,20 @@ class List(BaseStructure):
 
     # --- Tasks ---
 
-    def _task_id_to_slot(self, id: int) -> SlotStr:
-        return self._get_default_static_attribute(Kind.ID).real_to_slot_value(
+    def _task_id_to_slot(self, c: orm.Cursor, id: int) -> SlotStr:
+        return self._get_default_static_attribute(Kind.ID).real_to_slot_value(c,
             (RealStr(str(id)),)
         )[0]
 
-    def _task_real_name_to_slot(self, name: RealStr) -> SlotStr:
-        return self._get_default_static_attribute(Kind.NAME).real_to_slot_value(
+    def _task_real_name_to_slot(self, c: orm.Cursor, name: RealStr) -> SlotStr:
+        return self._get_default_static_attribute(Kind.NAME).real_to_slot_value(c,
             (name,)
         )[0]
 
     def _task_real_aliases_to_slot_value(
-        self, aliases: t.Sequence[RealStr]
+        self, c: orm.Cursor, aliases: t.Sequence[RealStr]
     ) -> tuple[SlotStr, ...]:
-        return self._get_default_static_attribute(Kind.ALIAS).real_to_slot_value(
+        return self._get_default_static_attribute(Kind.ALIAS).real_to_slot_value(c,
             aliases
         )
 
@@ -839,7 +862,6 @@ class List(BaseStructure):
         c: orm.Cursor, 
         community_user_id: int,
         task_ids: t.Sequence[int] | None = ...,
-        attribute_ids: dict[int, t.Iterable[int]] | None = ...,
         /,
     ) -> tuple[
         list[UserAttributeValueMapping],
@@ -859,7 +881,7 @@ class List(BaseStructure):
         community_user: CommunityUser | None = None
 
         if community_user_id is not None:
-            community_user = self.community.get_community_user_by_id(community_user_id)
+            community_user = self.community.get_community_user_by_id(c, community_user_id)
 
             if community_user is None:
                 raise errors.StructureNotFoundError(CommunityUser)
@@ -872,17 +894,6 @@ class List(BaseStructure):
             else ALL_ATTRIBUTE_TYPES
         )
 
-        def get_attributes[T: AnyAttributeT](type: type[T]) -> list[T]:
-            if attribute_ids is None:
-                return self.get_attributes_of_type(c, type)
-
-            attr_ids = attribute_ids.get(type.type_id)
-
-            if not attr_ids:
-                return []
-
-            return self.get_attributes_of_type_by_id(c, type, *attr_ids)
-
         tasks: list[Task] = []
 
         if task_ids is None:
@@ -893,17 +904,13 @@ class List(BaseStructure):
             if community_user is None:
                 return (
                     [],
-                    get_attributes(StaticAttribute) + get_attributes(TaskAttribute),
+                    self._get_attributes_inner(c, (db.Attribute.type_id, orm.Operator.IN, tuple(type.type_id for type in ATTRIBUTE_TYPES_TO_HANDLE))),
                     ATTRIBUTE_TYPES_TO_HANDLE,
                 )
 
             return (
                 [],
-                functools.reduce(
-                    list.__add__,
-                    map(get_attributes, ALL_ATTRIBUTE_TYPES),
-                    [],
-                ),
+                self.get_attributes(c),
                 ATTRIBUTE_TYPES_TO_HANDLE,
             )
 
@@ -916,8 +923,7 @@ class List(BaseStructure):
         raw_data: dict[int, dict[int, _RawAvmT]] = {}
 
         # --- Static Attribute ---
-        if attribute_ids is None:
-            static_attrs = get_attributes(StaticAttribute)
+        static_attrs = self.get_attributes_of_type(c, StaticAttribute)
 
         type_id_and_id_to_attribute |= {
             (attr.type_id, attr.id): attr for attr in static_attrs
@@ -934,9 +940,9 @@ class List(BaseStructure):
 
             task_static_attr_data = raw_data[id][StaticAttribute.type_id]
 
-            task_static_attr_data[id_attr.id] = (self._task_id_to_slot(id),)
+            task_static_attr_data[id_attr.id] = (self._task_id_to_slot(c, id),)
             task_static_attr_data[name_attr.id] = (
-                self._task_real_name_to_slot(task.slot_name),
+                self._task_real_name_to_slot(c, task.slot_name),
             )
 
         rows = c.fetch_all(
@@ -949,14 +955,14 @@ class List(BaseStructure):
 
         for task_id, aliases in task_id_to_aliases:
             raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = (
-                self._task_real_aliases_to_slot_value(tuple(alias.slot_alias for alias in aliases))
+                self._task_real_aliases_to_slot_value(c, tuple(alias.slot_alias for alias in aliases))
             )
 
         # --- Task Attribute ---
 
         attr_mapping, task_attribute_data = (
             self._get_data_for_non_static_attribute_value_mapping(
-                c, TaskAttribute, -1, get_attributes(TaskAttribute)
+                c, TaskAttribute, -1, self.get_attributes_of_type(c, TaskAttribute)
             )
         )
 
@@ -978,7 +984,7 @@ class List(BaseStructure):
                     c,
                     UserAttribute,
                     community_user.id,
-                    get_attributes(UserAttribute),
+                    self.get_attributes_of_type(c, UserAttribute),
                 )
             )
 
@@ -1037,8 +1043,8 @@ class List(BaseStructure):
 
         del name, aliases
 
-        slot_name = self._task_real_name_to_slot(real_name)
-        slot_aliases = self._task_real_aliases_to_slot_value(real_aliases)
+        slot_name = self._task_real_name_to_slot(c, real_name)
+        slot_aliases = self._task_real_aliases_to_slot_value(c, real_aliases)
 
         del real_name, real_aliases
 
@@ -1101,7 +1107,7 @@ class List(BaseStructure):
 
         del task_id
 
-        slot_name = self._task_real_name_to_slot(name)
+        slot_name = self._task_real_name_to_slot(c, name)
         norm_name = NormStr(slot_name)
 
         del name
@@ -1140,7 +1146,7 @@ class List(BaseStructure):
 
         del aliases
 
-        slot_aliases = self._task_real_aliases_to_slot_value(real_aliases)
+        slot_aliases = self._task_real_aliases_to_slot_value(c, real_aliases)
 
         del real_aliases
 
