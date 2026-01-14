@@ -36,7 +36,7 @@ class Community(BaseStructure):
     @property
     def name(self) -> str:
         return self.real_name
-    
+
     def get_server_ids(self, c: orm.Cursor, /) -> frozenset[int]:
         rows = c.fetch_all(
             db.Server.select(db.Server.id).where(
@@ -73,9 +73,7 @@ class Community(BaseStructure):
         list_id = execute_data.last_generated_id
         assert list_id is not None
 
-        list_obj = List(
-            community=self, id=list_id, real_name=name, norm_name=norm_name
-        )
+        list_obj = List(community=self, id=list_id, real_name=name, norm_name=norm_name)
 
         for kind in Kind:
             static_attr_data = list.KIND_TO_PREDEFINED_DATA[kind]
@@ -111,29 +109,34 @@ class Community(BaseStructure):
     def _get_lists_inner(
         self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> builtins.list[List]:
-        return builtins.list(map(self._list_row_to_obj, c.fetch_all(
-            db.List.select(
-                "*",
-            ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
-        )))
+        return builtins.list(
+            map(
+                self._list_row_to_obj,
+                c.fetch_all(
+                    db.List.select(
+                        "*",
+                    ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
+                ),
+            )
+        )
 
     def _list_row_to_obj(self, row: db.List) -> List:
         return List(
             community=self, id=row.id, real_name=row.real_name, norm_name=row.norm_name
         )
 
-    def get_lists(
-        self, c: orm.Cursor, /
-    ) -> builtins.list[List]:
+    def get_lists(self, c: orm.Cursor, /) -> builtins.list[List]:
         return self._get_lists_inner(c)
 
     def get_list_by_id(self, c: orm.Cursor, id: int, /) -> List | None:
         lists = self._get_lists_inner(c, (db.List.id, orm.Operator.EQ, id))
         return lists[0] if lists else None
 
-    def get_list_by_name(self, c: orm.Cursor, norm_name: text.NormStr, /) -> List | None:
-        lists = self._get_lists_inner(c,
-            (db.List.norm_name, orm.Operator.EQ, norm_name)
+    def get_list_by_name(
+        self, c: orm.Cursor, norm_name: text.NormStr, /
+    ) -> List | None:
+        lists = self._get_lists_inner(
+            c, (db.List.norm_name, orm.Operator.EQ, norm_name)
         )
         return lists[0] if lists else None
 
@@ -271,7 +274,9 @@ class Community(BaseStructure):
             selected_list_id=row.selected_list_id,
         )
 
-    def get_community_user_by_id(self, c: orm.Cursor, id: int, /) -> CommunityUser | None:
+    def get_community_user_by_id(
+        self, c: orm.Cursor, id: int, /
+    ) -> CommunityUser | None:
         community_user_row = c.fetch_one(
             db.CommunityUser.select("*").where(
                 (db.CommunityUser.id, orm.Operator.EQ, id)
@@ -281,8 +286,8 @@ class Community(BaseStructure):
         if community_user_row is None:
             return None
 
-        jumpedia_user = self.jumpedia.get_jumpedia_user_by_id(c,
-            community_user_row.jumpedia_user_id
+        jumpedia_user = self.jumpedia.get_jumpedia_user_by_id(
+            c, community_user_row.jumpedia_user_id
         )
 
         if jumpedia_user is None:  # Should not be the case due to foreign key

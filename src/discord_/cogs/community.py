@@ -5,11 +5,12 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
+from discord_.utils_ import command, message
 from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from ..utils_ import messaging, modal, predicate, shortcuts
+from ..utils_ import modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -17,8 +18,8 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         self.bot = bot
 
     @acmds.command(description="Show information about the community.")
-    async def info(self, interaction: dc.Interaction) -> None:
-        ia = InteractionAdapter(interaction)
+    @command.adapt
+    async def info(self, ia: InteractionAdapter) -> None:
         community = shortcuts.get_current_community(ia)
 
         default_selected_list = community.get_default_selected_list(None)
@@ -26,8 +27,8 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             default_selected_list.name if default_selected_list is not None else "None"
         )
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "Community Info",
                 text.join_t(
                     "\n",
@@ -41,14 +42,13 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                         ]
                     ),
                 ),
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             )
         )
 
     @acmds.command(description="Browse all communities.")
-    async def browse(self, interaction: dc.Interaction) -> None:
-        ia = InteractionAdapter(interaction)
-
+    @command.adapt
+    async def browse(self, ia: InteractionAdapter) -> None:
         communities = ia.jumpedia.get_communities()
 
         listing: Template
@@ -58,74 +58,73 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         else:
             listing = t"None"
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "All Communities",
                 listing,
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             )
         )
 
     @acmds.command(description="Create a community.")
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
+    @command.adapt
     async def create(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         community_name: str,
         initial_list_name: str | None = None,
     ) -> None:
-        jumpedia = InteractionAdapter(interaction).jumpedia
+        jumpedia = ia.jumpedia
 
         community = jumpedia.create_community(community_name, initial_list_name)
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "Community Created",
                 t"The community {community.name:,} was successfully created and is now connected to this server!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
     @acmds.command(description="Delete a community.")
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
-    async def nuke(self, interaction: dc.Interaction) -> None:
-        ia = InteractionAdapter(interaction)
+    @command.adapt
+    async def nuke(self, ia: InteractionAdapter) -> None:
         community = shortcuts.get_current_community(ia)
 
         await modal.delete_structure_confirmation(
-            ia._s,
+            ia._o,
             Community,
-            community._s.name,
+            community._o.name,
             lambda _: ia.jumpedia.delete_community(community.name),
         )
 
     @acmds.command(description="Connect a community to this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
-    async def connect(self, interaction: dc.Interaction, community_name: str) -> None:
-        ia = InteractionAdapter(interaction)
-
+    @command.adapt
+    async def connect(self, ia: InteractionAdapter, community_name: str) -> None:
         community = ia.jumpedia.add_community_to_current_server(community_name)
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "Community Connected",
                 t"This server has successfully been connected to the community {community.name:,}!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
     @acmds.command(description="Disconnect a community from this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
-    async def disconnect(self, interaction: dc.Interaction) -> None:
-        ia = InteractionAdapter(interaction)
-
+    @command.adapt
+    async def disconnect(self, ia: InteractionAdapter) -> None:
         community = ia.jumpedia.remove_community_from_current_server()
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "Community Disconnected",
                 t"The community {community.name:,} has successfully been disconnected from this server!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
@@ -154,19 +153,19 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 ).transfer_ownership(current_community_user)
 
                 await interaction.response.send_message(
-                    messaging.layout(
+                    message.layout(
                         "Ownership Transferred",
                         t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
                         additional=t"The rank of {current_community_user:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
-                        message_status=messaging.MessageStatus.SUCCESS,
+                        message_status=message.MessageStatus.SUCCESS,
                     )
                 )
             else:
                 await interaction.response.send_message(
-                    messaging.layout(
+                    message.layout(
                         "Ownership Transfer Aborted",
                         t"The ownership of the community {community:,} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:,})!",
-                        messaging.MessageStatus.WARNING,
+                        message.MessageStatus.WARNING,
                     )
                 )
 
@@ -195,13 +194,13 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         community.set_default_selected_list(selected_list)
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "Default Selected List Set",
                 (
                     t"The default selected list has successfully been changed to {list:,}!"
                     if list is not None
                     else t"The default selected list has successfully been changed to be unset."
                 ),
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )

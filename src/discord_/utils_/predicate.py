@@ -3,12 +3,7 @@ from types import CoroutineType
 
 import discord as dc
 
-from adapters._jumpedia import JumpediaAdapter
-from adapters._user import JumpediaUserAdapter
-from adapters.interaction import InteractionAdapter
-from discord_.errors import FeedbackError
-from structures.community import CommunityRank
-from utils.rank import AnyRankT, JumpediaRank, ServerRank
+from utils.rank import AnyRankT
 
 from . import user
 

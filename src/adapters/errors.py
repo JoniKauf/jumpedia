@@ -1,14 +1,90 @@
+import typing as t
 from operator import add
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
-from discord_.errors import FeedbackError
+from discord.app_commands import CheckFailure
+
+from discord_.utils_ import message
 from structures import BaseStructure, errors
 from utils import text
 from utils.rank import AnyRankT
 
 
-class StructureNotFoundViaSynFeedbackError(FeedbackError):
+class SetupError(RuntimeError):
+    """
+    Raised when the setup process doesn't fully work.
+    Critical, so it stops the process.
+    """
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def __exception__(self, exc_type, exc_value, traceback):
+        exit()
+
+
+class BaseUserReturnableError(CheckFailure):
+    """
+    Marks an exception whose string representation can be returned to the user on Discord.
+    """
+
+    def __init__(self, *args: t.Any, **msg_kwargs: t.Any) -> None:
+        if self.__class__ is BaseUserReturnableError:
+            raise RuntimeError(
+                f"{self.__class__.__name__} is a base class and must be inherited"
+            )
+
+        self.msg_kwargs = msg_kwargs
+        super().__init__(*args)
+
+
+class FeedbackError(BaseUserReturnableError):
+    """Its string representation shows a customizable, user-friendly error message."""
+
+    def __init__(
+        self,
+        header: str,
+        core: Template,
+        *,
+        additional: Template | None = None,
+        related_documentation: t.Sequence[tuple[str, str]] = (),
+        paragraphs: t.Sequence[Template] = (),
+        msg_kwargs: t.Mapping[str, t.Any] | None = None,
+        explicit_message_status: message.MessageStatus | None = None,
+    ):
+        self.header = header
+        self.core = core
+        self.additional = additional
+        self.related_documentation = related_documentation
+        self.paragraphs = paragraphs
+        self.explicit_message_status = explicit_message_status
+
+        super().__init__(**(msg_kwargs or {}))
+
+    def __str__(self) -> str:
+        paragraphs: list[Template] = list(self.paragraphs)
+
+        if self.related_documentation:
+            paragraphs.append(
+                t"### Related Documentation\n"
+                + Template(
+                    "\n".join(
+                        f"[{name}]({link})" for name, link in self.related_documentation
+                    )
+                )
+            )
+
+        return message.layout(
+            header=self.header,
+            core=self.core,
+            message_status=self.explicit_message_status or message.MessageStatus.ERROR,
+            additional=self.additional,
+            paragraphs=paragraphs,
+        )
+
+
+class StructureNotFoundViaSyn(FeedbackError):
     def __init__(
         self, syn: str, structure_type: type[BaseStructure], only_name: bool = False
     ) -> None:
@@ -18,7 +94,7 @@ class StructureNotFoundViaSynFeedbackError(FeedbackError):
         )
 
 
-class SynsAlreadyTakenFeedbackError(FeedbackError):
+class SynsAlreadyTaken(FeedbackError):
     def __init__(self, e: errors.SynsAlreadyTakenError) -> None:
         assert e.structures
 
@@ -41,7 +117,7 @@ class SynsAlreadyTakenFeedbackError(FeedbackError):
         )
 
 
-class InvalidArgumentFeedbackError(FeedbackError):
+class InvalidArgument(FeedbackError):
     def __init__(
         self,
         core: Template,
@@ -61,7 +137,7 @@ class InvalidArgumentFeedbackError(FeedbackError):
         )
 
 
-class ServerNotConnectedToACommunityFeedbackError(FeedbackError):
+class ServerNotConnectedToACommunity(FeedbackError):
     def __init__(self) -> None:
         super().__init__(
             "Server Not Connected To A Community",
@@ -69,7 +145,7 @@ class ServerNotConnectedToACommunityFeedbackError(FeedbackError):
         )
 
 
-class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
+class ServerAlreadyConnectedToACommunity(FeedbackError):
     def __init__(self, e: errors.ServerAlreadyConnectedToCommunityError) -> None:
         super().__init__(
             "Server Already Connected To A Community",
@@ -77,7 +153,7 @@ class ServerAlreadyConnectedToACommunityFeedbackError(FeedbackError):
         )
 
 
-class NotEnoughPowerToAffectOtherUsersFeedbackError(FeedbackError):
+class NotEnoughPowerToAffectOtherUsers(FeedbackError):
     def __init__(self, executing_rank: AnyRankT, required_rank: AnyRankT) -> None:
         super().__init__(
             "Not Enough Power To Affect Other Users",
@@ -85,7 +161,7 @@ class NotEnoughPowerToAffectOtherUsersFeedbackError(FeedbackError):
         )
 
 
-class StructureCountLimitReachedFeedbackError(FeedbackError):
+class StructureCountLimitReached(FeedbackError):
     def __init__(self, e: errors.StructureCountLimitReachedError) -> None:
         super().__init__(
             f"{e.structure_type.type_name.title()} Count Limit Reached",
@@ -93,7 +169,7 @@ class StructureCountLimitReachedFeedbackError(FeedbackError):
         )
 
 
-class SynNotUniqueFeedbackError(FeedbackError):
+class SynNotUnique(FeedbackError):
     def __init__(self, e: errors.NotUniqueStringError) -> None:
         super().__init__(
             "Name Or Aliases Not Unique",
@@ -101,7 +177,7 @@ class SynNotUniqueFeedbackError(FeedbackError):
         )
 
 
-class AttributeValueSlotCountOutOfRangeFeedbackError(FeedbackError):
+class AttributeValueSlotCountOutOfRange(FeedbackError):
     def __init__(self, e: errors.AttributeValueSlotCountOutOfRangeError) -> None:
         super().__init__(
             "Attribute Value Slot Count Out Of Range",
@@ -110,7 +186,7 @@ class AttributeValueSlotCountOutOfRangeFeedbackError(FeedbackError):
         )
 
 
-class CollectionEntryNotFoundFeedbackError(FeedbackError):
+class CollectionEntryNotFound(FeedbackError):
     def __init__(self, e: errors.CollectionEntryNotFoundError) -> None:
         super().__init__(
             "Collection Entry Not Found",
@@ -118,7 +194,7 @@ class CollectionEntryNotFoundFeedbackError(FeedbackError):
         )
 
 
-class CollectionEntrySynNotUniqueFeedbackError(FeedbackError):
+class CollectionEntrySynNotUnique(FeedbackError):
     def __init__(self, e: errors.CollectionEntrySynNotUniqueError) -> None:
         super().__init__(
             "Collection Entry Value Or Alias Not Unique",
@@ -126,7 +202,7 @@ class CollectionEntrySynNotUniqueFeedbackError(FeedbackError):
         )
 
 
-class EmptyStringFeedbackError(FeedbackError):
+class EmptyString(FeedbackError):
     def __init__(self) -> None:
         super().__init__(
             "Empty String",
@@ -134,7 +210,7 @@ class EmptyStringFeedbackError(FeedbackError):
         )
 
 
-class DoubleBacktickFeedbackError(FeedbackError):
+class DoubleBacktick(FeedbackError):
     def __init__(self) -> None:
         super().__init__(
             "Double Backtick",
@@ -143,7 +219,7 @@ class DoubleBacktickFeedbackError(FeedbackError):
         )
 
 
-class AttributeMinSlotsOrMaxSlotsOutOfRangeFeedbackError(FeedbackError):
+class AttributeMinSlotsOrMaxSlotsOutOfRange(FeedbackError):
     def __init__(self, e: errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError) -> None:
         super().__init__(
             "Slot Limits Out Of Range",
@@ -156,7 +232,7 @@ class AttributeMinSlotsOrMaxSlotsOutOfRangeFeedbackError(FeedbackError):
         )
 
 
-class TooManyAliasesFeedbackError(FeedbackError):
+class TooManyAliases(FeedbackError):
     def __init__(self, e: errors.TooManyAliasesError) -> None:
         super().__init__(
             "Too Many Aliases",

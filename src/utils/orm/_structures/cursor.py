@@ -9,7 +9,6 @@ from .._query import ExecutableQuery, FetchableQuery, Query
 from .._query.insert import InsertQuery, InsertReturningQuery
 
 if t.TYPE_CHECKING:
-    from .connector import Connector
     from .model import Model
 
 
@@ -20,13 +19,11 @@ class ExecuteData[T1: int | None, T2: int | None]:
 
 
 class Cursor:
-    def __init__(self, connector: Connector, connection: mariadb.Connection) -> None:
-        self._connector: Connector = connector
+    def __init__(self, connection: mariadb.Connection, cursor: mariadb.Cursor) -> None:
         self._mariadb_connection = connection
-        self._mariadb_cursor = connection.cursor(dictionary=True)
+        self._mariadb_cursor = cursor
 
     def __enter__(self) -> Cursor:
-        self._connector._existing_refs += 1
         return self
 
     def __exit__(
@@ -43,13 +40,6 @@ class Cursor:
 
         self._mariadb_cursor.close()
 
-        self._connector._existing_refs -= 1
-
-        if self._connector._existing_refs <= 0:
-            self._mariadb_connection.close()
-            self._connector._existing_refs = 0
-            self._connector._existing_conn = None
-
     def _core_execute(self, query: Query, /) -> None:
         sql, data = query._to_sql()
 
@@ -57,6 +47,8 @@ class Cursor:
             self._mariadb_cursor.executemany(sql, data)
         else:
             self._mariadb_cursor.execute(sql, data)
+
+        self._mariadb_cursor.close()
 
     @t.overload
     def execute(

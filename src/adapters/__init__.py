@@ -2,7 +2,7 @@ import typing as t
 from dataclasses import dataclass
 
 from structures import BaseStructure
-from utils.text import RealStr
+from utils import orm
 
 
 @t.dataclass_transform(frozen_default=True)
@@ -20,46 +20,50 @@ class _AdapterMeta(type):
 
 
 class BaseAdapter[T](metaclass=_AdapterMeta):
-    _s: T
+    _o: T
+
+    @property
+    def _c(self) -> orm.Cursor:
+        raise NotImplementedError()
 
     def __post_init__(self) -> None:
         if self.__class__ is BaseAdapter:
             raise TypeError
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, self.__class__):
+        if self.__class__ != value.__class__:
             return NotImplemented
 
-        return self._s == value._s
+        return self._o == value._o  # type: ignore
 
     def __hash__(self) -> int:
-        return hash(self._s)
+        return hash(self._o)
 
 
 class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
     @property
     def id(self) -> int:
-        return self._s.id
+        return self._o.id
 
     @property
     def name(self) -> str:
-        return self._s.name
+        return self._o.name
 
     def __str__(self) -> str:
-        return self._s.name
+        return self._o.name
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, self.__class__):
             return NotImplemented
 
-        return self._s == value._s
+        return self._o == value._o
 
     def mention(self, title: bool = False) -> str:
-        type_name: str = self._s.__class__.type_name
+        type_name: str = self._o.__class__.type_name
 
         if title:
             type_name = type_name.title()
         else:
             type_name = type_name.lower()
 
-        return f"{type_name} {self:,}"
+        return f"{type_name} {self}"

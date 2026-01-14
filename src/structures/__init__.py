@@ -51,7 +51,7 @@ class BaseStructure(metaclass=_StructureMeta):
     @property
     @abstractmethod
     def name(self) -> str: ...
-    
+
     def __hash__(self) -> int:
         return hash(self.id)
 

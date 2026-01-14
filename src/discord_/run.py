@@ -11,11 +11,14 @@ import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from adapters.errors import DoubleBacktickFeedbackError, EmptyStringFeedbackError
-from discord_.utils_ import messaging
+from adapters.errors import (
+    BaseUserReturnableError,
+    DoubleBacktick,
+    EmptyString,
+    FeedbackError,
+)
+from discord_.utils_ import message
 from utils import secret, text
-
-from .errors import BaseUserReturnableError, FeedbackError
 
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
 DEV_MODE: bool = True
@@ -76,9 +79,9 @@ async def on_app_command_error(
         )
 
     if isinstance(e, text.EmptyStringError):
-        e = EmptyStringFeedbackError()
+        e = EmptyString()
     elif isinstance(e, text.DoubleBacktickError):
-        e = DoubleBacktickFeedbackError()
+        e = DoubleBacktick()
 
     if isinstance(e, BaseUserReturnableError):
         await interaction.followup.send(str(e), **e.msg_kwargs)
@@ -90,19 +93,19 @@ async def on_app_command_error(
 
     if isinstance(e, mariadb.Error):
         await interaction.followup.send(
-            messaging.layout(
+            message.layout(
                 "Unhandled Database Error",
                 t"An unknown database error occurred. Please try again!",
-                messaging.MessageStatus.ERROR,
+                message.MessageStatus.ERROR,
             )
         )
         return
 
     await interaction.followup.send(
-        messaging.layout(
+        message.layout(
             "Unhandled Error",
             t"An unhandled error has occurred!",
-            messaging.MessageStatus.ERROR,
+            message.MessageStatus.ERROR,
             additional=t"This is a bug. It will be logged internally and fixed soon.",
         )
     )

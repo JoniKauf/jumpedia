@@ -5,8 +5,8 @@ import discord as dc
 
 from adapters._jumpedia import JumpediaAdapter
 from adapters._user import JumpediaUserAdapter
+from adapters.errors import FeedbackError
 from adapters.interaction import InteractionAdapter
-from discord_.errors import FeedbackError
 from discord_.utils_ import shortcuts
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 

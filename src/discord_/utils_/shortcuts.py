@@ -37,10 +37,12 @@ def get_current_community(
 
     del data
 
-    community_s = jumpedia._s.get_community_by_server_id(interaction.current_server.id)
+    community_s = jumpedia._o.get_community_by_server_id(
+        interaction._c, interaction.current_server.id
+    )
 
     if community_s is None:
-        raise errors.ServerNotConnectedToACommunityFeedbackError()
+        raise errors.ServerNotConnectedToACommunity()
 
     return CommunityAdapter(community_s, jumpedia)
 

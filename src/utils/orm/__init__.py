@@ -5,6 +5,5 @@ from ._query.select import *
 from ._query.update import *
 from ._structures import *
 from ._structures.column import *
-from ._structures.connector import *
 from ._structures.cursor import *
 from ._structures.model import *

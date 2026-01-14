@@ -1,5 +1,6 @@
 import json
 import typing as t
+from dataclasses import InitVar
 
 from utils import orm, text
 from utils.rank import CommunityRank, JumpediaRank
@@ -29,13 +30,18 @@ class JumpediaLimits(t.NamedTuple):
 
 class Jumpedia(BaseStructure):
     limits: JumpediaLimits
+    db_name: InitVar[str]
+    meta_c: InitVar[orm.Cursor]
+    get_c: InitVar[t.Callable[[], orm.Cursor]]
 
     @property
     def name(self) -> str:
         return self.__class__.type_name
 
-    def __post_init__(self) -> None:
-        db.create_database(self)
+    def __post_init__(
+        self, db_name: str, meta_c: orm.Cursor, get_c: t.Callable[[], orm.Cursor]
+    ) -> None:
+        db.create_database(self, db_name, meta_c, get_c)
 
     # --- Communities ---
 
@@ -59,7 +65,6 @@ class Jumpedia(BaseStructure):
         if comm is not None:
             raise SynsAlreadyTakenError({comm.real_name: comm})
 
-        
         execute_data = c.execute(
             db.Community.insert(
                 db.Community.norm_name.bind(norm_name),
@@ -88,8 +93,8 @@ class Jumpedia(BaseStructure):
             limits=limits,
         )
 
-        comm.get_or_create_community_user(c,
-            creator, CommunityRank.OWNER, None, True, True
+        comm.get_or_create_community_user(
+            c, creator, CommunityRank.OWNER, None, True, True
         )
 
         return comm
@@ -128,15 +133,22 @@ class Jumpedia(BaseStructure):
         return self._get_communities_inner(c)
 
     def get_community_by_id(self, c: orm.Cursor, id: int, /) -> Community | None:
-        communities = self._get_communities_inner(c, (db.Community.id, orm.Operator.EQ, id))
+        communities = self._get_communities_inner(
+            c, (db.Community.id, orm.Operator.EQ, id)
+        )
         return communities[0] if communities else None
 
-
-    def get_community_by_name(self, c: orm.Cursor, name: text.NormStr, /) -> Community | None:
-        communities = self._get_communities_inner(c, (db.Community.norm_name, orm.Operator.EQ, name))
+    def get_community_by_name(
+        self, c: orm.Cursor, name: text.NormStr, /
+    ) -> Community | None:
+        communities = self._get_communities_inner(
+            c, (db.Community.norm_name, orm.Operator.EQ, name)
+        )
         return communities[0] if communities else None
 
-    def get_community_by_server_id(self, c: orm.Cursor, server_id: int, /) -> Community | None:
+    def get_community_by_server_id(
+        self, c: orm.Cursor, server_id: int, /
+    ) -> Community | None:
         row = c.fetch_one(
             db.Server.select(db.Server.community_id).where(
                 (db.Server.id, orm.Operator.EQ, server_id)
@@ -212,16 +224,18 @@ class Jumpedia(BaseStructure):
             jumpedia_rank=JumpediaRank.get(row.power),
         )
 
-    def get_jumpedia_users(
-        self, c: orm.Cursor
-    ) -> list[JumpediaUser]:
+    def get_jumpedia_users(self, c: orm.Cursor) -> list[JumpediaUser]:
         return self._get_jumpedia_users_inner(c)
 
     def get_jumpedia_user_by_id(self, c: orm.Cursor, id: int, /) -> JumpediaUser | None:
-        users = self._get_jumpedia_users_inner(c, (db.JumpediaUser.id, orm.Operator.EQ, id))
+        users = self._get_jumpedia_users_inner(
+            c, (db.JumpediaUser.id, orm.Operator.EQ, id)
+        )
         return users[0] if users else None
 
-    def add_community_to_server(self, c: orm.Cursor, community_id: int, server_id: int, /) -> Community:
+    def add_community_to_server(
+        self, c: orm.Cursor, community_id: int, server_id: int, /
+    ) -> Community:
         existing_community = self.get_community_by_server_id(c, server_id)
 
         if existing_community is not None:
@@ -242,7 +256,9 @@ class Jumpedia(BaseStructure):
 
         return community
 
-    def remove_community_from_server(self, c: orm.Cursor, server_id: int, /) -> Community:
+    def remove_community_from_server(
+        self, c: orm.Cursor, server_id: int, /
+    ) -> Community:
         row = c.fetch_one(
             db.Server.delete()
             .where((db.Server.id, orm.Operator.EQ, server_id))

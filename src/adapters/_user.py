@@ -1,14 +1,12 @@
 import typing as t
-from functools import cached_property, wraps
+from functools import cached_property
 
 import discord as dc
 
 from adapters._server import ServerAdapter
-from discord_.errors import FeedbackError
-from discord_.utils_ import messaging
+from discord_.utils_ import message
 from structures.community import CommunityUser, JumpediaUser
-from structures.list import List
-from utils import text
+from utils import orm, text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 from . import BaseAdapter, BaseStructureAdapter, errors
@@ -23,9 +21,9 @@ if t.TYPE_CHECKING:
 def _get_set_own_rank_error(
     executing_user: JumpediaUserAdapter | CommunityUserAdapter,
     set_user: JumpediaUserAdapter | CommunityUserAdapter,
-) -> FeedbackError | None:
+) -> errors.FeedbackError | None:
     if set_user == executing_user and not executing_user.jumpedia_rank:
-        return FeedbackError(
+        return errors.FeedbackError(
             "Cannot Set Own Rank",
             t"You cannot set your own rank!",
             additional=t"Only somebody with a rank higher than yours can set your rank.",
@@ -39,7 +37,7 @@ def _get_set_rank_error(
     executing_user: CommunityUserAdapter,
     set_user: CommunityUserAdapter,
     rank: CommunityRank,
-) -> FeedbackError | None:
+) -> errors.FeedbackError | None:
     pass
 
 
@@ -48,7 +46,7 @@ def _get_set_rank_error(
     executing_user: JumpediaUserAdapter,
     set_user: JumpediaUserAdapter,
     rank: JumpediaRank,
-) -> FeedbackError | None:
+) -> errors.FeedbackError | None:
     pass
 
 
@@ -56,7 +54,7 @@ def _get_set_rank_error(
     executing_user: JumpediaUserAdapter | CommunityUserAdapter,
     set_user: JumpediaUserAdapter | CommunityUserAdapter,
     rank: JumpediaRank | CommunityRank,
-) -> FeedbackError | None:
+) -> errors.FeedbackError | None:
     err = _get_set_own_rank_error(executing_user, set_user)
 
     if err is not None:
@@ -80,7 +78,7 @@ def _get_set_rank_error(
         set_best_rank = set_user.most_powerful_rank
 
     if executing_best_rank <= set_best_rank:
-        return FeedbackError(
+        return errors.FeedbackError(
             "Cannot Set Rank Of More Powerful User",
             t"You cannot set the rank of a user more powerful than you!",
             additional=(
@@ -92,7 +90,7 @@ def _get_set_rank_error(
         )
 
     if rank >= executing_best_rank:
-        return FeedbackError(
+        return errors.FeedbackError(
             "Cannot Set Rank Of Own Power Or Higher",
             t"You cannot set the rank of a user to a rank that is equally or more powerful than yours!",
             additional=(
@@ -107,10 +105,10 @@ def _get_set_rank_error(
     ) or (
         isinstance(set_user, CommunityUserAdapter) and rank is set_user.community_rank
     ):
-        return FeedbackError(
+        return errors.FeedbackError(
             "User Already Has Specified Rank",
             t"The user {set_user:,} already has the {rank.mention()}, therefore nothing changed!",
-            explicit_message_status=messaging.MessageStatus.WARNING,
+            explicit_message_status=message.MessageStatus.WARNING,
         )
 
     return None
@@ -130,22 +128,27 @@ def get_success_msg(
     set_user: JumpediaUserAdapter | CommunityUserAdapter,
     rank: JumpediaRank | CommunityRank,
 ):
-    return messaging.layout(
+    return message.layout(
         f"{rank.__class__.type_name.title()} Set",
         t"The jumpedia rank of {set_user:,} has successfully been set to {rank:,}!",
-        message_status=messaging.MessageStatus.SUCCESS,
+        message_status=message.MessageStatus.SUCCESS,
     )
+
 
 class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     jumpedia: JumpediaAdapter
 
     @property
+    def _c(self) -> orm.Cursor:
+        return self.jumpedia._c
+
+    @property
     def name(self) -> str:
-        return self._s.user_name
+        return self._o.user_name
 
     @property
     def jumpedia_rank(self) -> JumpediaRank:
-        return self._s.jumpedia_rank
+        return self._o.jumpedia_rank
 
     def set_jumpedia_rank(
         self, jumpedia_rank: JumpediaRank, executing_jumpedia_user: JumpediaUserAdapter
@@ -155,8 +158,9 @@ class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
         if error is not None:
             raise error
 
-        _ = self.jumpedia._s.get_or_create_jumpedia_user(
-            self._s.id,
+        _ = self.jumpedia._o.get_or_create_jumpedia_user(
+            self._c,
+            self._o.id,
             self.name,
             jumpedia_rank,
             override_name_if_user_exists=False,
@@ -171,12 +175,16 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     jumpedia_user: JumpediaUserAdapter
 
     @property
+    def _c(self) -> orm.Cursor:
+        return self.community._c
+
+    @property
     def name(self) -> str:
         return self.jumpedia_user.name
 
     @property
     def community_rank(self) -> CommunityRank:
-        return self._s.community_rank
+        return self._o.community_rank
 
     @property
     def jumpedia_rank(self) -> JumpediaRank:
@@ -184,12 +192,12 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
 
     @property
     def most_powerful_rank(self) -> JumpediaRank | CommunityRank:
-        return self._s.jumpedia_user.jumpedia_rank or self.community_rank
+        return self._o.jumpedia_user.jumpedia_rank or self.community_rank
 
     def get_selected_list(self) -> ListAdapter | None:
         from ._list import ListAdapter
 
-        list_s = self._s.get_selected_list()
+        list_s = self._o.get_selected_list(self._c)
 
         if list_s is None:
             return None
@@ -208,8 +216,9 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         if error is not None:
             raise error
 
-        _ = self.community._s.get_or_create_community_user(
-            self.jumpedia_user._s,
+        _ = self.community._o.get_or_create_community_user(
+            self._c,
+            self.jumpedia_user._o,
             community_rank,
             None,
             override_community_rank_if_user_exists=True,
@@ -232,7 +241,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             self != executing_community_user
             and executing_community_user.most_powerful_rank.value < REQ_RANK.value
         ):
-            raise errors.NotEnoughPowerToAffectOtherUsersFeedbackError(
+            raise errors.NotEnoughPowerToAffectOtherUsers(
                 executing_community_user.most_powerful_rank, REQ_RANK
             )
 
@@ -243,7 +252,8 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         else:
             selected_list = ListAdapter(
                 _community._require_list_with_name(
-                    text.NormStr(list), self.community._s
+                    self._c,
+                    text.NormStr(list), self.community._o
                 ),
                 self.community,
             )
@@ -260,14 +270,14 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
                 else f"the selected list {selected_list:,}"
             )
 
-            raise FeedbackError(
+            raise errors.FeedbackError(
                 "User Already Has Specified Selected List Set",
                 t"{start} {selection} set, therefore nothing changed!",
-                explicit_message_status=messaging.MessageStatus.WARNING,
+                explicit_message_status=message.MessageStatus.WARNING,
             )
 
-        self._s.set_selected_list(
-            None if selected_list is None else selected_list._s.id
+        self._o.set_selected_list(
+            None if selected_list is None else selected_list._o.id
         )
 
         return selected_list
@@ -283,7 +293,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             raise err
 
         if executing_community_user.community_rank != CommunityRank.OWNER:
-            raise FeedbackError(
+            raise errors.FeedbackError(
                 "Not Owner",
                 t"You are not an owner of this community, so you cannot transfer ownership!",
             )
@@ -314,24 +324,32 @@ class UserAdapter(BaseAdapter[dc.User]):
     interaction: InteractionAdapter
 
     @property
+    def _c(self) -> orm.Cursor:
+        return self.interaction._c
+
+    @property
     def id(self) -> int:
-        return self._s.id
+        return self._o.id
 
     @property
     def name(self) -> str:
-        return self._s.global_name or self._s.name
+        return self._o.global_name or self._o.name
 
 
 class ServerMemberAdapter(BaseAdapter[dc.Member]):
     server: ServerAdapter
     user: UserAdapter
 
+    @property
+    def _c(self) -> orm.Cursor:
+        return self.server._c
+
     @cached_property
     def server_rank(self) -> ServerRank:
-        if self._s == self.server._s.owner:
+        if self._o == self.server._o.owner:
             return ServerRank.OWNER
 
-        if self._s.guild_permissions.administrator:
+        if self._o.guild_permissions.administrator:
             return ServerRank.ADMINISTRATOR
 
         return ServerRank.USER

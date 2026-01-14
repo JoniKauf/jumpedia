@@ -1,11 +1,10 @@
 import typing as t
 
-from discord_.errors import FeedbackError
-from discord_.utils_ import messaging
+from discord_.utils_ import message
 from structures.community import Community
 from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
-from utils import text
+from utils import orm, text
 from utils.rank import CommunityRank
 
 from . import BaseStructureAdapter, errors
@@ -16,11 +15,13 @@ if t.TYPE_CHECKING:
     from ._jumpedia import JumpediaAdapter
 
 
-def _require_list_with_name(name: text.NormStr, community: Community) -> List:
-    list = community.get_list_by_name(name)
+def _require_list_with_name(
+    c: orm.Cursor, name: text.NormStr, community: Community
+) -> List:
+    list = community.get_list_by_name(c, name)
 
     if list is None:
-        raise errors.StructureNotFoundViaSynFeedbackError(name, List, True)
+        raise errors.StructureNotFoundViaSyn(name, List, True)
 
     return list
 
@@ -29,30 +30,34 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
     jumpedia: JumpediaAdapter
 
     @property
+    def _c(self) -> orm.Cursor:
+        return self.jumpedia._c
+
+    @property
     def name(self) -> text.RealStr:
-        return self._s.real_name
+        return self._o.real_name
 
     # --- List ---
 
     def get_lists(self) -> list[ListAdapter]:
-        return [ListAdapter(list, self) for list in self._s.get_lists()]
+        return [ListAdapter(list, self) for list in self._o.get_lists(self._c)]
 
     def get_list(self, name: str) -> ListAdapter:
-        return ListAdapter(_require_list_with_name(text.NormStr(name), self._s), self)
+        return ListAdapter(_require_list_with_name(self._c, text.NormStr(name), self._o), self)
 
     def create_list(self, name: str) -> ListAdapter:
         try:
-            list = self._s.create_list(text.RealStr(name))
+            list = self._o.create_list(self._c, text.RealStr(name))
         except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTakenFeedbackError(e)
+            raise errors.SynsAlreadyTaken(e)
         except StructureCountLimitReachedError as e:
-            raise errors.StructureCountLimitReachedFeedbackError(e)
+            raise errors.StructureCountLimitReached(e)
 
         return ListAdapter(list, self)
 
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(text.NormStr(name), self._s)
-        self._s.delete_list(list.id)
+        list = _require_list_with_name(self._c, text.NormStr(name), self._o)
+        self._o.delete_list(self._c, list.id)
 
     @t.overload
     def get_default_selected_list(self) -> ListAdapter:
@@ -65,13 +70,13 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
     _MISSING = object()
 
     def get_default_selected_list[T](self, default: T = _MISSING) -> ListAdapter | T:
-        list = self._s.get_default_selected_list()
+        list = self._o.get_default_selected_list(self._c)
 
         if list is None:
             if default is not self.__class__._MISSING:
                 return default
 
-            raise FeedbackError(
+            raise errors.FeedbackError(
                 "No Default Selected List",
                 t"The community {self.name:,} has no default selected list!",
                 additional=t"Please specify the list you want to use in the command.",
@@ -83,12 +88,12 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         if name is None:
             list_id = None
         else:
-            list_id = _require_list_with_name(text.NormStr(name), self._s).id
+            list_id = _require_list_with_name(self._c, text.NormStr(name), self._o).id
 
         curr_default_selected_list = self.get_default_selected_list(None)
 
         if curr_default_selected_list is None and list_id is None:
-            raise FeedbackError(
+            raise errors.FeedbackError(
                 "Already No Default Selected List",
                 t"There is already no default selected list!",
                 additional=(
@@ -98,19 +103,19 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
                     + t"list selected as the default, therefore "
                     + t"nothing changed."
                 ),
-                explicit_message_status=messaging.MessageStatus.WARNING,
+                explicit_message_status=message.MessageStatus.WARNING,
             )
 
         if (
             curr_default_selected_list is not None
-            and list_id == curr_default_selected_list._s.id
+            and list_id == curr_default_selected_list._o.id
         ):
-            raise FeedbackError(
+            raise errors.FeedbackError(
                 "Already Specified Default Selected List",
                 t"The specified list is already the default selected list, therefore nothing changed!",
             )
 
-        self._s.set_default_selected_list(list_id)
+        self._o.set_default_selected_list(self._c, list_id)
 
     # --- User ---
 
@@ -121,8 +126,9 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         override_community_rank: CommunityRank | None = None,
     ) -> CommunityUserAdapter:
         return CommunityUserAdapter(
-            self._s.get_or_create_community_user(
-                jumpedia_user._s,
+            self._o.get_or_create_community_user(
+                self._c,
+                jumpedia_user._o,
                 override_community_rank or CommunityRank.DEFAULT,
                 None,
                 override_community_rank is not None,
@@ -135,4 +141,4 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
     # --- Server ---
 
     def get_server_count(self) -> int:
-        return len(self._s.get_server_ids())
+        return len(self._o.get_server_ids(self._c))

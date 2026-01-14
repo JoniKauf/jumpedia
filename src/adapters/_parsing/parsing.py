@@ -10,7 +10,7 @@ import typing as t
 from collections import deque
 from types import EllipsisType
 
-from discord_.errors import FeedbackError
+from adapters.errors import FeedbackError
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection, CollectionEntry
 from structures.attribute.slot_str import SlotStr, SlotTypeT
@@ -350,9 +350,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         attr = attributes.get(attr_syn)
 
         if attr is None:
-            raise errors.StructureNotFoundViaSynFeedbackError(
-                attr_syn, BaseAttribute, False
-            )
+            raise errors.StructureNotFoundViaSyn(attr_syn, BaseAttribute, False)
 
         used_attributes.add(attr)
 
@@ -376,7 +374,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
             try:
                 entry = collection.get_entry_by_syn(value_str_norm)
             except KeyError:
-                raise errors.CollectionEntryNotFoundFeedbackError(
+                raise errors.CollectionEntryNotFound(
                     CollectionEntryNotFoundError(value_str_real, collection)
                 )
 
@@ -549,9 +547,7 @@ class SortVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
         attr = attributes.get(attr_syn)
 
         if attr is None:
-            raise errors.StructureNotFoundViaSynFeedbackError(
-                attr_syn, BaseAttribute, False
-            )
+            raise errors.StructureNotFoundViaSyn(attr_syn, BaseAttribute, False)
 
         used_attributes.add(attr)
 
@@ -649,14 +645,14 @@ class ListOfNameAndAliasVisitor(
 
     def visit_Tuple(self, node: ast.Tuple) -> t.Any:
         if len(node.elts) != 2:
-            raise errors.InvalidArgumentFeedbackError(
+            raise errors.InvalidArgument(
                 t"A specified tuple that must be of length **2** has the length **{len(node.elts)}**!"
             )
 
         first, second = node.elts
 
         if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
-            raise errors.InvalidArgumentFeedbackError(
+            raise errors.InvalidArgument(
                 t"The first element of a specified tuple is not a string, when it actually should be!"
             )
 
@@ -676,7 +672,7 @@ class ListOfNameAndAliasVisitor(
                 elts.append(s)
 
         if not valid:
-            raise errors.InvalidArgumentFeedbackError(
+            raise errors.InvalidArgument(
                 t"The second element of a tuple is not a list of strings, when it should be!"
             )
 
@@ -767,7 +763,7 @@ class AttributeValueMappingVisitor(
             attr = attributes.get(NormStr(k_real))
 
             if attr is None:
-                raise errors.StructureNotFoundViaSynFeedbackError(k_real, BaseAttribute)
+                raise errors.StructureNotFoundViaSyn(k_real, BaseAttribute)
 
             if attr in result:
                 raise FeedbackError(
@@ -1058,9 +1054,7 @@ class FilterStringParser:
         attr = syn_to_attr.get(NormStr(attr_name_raw))
 
         if attr is None:
-            raise errors.StructureNotFoundViaSynFeedbackError(
-                attr_name_raw, BaseAttribute
-            )
+            raise errors.StructureNotFoundViaSyn(attr_name_raw, BaseAttribute)
 
         used_attributes.add(attr)
 
@@ -1115,7 +1109,7 @@ class FilterStringParser:
                     entry = collection.get_entry_by_syn(NormStr(parsed_value))
                 except KeyError:
                     # same behaviour as FilterVisitor: collection entry not found -> raise feedback
-                    raise errors.CollectionEntryNotFoundFeedbackError(
+                    raise errors.CollectionEntryNotFound(
                         CollectionEntryNotFoundError(RealStr(parsed_value), collection)
                     )
 
@@ -1217,7 +1211,6 @@ class FilterStringParser:
                     it.pushmany(reversed(word))
 
                     return left_fn
-                
 
                 # matched 'and', parse next factor and combine logically
                 right_fn: FastAvmFuncT = parse_factor()

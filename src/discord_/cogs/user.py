@@ -5,10 +5,9 @@ import discord.ext.commands as cmds
 from adapters._community import CommunityAdapter
 from adapters._list import ListAdapter
 from adapters._user import UserAdapter
-from adapters.errors import ServerNotConnectedToACommunityFeedbackError
+from adapters.errors import FeedbackError, ServerNotConnectedToACommunity
 from adapters.interaction import InteractionAdapter
-from discord_.errors import FeedbackError
-from discord_.utils_ import messaging, shortcuts
+from discord_.utils_ import message, shortcuts
 from utils import text
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
@@ -33,7 +32,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         NOT_IN_COMMUNITY = "<Not executed in a community>"
 
-        community_s = jumpedia._s.get_community_by_server_id(ia.current_server.id)
+        community_s = jumpedia._o.get_community_by_server_id(ia.current_server.id)
         community_user = (
             shortcuts.get_or_create_specified_or_current_community_user(
                 CommunityAdapter(community_s, jumpedia), jumpedia_user
@@ -52,7 +51,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         server_rank: ServerRank | str = (
             ia.current_member.server_rank
-            if isinstance(ia._s.user, dc.Member)
+            if isinstance(ia._o.user, dc.Member)
             else "<Not executed on a server>"
         )
 
@@ -63,7 +62,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
         ]
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "User Info",
                 text.join_t(
                     "\n",
@@ -76,7 +75,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
                         )
                     ),
                 ),
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             )
         )
 
@@ -105,7 +104,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
         list_obj = set_community_user.set_selected_list(list, ia_community_user)
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "Selected List Set",
                 (
                     t"Your selected list "
@@ -113,7 +112,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
                     else t"The selected list of the user {set_community_user:,} "
                 )
                 + t"has successfully been set to {list_obj:,}!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 

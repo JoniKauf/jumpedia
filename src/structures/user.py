@@ -23,7 +23,8 @@ class JumpediaUser(BaseStructure):
     @property
     def name(self) -> str:
         return self.user_name
-    
+
+
 class CommunityUser(BaseStructure):
     jumpedia_user: JumpediaUser
     community: Community

@@ -9,7 +9,7 @@ __LOCATION = os.path.join(
 
 
 class DatabaseConnectionData(t.TypedDict):
-    database_name: str
+    db: str
     host: str
     user: str
     password: str

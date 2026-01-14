@@ -4,7 +4,6 @@ import os
 import time
 import typing as t
 
-from adapters._jumpedia import _JUMPEDIA
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits

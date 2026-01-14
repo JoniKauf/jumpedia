@@ -6,7 +6,7 @@ from discord import ui
 
 from structures import BaseStructure
 
-from . import messaging
+from . import message
 
 
 class ConfirmByEnteringModal(ui.Modal):
@@ -39,10 +39,10 @@ class ConfirmByEnteringModal(ui.Modal):
 
     async def info_message(self, interaction: dc.Interaction) -> None:
         await interaction.followup.send(
-            messaging.layout(
+            message.layout(
                 "Awaiting Confirmation",
                 t"Please fill out the modal that should be appearing on your screen to confirm!",
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             ),
             ephemeral=True,
         )
@@ -68,18 +68,18 @@ async def delete_structure_confirmation(
             delete(interaction)
 
             await interaction.response.send_message(
-                messaging.layout(
+                message.layout(
                     f"{structure_type.type_name.title()} Deleted",
                     t"The specifed {structure_type.type_name} has successfully been deleted!",
-                    messaging.MessageStatus.SUCCESS,
+                    message.MessageStatus.SUCCESS,
                 )
             )
         else:
             await interaction.response.send_message(
-                messaging.layout(
+                message.layout(
                     f"{structure_type.type_name.title()} Deletion Aborted",
                     t"The {structure_type.type_name} has **not** been deleted because the name entered is not correct!",
-                    messaging.MessageStatus.WARNING,
+                    message.MessageStatus.WARNING,
                 )
             )
 

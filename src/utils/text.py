@@ -123,7 +123,6 @@ class NormStr(str):
         return (tuple(mapping.values()), tuple(mapping))
 
 
-
 def apply_f_to_interpolation_value(interpolation: Interpolation):
     value = convert(interpolation.value, interpolation.conversion)
     value = format(value, interpolation.format_spec)

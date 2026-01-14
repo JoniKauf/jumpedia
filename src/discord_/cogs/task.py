@@ -9,10 +9,10 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters import parsing
+from adapters import _parsing
+from adapters.errors import FeedbackError
 from adapters.interaction import InteractionAdapter
-from discord_.errors import FeedbackError
-from discord_.utils_ import messaging, shortcuts
+from discord_.utils_ import command, message, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
@@ -139,7 +139,7 @@ async def _info(
         if not v:
             elems.append(str(...))
         else:
-            elems.append(f"{messaging.embed_join(*v)}")
+            elems.append(f"{message.embed_join(*v)}")
 
         elems.append("\n")
 
@@ -147,10 +147,10 @@ async def _info(
         elems.pop()
 
     await interaction.response.send_message(
-        messaging.layout(
+        message.layout(
             "Task Info",
             Template(*elems),
-            message_status=messaging.MessageStatus.INFO,
+            message_status=message.MessageStatus.INFO,
         )
     )
 
@@ -192,11 +192,11 @@ async def _browse(
     # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._s.get_task_attribute_value_mappings(None)
+            list_obj._o.get_task_attribute_value_mappings(None)
         )
     else:
         user_task_ids = tuple(
-            task._s.id for task in list_obj.get_tasks_of_user(community_user)
+            task._o.id for task in list_obj.get_tasks_of_user(community_user)
         )
 
         task_ids_to_fetch: tuple[int, ...]
@@ -210,8 +210,8 @@ async def _browse(
 
         # Don't include user attribute values when missing, because those don't have any values, because well they are missing
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._s.get_task_attribute_value_mappings(
-                None if missing else community_user._s.id, task_ids_to_fetch
+            list_obj._o.get_task_attribute_value_mappings(
+                None if missing else community_user._o.id, task_ids_to_fetch
             )
         )
 
@@ -236,7 +236,7 @@ async def _browse(
 
     if filter or sort:
         for attr_type in ATTRIBUTE_TYPES_TO_HANDLE:
-            for alias, attr in list_obj._s.get_attribute_alias_mappings_of_type(
+            for alias, attr in list_obj._o.get_attribute_alias_mappings_of_type(
                 attr_type
             ).items():
                 syn_to_attr[NormStr(alias)] = attr
@@ -248,7 +248,7 @@ async def _browse(
         await msg.edit(content="Filtering data...")
 
         try:
-            avms, filter_used_attributes = parsing.FilterStringParser().parse(
+            avms, filter_used_attributes = _parsing.FilterStringParser().parse(
                 filter,
                 avms,
                 syn_to_attr,
@@ -271,10 +271,10 @@ async def _browse(
     await msg.edit(content="Sorting data...")
 
     if not sort:
-        avms = parsing.sort(avms, [(NAME_ATTR, True)])
+        avms = _parsing.sort(avms, [(NAME_ATTR, True)])
     else:
         try:
-            avms = parsing.SORT_PARSER.parse(sort, avms, syn_to_attr)
+            avms = _parsing.SORT_PARSER.parse(sort, avms, syn_to_attr)
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."
@@ -320,7 +320,7 @@ async def _browse(
 
     # --- Success ---
     await msg.edit(
-        content=messaging.layout(
+        content=message.layout(
             "All Tasks",
             Template(
                 "\n".join(
@@ -329,7 +329,7 @@ async def _browse(
                 if len(urls) > 1
                 else urls[0]
             ),
-            messaging.MessageStatus.INFO,
+            message.MessageStatus.INFO,
         ),
     )
 
@@ -339,10 +339,11 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         self.bot = bot
 
     @acmds.command()
+    @command.adapt
     async def info(
-        self, interaction: dc.Interaction, task: str, list: str | None = None
+        self, interaction: InteractionAdapter, task: str, list: str | None = None
     ) -> None:
-        await _info(interaction, task, ..., list)
+        await _info(interaction.dc, task, ..., list)
 
     @acmds.command()
     async def info_user(
@@ -409,10 +410,10 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "Task Created",
                 t"The task {task.name:,} has successfully been created!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
@@ -428,10 +429,10 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         list_obj.delete_task(task)
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "Task Delete",
                 t"The task {task:,} has successfully been deleted!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
@@ -458,9 +459,9 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         )
 
         await interaction.response.send_message(
-            messaging.layout(
+            message.layout(
                 "Task Given",
                 t"The task {task_obj.name:,} has successfully been given to {community_user.name:,}!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )

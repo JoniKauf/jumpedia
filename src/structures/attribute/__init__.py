@@ -1,9 +1,7 @@
 import itertools
 import typing as t
 from collections import defaultdict
-from dataclasses import dataclass, field
 
-from structures.list import AttributeCollectionEntryAliasTable, AttributeCollectionEntryTable
 from utils import orm, text
 
 from .. import BaseStructure, db, errors
@@ -57,16 +55,26 @@ class BaseAttribute(BaseStructure):
         return c.fetch_all(
             db.AttributeAlias.select(column).where(
                 (db.AttributeAlias.list_id, orm.Operator.EQ, self.list.id),
-                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, self.__class__.type_id),
+                (
+                    db.AttributeAlias.attribute_type_id,
+                    orm.Operator.EQ,
+                    self.__class__.type_id,
+                ),
                 (db.AttributeAlias.attribute_id, orm.Operator.EQ, self.id),
             )
         )
 
     def get_real_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
-        return frozenset(row.real_alias for row in self._get_aliases_rows(c, db.AttributeAlias.real_alias))
+        return frozenset(
+            row.real_alias
+            for row in self._get_aliases_rows(c, db.AttributeAlias.real_alias)
+        )
 
     def get_norm_aliases(self, c: orm.Cursor, /) -> frozenset[text.NormStr]:
-        return frozenset(row.norm_alias for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)) 
+        return frozenset(
+            row.norm_alias
+            for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)
+        )
 
     def get_collection(self, c: orm.Cursor, /) -> Collection:
         return Collection(attribute=self, entries=())
@@ -120,6 +128,9 @@ class BaseNonStaticAttribute(BaseAttribute):
         return tuple(result)
 
     def get_collection(self, c: orm.Cursor, /) -> Collection:
+        AttributeCollectionEntryTable = db.AttributeCollectionEntry
+        AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias
+
         entry_rows = c.fetch_all(
             AttributeCollectionEntryTable.select("*")
             .where(
@@ -213,6 +224,9 @@ class BaseNonStaticAttribute(BaseAttribute):
                 else:
                     combined_real_aliases[i].add(slot_syn)
                     combined_norm_aliases[i].add(norm_syn)
+
+        AttributeCollectionEntryTable = db.AttributeCollectionEntry
+        AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias
 
         c.execute(
             AttributeCollectionEntryTable.delete().where(
@@ -315,6 +329,7 @@ def type_id_to_type(type_id: t.Literal[1]) -> type[TaskAttribute]:
 @t.overload
 def type_id_to_type(type_id: t.Literal[2]) -> type[UserAttribute]:
     pass
+
 
 @t.overload
 def type_id_to_type(type_id: int) -> type[AnyAttributeT]:

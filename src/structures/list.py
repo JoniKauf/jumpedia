@@ -3,6 +3,7 @@ import itertools
 import typing as t
 from types import MappingProxyType
 
+from structures import attribute
 from utils import orm, text
 from utils.text import NormStr, RealStr
 
@@ -24,7 +25,6 @@ from .task.attribute_value_mapping import (
     UserAttributeValueMapping,
 )
 from .user import CommunityUser
-from structures import attribute
 
 if t.TYPE_CHECKING:
     from .community import Community
@@ -127,7 +127,7 @@ class List(BaseStructure):
     ) -> list[T]:
         return self._get_attributes_inner(
             c, (db.Attribute.type_id, orm.Operator.EQ, type.type_id), *where
-        )   # type: ignore
+        )  # type: ignore
 
     @t.overload
     def _attribute_row_to_obj(
@@ -151,7 +151,7 @@ class List(BaseStructure):
         return found_type(
             list=self,
             id=row.id,
-            real_name=row.real_name,  
+            real_name=row.real_name,
             norm_name=row.norm_name,
             slot_type=SLOT_TYPES[row.slot_type],
             position=row.position,
@@ -159,7 +159,7 @@ class List(BaseStructure):
             max_slots=row.max_slots,
             kind=None if row.kind is None else Kind(row.kind),  # type: ignore
         )
-    
+
     def get_attributes_of_type[T: AnyAttributeT](
         self, c: orm.Cursor, type: type[T], /
     ) -> list[T]:
@@ -168,14 +168,18 @@ class List(BaseStructure):
     def get_attributes_of_type_by_id[T: AnyAttributeT](
         self, c: orm.Cursor, type: type[T], id: int, /, *ids: int
     ) -> list[T]:
-        return self._get_attributes_of_type_inner(c, type, (db.Attribute.id, orm.Operator.IN, (id, *ids)))
-
+        return self._get_attributes_of_type_inner(
+            c, type, (db.Attribute.id, orm.Operator.IN, (id, *ids))
+        )
 
     def get_attributes_of_type_by_name[T: AnyAttributeT](
         self, c: orm.Cursor, type: type[T], name: NormStr, /, *names: NormStr
     ) -> dict[text.RealStr, T]:
         return {
-            attr.real_name: attr for attr in self._get_attributes_of_type_inner(c, type, (db.Attribute.norm_name, orm.Operator.IN, (name, *names)))
+            attr.real_name: attr
+            for attr in self._get_attributes_of_type_inner(
+                c, type, (db.Attribute.norm_name, orm.Operator.IN, (name, *names))
+            )
         }
 
     def get_attributes_of_type_by_alias[T: AnyAttributeT](
@@ -233,7 +237,9 @@ class List(BaseStructure):
     def get_attributes_grouped(
         self, c: orm.Cursor, /
     ) -> tuple[list[StaticAttribute], list[TaskAttribute], list[UserAttribute]]:
-        result: tuple[list[StaticAttribute], list[TaskAttribute], list[UserAttribute]] = ([], [], [])
+        result: tuple[
+            list[StaticAttribute], list[TaskAttribute], list[UserAttribute]
+        ] = ([], [], [])
 
         for attr in self._get_attributes_inner(c):
             result[attr.__class__.type_id].append(attr)  # type: ignore
@@ -243,13 +249,18 @@ class List(BaseStructure):
     def get_attributes_by_id(
         self, c: orm.Cursor, id: int, /, *ids: int
     ) -> list[AnyAttributeT]:
-        return self._get_attributes_inner(c, (db.Attribute.id, orm.Operator.IN, (id, *ids)))
+        return self._get_attributes_inner(
+            c, (db.Attribute.id, orm.Operator.IN, (id, *ids))
+        )
 
     def get_attributes_by_name(
         self, c: orm.Cursor, name: NormStr, /, *names: NormStr
     ) -> dict[text.RealStr, AnyAttributeT]:
         return {
-            attr.real_name: attr for attr in self._get_attributes_inner(c, (db.Attribute.norm_name, orm.Operator.IN, (name, *names)))
+            attr.real_name: attr
+            for attr in self._get_attributes_inner(
+                c, (db.Attribute.norm_name, orm.Operator.IN, (name, *names))
+            )
         }
 
     def get_attributes_by_alias(
@@ -308,7 +319,7 @@ class List(BaseStructure):
             raise RuntimeError(
                 f"Critical error! Could not find static attribute with kind {kind}"
             )
-        
+
         return rows[0]
 
     def get_attribute_alias_mappings_of_type[T: AnyAttributeT](
@@ -567,7 +578,11 @@ class List(BaseStructure):
             c.execute(
                 AttributeAliasTable.delete().where(
                     (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                    (AttributeAliasTable.attribute_type_id, orm.Operator.EQ, type.type_id),
+                    (
+                        AttributeAliasTable.attribute_type_id,
+                        orm.Operator.EQ,
+                        type.type_id,
+                    ),
                     (
                         AttributeAliasTable.attribute_id,
                         orm.Operator.EQ,
@@ -676,7 +691,9 @@ class List(BaseStructure):
                     *itertools.repeat(attribute_id, count)
                 ),
                 AttributeAliasTable.list_id.bind(*itertools.repeat(self.id, count)),
-                AttributeAliasTable.attribute_type_id.bind(*itertools.repeat(type.type_id, count)),
+                AttributeAliasTable.attribute_type_id.bind(
+                    *itertools.repeat(type.type_id, count)
+                ),
                 AttributeAliasTable.norm_alias.bind(*norm_aliases),
                 AttributeAliasTable.real_alias.bind(*real_aliases),
             )
@@ -685,26 +702,24 @@ class List(BaseStructure):
     # --- Tasks ---
 
     def _task_id_to_slot(self, c: orm.Cursor, id: int) -> SlotStr:
-        return self._get_default_static_attribute(Kind.ID).real_to_slot_value(c,
-            (RealStr(str(id)),)
+        return self._get_default_static_attribute(Kind.ID).real_to_slot_value(
+            c, (RealStr(str(id)),)
         )[0]
 
     def _task_real_name_to_slot(self, c: orm.Cursor, name: RealStr) -> SlotStr:
-        return self._get_default_static_attribute(Kind.NAME).real_to_slot_value(c,
-            (name,)
+        return self._get_default_static_attribute(Kind.NAME).real_to_slot_value(
+            c, (name,)
         )[0]
 
     def _task_real_aliases_to_slot_value(
         self, c: orm.Cursor, aliases: t.Sequence[RealStr]
     ) -> tuple[SlotStr, ...]:
-        return self._get_default_static_attribute(Kind.ALIAS).real_to_slot_value(c,
-            aliases
+        return self._get_default_static_attribute(Kind.ALIAS).real_to_slot_value(
+            c, aliases
         )
 
     def get_tasks(self, c: orm.Cursor) -> list[Task]:
-        return [
-            self._task_row_to_obj(data) for data in self._fetch_tasks_from_table(c)
-        ]
+        return [self._task_row_to_obj(data) for data in self._fetch_tasks_from_table(c)]
 
     def get_tasks_of_user(self, c: orm.Cursor, community_user_id: int) -> list[Task]:
         rows = c.fetch_all(
@@ -724,7 +739,9 @@ class List(BaseStructure):
         return self.get_tasks_by_id(c, *(row.task_id for row in rows))
 
     def get_tasks_by_id(self, c: orm.Cursor, id: int, /, *ids: int) -> list[Task]:
-        rows = self._fetch_tasks_from_table(c, (db.Task.id, orm.Operator.IN, (id, *ids)))
+        rows = self._fetch_tasks_from_table(
+            c, (db.Task.id, orm.Operator.IN, (id, *ids))
+        )
         return list(map(self._task_row_to_obj, rows))
 
     def get_single_task_by_id(self, c: orm.Cursor, id: int) -> Task | None:
@@ -736,8 +753,8 @@ class List(BaseStructure):
     def get_tasks_by_name(
         self, c: orm.Cursor, name: NormStr, /, *names: NormStr
     ) -> dict[SlotStr, Task]:
-        rows = self._fetch_tasks_from_table(c,
-            (db.Task.norm_name, orm.Operator.IN, (name, *names))
+        rows = self._fetch_tasks_from_table(
+            c, (db.Task.norm_name, orm.Operator.IN, (name, *names))
         )
         return {row.slot_name: self._task_row_to_obj(row) for row in rows}
 
@@ -745,9 +762,7 @@ class List(BaseStructure):
         self, c: orm.Cursor, alias: NormStr, /, *aliases: NormStr
     ) -> dict[SlotStr, Task]:
         rows = c.fetch_all(
-            db.TaskAlias.select(
-                db.TaskAlias.task_id, db.TaskAlias.slot_alias
-            ).where(
+            db.TaskAlias.select(db.TaskAlias.task_id, db.TaskAlias.slot_alias).where(
                 (db.TaskAlias.list_id, orm.Operator.EQ, self.id),
                 (db.TaskAlias.norm_alias, orm.Operator.IN, (alias, *aliases)),
             )
@@ -771,8 +786,12 @@ class List(BaseStructure):
             for slot_alias in task_id_to_slot_aliases[task.id]
         }
 
-    def get_tasks_by_syn(self, c: orm.Cursor, syn: NormStr, /, *syns: NormStr) -> dict[SlotStr, Task]:
-        return self.get_tasks_by_name(c, syn, *syns) | self.get_tasks_by_alias(c, syn, *syns)
+    def get_tasks_by_syn(
+        self, c: orm.Cursor, syn: NormStr, /, *syns: NormStr
+    ) -> dict[SlotStr, Task]:
+        return self.get_tasks_by_name(c, syn, *syns) | self.get_tasks_by_alias(
+            c, syn, *syns
+        )
 
     def get_single_task_by_syn(self, c: orm.Cursor, syn: NormStr, /) -> Task | None:
         for task in self.get_tasks_by_syn(c, syn).values():
@@ -780,7 +799,9 @@ class List(BaseStructure):
 
         return None
 
-    def _get_data_for_non_static_attribute_value_mapping[T: TaskAttribute | UserAttribute](
+    def _get_data_for_non_static_attribute_value_mapping[
+        T: TaskAttribute | UserAttribute
+    ](
         self,
         c: orm.Cursor,
         type: type[T],
@@ -814,7 +835,11 @@ class List(BaseStructure):
                     CommunityUserTaskAttributeValueTable.slot_slot,
                 )
                 .where(
-                    (CommunityUserTaskAttributeValueTable.list_id, orm.Operator.EQ, self.id),
+                    (
+                        CommunityUserTaskAttributeValueTable.list_id,
+                        orm.Operator.EQ,
+                        self.id,
+                    ),
                     (
                         CommunityUserTaskAttributeValueTable.community_user_id,
                         orm.Operator.EQ,
@@ -844,7 +869,7 @@ class List(BaseStructure):
     @t.overload
     def get_task_attribute_value_mappings(
         self,
-        c: orm.Cursor, 
+        c: orm.Cursor,
         community_user_id: None = ...,
         task_ids: t.Iterable[int] | None = ...,
         attribute_ids: dict[int, t.Iterable[int]] | None = ...,
@@ -859,7 +884,7 @@ class List(BaseStructure):
     @t.overload
     def get_task_attribute_value_mappings(
         self,
-        c: orm.Cursor, 
+        c: orm.Cursor,
         community_user_id: int,
         task_ids: t.Sequence[int] | None = ...,
         /,
@@ -872,7 +897,7 @@ class List(BaseStructure):
 
     def get_task_attribute_value_mappings(
         self,
-        c: orm.Cursor, 
+        c: orm.Cursor,
         community_user_id: int | None = None,
         task_ids: t.Iterable[int] | None = None,
         attribute_ids: dict[int, t.Iterable[int]] | None = None,
@@ -881,7 +906,9 @@ class List(BaseStructure):
         community_user: CommunityUser | None = None
 
         if community_user_id is not None:
-            community_user = self.community.get_community_user_by_id(c, community_user_id)
+            community_user = self.community.get_community_user_by_id(
+                c, community_user_id
+            )
 
             if community_user is None:
                 raise errors.StructureNotFoundError(CommunityUser)
@@ -904,7 +931,14 @@ class List(BaseStructure):
             if community_user is None:
                 return (
                     [],
-                    self._get_attributes_inner(c, (db.Attribute.type_id, orm.Operator.IN, tuple(type.type_id for type in ATTRIBUTE_TYPES_TO_HANDLE))),
+                    self._get_attributes_inner(
+                        c,
+                        (
+                            db.Attribute.type_id,
+                            orm.Operator.IN,
+                            tuple(type.type_id for type in ATTRIBUTE_TYPES_TO_HANDLE),
+                        ),
+                    ),
                     ATTRIBUTE_TYPES_TO_HANDLE,
                 )
 
@@ -946,16 +980,18 @@ class List(BaseStructure):
             )
 
         rows = c.fetch_all(
-            db.TaskAlias.select(
-                db.TaskAlias.slot_alias, db.TaskAlias.task_id
-            ).where((db.TaskAlias.list_id, orm.Operator.EQ, self.id))
+            db.TaskAlias.select(db.TaskAlias.slot_alias, db.TaskAlias.task_id).where(
+                (db.TaskAlias.list_id, orm.Operator.EQ, self.id)
+            )
         )
 
         task_id_to_aliases = itertools.groupby(rows, lambda row: row.task_id)
 
         for task_id, aliases in task_id_to_aliases:
             raw_data[task_id][StaticAttribute.type_id][aliases_attr.id] = (
-                self._task_real_aliases_to_slot_value(c, tuple(alias.slot_alias for alias in aliases))
+                self._task_real_aliases_to_slot_value(
+                    c, tuple(alias.slot_alias for alias in aliases)
+                )
             )
 
         # --- Task Attribute ---
@@ -992,9 +1028,9 @@ class List(BaseStructure):
 
             # .update or |= does NOT work because it only combines the most outer layer, while nested layers get overwritten!!
             for k, attr_type_dct in raw_data.items():
-                raw_data[k][UserAttribute.type_id] = user_attribute_data.get(
-                    k, {}
-                ).get(UserAttribute.type_id, {})
+                raw_data[k][UserAttribute.type_id] = user_attribute_data.get(k, {}).get(
+                    UserAttribute.type_id, {}
+                )
 
             del user_attribute_data
 
@@ -1158,7 +1194,9 @@ class List(BaseStructure):
         del task_id
 
         existing_tasks = {
-            k: v for k, v in self.get_tasks_by_syn(c, *norm_aliases).items() if v != task
+            k: v
+            for k, v in self.get_tasks_by_syn(c, *norm_aliases).items()
+            if v != task
         }
 
         if existing_tasks:
@@ -1295,7 +1333,7 @@ class List(BaseStructure):
 
     def _validate_attribute_syns(
         self,
-        c: orm.Cursor, 
+        c: orm.Cursor,
         type: type[BaseAttribute],
         norm_name: NormStr | None = None,
         norm_aliases: frozenset[NormStr] = frozenset(),

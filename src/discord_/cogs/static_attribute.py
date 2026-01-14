@@ -19,11 +19,11 @@ from structures.attribute.slot_str import SLOT_TYPES
 from structures.list import Kind, List
 from utils import text
 
-from ..utils_ import messaging, modal
+from ..utils_ import message, modal
 
 SlotTypeEnum = enum.Enum(
     "SlotTypeEnum",
-    [(messaging.slot_type_to_name(type), type) for type in SLOT_TYPES] + [],
+    [(message.slot_type_to_name(type), type) for type in SLOT_TYPES] + [],
 )
 
 
@@ -40,7 +40,7 @@ async def info(
     attr = list_obj.get_attribute(type, attribute)
 
     await interaction.response.send_message(
-        messaging.layout(
+        message.layout(
             "Attribute Info",
             text.join_t(
                 "\n",
@@ -48,14 +48,14 @@ async def info(
                     t"**{k:p}:** {v}"
                     for k, v in [
                         ("Name", attr.name),
-                        ("Type", attr._s.__class__.type_name),
-                        ("Slot Type", messaging.slot_type_to_name(attr.slot_type)),
+                        ("Type", attr._o.__class__.type_name),
+                        ("Slot Type", message.slot_type_to_name(attr.slot_type)),
                         ("Minimum Slot Count", attr.min_slots),
                         ("Maximum Slot Count", attr.max_slots),
                     ]
                 ),
             ),
-            message_status=messaging.MessageStatus.INFO,
+            message_status=message.MessageStatus.INFO,
         )
     )
 
@@ -68,13 +68,13 @@ async def browse(
     )
 
     await interaction.response.send_message(
-        messaging.layout(
+        message.layout(
             "All Attributes",
             Template(
                 "\n".join(f"- {attr.name}" for attr in list_obj.get_attributes(type))
                 or "None"
             ),
-            messaging.MessageStatus.INFO,
+            message.MessageStatus.INFO,
         )
     )
 
@@ -98,10 +98,10 @@ async def create(
     )
 
     await interaction.response.send_message(
-        messaging.layout(
+        message.layout(
             f"{type.type_name.title()} Created",
             t"The {type.type_name.lower()} {attr.name:,} has successfully been created!",
-            messaging.MessageStatus.SUCCESS,
+            message.MessageStatus.SUCCESS,
         )
     )
 
@@ -116,13 +116,13 @@ async def delete(
         InteractionAdapter(interaction), None, list
     )
 
-    attr_s = list_obj.get_attribute(type, syn)._s
+    attr_s = list_obj.get_attribute(type, syn)._o
 
     await modal.delete_structure_confirmation(
         interaction,
         type,
         attr_s.name,
-        lambda _: list_obj._s.delete_attribute(type, attr_s.id),
+        lambda _: list_obj._o.delete_attribute(type, attr_s.id),
     )
 
 
@@ -138,7 +138,8 @@ class StaticAttributeCog(cmds.GroupCog, group_name="static_attribute"):
         ]
 
     @acmds.command(description="Get information about a static attribute.")
-    async def info(self, interaction: dc.Interaction, static_attribute: StaticAttributesLiteral, list: str | None = None) -> None:  # type: ignore
+    @command.adapt
+    async def info(self, interaction: InteractionAdapter, static_attribute: StaticAttributesLiteral, list: str | None = None) -> None:  # type: ignore
         await info(interaction, StaticAttribute, static_attribute, list)
 
     @acmds.command(description="Browse all static attributes.")

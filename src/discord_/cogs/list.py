@@ -7,13 +7,13 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
-from discord_.utils_ import shortcuts
+from discord_.utils_ import command, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES
 from structures.list import List
 from utils import text
 from utils.rank import CommunityRank
 
-from ..utils_ import messaging, modal, predicate
+from ..utils_ import message, modal, predicate
 
 
 class ListCog(cmds.GroupCog, group_name="list"):
@@ -21,9 +21,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
         self.bot = bot
 
     @acmds.command(description="Show information about a list.")
-    async def info(self, interaction: dc.Interaction, list: str | None = None) -> None:
+    @command.adapt
+    async def info(self, ia: InteractionAdapter, list: str | None = None) -> None:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            InteractionAdapter(interaction), None, list
+            ia, None, list
         )
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
@@ -39,18 +40,19 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
         info.append(("Task Count", len(list_obj.get_tasks())))
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "List Info",
                 Template("\n".join(f"**{k}:** {v}" for k, v in info)),
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             )
         )
 
     @acmds.command(description="Browse all lists of the community.")
-    async def browse(self, interaction: dc.Interaction) -> None:
+    @command.adapt
+    async def browse(self, ia: InteractionAdapter) -> None:
         lists = shortcuts.get_current_community(
-            InteractionAdapter(interaction)
+            ia
         ).get_lists()
 
         listing: Template
@@ -60,41 +62,43 @@ class ListCog(cmds.GroupCog, group_name="list"):
         else:
             listing = t"None"
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "All Lists",
                 listing,
-                messaging.MessageStatus.INFO,
+                message.MessageStatus.INFO,
             )
         )
 
     @acmds.command(description="Create a new list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def create(self, interaction: dc.Interaction, list: str) -> None:
-        community = shortcuts.get_current_community(InteractionAdapter(interaction))
+    @command.adapt
+    async def create(self, ia: InteractionAdapter, list: str) -> None:
+        community = shortcuts.get_current_community(ia)
 
         new_list = community.create_list(list)
 
-        await interaction.response.send_message(
-            messaging.layout(
+        await ia.dc.response.send_message(
+            message.layout(
                 "List Created",
                 t"The list {new_list.name:,} has successfully been created!",
-                messaging.MessageStatus.SUCCESS,
+                message.MessageStatus.SUCCESS,
             )
         )
 
     @acmds.command(description="Delete an existing list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    async def nuke(self, interaction: dc.Interaction, list: str) -> None:
+    @command.adapt
+    async def nuke(self, ia: InteractionAdapter, list: str) -> None:
         list_s = (
-            shortcuts.get_current_community(InteractionAdapter(interaction))
+            shortcuts.get_current_community(ia)
             .get_list(list)
-            ._s
+            ._o
         )
 
         await modal.delete_structure_confirmation(
-            interaction,
+            ia.dc,
             List,
             list_s.name,
-            lambda _: list_s.community.delete_list(list_s.id),
+            lambda _: list_s.community.delete_list(ia._c, list_s.id),
         )
