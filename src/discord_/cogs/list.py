@@ -23,9 +23,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Show information about a list.")
     @command.adapt
     async def info(self, ia: InteractionAdapter, list: str | None = None) -> None:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            ia, None, list
-        )
+        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
 
@@ -51,9 +49,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Browse all lists of the community.")
     @command.adapt
     async def browse(self, ia: InteractionAdapter) -> None:
-        lists = shortcuts.get_current_community(
-            ia
-        ).get_lists()
+        lists = shortcuts.get_current_community(ia).get_lists()
 
         listing: Template
 
@@ -90,11 +86,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
     async def nuke(self, ia: InteractionAdapter, list: str) -> None:
-        list_s = (
-            shortcuts.get_current_community(ia)
-            .get_list(list)
-            ._o
-        )
+        list_s = shortcuts.get_current_community(ia).get_list(list)._o
 
         await modal.delete_structure_confirmation(
             ia.dc,

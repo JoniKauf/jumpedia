@@ -475,11 +475,10 @@ class List(BaseStructure):
 
         AttributeTable = db.Attribute
 
-        additional: tuple[orm.ColumnBind[t.Any, t.Any], ...] = ()
-
         execute_data = c.execute(
             AttributeTable.insert(
                 AttributeTable.list_id.bind(self.id),
+                AttributeTable.type_id.bind(type.type_id),
                 AttributeTable.norm_name.bind(norm_name),
                 AttributeTable.real_name.bind(real_name),
                 AttributeTable.slot_type.bind(SLOT_TYPES.index(slot_type)),

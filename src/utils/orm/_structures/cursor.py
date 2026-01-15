@@ -48,8 +48,6 @@ class Cursor:
         else:
             self._mariadb_cursor.execute(sql, data)
 
-        self._mariadb_cursor.close()
-
     @t.overload
     def execute(
         self,

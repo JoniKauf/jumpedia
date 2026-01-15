@@ -149,7 +149,9 @@ class ListAdapter(BaseStructureAdapter[List]):
         ]
 
     def get_task(self, syn: str) -> TaskAdapter:
-        return TaskAdapter(_require_task_with_syn(self._c, text.NormStr(syn), self._o), self)
+        return TaskAdapter(
+            _require_task_with_syn(self._c, text.NormStr(syn), self._o), self
+        )
 
     def create_task(
         self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
@@ -160,8 +162,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         attributes = {
             text.NormStr(k): v
             for k, v in self._o.get_attribute_alias_mappings_of_type(
-                self._c,
-                TaskAttribute
+                self._c, TaskAttribute
             ).items()
         }
 
@@ -218,7 +219,10 @@ class ListAdapter(BaseStructureAdapter[List]):
     # --- Attribute ---
 
     def get_attributes_flat(self) -> list[AnyAttributeAdapterT]:
-        return [_get_attribute_adapter(attr, self) for attr in self._o.get_attributes(self._c)]
+        return [
+            _get_attribute_adapter(attr, self)
+            for attr in self._o.get_attributes(self._c)
+        ]
 
     @t.overload
     def get_attributes(
@@ -273,7 +277,9 @@ class ListAdapter(BaseStructureAdapter[List]):
     def get_attribute(
         self, type: type[AnyAttributeT], syn: str
     ) -> AnyAttributeAdapterT:
-        attribute = _require_attribute_with_syn(self._c, text.NormStr(syn), type, self._o)
+        attribute = _require_attribute_with_syn(
+            self._c, text.NormStr(syn), type, self._o
+        )
 
         return _get_attribute_adapter(attribute, self)
 
@@ -371,7 +377,9 @@ class ListAdapter(BaseStructureAdapter[List]):
             avm = {}
 
         try:
-            self._o.give_task_to_community_user(self._c, task_s.id, community_user._o.id, avm)
+            self._o.give_task_to_community_user(
+                self._c, task_s.id, community_user._o.id, avm
+            )
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRange(e)
         except CollectionEntryNotFoundError as e:
@@ -390,7 +398,9 @@ class ListAdapter(BaseStructureAdapter[List]):
         task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
 
         try:
-            self._o.remove_task_from_community_user(self._c, task_s.id, community_user._o.id)
+            self._o.remove_task_from_community_user(
+                self._c, task_s.id, community_user._o.id
+            )
         except CommunityUserDoesNotHaveTaskError:
             raise FeedbackError(
                 "Task Not Given Yet",

@@ -1,16 +1,17 @@
+import typing as t
 from string.templatelib import Template
+from types import CoroutineType
 
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
-from discord_.utils_ import command, message
 from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from ..utils_ import modal, predicate, shortcuts
+from ..utils_ import command, message, modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -19,7 +20,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @acmds.command(description="Show information about the community.")
     @command.adapt
-    async def info(self, ia: InteractionAdapter) -> None:
+    async def info(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
         default_selected_list = community.get_default_selected_list(None)
@@ -27,7 +28,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             default_selected_list.name if default_selected_list is not None else "None"
         )
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Community Info",
                 text.join_t(
@@ -48,7 +49,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @acmds.command(description="Browse all communities.")
     @command.adapt
-    async def browse(self, ia: InteractionAdapter) -> None:
+    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         communities = ia.jumpedia.get_communities()
 
         listing: Template
@@ -58,7 +59,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         else:
             listing = t"None"
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "All Communities",
                 listing,
@@ -74,12 +75,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         ia: InteractionAdapter,
         community_name: str,
         initial_list_name: str | None = None,
-    ) -> None:
+    ) -> CoroutineType[None, None, t.Any]:
         jumpedia = ia.jumpedia
 
         community = jumpedia.create_community(community_name, initial_list_name)
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Community Created",
                 t"The community {community.name:,} was successfully created and is now connected to this server!",
@@ -90,10 +91,10 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.command(description="Delete a community.")
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
     @command.adapt
-    async def nuke(self, ia: InteractionAdapter) -> None:
+    async def nuke(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
-        await modal.delete_structure_confirmation(
+        return modal.delete_structure_confirmation(
             ia._o,
             Community,
             community._o.name,
@@ -103,10 +104,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.command(description="Connect a community to this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
     @command.adapt
-    async def connect(self, ia: InteractionAdapter, community_name: str) -> None:
+    async def connect(
+        self, ia: InteractionAdapter, community_name: str
+    ) -> CoroutineType[None, None, t.Any]:
         community = ia.jumpedia.add_community_to_current_server(community_name)
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Community Connected",
                 t"This server has successfully been connected to the community {community.name:,}!",
@@ -117,10 +120,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.command(description="Disconnect a community from this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
     @command.adapt
-    async def disconnect(self, ia: InteractionAdapter) -> None:
+    async def disconnect(
+        self, ia: InteractionAdapter
+    ) -> CoroutineType[None, None, t.Any]:
         community = ia.jumpedia.remove_community_from_current_server()
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Community Disconnected",
                 t"The community {community.name:,} has successfully been disconnected from this server!",
@@ -183,7 +188,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     async def set_default_selected_list(
         self, interaction: dc.Interaction, list: str | None = None
-    ) -> None:
+    ) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(InteractionAdapter(interaction))
 
         if list is not None:
@@ -193,7 +198,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
         community.set_default_selected_list(selected_list)
 
-        await interaction.response.send_message(
+        return interaction.response.send_message(
             message.layout(
                 "Default Selected List Set",
                 (

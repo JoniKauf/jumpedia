@@ -4,6 +4,9 @@ import os
 import time
 import typing as t
 
+import mariadb
+
+from adapters.interaction import _THE_ONE_PIECE
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits
@@ -21,9 +24,9 @@ JUMP_DATA_PATH = os.path.join(DATA_PATH, "jump_data.json")
 USER_JUMPS = os.path.join(DATA_PATH, "user_jumps")
 
 
-def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
+def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, AnyAttributeT]:
     old_to_new: dict[str, AnyAttributeT] = {
-        "name": list.get_static_attribute_by_kind(Kind.NAME)
+        "name": list.get_static_attribute_by_kind(c, Kind.NAME)
     }
 
     diff_collection: builtins.list[tuple[RealStr, t.Iterable[RealStr]]] = []
@@ -79,7 +82,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
         diff_collection.append((RealStr(diff), map(RealStr, aliases)))
 
     if not unproven:
-        old_to_new["diff"] = list.create_attribute(
+        old_to_new["diff"] = list.create_attribute(c, 
             TaskAttribute,
             RealStr("Difficulty"),
             map(RealStr, ["Diff", "Dif", "D", "Difficult"]),
@@ -90,7 +93,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
 
     del diff_collection
 
-    old_to_new["type"] = list.create_attribute(
+    old_to_new["type"] = list.create_attribute(c, 
         TaskAttribute,
         RealStr("Type"),
         map(RealStr, ["T", "Ty"]),
@@ -134,7 +137,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
 
         loc_collection.append((RealStr(loc), map(RealStr, aliases)))
 
-    old_to_new["location"] = list.create_attribute(
+    old_to_new["location"] = list.create_attribute(c, 
         TaskAttribute,
         RealStr("Location"),
         map(RealStr, ["L", "Loc", "Kingdom", "K"]),
@@ -152,7 +155,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
     }
 
     for ftp in ["Finder", "Taser", "Prover"]:
-        old_to_new[ftp.lower()] = list.create_attribute(
+        old_to_new[ftp.lower()] = list.create_attribute(c, 
             TaskAttribute,
             RealStr(ftp),
             map(RealStr, ftp_to_aliases[ftp]),
@@ -160,7 +163,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
             32,
         )
 
-    old_to_new["server"] = list.create_attribute(
+    old_to_new["server"] = list.create_attribute(c, 
         TaskAttribute,
         RealStr("Server"),
         map(RealStr, ["S"]),
@@ -182,11 +185,11 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
         ),
     )
 
-    old_to_new["links"] = list.create_attribute(
+    old_to_new["links"] = list.create_attribute(c, 
         TaskAttribute, RealStr("Link"), map(RealStr, ["Links"]), str, 32
     )
 
-    old_to_new["extra"] = list.create_attribute(
+    old_to_new["extra"] = list.create_attribute(c, 
         TaskAttribute,
         RealStr("Description"),
         map(RealStr, ["I", "Info", "Desc", "Information", "Extra", "E"]),
@@ -195,7 +198,7 @@ def create_attributes(list: List, unproven: bool) -> dict[str, AnyAttributeT]:
     )
 
     if not unproven:
-        old_to_new["proof"] = list.create_attribute(
+        old_to_new["proof"] = list.create_attribute(c, 
             UserAttribute, RealStr("Proof"), (), str, 1
         )
 
@@ -231,14 +234,14 @@ def _split_up(v: list[str], c: str) -> list[str]:
 
 
 def create_tasks(
-    list: List, old_to_new_attributes: dict[str, AnyAttributeT], unproven: bool
+    c: orm.Cursor, list: List, old_to_new_attributes: dict[str, AnyAttributeT], unproven: bool
 ) -> list[Task]:
     with open(JUMP_DATA_PATH) as f:
         jump_data: dict[str, dict[str, str | builtins.list[str]]] = json.load(f)
 
     tasks: builtins.list[Task] = []
 
-    i: int = 0
+    # i: int = 0
 
     for jump in jump_data.values():
         tavm: dict[int, t.Sequence[RealStr]] = {}
@@ -248,7 +251,7 @@ def create_tasks(
         if unproven != (jump["diff"] == "Unproven"):
             continue
 
-        i += 1
+        # i += 1
 
         for old_attr_name, v in jump.items():
             if old_attr_name == "tier":
@@ -273,17 +276,17 @@ def create_tasks(
 
         assert name
 
-        tasks.append(list.create_task(name, (), tavm))
+        tasks.append(list.create_task(c, name, (), tavm))
 
-        if i % 10 == 0:
-            time.sleep(1)
-            print(f"{i} tasks inserted!")
+        # if i % 10 == 0:
+        #     time.sleep(1)
+        #     print(f"{i} tasks inserted!")
 
     return tasks
 
 
 def give_jumps_to_users(
-    list: List, proof_attr: UserAttribute, tasks: dict[NormStr, Task]
+    c: orm.Cursor, list: List, proof_attr: UserAttribute, tasks: dict[NormStr, Task]
 ) -> None:
     all_file_names = os.listdir(USER_JUMPS)
 
@@ -295,8 +298,8 @@ def give_jumps_to_users(
 
         user_id: int = int(file_name.removesuffix(".json"))
 
-        community_user = list.community.get_or_create_community_user(
-            list.community.jumpedia.get_or_create_jumpedia_user(
+        community_user = list.community.get_or_create_community_user(c, 
+            list.community.jumpedia.get_or_create_jumpedia_user(c, 
                 user_id, str(user_id), JumpediaRank.DEFAULT, False, False
             ),
             CommunityRank.DEFAULT,
@@ -320,7 +323,7 @@ def give_jumps_to_users(
 
             proof = data.get("proof", None)
 
-            list.give_task_to_community_user(
+            list.give_task_to_community_user(c, 
                 task.id,
                 community_user.id,
                 {proof_attr.id: [RealStr(proof)]} if proof else {},
@@ -335,47 +338,55 @@ def main():
     input("WARNING!!!!!!! DATABASE WILL BE WIPED!!!! ARE YOU SURE???????")
     input("VERY SURE??")
 
-    time.sleep(3)
-
     input("FINAL QUESTION: ARE U SURE??????")
 
     print("ok...")
 
     time.sleep(0.5)
 
-    CONNECTOR = orm.Connector(**secret.listen().DATABASE_CONNECTION_DATA)
+    # while True:
+    #     input("Locked rn!")
 
-    while True:
-        input("Locked rn!")
+    if input("If you are 100% sure (NO GOING BACK) then enter 'yes': ") != 'yes':
+        print("Aborted!")
+        exit()
+        
+    META_C = orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA | {'db': None}), conn.cursor(dictionary=True))
+    DATABASE_NAME = 'jumpedia'
 
-    with CONNECTOR.cursor() as c:
-        c.raw_execute(f"DROP SCHEMA {CONNECTOR.database_name}")
+    
 
-    db.create_database(_JUMPEDIA)
+    META_C.raw_execute(f"DROP SCHEMA {DATABASE_NAME}")
+    get_c = lambda: orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA), conn.cursor(dictionary=True))
+    
+    db.create_database(_THE_ONE_PIECE, DATABASE_NAME, META_C, get_c)
 
-    community = _JUMPEDIA.create_community(
+    C = get_c()
+
+    community = _THE_ONE_PIECE.create_community(
+        C,
         RealStr("SMO Trickjumping"),
         469869605570084886,
-        _JUMPEDIA.get_or_create_jumpedia_user(
+        _THE_ONE_PIECE.get_or_create_jumpedia_user(C,
             679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
         ),
         CommunityLimits(32, 32, _32_BIT_INTEGER_LIMIT, 32, 32, 1024, 32),
     )
 
-    main_list = community.create_list(RealStr("Main"))
+    main_list = community.create_list(C, RealStr("Main"))
 
-    community.set_default_selected_list(main_list.id)
+    community.set_default_selected_list(C, main_list.id)
 
-    unproven_list = community.create_list(RealStr("Unproven"))
+    unproven_list = community.create_list(C, RealStr("Unproven"))
 
     print("Creating attributes...")
-    OLD_TO_NEW_ATTRS = create_attributes(main_list, False)
-    OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(unproven_list, True)
+    OLD_TO_NEW_ATTRS = create_attributes(C, main_list, False)
+    OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(C, unproven_list, True)
     print("Created attributes!")
 
     print("Creating tasks...")
-    TASKS = create_tasks(main_list, OLD_TO_NEW_ATTRS, False)
-    _ = create_tasks(unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
+    TASKS = create_tasks(C, main_list, OLD_TO_NEW_ATTRS, False)
+    _ = create_tasks(C, unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
     print("Created tasks!")
 
     proof_attr: UserAttribute = OLD_TO_NEW_ATTRS["proof"]  # type: ignore
@@ -392,7 +403,7 @@ def main():
     # TASKS = main_list.get_tasks()
 
     print("Giving users tasks...")
-    give_jumps_to_users(main_list, proof_attr, {task.norm_name: task for task in TASKS})
+    give_jumps_to_users(C, main_list, proof_attr, {task.norm_name: task for task in TASKS})
     print("Gave users tasks!")
 
     # print("Giving users tasks...")
@@ -402,5 +413,5 @@ def main():
     # print("Gave users tasks!")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+main()

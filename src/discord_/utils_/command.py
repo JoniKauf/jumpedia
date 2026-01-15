@@ -1,10 +1,14 @@
 import functools
 import inspect
 import typing as t
+from traceback import print_exc
 from types import CoroutineType
 
 import discord as dc
+import mariadb
 from discord.ext import commands as cmds
+
+from adapters import errors
 
 if t.TYPE_CHECKING:
     from adapters.interaction import InteractionAdapter
@@ -12,7 +16,8 @@ if t.TYPE_CHECKING:
 
 def adapt[T: cmds.Cog, **P](
     func: t.Callable[
-        t.Concatenate[T, InteractionAdapter, P], CoroutineType[None, None, None]
+        t.Concatenate[T, InteractionAdapter, P],
+        CoroutineType[None, None, CoroutineType[None, None, t.Any]],
     ],
 ) -> t.Callable[t.Concatenate[T, dc.Interaction, P], CoroutineType[None, None, None]]:
     @functools.wraps(func)
@@ -23,13 +28,16 @@ def adapt[T: cmds.Cog, **P](
 
         ia = InteractionAdapter(interaction)
 
-        await func(self, ia, *args, **kwargs)
+        success = await func(self, ia, *args, **kwargs)
 
-        input("commiting")
-        if not ia._c._mariadb_connection.autocommit:
-            ia._c.commit()
-            input("commited")
+        try:
+            if not ia._c._mariadb_connection.autocommit:
+                ia._c.commit()
 
-        ia._c._mariadb_cursor.close()
+            ia._c._mariadb_cursor.close()
+        except mariadb.Error:
+            raise errors.DatabaseError()
+
+        await success
 
     return decorated

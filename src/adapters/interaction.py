@@ -30,7 +30,7 @@ def is_joni(interaction: dc.Interaction) -> bool:
     return interaction.user.id == 679564566769827841
 
 
-_CONN: mariadb.Connection = None  # type: ignore
+_CONN: mariadb.Connection | None = None
 
 
 def _get_connection(*, meta: bool = False) -> mariadb.Connection:
@@ -41,12 +41,14 @@ def _get_connection(*, meta: bool = False) -> mariadb.Connection:
 
     global _CONN
 
-    try:
-        _CONN._check_closed()
-    except (mariadb.Error, AttributeError):
-        pass
-    else:
-        return _CONN
+    if _CONN is not None:
+        if _CONN.open:
+            return _CONN
+
+        try:
+            _CONN.close()
+        except mariadb.ProgrammingError:
+            pass
 
     wait: float = 0.01
     TRIES = 6

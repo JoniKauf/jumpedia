@@ -53,7 +53,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
 
         try:
             comm = self._o.create_community(
-                self._c, 
+                self._c,
                 name=text.RealStr(name),
                 server_id=self.interaction.current_server.id,
                 creator=jumpedia_user._o,

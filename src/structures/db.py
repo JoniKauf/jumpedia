@@ -359,6 +359,10 @@ def create_database(
     """
     )
 
+    meta_c.commit()
+    meta_c._mariadb_cursor.close()
+    meta_c._mariadb_connection.close()
+
     del meta_c
 
     from structures import attribute
@@ -708,3 +712,6 @@ def create_database(
         raise e
     else:
         print("Jumpedia database successfully created!")
+        
+        c.commit()
+        c._mariadb_cursor.close()

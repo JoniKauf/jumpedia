@@ -65,7 +65,7 @@ async def on_app_command_error(
     else:
         e = error
 
-    if not interaction.response.is_done():
+    if interaction.response.is_done():
         await interaction.response.defer()
 
     if (
@@ -88,18 +88,8 @@ async def on_app_command_error(
         return
 
     if DEV_MODE:
-        await interaction.followup.send(f"Unhandled Exception!\n{error.args}")
+        await interaction.followup.send(f"Unhandled Exception!\n{e.args}")
         raise e
-
-    if isinstance(e, mariadb.Error):
-        await interaction.followup.send(
-            message.layout(
-                "Unhandled Database Error",
-                t"An unknown database error occurred. Please try again!",
-                message.MessageStatus.ERROR,
-            )
-        )
-        return
 
     await interaction.followup.send(
         message.layout(

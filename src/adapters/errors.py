@@ -84,6 +84,15 @@ class FeedbackError(BaseUserReturnableError):
         )
 
 
+class DatabaseError(FeedbackError):
+    def __init__(self):
+        super().__init__(
+            "Database Error",
+            t"An error occurred while trying to access or change data in the internal database!",
+            additional=t"Try again and if it still doesn't work, try again later.",
+        )
+
+
 class StructureNotFoundViaSyn(FeedbackError):
     def __init__(
         self, syn: str, structure_type: type[BaseStructure], only_name: bool = False

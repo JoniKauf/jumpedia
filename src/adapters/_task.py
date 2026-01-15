@@ -42,6 +42,6 @@ class TaskAdapter(BaseStructureAdapter[Task]):
     def get_attribute_value_mapping(
         self, community_user: CommunityUserAdapter | None = None, /
     ) -> AttributeValueMapping | UserAttributeValueMapping:
-        return self._o.get_attribute_value_mapping(self._c,
-            None if community_user is None else community_user._o.id
+        return self._o.get_attribute_value_mapping(
+            self._c, None if community_user is None else community_user._o.id
         )

@@ -51,19 +51,16 @@ class CommunityUser(BaseStructure):
 
         return self.community._list_row_to_obj(row)
 
-    def set_selected_list(self, id: int | None) -> None:
-        with self.connector.cursor() as c:
-            execute_data = c.execute(
-                db.CommunityUser.update(
-                    db.CommunityUser.selected_list_id.set(id)
-                ).where(
-                    (db.CommunityUser.community_id, orm.Operator.EQ, self.community.id),
-                    (db.CommunityUser.id, orm.Operator.EQ, self.id),
-                ),
-                get_affected_row_count=True,
-            )
+    def set_selected_list(self, c: orm.Cursor, id: int | None, /) -> None:
+        execute_data = c.execute(
+            db.CommunityUser.update(db.CommunityUser.selected_list_id.set(id)).where(
+                (db.CommunityUser.community_id, orm.Operator.EQ, self.community.id),
+                (db.CommunityUser.id, orm.Operator.EQ, self.id),
+            ),
+            get_affected_row_count=True,
+        )
 
-            assert execute_data.affected_row_count <= 1
+        assert execute_data.affected_row_count <= 1
 
-            if execute_data.affected_row_count < 1:
-                raise errors.StructureNotFoundError(CommunityUser)
+        if execute_data.affected_row_count < 1:
+            raise errors.StructureNotFoundError(CommunityUser)

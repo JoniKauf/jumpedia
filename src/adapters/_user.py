@@ -252,8 +252,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         else:
             selected_list = ListAdapter(
                 _community._require_list_with_name(
-                    self._c,
-                    text.NormStr(list), self.community._o
+                    self._c, text.NormStr(list), self.community._o
                 ),
                 self.community,
             )

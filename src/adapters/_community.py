@@ -43,7 +43,9 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         return [ListAdapter(list, self) for list in self._o.get_lists(self._c)]
 
     def get_list(self, name: str) -> ListAdapter:
-        return ListAdapter(_require_list_with_name(self._c, text.NormStr(name), self._o), self)
+        return ListAdapter(
+            _require_list_with_name(self._c, text.NormStr(name), self._o), self
+        )
 
     def create_list(self, name: str) -> ListAdapter:
         try:
