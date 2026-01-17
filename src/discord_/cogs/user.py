@@ -3,9 +3,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters._community import CommunityAdapter
-from adapters._list import ListAdapter
 from adapters._user import UserAdapter
-from adapters.errors import FeedbackError, ServerNotConnectedToACommunity
 from adapters.interaction import InteractionAdapter
 from discord_.utils_ import message, shortcuts
 from utils import text
@@ -32,7 +30,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         NOT_IN_COMMUNITY = "<Not executed in a community>"
 
-        community_s = jumpedia._o.get_community_by_server_id(ia.current_server.id)
+        community_s = jumpedia._o.get_community_by_server_id(ia._c, ia.current_server.id)
         community_user = (
             shortcuts.get_or_create_specified_or_current_community_user(
                 CommunityAdapter(community_s, jumpedia), jumpedia_user
@@ -91,7 +89,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
         ia = InteractionAdapter(interaction)
 
         jumpedia = ia.jumpedia
-        community = jumpedia.get_current_community()
+        community = jumpedia.get()
 
         set_community_user = community.get_or_create_community_user(
             jumpedia.get_or_create_jumpedia_user_or_current(

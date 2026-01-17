@@ -709,3 +709,6 @@ def create_database(
         raise e
     else:
         print("Jumpedia database successfully created!")
+
+    c.commit()
+    c._mariadb_cursor.close()

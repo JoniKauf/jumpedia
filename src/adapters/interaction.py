@@ -86,9 +86,6 @@ _THE_ONE_PIECE: Jumpedia = Jumpedia(
     get_c=lambda: _get_cursor_adapter(),
 )
 
-_META_C.commit()
-_META_C._mariadb_cursor.close()
-_META_C._mariadb_connection.close()
 del _META_C
 
 
@@ -112,7 +109,7 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
 
     # CACHE CURSOR; WE WANT THE SAME OBJECT!!
     @cached_property
-    def _c(self) -> orm.Cursor:
+    def _c(self) -> orm.Cursor:  # type: ignore
         return _get_cursor_adapter()
 
     @cached_property
