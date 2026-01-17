@@ -2,6 +2,7 @@ import decimal
 import typing as t
 from decimal import Decimal
 
+from structures.jumpedia import JumpediaLimits
 from utils import text
 
 from .. import errors
@@ -39,11 +40,11 @@ def is_valid_number(v: object) -> bool:
 
 class SlotStr(text.RealStr):
     def __new__(
-        cls, s: text.RealStr, type: type[SlotTypeT], jumpedia: Jumpedia
+        cls, s: text.RealStr, type: type[SlotTypeT], limits: JumpediaLimits
     ) -> t.Self:
         # String is definitely used most often, so check it first
         if issubclass(type, str):
-            if len(s) > jumpedia.limits.attribute_task_value_slot_length_max:
+            if len(s) > limits.attribute_task_value_slot_length_max:
                 raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s)
@@ -84,10 +85,10 @@ class SlotStr(text.RealStr):
         t.assert_never(type)
 
     def __init__(
-        self, s: text.RealStr, type: type[SlotTypeT], jumpedia: Jumpedia
+        self, s: text.RealStr, type: type[SlotTypeT], limits: JumpediaLimits
     ) -> None:
         self.type = type
-        self.jumpedia = jumpedia
+        self.limits = limits
         super().__init__()
 
 

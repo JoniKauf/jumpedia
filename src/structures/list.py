@@ -151,8 +151,8 @@ class List(BaseStructure):
         return found_type(
             list=self,
             id=row.id,
-            real_name=row.real_name,
-            norm_name=row.norm_name,
+            real_name=text.RealStr(row.real_name, check=False),
+            norm_name=text.NormStr(row.norm_name, check=False),
             slot_type=SLOT_TYPES[row.slot_type],
             position=row.position,
             min_slots=row.min_slots,
@@ -203,17 +203,17 @@ class List(BaseStructure):
         if not rows:
             return {}
 
-        attr_id_to_real_aliases: dict[int, tuple[text.RealStr, ...]] = {
-            attr_id: tuple(row.real_alias for row in rows)
+        attr_id_RealStr_aliases: dict[int, tuple[text.RealStr, ...]] = {
+            attr_id: tuple(text.RealStr(row.real_alias, check=False) for row in rows)
             for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
-        attrs = self.get_attributes_of_type_by_id(c, type, *attr_id_to_real_aliases)
+        attrs = self.get_attributes_of_type_by_id(c, type, *attr_id_RealStr_aliases)
 
         return {
             real_alias: attr
             for attr in attrs
-            for real_alias in attr_id_to_real_aliases[attr.id]
+            for real_alias in attr_id_RealStr_aliases[attr.id]
         }
 
     def get_attributes_of_type_by_syn[T: AnyAttributeT](
@@ -283,17 +283,17 @@ class List(BaseStructure):
         if not rows:
             return {}
 
-        attr_id_to_real_aliases: dict[int, tuple[text.RealStr, ...]] = {
-            attr_id: tuple(row.real_alias for row in rows)
+        attr_id_RealStr_aliases: dict[int, tuple[text.RealStr, ...]] = {
+            attr_id: tuple(text.RealStr(row.real_alias, check=False) for row in rows)
             for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
-        attrs = self.get_attributes_by_id(c, *attr_id_to_real_aliases)
+        attrs = self.get_attributes_by_id(c, *attr_id_RealStr_aliases)
 
         return {
             real_alias: attr
             for attr in attrs
-            for real_alias in attr_id_to_real_aliases[attr.id]
+            for real_alias in attr_id_RealStr_aliases[attr.id]
         }
 
     def get_attributes_by_syn(
@@ -338,7 +338,7 @@ class List(BaseStructure):
         )
 
         attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
-            k: tuple(r.real_alias for r in g)
+            k: tuple(text.RealStr(r.real_alias, check=False) for r in g)
             for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
@@ -368,7 +368,7 @@ class List(BaseStructure):
         )
 
         attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
-            k: tuple(r.real_alias for r in g)
+            k: tuple(text.RealStr(r.real_alias, check=False) for r in g)
             for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
@@ -1265,7 +1265,7 @@ class List(BaseStructure):
 
     def _task_row_to_obj(self, row: db.Task) -> Task:
         return Task(
-            list=self, id=row.id, slot_name=row.slot_name, norm_name=row.norm_name
+            list=self, id=row.id, slot_name=row.slot_name, norm_name=text.NormStr(row.norm_name, check=False)
         )
 
     def _insert_task_aliases(

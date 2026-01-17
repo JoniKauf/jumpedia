@@ -6,26 +6,18 @@ from structures.community import StaticAttribute
 from structures.list import TaskAttribute, UserAttribute
 from utils import orm, text
 
-from . import BaseAdapter
+from . import BaseStructureAdapter
 
 if t.TYPE_CHECKING:
     from ._list import ListAdapter
 
 
-class AttributeAdapter[T: BaseAttribute](BaseAdapter[T]):
+class BaseAttributeAdapter[T: BaseAttribute](BaseStructureAdapter[T]):
     list: ListAdapter
 
     @property
     def _c(self) -> orm.Cursor:
         return self.list._c
-
-    @property
-    def id(self) -> int:
-        return self._o.id
-
-    @property
-    def name(self) -> text.RealStr:
-        return self._o.real_name
 
     @property
     def slot_type(self) -> type[SlotTypeT]:
@@ -47,15 +39,15 @@ class AttributeAdapter[T: BaseAttribute](BaseAdapter[T]):
 type AnyAttributeAdapterT = StaticAttributeAdapter | TaskAttributeAdapter | UserAttributeAdapter
 
 
-class StaticAttributeAdapter(AttributeAdapter[StaticAttribute]):
+class StaticAttributeAdapter(BaseAttributeAdapter[StaticAttribute]):
     @property
     def kind(self) -> int:
         return self._o.kind
 
 
-class TaskAttributeAdapter(AttributeAdapter[TaskAttribute]):
+class TaskAttributeAdapter(BaseAttributeAdapter[TaskAttribute]):
     pass
 
 
-class UserAttributeAdapter(AttributeAdapter[UserAttribute]):
+class UserAttributeAdapter(BaseAttributeAdapter[UserAttribute]):
     pass

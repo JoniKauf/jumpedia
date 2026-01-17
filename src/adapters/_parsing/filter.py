@@ -5,19 +5,21 @@ from dataclasses import dataclass
 from string.templatelib import Template
 from types import EllipsisType, MappingProxyType
 
-from adapters.errors import FeedbackError
+from adapters import errors
+from adapters.errors import FeedbackError, StructureNotFoundViaSyn
 from discord_.utils_.message import MessageStatus
-from structures.attribute import AnyAttributeT
+from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection, CollectionEntry
 from structures.attribute.slot_str import SlotStr, SlotTypeT
+from structures.errors import CollectionEntryNotFoundError
 from structures.task.attribute_value_mapping import AttributeValueMapping
-from utils.text import NormStr
+from utils import orm
+from utils.text import NormStr, RealStr
 
 
-class FilterSyntaxFeedbackError(FeedbackError):
+class FilterError(FeedbackError):
     def __init__(
         self,
-        header: str,
         core: Template,
         *,
         additional: Template | None = None,
@@ -27,7 +29,7 @@ class FilterSyntaxFeedbackError(FeedbackError):
         explicit_message_status: MessageStatus | None = None,
     ):
         super().__init__(
-            f"Filter Syntax Error: {header}",
+            f"Filter Syntax Error",
             core,
             additional=additional,
             related_documentation=related_documentation,
@@ -37,18 +39,14 @@ class FilterSyntaxFeedbackError(FeedbackError):
         )
 
 
-class ExpectedButFoundFeedbackError(FilterSyntaxFeedbackError):
-    def __init__(
-        self, expected_header: str, expected_full: Template, but_found: Token
-    ) -> None:
-        super().__init__(
-            f"{expected_header} Expected",
-            t"Expected "
-            + expected_full
-            + t", but found "
-            + TOKEN_TO_ERR_DESCRIPTION[but_found.type](but_found)
-            + t" instead!",
-        )
+def expected_but_found_error(expected_full: Template, but_found: Token) -> FilterError:
+    return FilterError(
+        t"Expected "
+        + expected_full
+        + t", but found "
+        + TOKEN_TO_ERR_DESCRIPTION[but_found.type](but_found)
+        + t" instead!",
+    )
 
 
 class TokenType(enum.Enum):
@@ -128,8 +126,7 @@ def tokenize(s: str) -> t.Generator[Token]:
             for c in it:
                 if escape:
                     if c not in ("\\", quote):
-                        raise FilterSyntaxFeedbackError(
-                            "Invalid Escape Sequence",
+                        raise FilterError(
                             t"The escape sequence {'\\' + c:,} is invalid!",
                             additional=t"The only characters allowed to be escaped (= put after a `\\`) are {('\\', quote):&}.",
                         )
@@ -146,8 +143,7 @@ def tokenize(s: str) -> t.Generator[Token]:
                 else:
                     string.append(c)
             else:
-                raise FilterSyntaxFeedbackError(
-                    "Unclosed Quotation Mark",
+                raise FilterError(
                     t"The quoted string {''.join(string) if string else ' ':,} was never closed!",
                 )
 
@@ -291,11 +287,16 @@ class TokenStream:
 def parse_op(ts: TokenStream) -> Op:
     op = next(ts)
 
-    if op.type is not TokenType.OP:
-        raise ExpectedButFoundFeedbackError("Operator", t"an operator ({OPS:,})", op)
+    ERROR = expected_but_found_error(t"an operator ({OPS:,})", op)
 
+    if op.type is not TokenType.OP:
+        raise ERROR
+    
     op_type = OP_STR_TO_NODE_TYPE[op.string]
 
+    if op_type is IsNot:
+        raise ERROR
+    
     if (
         op_type is Is
         and (nxt := ts.peek())
@@ -312,8 +313,8 @@ def parse_comparison(ts: TokenStream) -> Comparison:
     attr = next(ts)
 
     if attr.type is not TokenType.STR:
-        raise ExpectedButFoundFeedbackError(
-            "Attribute", t"the name or alias of an attribute", attr
+        raise expected_but_found_error(
+            t"the name or alias of an attribute", attr
         )
 
     op = parse_op(ts)
@@ -324,8 +325,8 @@ def parse_comparison(ts: TokenStream) -> Comparison:
     elif v.type is TokenType.UNDERSCORE:
         val = Val(...)
     else:
-        raise ExpectedButFoundFeedbackError(
-            "Value", t"a value to be compared against", v
+        raise expected_but_found_error(
+            t"a value to be compared against", v
         )
 
     return Comparison(Attr(attr.string), op, val)
@@ -341,8 +342,8 @@ def parse_atom(ts: TokenStream) -> Comparison | BoolExpr:
         tok = next(ts)
 
         if tok.type is not TokenType.RPAREN:
-            raise ExpectedButFoundFeedbackError(
-                "Closing Parenthesis", t"a closing parenthesis ({')':,})", tok
+            raise expected_but_found_error(
+                t"a closing parenthesis ({')':,})", tok
             )
 
         return expr
@@ -384,39 +385,39 @@ def transform(iterable: t.Iterable[Token]) -> Comparison | BoolExpr:
     first = next(ts)
 
     if first.type is not TokenType.START:
-        raise ExpectedButFoundFeedbackError("Start", t"the start", first)
+        raise expected_but_found_error(t"the start", first)
 
     expr = parse_or(ts)
 
     end = ts.peek()
 
     if end.type is not TokenType.END:
-        raise ExpectedButFoundFeedbackError("End", t"the end", end)
+        raise expected_but_found_error(t"the end", end)
 
     return expr
 
 
-class FilterCache:
+class _FilterCache:
     def __init__(self) -> None:
         self._norm_str_from_str_cache: dict[SlotStr, NormStr] = {}
         self._slot_type_cache: dict[tuple[AnyAttributeT, NormStr], SlotTypeT] = {}
         self._collection_cache: dict[AnyAttributeT, Collection] = {}
         self._collection_entry_cache: dict[
-            tuple[AnyAttributeT, SlotTypeT], CollectionEntry
+            tuple[AnyAttributeT, SlotTypeT], CollectionEntry | None
         ] = {}
 
-    def _get_cached_norm_str(self, slot: SlotStr) -> NormStr:
+    def get_cached_norm_str(self, slot: SlotStr) -> NormStr:
         try:
             return self._norm_str_from_str_cache[slot]
         except KeyError:
             v = NormStr(slot)
-            self._norm_str_from_str_cache[slot] = NormStr(slot)
+            self._norm_str_from_str_cache[slot] = v
             return v
 
-    def _get_cached_slot_type(
+    def get_cached_slot_type(
         self, attr: AnyAttributeT, slot_str: SlotStr
     ) -> SlotTypeT:
-        norm_str = self._get_cached_norm_str(slot_str)
+        norm_str = self.get_cached_norm_str(slot_str)
         key = (attr, norm_str)
 
         try:
@@ -426,53 +427,180 @@ class FilterCache:
             self._slot_type_cache[key] = v
             return v
 
-    def _get_cached_collection(self, attr: AnyAttributeT) -> Collection:
+    def get_cached_collection(self, c: orm.Cursor, attr: AnyAttributeT) -> Collection:
         try:
             return self._collection_cache[attr]
         except KeyError:
-            v = attr.get_collection()
+            v = attr.get_collection(c)
             self._collection_cache[attr] = v
             return v
 
-    def _get_cached_collection_entry(
-        self, attr: AnyAttributeT, slot_str: SlotTypeT
-    ) -> CollectionEntry:
-        key = (attr, slot_str)
+    def get_cached_collection_entry(
+        self, c: orm.Cursor, attr: AnyAttributeT, norm_str: NormStr
+    ) -> CollectionEntry | None:
+        key = (attr, norm_str)
 
         try:
             return self._collection_entry_cache[key]
         except KeyError:
-            v = self._get_cached_collection(attr).get_entry_by_syn(
-                NormStr(str(slot_str))
+            v = self.get_cached_collection(c, attr).get_entry_by_syn(
+                norm_str, None
             )
             self._collection_entry_cache[key] = v
             return v
 
 
+_OP_TO_FUNC: t.Final[
+    dict[type[Node], t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
+] = {
+    Is: lambda tav, v: v in tav,
+    IsNot: lambda tav, v: v not in tav,
+    Lt: lambda tav, v: any(
+        s < v for s in tav  # pyright: ignore[reportOperatorIssue]
+    ),
+    LtE: lambda tav, v: any(
+        s <= v for s in tav  # pyright: ignore[reportOperatorIssue]
+    ),
+    Gt: lambda tav, v: any(
+        s > v for s in tav  # pyright: ignore[reportOperatorIssue]
+    ),
+    GtE: lambda tav, v: any(
+        s >= v for s in tav  # pyright: ignore[reportOperatorIssue]
+    ),
+}
+
 type FastAvmT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
 
 
 def _handle_comparison(
+    c: orm.Cursor,
     node: Comparison,
     fast_avms: FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
-    cache: FilterCache,
-) -> FastAvmT: ...
+    cache: _FilterCache,
+) -> FastAvmT: 
+    attr = syn_to_attr.get(NormStr(node.attr.name))
 
+    if attr is None:
+        raise errors.StructureNotFoundViaSyn(node.attr.name, BaseAttribute)
+    
+    op_func = _OP_TO_FUNC[node.op.__class__]
+
+    value = node.val.value
+    op = node.op
+
+    if value is ...:
+        if not isinstance(op, Is | IsNot):
+            raise FilterError(
+                t"The empty value symbol {'_':,} can only be used with the {('is', 'is not'):&} operator!"
+            ) 
+        
+        MUST_BE_EMPTY = isinstance(op, Is)
+
+        return {
+            i: tav
+            for i, tav in fast_avms.items()
+            if (not tav.get(attr.norm_name)) is MUST_BE_EMPTY
+        }
+    
+    value = RealStr(value)
+    collection = cache.get_cached_collection(c, attr)
+
+    if collection:
+        entry = cache.get_cached_collection_entry(c, attr, SlotStr(value, attr.slot_type, attr.list.community.jumpedia.limits))
+
+        if entry is None:
+            raise errors.CollectionEntryNotFound(
+                CollectionEntryNotFoundError(value, collection)
+            )
+
+        return {
+            i: tav
+            for i, tav in fast_avms.items()
+            if op_func(
+                frozenset(
+                    cache.get_cached_collection_entry(c, attr, )
+                    collection.get_entry_by_syn(NormStr(str(slot))).collection_index
+                    for slot in tav.get(attr.norm_name, frozenset())
+                ),
+                entry.collection_index,
+            )
+        }
+
+    value = attr.slot_type(value_str_norm)
+
+    return {
+        i: tav
+        for i, tav in fast_avm.items()
+        if op_func(tav.get(attr_name, frozenset()), value)
+    }
+
+
+
+def _handle_boolexpr(
+    c: orm.Cursor,
+    node: BoolExpr,
+    fast_avms: FastAvmT,
+    syn_to_attr: dict[NormStr, AnyAttributeT],
+    seen_attrs: set[AnyAttributeT],
+    cache: _FilterCache,
+) -> FastAvmT: 
+    fast_avms = fast_avms.copy()
+
+    if isinstance(node.op, Or):
+        remaining_to_check = fast_avms
+        result: dict[int, dict[NormStr, frozenset[SlotTypeT]]] = {}
+
+        for v in (node.first, node.second, *node.others):
+            if not remaining_to_check:
+                break
+
+            checked_successfully = _handle_node(
+                c, v, remaining_to_check, syn_to_attr, seen_attrs, cache
+            )
+
+            for k in checked_successfully:
+                remaining_to_check.pop(k, None)
+
+            result |= checked_successfully
+
+        return result
+
+    if isinstance(node.op, And):
+        for v in (node.first, node.second, *node.others):
+            if not fast_avms:
+                break
+
+            checked_successfully = _handle_node(c,
+                v, fast_avms, syn_to_attr, seen_attrs, cache
+            )
+            fast_avms = {
+                k: v for k, v in fast_avms.items() if k in checked_successfully
+            }
+
+        return fast_avms
+
+    t.assert_never(node.op)  # type: ignore
 
 def _handle_node(
+    c: orm.Cursor,
     node: Comparison | BoolExpr,
     fast_avms: FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
-    cache: FilterCache,
+    cache: _FilterCache,
 ) -> FastAvmT:
+    if isinstance(node, BoolExpr):
+        return _handle_boolexpr(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
+    
     if isinstance(node, Comparison):
-        return _handle_comparison(node, fast_avms, syn_to_attr, seen_attrs, cache)
+        return _handle_comparison(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
 
+    t.assert_never(node)
 
 def run[T: AttributeValueMapping](
+    c: orm.Cursor,
     s: str,
     avms: t.Iterable[T],
     syn_to_attr: dict[NormStr, AnyAttributeT],
@@ -480,12 +608,12 @@ def run[T: AttributeValueMapping](
     node = transform(tokenize(s))
 
     id_to_avm: dict[int, AttributeValueMapping] = {id(avm): avm for avm in avms}
-    cache: FilterCache = FilterCache()
+    cache: _FilterCache = _FilterCache()
 
     fast_avms: FastAvmT = {
         id(avm): {
             attr.norm_name: frozenset(
-                cache._get_cached_slot_type(attr, slot) for slot in val
+                cache.get_cached_slot_type(attr, slot) for slot in val
             )
             for attr, val in avm.combined.items()
         }
@@ -497,7 +625,7 @@ def run[T: AttributeValueMapping](
     return (
         [
             id_to_avm[id(avm)]
-            for avm in _handle_node(node, fast_avms, syn_to_attr, seen_attrs, cache)
+            for avm in _handle_node(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
         ],
         seen_attrs,
     )

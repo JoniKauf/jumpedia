@@ -66,13 +66,13 @@ class BaseAttribute(BaseStructure):
 
     def get_real_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
         return frozenset(
-            row.real_alias
+            text.RealStr(row.real_alias, check=False)
             for row in self._get_aliases_rows(c, db.AttributeAlias.real_alias)
         )
 
     def get_norm_aliases(self, c: orm.Cursor, /) -> frozenset[text.NormStr]:
         return frozenset(
-            row.norm_alias
+            text.NormStr(row.norm_alias, check=False)
             for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)
         )
 
@@ -86,7 +86,7 @@ class BaseAttribute(BaseStructure):
             raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self)
 
         return tuple(
-            SlotStr(slot, self.slot_type, self.list.community.jumpedia)
+            SlotStr(slot, self.slot_type, self.list.community.jumpedia.limits)
             for slot in value
         )
 
@@ -163,7 +163,7 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         for alias_row in alias_rows:
             alias = SlotStr(
-                alias_row.slot_alias, self.slot_type, self.list.community.jumpedia
+                alias_row.slot_alias, self.slot_type, self.list.community.jumpedia.limits
             )
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
 
@@ -209,7 +209,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         for i, (value, aliases) in enumerate(collection):
             for j, syn_str in enumerate((value, *aliases)):
                 slot_syn = SlotStr(
-                    syn_str, self.slot_type, self.list.community.jumpedia
+                    syn_str, self.slot_type, self.list.community.jumpedia.limits
                 )
                 norm_syn = text.NormStr(slot_syn)
 

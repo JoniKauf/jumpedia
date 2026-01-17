@@ -45,7 +45,7 @@ class Task(BaseStructure):
             )
         )
 
-        return frozenset(row.norm_alias for row in rows)
+        return frozenset(text.NormStr(row.norm_alias, check=False) for row in rows)
 
     @t.overload
     def get_attribute_value_mapping(
@@ -81,7 +81,7 @@ class Task(BaseStructure):
         static_mapping: MappingProxyType[StaticAttribute, tuple[SlotStr, ...]] = (
             MappingProxyType(
                 {
-                    id_attr: id_attr.real_to_slot_value(c, (text.RealStr(str(id)),)),
+                    id_attr: id_attr.real_to_slot_value(c, (text.RealStr(str(id), check=False),)),
                     name_attr: (name,),
                     alias_attr: tuple(aliases),
                 }

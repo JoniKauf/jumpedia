@@ -122,7 +122,7 @@ class Community(BaseStructure):
 
     def _list_row_to_obj(self, row: db.List) -> List:
         return List(
-            community=self, id=row.id, real_name=row.real_name, norm_name=row.norm_name
+            community=self, id=row.id, real_name=text.RealStr(row.real_name, check=False), norm_name=text.NormStr(row.norm_name, check=False)
         )
 
     def get_lists(self, c: orm.Cursor, /) -> builtins.list[List]:

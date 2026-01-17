@@ -122,8 +122,8 @@ class Jumpedia(BaseStructure):
         return Community(
             jumpedia=self,
             id=row.id,
-            real_name=row.real_name,
-            norm_name=row.norm_name,
+            real_name=text.RealStr(row.real_name, check=False),
+            norm_name=text.NormStr(row.norm_name, check=False),
             limits=CommunityLimits(**json.loads(row.limits)),
         )
 

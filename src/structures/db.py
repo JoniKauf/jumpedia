@@ -2,7 +2,6 @@ import types
 import typing as t
 
 from utils.orm import *
-from utils.text import NormStr, RealStr
 
 if t.TYPE_CHECKING:
     from .attribute.slot_str import SlotStr
@@ -16,11 +15,11 @@ class Community(Model, table_name=SNAKE):
     def id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_name(self):
         pass
 
-    @column(RealStr)
+    @column(str)
     def real_name(self):
         pass
 
@@ -48,7 +47,7 @@ class JumpediaUser(Model, table_name=SNAKE):
     def id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_name(self):
         pass
 
@@ -73,11 +72,11 @@ class List(Model, table_name=SNAKE):
     def community_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_name(self):
         pass
 
-    @column(RealStr)
+    @column(str)
     def real_name(self):
         pass
 
@@ -120,11 +119,11 @@ class Attribute(Model, table_name=SNAKE):
     def type_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_name(self):
         pass
 
-    @column(RealStr)
+    @column(str)
     def real_name(self):
         pass
 
@@ -166,11 +165,11 @@ class AttributeAlias(Model, table_name=SNAKE):
     def attribute_type_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_alias(self):
         pass
 
-    @column(RealStr)
+    @column(str)
     def real_alias(self):
         pass
 
@@ -188,7 +187,7 @@ class AttributeCollectionEntry(Model, table_name=SNAKE):
     def index(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_slot(self):
         pass
 
@@ -210,7 +209,7 @@ class AttributeCollectionEntryAlias(Model, table_name=SNAKE):
     def attribute_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_alias(self):
         pass
 
@@ -228,7 +227,7 @@ class Task(Model, table_name=SNAKE):
     def list_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_name(self):
         pass
 
@@ -250,7 +249,7 @@ class TaskAlias(Model, table_name=SNAKE):
     def list_id(self):
         pass
 
-    @column(NormStr)
+    @column(str)
     def norm_alias(self):
         pass
 
@@ -480,8 +479,8 @@ def create_database(
                 UNIQUE ({Attribute.list_id.unqualified}, {Attribute.position.unqualified}),
 
                 CHECK ({Attribute.type_id.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)}),
-                CHECK ({Attribute.kind.unqualified} IS NULL OR {Attribute.kind.unqualified} < {max(Kind._value2member_map_)}),
-                CHECK ({Attribute.slot_type} < {len(SLOT_TYPES)})
+                CHECK ({Attribute.kind.unqualified} IS NULL OR {Attribute.kind.unqualified} <= {max(Kind._value2member_map_)}),
+                CHECK ({Attribute.slot_type.unqualified} < {len(SLOT_TYPES)})
             )
         """
         )
@@ -701,17 +700,12 @@ def create_database(
         )
     except Exception as e:
         try:
-            c.raw_execute(
-                f"""
+            c.raw_execute(f"""
                 DROP DATABASE {database_name}
-            """
-            )
+            """)
         except Exception as e2:
             raise e2
 
         raise e
     else:
         print("Jumpedia database successfully created!")
-        
-        c.commit()
-        c._mariadb_cursor.close()

@@ -13,6 +13,7 @@ from structures.community import CommunityLimits
 from structures.list import Kind, List
 from structures.task import Task
 from utils import orm, secret
+from utils import text
 from utils.rank import CommunityRank, JumpediaRank
 from utils.text import NormStr, RealStr
 
@@ -241,17 +242,13 @@ def create_tasks(
 
     tasks: builtins.list[Task] = []
 
-    # i: int = 0
-
-    for jump in jump_data.values():
+    for i, jump in enumerate(jump_data.values(), start=1):
         tavm: dict[int, t.Sequence[RealStr]] = {}
 
         name: RealStr | None = None
 
         if unproven != (jump["diff"] == "Unproven"):
             continue
-
-        # i += 1
 
         for old_attr_name, v in jump.items():
             if old_attr_name == "tier":
@@ -278,9 +275,11 @@ def create_tasks(
 
         tasks.append(list.create_task(c, name, (), tavm))
 
-        # if i % 10 == 0:
-        #     time.sleep(1)
-        #     print(f"{i} tasks inserted!")
+        if i % 10 == 0:
+            print(f"{i}/{len(jump_data)} tasks inserted!")
+
+        if i % 100 == 0:
+            c.commit()
 
     return tasks
 
@@ -316,7 +315,7 @@ def give_jumps_to_users(
         )
 
         for i, (jump_name, data) in enumerate(user_jump_data.items(), 1):
-            task = tasks.get(jump_name, None)
+            task = tasks.get(text.NormStr(jump_name), None)
 
             if task is None:
                 continue
@@ -330,8 +329,10 @@ def give_jumps_to_users(
             )
 
             if i % 10 == 0:
-                print("zzzzZZZZZZZ")
-                time.sleep(1)
+                print(f"{i}/{len(user_jump_data)} jumps given to user!")
+
+            if i % 100 == 0:
+                c.commit()
 
 
 def main():
@@ -353,8 +354,6 @@ def main():
         
     META_C = orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA | {'db': None}), conn.cursor(dictionary=True))
     DATABASE_NAME = 'jumpedia'
-
-    
 
     META_C.raw_execute(f"DROP SCHEMA {DATABASE_NAME}")
     get_c = lambda: orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA), conn.cursor(dictionary=True))
@@ -405,6 +404,8 @@ def main():
     print("Giving users tasks...")
     give_jumps_to_users(C, main_list, proof_attr, {task.norm_name: task for task in TASKS})
     print("Gave users tasks!")
+
+    C.commit()
 
     # print("Giving users tasks...")
     # give_jumps_to_users(

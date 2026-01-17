@@ -1,5 +1,6 @@
 import builtins
 from string.templatelib import Template
+from types import CoroutineType
 from typing import Any
 
 import discord as dc
@@ -14,7 +15,7 @@ from utils import text
 from utils.rank import CommunityRank
 
 from ..utils_ import message, modal, predicate
-
+import typing as t
 
 class ListCog(cmds.GroupCog, group_name="list"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -22,7 +23,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Show information about a list.")
     @command.adapt
-    async def info(self, ia: InteractionAdapter, list: str | None = None) -> None:
+    async def info(self, ia: InteractionAdapter, list: str | None = None) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
@@ -38,7 +39,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
         info.append(("Task Count", len(list_obj.get_tasks())))
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "List Info",
                 Template("\n".join(f"**{k}:** {v}" for k, v in info)),
@@ -48,7 +49,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Browse all lists of the community.")
     @command.adapt
-    async def browse(self, ia: InteractionAdapter) -> None:
+    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         lists = shortcuts.get_current_community(ia).get_lists()
 
         listing: Template
@@ -58,7 +59,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
         else:
             listing = t"None"
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "All Lists",
                 listing,
@@ -69,12 +70,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Create a new list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
-    async def create(self, ia: InteractionAdapter, list: str) -> None:
+    async def create(self, ia: InteractionAdapter, list: str) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
         new_list = community.create_list(list)
 
-        await ia.dc.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "List Created",
                 t"The list {new_list.name:,} has successfully been created!",
@@ -85,10 +86,10 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Delete an existing list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
-    async def nuke(self, ia: InteractionAdapter, list: str) -> None:
+    async def nuke(self, ia: InteractionAdapter, list: str) -> CoroutineType[None, None, t.Any]:
         list_s = shortcuts.get_current_community(ia).get_list(list)._o
 
-        await modal.delete_structure_confirmation(
+        return modal.delete_structure_confirmation(
             ia.dc,
             List,
             list_s.name,

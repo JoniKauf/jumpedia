@@ -3,7 +3,7 @@ import enum
 import typing as t
 from collections import deque
 from string.templatelib import Interpolation, Template
-from types import EllipsisType
+from types import CoroutineType, EllipsisType
 
 import discord as dc
 import discord.app_commands as acmds
@@ -114,13 +114,13 @@ def _task_data_table_to_gist_files(
 
 
 async def _info(
-    interaction: dc.Interaction,
+    ia: InteractionAdapter,
     task: str,
     user: dc.User | None | EllipsisType,
     list: str | None,
 ) -> None:
     list_obj = shortcuts.get_specified_or_selected_or_default_list(
-        InteractionAdapter(interaction), None, list
+        ia, None, list
     )
 
     avm = list_obj.get_task(task).get_attribute_value_mapping(
@@ -146,7 +146,7 @@ async def _info(
     if elems:
         elems.pop()
 
-    await interaction.response.send_message(
+    await ia.dc.response.send_message(
         message.layout(
             "Task Info",
             Template(*elems),
@@ -162,7 +162,7 @@ class Yield(enum.Enum):
 
 
 async def _browse(
-    interaction: dc.Interaction,
+    ia: InteractionAdapter,
     filter: str | None,
     sort: str | None,
     yield_: Yield,
@@ -174,17 +174,17 @@ async def _browse(
 
     # Get the list of the executing user, not the specified user
     list_obj = shortcuts.get_specified_or_selected_or_default_list(
-        InteractionAdapter(interaction), None, list
+        ia, None, list
     )
 
     community_user = shortcuts.get_or_create_specified_or_current_community_user(
         list_obj.community, None if user is ... else user
     )
 
-    await interaction.response.defer()
+    await ia.dc.response.defer()
     msg = t.cast(
         dc.Message,
-        await interaction.followup.send("Retrieving data...", suppress_embeds=True),
+        await ia.dc.followup.send("Retrieving data...", suppress_embeds=True),
     )
 
     ATTRIBUTE_TYPES_TO_HANDLE: tuple[type[AnyAttributeT], ...]
@@ -192,7 +192,7 @@ async def _browse(
     # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._o.get_task_attribute_value_mappings(None)
+            list_obj._o.get_task_attribute_value_mappings(ia._c, None)
         )
     else:
         user_task_ids = tuple(
@@ -210,7 +210,7 @@ async def _browse(
 
         # Don't include user attribute values when missing, because those don't have any values, because well they are missing
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._o.get_task_attribute_value_mappings(
+            list_obj._o.get_task_attribute_value_mappings(ia._c,
                 None if missing else community_user._o.id, task_ids_to_fetch
             )
         )
@@ -236,7 +236,7 @@ async def _browse(
 
     if filter or sort:
         for attr_type in ATTRIBUTE_TYPES_TO_HANDLE:
-            for alias, attr in list_obj._o.get_attribute_alias_mappings_of_type(
+            for alias, attr in list_obj._o.get_attribute_alias_mappings_of_type(ia._c,
                 attr_type
             ).items():
                 syn_to_attr[NormStr(alias)] = attr
@@ -327,7 +327,7 @@ async def _browse(
                     f"- **#{str(i).zfill(3)}**: {url}" for i, url in enumerate(urls, 1)
                 )
                 if len(urls) > 1
-                else urls[0]
+                else urls[0]  # type: ignore
             ),
             message.MessageStatus.INFO,
         ),
@@ -341,75 +341,80 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @acmds.command()
     @command.adapt
     async def info(
-        self, interaction: InteractionAdapter, task: str, list: str | None = None
-    ) -> None:
-        await _info(interaction.dc, task, ..., list)
+        self, ia: InteractionAdapter, task: str, list: str | None = None
+    ) -> CoroutineType[None, None, t.Any]:
+        return _info(ia, task, ..., list)
 
     @acmds.command()
+    @command.adapt
     async def info_user(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         task: str,
         user: dc.User | None = None,
         list: str | None = None,
-    ) -> None:
-        await _info(interaction, task, user, list)
+    ) -> CoroutineType[None, None, t.Any]:
+        return _info(ia, task, user, list)
 
     @acmds.command()
     @acmds.rename(yield_="yield")
+    @command.adapt
     async def browse(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,
         list: str | None = None,
-    ) -> None:
-        await _browse(interaction, filter, sort, yield_, ..., False, list)
+    ) -> CoroutineType[None, None, t.Any]:
+        return _browse(ia, filter, sort, yield_, ..., False, list)
 
     @acmds.command()
     @acmds.rename(yield_="yield")
+    @command.adapt
     async def browse_user(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,
         user: dc.User | None = None,
         list: str | None = None,
-    ) -> None:
-        await _browse(interaction, filter, sort, yield_, user, False, list)
+    ) -> CoroutineType[None, None, t.Any]:
+        return _browse(ia, filter, sort, yield_, user, False, list)
 
     @acmds.command()
     @acmds.rename(yield_="yield")
+    @command.adapt
     async def browse_missing(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,
         user: dc.User | None = None,
         list: str | None = None,
-    ) -> None:
-        await _browse(interaction, filter, sort, yield_, user, True, list)
+    ) -> CoroutineType[None, None, t.Any]:
+        return _browse(ia, filter, sort, yield_, user, True, list)
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.HELPER))
+    @command.adapt
     async def create(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         name: str,
         aliases: str | None = None,
         attribute_value_mapping: str | None = None,
         list: str | None = None,
-    ) -> None:
+    ) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            InteractionAdapter(interaction), None, list
+            ia, None, list
         )
 
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
-        await interaction.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Task Created",
                 t"The task {task.name:,} has successfully been created!",
@@ -419,16 +424,17 @@ class TaskCog(cmds.GroupCog, group_name="task"):
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
+    @command.adapt
     async def nuke(
-        self, interaction: dc.Interaction, task: str, list: str | None = None
-    ) -> None:
+        self, ia: InteractionAdapter, task: str, list: str | None = None
+    ) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            InteractionAdapter(interaction), None, list
+            ia, None, list
         )
 
         list_obj.delete_task(task)
 
-        await interaction.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Task Delete",
                 t"The task {task:,} has successfully been deleted!",
@@ -437,18 +443,19 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         )
 
     @acmds.command()
+    @command.adapt
     async def give(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         task: str,
         user_attribute_value_mapping: str | None = None,
         user: dc.User | None = None,
         list: str | None = None,
-    ) -> None:
-        user_.validate_allowed_for_others(interaction, user, CommunityRank.MODERATOR)
+    ) -> CoroutineType[None, None, t.Any]:
+        user_.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
 
         community_user = shortcuts.get_or_create_specified_or_current_community_user(
-            InteractionAdapter(interaction), user
+            ia, user
         )
         list_obj = shortcuts.get_specified_or_selected_or_default_list(
             community_user, list
@@ -458,7 +465,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
             task, community_user, user_attribute_value_mapping
         )
 
-        await interaction.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Task Given",
                 t"The task {task_obj.name:,} has successfully been given to {community_user.name:,}!",

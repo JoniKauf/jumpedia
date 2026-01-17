@@ -73,7 +73,10 @@ class DoubleBacktickError(ValueError):
 
 
 class RealStr(str):
-    def __new__(cls, s: str) -> t.Self:
+    def __new__(cls, s: str, *, check: bool = True) -> t.Self:
+        if not check:
+            return super().__new__(cls, s)
+        
         if isinstance(s, cls):
             return s
 
@@ -90,11 +93,11 @@ class RealStr(str):
         return super().__new__(cls, s)
 
 
-# DO NOT ADD ANY ADDITIONAL METHODS!
-# This is because the database technically just returns str, but we type it as RealStr, NormStr, SlotStr.
-# It is already checked before inserting, so it is safe to pretend it is the custom str class.
 class NormStr(str):
-    def __new__(cls, s: str) -> t.Self:
+    def __new__(cls, s: str, *, check: bool = True) -> t.Self:
+        if not check:
+            return super().__new__(cls, s)
+        
         if not isinstance(s, RealStr):
             s = RealStr(s)
 
