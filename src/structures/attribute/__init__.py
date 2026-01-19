@@ -163,7 +163,9 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         for alias_row in alias_rows:
             alias = SlotStr(
-                alias_row.slot_alias, self.slot_type, self.list.community.jumpedia.limits
+                alias_row.slot_alias,
+                self.slot_type,
+                self.list.community.jumpedia.limits,
             )
             entry_id_to_aliases[alias_row.attribute_collection_entry_id].add(alias)
 

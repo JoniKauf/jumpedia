@@ -1,12 +1,9 @@
-import enum
 import typing as t
-from string.templatelib import Template
 from types import EllipsisType, MappingProxyType
 
-from .. import errors
-from . import Attr, Node, TokenTypes, TokenStream, TokenType, Token, check_depth_decorator_factory, expected_but_received_factory, tokenize_factory, transform_factory, SyntaxFeedbackError
-from adapters.errors import FeedbackError
-from discord_.utils_.message import MessageStatus
+from dc_utils import errors
+
+from . import factory
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.attribute.slot_str import SlotStr, SlotTypeT
@@ -17,57 +14,54 @@ from utils.text import NormStr, RealStr
 
 # --- Errors ---
 
-class FilterSyntaxError(SyntaxFeedbackError, category="filter"):
+class SyntaxError(factory.SyntaxFeedbackError, category="filter"):
     pass
 
-expected_but_received = expected_but_received_factory(error_type=FilterSyntaxError)
+expected_but_received = factory.expected_but_received_factory(error_type=SyntaxError)
 
 # --- Tokenization ---
 
 _OP_NAMES: t.Final[tuple[str, ...]] = ("is", "is not", "<", "<=", ">", ">=")
 
-class FilterTokenTypes(TokenTypes):
-    LPAREN = TokenType(3, lambda token: t"an opening parenthesis ({token.string:,})",)
-    RPAREN = TokenType(4, lambda token: t"a closing parenthesis ({token.string:,})",)
+class TokenTypes(factory.TokenTypesWithParens):
+    AND = factory.TokenType(5, lambda _: t"the keyword {'and':,}")
+    OR = factory.TokenType(6, lambda _: t"the keyword {'or':,}")
 
-    AND = TokenType(5, lambda _: t"the keyword {'and':,}")
-    OR = TokenType(6, lambda _: t"the keyword {'or':,}")
-
-    OP = TokenType(7, lambda token: t"the operator {token.string:,}")
-    UNDERSCORE = TokenType(8, lambda token: t"the empty value symbol {token.string:,}")
+    OP = factory.TokenType(7, lambda token: t"the operator {token.string:,}")
+    UNDERSCORE = factory.TokenType(8, lambda token: t"the empty value symbol {token.string:,}")
 
 
-def _token_from_buf(buf: str) -> Token | None:
+def _token_from_buf(buf: str) -> factory.Token | None:
     if buf == "_":
-        return Token(FilterTokenTypes.UNDERSCORE, buf)
+        return factory.Token(TokenTypes.UNDERSCORE, buf)
 
     elif buf == "or":
-        return Token(FilterTokenTypes.OR, buf)
+        return factory.Token(TokenTypes.OR, buf)
 
     elif buf == "and":
-        return Token(FilterTokenTypes.AND, buf)
+        return factory.Token(TokenTypes.AND, buf)
 
     elif buf in _OP_FIRST_SIGHT_STR_TO_NODE_TYPE:
-        return Token(FilterTokenTypes.OP, buf)
+        return factory.Token(TokenTypes.OP, buf)
     
     return None
 
 
-def _token_from_c(c: str) -> Token | None:
+def _token_from_c(c: str) -> factory.Token | None:
     if c == "(":
-        return Token(FilterTokenTypes.LPAREN, c)
+        return factory.Token(TokenTypes.LPAREN, c)
 
     if c == ")":
-        return Token(FilterTokenTypes.RPAREN, c)
+        return factory.Token(TokenTypes.RPAREN, c)
 
     return None
 
 
-filter_tokenize = tokenize_factory(token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=FilterSyntaxError)
+tokenize = factory.tokenize_factory(token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=SyntaxError)
 
 # --- Transformation ---
 
-class BoolOp(Node):
+class BoolOp(factory.Node):
     pass
 
 class And(BoolOp):
@@ -78,7 +72,7 @@ class Or(BoolOp):
     pass
 
 
-class Op(Node):
+class Op(factory.Node):
     pass
 
 
@@ -106,21 +100,21 @@ class GtE(Op):
     pass
 
 
-class Val(Node):
+class Val(factory.Node):
     def __init__(self, value: str | EllipsisType) -> None:
         super().__init__()
         self.value = value
 
 
-class Comparison(Node):
-    def __init__(self, attr: Attr, op: Op, val: Val) -> None:
+class Comparison(factory.Node):
+    def __init__(self, attr: factory.Attr, op: Op, val: Val) -> None:
         super().__init__()
         self.attr = attr
         self.op = op
         self.val = val
 
 
-class BoolExpr(Node):
+class BoolExpr(factory.Node):
     def __init__(
         self,
         first: Comparison | BoolExpr,
@@ -139,19 +133,19 @@ _OP_FIRST_SIGHT_STR_TO_NODE_TYPE: t.Final[MappingProxyType[str, type[Op]]] = Map
 )
 
 
-check_depth_decorator = check_depth_decorator_factory(127)
+check_depth_decorator = factory.check_depth_decorator_factory(127)
 
 @check_depth_decorator
-def _parse_op(ts: TokenStream, _: int) -> Op:
+def _transform_op(ts: factory.TokenStream, _: int) -> Op:
     op = next(ts)
 
-    if op.type is not FilterTokenTypes.OP or (op_type := _OP_FIRST_SIGHT_STR_TO_NODE_TYPE[op.string]) is IsNot:
+    if op.type is not TokenTypes.OP or (op_type := _OP_FIRST_SIGHT_STR_TO_NODE_TYPE[op.string]) is IsNot:
         raise expected_but_received(t"an operator ({_OP_NAMES:,})", op)
     
     if (
         op_type is Is
         and (nxt := ts.peek())
-        and nxt.type is FilterTokenTypes.OP
+        and nxt.type is TokenTypes.OP
         and _OP_FIRST_SIGHT_STR_TO_NODE_TYPE[nxt.string] is IsNot
     ):
         next(ts)
@@ -160,55 +154,61 @@ def _parse_op(ts: TokenStream, _: int) -> Op:
     return op_type()
 
 @check_depth_decorator
-def _parse_comparison(ts: TokenStream, depth: int) -> Comparison:
+def _transform_comparison(ts: factory.TokenStream, depth: int) -> Comparison:
+    depth += 1
+
     attr = next(ts)
 
-    if attr.type is not FilterTokenTypes.STR:
+    if attr.type is not TokenTypes.STR:
         raise expected_but_received(
-            Attr.expected, attr
+            factory.Attr.expected, attr
         )
 
-    op = _parse_op(ts, depth + 1)
+    op = _transform_op(ts, depth)
     v = next(ts)
 
-    if v.type is FilterTokenTypes.STR:
+    if v.type is TokenTypes.STR:
         val = Val(v.string)
-    elif v.type is FilterTokenTypes.UNDERSCORE:
+    elif v.type is TokenTypes.UNDERSCORE:
         val = Val(...)
     else:
         raise expected_but_received(
             t"a string representing a value or the empty value symbol {'_':,} to compare the attribute against", v
         )
 
-    return Comparison(Attr(attr.string), op, val)
+    return Comparison(factory.Attr(attr.string), op, val)
 
 @check_depth_decorator
-def _parse_atom(ts: TokenStream, depth: int) -> Comparison | BoolExpr:
+def _transform_atom(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
+    depth += 1
+
     tok = ts.peek()
 
-    if tok.type is FilterTokenTypes.LPAREN:
+    if tok.type is TokenTypes.LPAREN:
         next(ts)
 
-        expr = _parse_or(ts, depth + 1)
+        expr = _transform_or(ts, depth)
         tok = next(ts)
 
-        if tok.type is not FilterTokenTypes.RPAREN:
+        if tok.type is not TokenTypes.RPAREN:
             raise expected_but_received(
                 t"a closing parenthesis ({')':,})", tok
             )
 
         return expr
 
-    return _parse_comparison(ts, depth + 1)
+    return _transform_comparison(ts, depth)
 
 @check_depth_decorator
-def _parse_and(ts: TokenStream, depth: int) -> Comparison | BoolExpr:
-    first = _parse_atom(ts, depth + 1)
+def _transform_and(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
+    depth += 1
+
+    first = _transform_atom(ts, depth)
     rest: list[Comparison | BoolExpr] = []
 
-    while ts.peek().type is FilterTokenTypes.AND:
+    while ts.peek().type is TokenTypes.AND:
         next(ts)
-        rest.append(_parse_atom(ts, depth + 1))
+        rest.append(_transform_atom(ts, depth))
 
     if not rest:
         return first
@@ -216,13 +216,15 @@ def _parse_and(ts: TokenStream, depth: int) -> Comparison | BoolExpr:
     return BoolExpr(first, And(), *rest)
 
 @check_depth_decorator
-def _parse_or(ts: TokenStream, depth: int) -> Comparison | BoolExpr:
-    first = _parse_and(ts, depth + 1)
+def _transform_or(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
+    depth += 1
+
+    first = _transform_and(ts, depth)
     rest: list[Comparison | BoolExpr] = []
 
-    while ts.peek().type is FilterTokenTypes.OR:
+    while ts.peek().type is TokenTypes.OR:
         next(ts)
-        rest.append(_parse_and(ts, depth + 1))
+        rest.append(_transform_and(ts, depth))
 
     if not rest:
         return first
@@ -230,11 +232,11 @@ def _parse_or(ts: TokenStream, depth: int) -> Comparison | BoolExpr:
     return BoolExpr(first, Or(), *rest)
 
 
-filter_transform = transform_factory(parse=_parse_or, expected_but_received=expected_but_received)
+transform = factory.transform_factory(transform=_transform_or, expected_but_received=expected_but_received)
 
 # --- Run ---
 
-class _FilterCache:
+class _Cache:
     def __init__(self) -> None:
         self._norm_str_from_str_cache: dict[SlotStr, NormStr] = {}
         self._slot_type_cache: dict[tuple[type[SlotTypeT], NormStr], SlotTypeT] = {}
@@ -291,7 +293,7 @@ class _FilterCache:
 
 
 _OP_TO_FUNC: t.Final[
-    dict[type[Node], t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
+    dict[type[factory.Node], t.Callable[[frozenset[SlotTypeT], SlotTypeT], bool]]
 ] = {
     Is: lambda tav, v: v in tav,
     IsNot: lambda tav, v: v not in tav,
@@ -317,7 +319,7 @@ def _handle_comparison(
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
-    cache: _FilterCache,
+    cache: _Cache,
 ) -> _FastAvmT: 
     attr = syn_to_attr.get(NormStr(node.attr.syn))
 
@@ -331,7 +333,7 @@ def _handle_comparison(
 
     if value is ...:
         if not isinstance(op, Is | IsNot):
-            raise FilterSyntaxError(
+            raise SyntaxError(
                 t"The empty value symbol {'_':,} can only be used with the {('is', 'is not'):&} operator!"
             ) 
         
@@ -378,13 +380,13 @@ def _handle_comparison(
         )
     }
 
-def _handle_boolexpr(
+def _handle_bool_expr(
     c: orm.Cursor,
     node: BoolExpr,
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
-    cache: _FilterCache,
+    cache: _Cache,
 ) -> _FastAvmT: 
     fast_avms = fast_avms.copy()
 
@@ -429,10 +431,10 @@ def _handle_node(
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
-    cache: _FilterCache,
+    cache: _Cache,
 ) -> _FastAvmT:
     if isinstance(node, BoolExpr):
-        return _handle_boolexpr(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
+        return _handle_bool_expr(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
     
     if isinstance(node, Comparison):
         return _handle_comparison(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
@@ -440,19 +442,18 @@ def _handle_node(
     t.assert_never(node)
 
 
-def run[T: AttributeValueMapping](
+def parse[T: AttributeValueMapping](
     c: orm.Cursor,
     s: RealStr,
     avms: t.Iterable[T],
     syn_to_attr: dict[NormStr, AnyAttributeT],
 ) -> tuple[list[T], set[AnyAttributeT]]:
-    if not s:
-        return list(avms), set()
+    # RealStr cannot be empty
     
-    node = filter_transform(filter_tokenize(s))
+    node = transform(tokenize(s))
 
     id_to_avm: dict[int, T] = {id(avm): avm for avm in avms}
-    cache: _FilterCache = _FilterCache()
+    cache: _Cache = _Cache()
 
     fast_avms: _FastAvmT = {
         id(avm): {

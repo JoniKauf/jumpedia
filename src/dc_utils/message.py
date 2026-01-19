@@ -2,7 +2,7 @@ import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 from string.templatelib import Interpolation, Template
-from types import CoroutineType, MappingProxyType
+from types import MappingProxyType
 
 import discord as dc
 from discord.ext import commands as cmds

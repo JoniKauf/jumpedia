@@ -1265,7 +1265,10 @@ class List(BaseStructure):
 
     def _task_row_to_obj(self, row: db.Task) -> Task:
         return Task(
-            list=self, id=row.id, slot_name=row.slot_name, norm_name=text.NormStr(row.norm_name, check=False)
+            list=self,
+            id=row.id,
+            slot_name=row.slot_name,
+            norm_name=text.NormStr(row.norm_name, check=False),
         )
 
     def _insert_task_aliases(

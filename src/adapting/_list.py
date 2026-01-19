@@ -1,6 +1,7 @@
 import typing as t
 
-from adapters.errors import FeedbackError
+from dc_utils.errors import FeedbackError
+from ..dc_utils import errors
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
@@ -25,7 +26,7 @@ from structures.task import Task
 from utils import orm, text
 from utils.expression_parsing.errors import BaseExpressionParsingError
 
-from . import BaseStructureAdapter, errors
+from . import BaseStructureAdapter
 from ._attribute import (
     AnyAttributeAdapterT,
     StaticAttributeAdapter,
@@ -34,11 +35,12 @@ from ._attribute import (
 )
 from ._task import TaskAdapter
 from ._user import CommunityUserAdapter
+from adapting import parsing
 
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
 
-from . import _parsing
+from .parsing import factory
 
 
 @t.overload
@@ -102,7 +104,7 @@ def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
         return ()
 
     try:
-        aliases = _parsing.LIST_PARSER.parse(aliases)
+        aliases = factory.LIST_PARSER.parse(aliases)
     except BaseExpressionParsingError:
         raise FeedbackError(
             "Invalid Alias Format",
@@ -152,12 +154,13 @@ class ListAdapter(BaseStructureAdapter[List]):
             ).items()
         }
 
-        avm = _parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
-            task_attribute_value_mapping, attributes
+        avm = {} if not task_attribute_value_mapping else parsing.avm.run(
+            self._c,
+            text.RealStr(task_attribute_value_mapping), attributes
         )
 
         try:
-            task_s = self._o.create_task(self._c, real_name, real_aliases, avm)
+            task_s = self._o.create_task(self._c, real_name, real_aliases, {k.id: v for k, v in avm.items()})
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
         except StructureCountLimitReachedError as e:
@@ -180,7 +183,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
-        real_aliases = tuple(map(text.RealStr, _parsing.LIST_PARSER.parse(aliases)))
+        real_aliases = tuple(map(text.RealStr, parsing.LIST_PARSER.parse(aliases)))
 
         task = self.get_task(syn)
         self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
@@ -193,7 +196,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         avm: dict[int, t.Sequence[text.RealStr]]
 
         if task_attribute_value_mapping:
-            avm = _parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
+            avm = factory.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
                 task_attribute_value_mapping,
                 _get_norm_syn_to_attribute_s(TaskAttribute),
             )
@@ -306,7 +309,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
         real_collection = tuple(
             (text.RealStr(name), tuple(map(text.RealStr, aliases)))
-            for name, aliases in _parsing.LIST_OF_NAME_ALIASES_PARSER.parse(
+            for name, aliases in factory.LIST_OF_NAME_ALIASES_PARSER.parse(
                 collection or "[]"
             )
         )
@@ -356,7 +359,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         avm: dict[int, t.Sequence[text.RealStr]]
 
         if user_attribute_value_mapping:
-            avm = _parsing.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
+            avm = factory.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
                 syn, _get_norm_syn_to_attribute_s(UserAttribute)
             )
         else:

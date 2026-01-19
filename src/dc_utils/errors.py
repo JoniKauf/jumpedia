@@ -1,13 +1,11 @@
 import typing as t
-from operator import add
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
 from discord.app_commands import CheckFailure
 
-from discord_.utils_ import message
+from . import message
 from structures import BaseStructure, errors
-from utils import text
 from utils.rank import AnyRankT
 
 
@@ -184,7 +182,6 @@ class SynNotUnique(FeedbackError):
             t"The name or alias {e.given:,} has been specified multiple times, but they must be unique!",
         )
 
-
 class AttributeValueSlotCountOutOfRange(FeedbackError):
     def __init__(self, e: errors.AttributeValueSlotCountOutOfRangeError) -> None:
         super().__init__(
@@ -245,4 +242,20 @@ class TooManyAliases(FeedbackError):
         super().__init__(
             "Too Many Aliases",
             t"The amount of alises specified is too high. {e.aliases}`!",
+        )
+
+
+
+class NotPermittedError(FeedbackError):
+    def __init__[T: AnyRankT](self, my_rank: T, rank_required: T) -> None:
+        super().__init__(
+            "Not Permitted",
+            t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",
+        )
+
+class NotUniqueStructureInMapping(FeedbackError):
+    def __init__(self, structure: BaseStructure, ):
+        super().__init__(
+            f"{type(structure).type_name.title()} Not Unique",
+            t"The {type(structure).type_name} {structure:,} has been referenced multiple times as a key in the same mapping, but keys must be unique!"
         )

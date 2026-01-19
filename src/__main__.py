@@ -3,6 +3,7 @@ import sys
 
 from scripts import one_to_two
 
+
 def __main() -> None:
     # if not sys.argv or "from_main" not in sys.argv:
     # raise RuntimeError("Please start by running main.py!")
@@ -24,7 +25,7 @@ def __main() -> None:
         )
 
     # one_to_two.main()
-    import discord_.run
+    import dc.run
 
 
 if __name__ == "__main__":

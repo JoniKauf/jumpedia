@@ -1,9 +1,7 @@
-import ast
 import functools
 from string.templatelib import Template
-from types import MappingProxyType
 import typing as t
-from adapters.errors import FeedbackError
+from dc_utils.errors import FeedbackError
 
 
 class SyntaxFeedbackError(FeedbackError):
@@ -55,6 +53,10 @@ class TokenTypes:
     STR = TokenType(2, lambda token: t"the string {token.string!r:,}")
 
     INVALID = TokenType(255, lambda _: t"something unexpected")
+
+class TokenTypesWithParens(TokenTypes):
+    LPAREN = TokenType(3, lambda token: t"an opening parenthesis ({token.string:,})",)
+    RPAREN = TokenType(4, lambda token: t"a closing parenthesis ({token.string:,})",)
 
 
 class Token(t.NamedTuple):
@@ -168,8 +170,9 @@ class Attr(Node):
         self.syn = syn
 
 
-def transform_factory[T1: Node](*, parse: t.Callable[[TokenStream, int], T1], expected_but_received: t.Callable[[Template, Token], SyntaxFeedbackError]) -> t.Callable[[t.Iterable[Token]], T1]:
-    def transform(iterable: t.Iterable[Token]) -> T1:
+def transform_factory[T1: Node](*, transform: t.Callable[[TokenStream, int], T1], expected_but_received: t.Callable[[Template, Token], SyntaxFeedbackError]) -> t.Callable[[t.Iterable[Token]], T1]:
+    @functools.wraps(transform)
+    def transform_(iterable: t.Iterable[Token]) -> T1:
         ts = TokenStream(iterable)
 
         first = next(ts)
@@ -178,7 +181,7 @@ def transform_factory[T1: Node](*, parse: t.Callable[[TokenStream, int], T1], ex
             raise expected_but_received(t"the start", first)
 
         try:
-            expr = parse(ts, 0)
+            expr = transform(ts, 0)
         except RecursionError:
             raise NestingError()
         
@@ -189,7 +192,7 @@ def transform_factory[T1: Node](*, parse: t.Callable[[TokenStream, int], T1], ex
 
         return expr
 
-    return transform
+    return transform_
 
 
 def check_depth_decorator_factory[T: Node](max: int) -> t.Callable[[t.Callable[[TokenStream, int], T]], t.Callable[[TokenStream, int], T]]:

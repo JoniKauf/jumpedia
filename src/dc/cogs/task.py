@@ -9,10 +9,10 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters import _parsing
-from adapters.errors import FeedbackError
-from adapters.interaction import InteractionAdapter
-from discord_.utils_ import command, message, shortcuts
+from adapting.parsing import factory
+from dc_utils.errors import FeedbackError
+from adapting.interaction import InteractionAdapter
+from dc_utils import command, message, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
@@ -21,8 +21,8 @@ from utils.expression_parsing.errors import BaseExpressionParsingError
 from utils.rank import CommunityRank
 from utils.text import NormStr
 
-from ..utils_ import predicate
-from ..utils_ import user as user_
+from ..discord_utils import predicate
+from ..discord_utils import user as user_
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
     {char: rf"\{char}" for char in r"$&\`*_~#+-.!|()[]{}<>"}
@@ -248,7 +248,7 @@ async def _browse(
         await msg.edit(content="Filtering data...")
 
         try:
-            avms, filter_used_attributes = _parsing.FilterStringParser().parse(
+            avms, filter_used_attributes = factory.FilterStringParser().parse(
                 filter,
                 avms,
                 syn_to_attr,
@@ -271,10 +271,10 @@ async def _browse(
     await msg.edit(content="Sorting data...")
 
     if not sort:
-        avms = _parsing.sort(avms, [(NAME_ATTR, True)])
+        avms = factory.sort(avms, [(NAME_ATTR, True)])
     else:
         try:
-            avms = _parsing.SORT_PARSER.parse(sort, avms, syn_to_attr)
+            avms = factory.SORT_PARSER.parse(sort, avms, syn_to_attr)
         except BaseExpressionParsingError:
             raise FeedbackError(
                 "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."

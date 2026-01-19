@@ -7,14 +7,14 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters.interaction import InteractionAdapter
-from discord_.utils_ import command, shortcuts
+from adapting.interaction import InteractionAdapter
+from dc_utils import command, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES
 from structures.list import List
 from utils import text
 from utils.rank import CommunityRank
 
-from ..utils_ import message, modal, predicate
+from ..discord_utils import message, modal, predicate
 import typing as t
 
 class ListCog(cmds.GroupCog, group_name="list"):

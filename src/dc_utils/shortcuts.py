@@ -2,12 +2,12 @@ import typing as t
 
 import discord as dc
 
-from adapters import errors
-from adapters._community import CommunityAdapter
-from adapters._jumpedia import JumpediaAdapter
-from adapters._list import ListAdapter
-from adapters._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
-from adapters.interaction import InteractionAdapter
+from dc_utils import errors
+from adapting._community import CommunityAdapter
+from adapting._jumpedia import JumpediaAdapter
+from adapting._list import ListAdapter
+from adapting._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
+from adapting.interaction import InteractionAdapter
 from utils.rank import CommunityRank, JumpediaRank
 
 

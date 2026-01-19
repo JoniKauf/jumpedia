@@ -11,13 +11,13 @@ import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from adapters.errors import (
+from dc_utils.errors import (
     BaseUserReturnableError,
     DoubleBacktick,
     EmptyString,
     FeedbackError,
 )
-from discord_.utils_ import message
+from dc_utils import message
 from utils import secret, text
 
 BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())

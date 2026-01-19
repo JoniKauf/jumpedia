@@ -6,12 +6,12 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters.interaction import InteractionAdapter
+from adapting.interaction import InteractionAdapter
 from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from ..utils_ import command, message, modal, predicate, shortcuts
+from ..discord_utils import command, message, modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):

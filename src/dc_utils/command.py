@@ -1,17 +1,15 @@
 import functools
-import inspect
 import typing as t
-from traceback import print_exc
 from types import CoroutineType
 
 import discord as dc
 import mariadb
 from discord.ext import commands as cmds
 
-from adapters import errors
+from dc_utils import errors
 
 if t.TYPE_CHECKING:
-    from adapters.interaction import InteractionAdapter
+    from adapting.interaction import InteractionAdapter
 
 
 def adapt[T: cmds.Cog, **P](
@@ -24,7 +22,7 @@ def adapt[T: cmds.Cog, **P](
     async def decorated(
         self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
     ) -> None:
-        from adapters.interaction import InteractionAdapter
+        from adapting.interaction import InteractionAdapter
 
         ia = InteractionAdapter(interaction)
 

@@ -6,7 +6,7 @@ import typing as t
 
 import mariadb
 
-from adapters.interaction import _THE_ONE_PIECE
+from adapting.interaction import _THE_ONE_PIECE
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits
@@ -25,7 +25,9 @@ JUMP_DATA_PATH = os.path.join(DATA_PATH, "jump_data.json")
 USER_JUMPS = os.path.join(DATA_PATH, "user_jumps")
 
 
-def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, AnyAttributeT]:
+def create_attributes(
+    c: orm.Cursor, list: List, unproven: bool
+) -> dict[str, AnyAttributeT]:
     old_to_new: dict[str, AnyAttributeT] = {
         "name": list.get_static_attribute_by_kind(c, Kind.NAME)
     }
@@ -83,7 +85,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
         diff_collection.append((RealStr(diff), map(RealStr, aliases)))
 
     if not unproven:
-        old_to_new["diff"] = list.create_attribute(c, 
+        old_to_new["diff"] = list.create_attribute(
+            c,
             TaskAttribute,
             RealStr("Difficulty"),
             map(RealStr, ["Diff", "Dif", "D", "Difficult"]),
@@ -94,7 +97,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
 
     del diff_collection
 
-    old_to_new["type"] = list.create_attribute(c, 
+    old_to_new["type"] = list.create_attribute(
+        c,
         TaskAttribute,
         RealStr("Type"),
         map(RealStr, ["T", "Ty"]),
@@ -138,7 +142,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
 
         loc_collection.append((RealStr(loc), map(RealStr, aliases)))
 
-    old_to_new["location"] = list.create_attribute(c, 
+    old_to_new["location"] = list.create_attribute(
+        c,
         TaskAttribute,
         RealStr("Location"),
         map(RealStr, ["L", "Loc", "Kingdom", "K"]),
@@ -156,7 +161,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
     }
 
     for ftp in ["Finder", "Taser", "Prover"]:
-        old_to_new[ftp.lower()] = list.create_attribute(c, 
+        old_to_new[ftp.lower()] = list.create_attribute(
+            c,
             TaskAttribute,
             RealStr(ftp),
             map(RealStr, ftp_to_aliases[ftp]),
@@ -164,7 +170,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
             32,
         )
 
-    old_to_new["server"] = list.create_attribute(c, 
+    old_to_new["server"] = list.create_attribute(
+        c,
         TaskAttribute,
         RealStr("Server"),
         map(RealStr, ["S"]),
@@ -186,11 +193,12 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
         ),
     )
 
-    old_to_new["links"] = list.create_attribute(c, 
-        TaskAttribute, RealStr("Link"), map(RealStr, ["Links"]), str, 32
+    old_to_new["links"] = list.create_attribute(
+        c, TaskAttribute, RealStr("Link"), map(RealStr, ["Links"]), str, 32
     )
 
-    old_to_new["extra"] = list.create_attribute(c, 
+    old_to_new["extra"] = list.create_attribute(
+        c,
         TaskAttribute,
         RealStr("Description"),
         map(RealStr, ["I", "Info", "Desc", "Information", "Extra", "E"]),
@@ -199,8 +207,8 @@ def create_attributes(c: orm.Cursor, list: List, unproven: bool) -> dict[str, An
     )
 
     if not unproven:
-        old_to_new["proof"] = list.create_attribute(c, 
-            UserAttribute, RealStr("Proof"), (), str, 1
+        old_to_new["proof"] = list.create_attribute(
+            c, UserAttribute, RealStr("Proof"), (), str, 1
         )
 
     return old_to_new
@@ -235,7 +243,10 @@ def _split_up(v: list[str], c: str) -> list[str]:
 
 
 def create_tasks(
-    c: orm.Cursor, list: List, old_to_new_attributes: dict[str, AnyAttributeT], unproven: bool
+    c: orm.Cursor,
+    list: List,
+    old_to_new_attributes: dict[str, AnyAttributeT],
+    unproven: bool,
 ) -> list[Task]:
     with open(JUMP_DATA_PATH) as f:
         jump_data: dict[str, dict[str, str | builtins.list[str]]] = json.load(f)
@@ -297,9 +308,10 @@ def give_jumps_to_users(
 
         user_id: int = int(file_name.removesuffix(".json"))
 
-        community_user = list.community.get_or_create_community_user(c, 
-            list.community.jumpedia.get_or_create_jumpedia_user(c, 
-                user_id, str(user_id), JumpediaRank.DEFAULT, False, False
+        community_user = list.community.get_or_create_community_user(
+            c,
+            list.community.jumpedia.get_or_create_jumpedia_user(
+                c, user_id, str(user_id), JumpediaRank.DEFAULT, False, False
             ),
             CommunityRank.DEFAULT,
             list.id,
@@ -322,7 +334,8 @@ def give_jumps_to_users(
 
             proof = data.get("proof", None)
 
-            list.give_task_to_community_user(c, 
+            list.give_task_to_community_user(
+                c,
                 task.id,
                 community_user.id,
                 {proof_attr.id: [RealStr(proof)]} if proof else {},
@@ -348,16 +361,24 @@ def main():
     # while True:
     #     input("Locked rn!")
 
-    if input("If you are 100% sure (NO GOING BACK) then enter 'yes': ") != 'yes':
+    if input("If you are 100% sure (NO GOING BACK) then enter 'yes': ") != "yes":
         print("Aborted!")
         exit()
-        
-    META_C = orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA | {'db': None}), conn.cursor(dictionary=True))
-    DATABASE_NAME = 'jumpedia'
+
+    META_C = orm.Cursor(
+        conn := mariadb.connect(
+            **secret.listen().DATABASE_CONNECTION_DATA | {"db": None}
+        ),
+        conn.cursor(dictionary=True),
+    )
+    DATABASE_NAME = "jumpedia"
 
     META_C.raw_execute(f"DROP SCHEMA {DATABASE_NAME}")
-    get_c = lambda: orm.Cursor(conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA), conn.cursor(dictionary=True))
-    
+    get_c = lambda: orm.Cursor(
+        conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA),
+        conn.cursor(dictionary=True),
+    )
+
     db.create_database(_THE_ONE_PIECE, DATABASE_NAME, META_C, get_c)
 
     C = get_c()
@@ -366,8 +387,8 @@ def main():
         C,
         RealStr("SMO Trickjumping"),
         469869605570084886,
-        _THE_ONE_PIECE.get_or_create_jumpedia_user(C,
-            679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
+        _THE_ONE_PIECE.get_or_create_jumpedia_user(
+            C, 679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
         ),
         CommunityLimits(32, 32, _32_BIT_INTEGER_LIMIT, 32, 32, 1024, 32),
     )
@@ -402,7 +423,9 @@ def main():
     # TASKS = main_list.get_tasks()
 
     print("Giving users tasks...")
-    give_jumps_to_users(C, main_list, proof_attr, {task.norm_name: task for task in TASKS})
+    give_jumps_to_users(
+        C, main_list, proof_attr, {task.norm_name: task for task in TASKS}
+    )
     print("Gave users tasks!")
 
     C.commit()

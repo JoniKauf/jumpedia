@@ -81,7 +81,9 @@ class Task(BaseStructure):
         static_mapping: MappingProxyType[StaticAttribute, tuple[SlotStr, ...]] = (
             MappingProxyType(
                 {
-                    id_attr: id_attr.real_to_slot_value(c, (text.RealStr(str(id), check=False),)),
+                    id_attr: id_attr.real_to_slot_value(
+                        c, (text.RealStr(str(id), check=False),)
+                    ),
                     name_attr: (name,),
                     alias_attr: tuple(aliases),
                 }

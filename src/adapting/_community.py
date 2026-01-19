@@ -1,13 +1,14 @@
 import typing as t
 
-from discord_.utils_ import message
+from dc_utils import message
+from ..dc_utils import errors
 from structures.community import Community
 from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
 from utils import orm, text
 from utils.rank import CommunityRank
 
-from . import BaseStructureAdapter, errors
+from . import BaseStructureAdapter
 from ._list import ListAdapter
 from ._user import CommunityUserAdapter, JumpediaUserAdapter
 

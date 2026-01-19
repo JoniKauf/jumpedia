@@ -2,14 +2,14 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters._community import CommunityAdapter
-from adapters._user import UserAdapter
-from adapters.interaction import InteractionAdapter
-from discord_.utils_ import message, shortcuts
+from adapting._community import CommunityAdapter
+from adapting._user import UserAdapter
+from adapting.interaction import InteractionAdapter
+from dc_utils import message, shortcuts
 from utils import text
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
-from ..utils_ import user as user_
+from ..discord_utils import user as user_
 
 
 class UserCog(cmds.GroupCog, group_name="user"):

@@ -3,11 +3,11 @@ import typing as t
 
 import discord as dc
 
-from adapters._jumpedia import JumpediaAdapter
-from adapters._user import JumpediaUserAdapter
-from adapters.errors import FeedbackError
-from adapters.interaction import InteractionAdapter
-from discord_.utils_ import shortcuts
+from adapting._jumpedia import JumpediaAdapter
+from adapting._user import JumpediaUserAdapter
+from . import errors
+from adapting.interaction import InteractionAdapter
+from . import shortcuts
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 MAX_NAME_LENGTH: t.Final[int] = 32
@@ -48,13 +48,6 @@ def identifier_to_id(identifier: str | int) -> int:
         return _int_to_id(identifier)
 
     return _str_to_id(identifier)
-
-
-def _not_permitted[T: AnyRankT](my_rank: T, rank_required: T) -> FeedbackError:
-    return FeedbackError(
-        "Not Permitted",
-        t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",
-    )
 
 
 def validate_allowed(
@@ -130,7 +123,7 @@ def validate_allowed(
             if get_jumpedia_rank():
                 continue
 
-            raise _not_permitted(sr, req)
+            raise errors.NotPermittedError(sr, req)
 
         if isinstance(req, JumpediaRank):
             jr = get_jumpedia_rank()
@@ -138,7 +131,7 @@ def validate_allowed(
             if jr >= req:
                 continue
 
-            raise _not_permitted(jr, req)
+            raise errors.NotPermittedError(jr, req)
 
         if isinstance(req, CommunityRank):
             if get_jumpedia_rank():
@@ -149,7 +142,7 @@ def validate_allowed(
             if cr >= req:
                 continue
 
-            raise _not_permitted(cr, req)
+            raise errors.NotPermittedError(cr, req)
 
         t.assert_never(req)
 

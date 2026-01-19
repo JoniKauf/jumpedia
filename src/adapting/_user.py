@@ -3,13 +3,14 @@ from functools import cached_property
 
 import discord as dc
 
-from adapters._server import ServerAdapter
-from discord_.utils_ import message
+from adapting._server import ServerAdapter
+from dc_utils import message
+from ..dc_utils import errors
 from structures.community import CommunityUser, JumpediaUser
 from utils import orm, text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from . import BaseAdapter, BaseStructureAdapter, errors
+from . import BaseAdapter, BaseStructureAdapter
 
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
@@ -276,6 +277,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             )
 
         self._o.set_selected_list(
+            self._c,
             None if selected_list is None else selected_list._o.id
         )
 

@@ -1,5 +1,6 @@
 import typing as t
 
+from ..dc_utils import errors
 from structures.community import Community, CommunityLimits
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
@@ -10,7 +11,7 @@ from structures.jumpedia import Jumpedia
 from utils import orm, text
 from utils.rank import JumpediaRank
 
-from . import BaseStructureAdapter, errors
+from . import BaseStructureAdapter
 from ._community import CommunityAdapter
 from ._user import JumpediaUserAdapter, UserAdapter
 
@@ -81,7 +82,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
         self._o.delete_community(self._c, community.id)
 
     def delete_current_community(self) -> None:
-        from discord_.utils_ import shortcuts
+        from dc_utils import shortcuts
 
         self._o.delete_community(
             self._c, shortcuts.get_current_community(self.interaction).id

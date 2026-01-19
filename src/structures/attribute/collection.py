@@ -81,8 +81,8 @@ class Collection(t.Sequence[CollectionEntry]):
     def __eq__(self, value: object) -> bool:
         if self.__class__ is not value.__class__:
             return NotImplemented
-        
+
         return self.attribute.id == value.attribute.id  # type: ignore
-    
+
     def __hash__(self) -> int:
         return hash(self.attribute.id)

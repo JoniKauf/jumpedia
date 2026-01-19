@@ -16,7 +16,7 @@ from ._user import ServerMemberAdapter, UserAdapter
 
 
 def _require_member(user_or_member: dc.User | dc.Member) -> dc.Member:
-    from adapters.errors import FeedbackError
+    from dc_utils.errors import FeedbackError
 
     if isinstance(user_or_member, dc.User):
         raise FeedbackError(

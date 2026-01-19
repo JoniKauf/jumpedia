@@ -700,9 +700,11 @@ def create_database(
         )
     except Exception as e:
         try:
-            c.raw_execute(f"""
+            c.raw_execute(
+                f"""
                 DROP DATABASE {database_name}
-            """)
+            """
+            )
         except Exception as e2:
             raise e2
 

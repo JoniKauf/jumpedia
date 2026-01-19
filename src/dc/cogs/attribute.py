@@ -8,8 +8,8 @@ import discord as dc
 import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
-from adapters.interaction import InteractionAdapter
-from discord_.utils_ import command, predicate, shortcuts
+from adapting.interaction import InteractionAdapter
+from dc_utils import command, predicate, shortcuts
 from structures import list
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
@@ -23,7 +23,7 @@ from structures.list import Kind, List
 from utils import text
 from utils.rank import CommunityRank
 
-from ..utils_ import message, modal
+from dc_utils import message, modal
 
 SlotTypeEnum = enum.Enum(
     "SlotTypeEnum",
