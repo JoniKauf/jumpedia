@@ -365,7 +365,7 @@ class FilterVisitor[T: AttributeValueMapping | UserAttributeValueMapping](
                 for i, tav in fast_avm.items()
                 if (not tav.get(attr_name)) is MUST_BE_EMPTY
             }
-
+        
         value_str_norm = NormStr(value_str_real)
 
         collection = attr.get_collection()

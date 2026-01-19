@@ -47,15 +47,15 @@ class SlotStr(text.RealStr):
             if len(s) > limits.attribute_task_value_slot_length_max:
                 raise errors.InvalidSlotStrError(s, type)
 
-            return super().__new__(cls, s)
+            return super().__new__(cls, s, check=False)
 
         if issubclass(type, bool):
             s_low = s.lower()
 
             if s_low == "false":
-                return super().__new__(cls, str(False))
+                return super().__new__(cls, str(False), check=False)
             if s_low == "true":
-                return super().__new__(cls, str(True))
+                return super().__new__(cls, str(True), check=False)
 
             raise errors.InvalidSlotStrError(s, type)
 
@@ -68,7 +68,7 @@ class SlotStr(text.RealStr):
             if not is_valid_number(n):
                 raise errors.InvalidSlotStrError(s, type)
 
-            return super().__new__(cls, s)
+            return super().__new__(cls, s, check=False)
 
         elif issubclass(type, Decimal):
             try:
@@ -80,7 +80,7 @@ class SlotStr(text.RealStr):
             if not is_valid_number(n):
                 raise errors.InvalidSlotStrError(s, type)
 
-            return super().__new__(cls, s)
+            return super().__new__(cls, str(n), check=False)
 
         t.assert_never(type)
 

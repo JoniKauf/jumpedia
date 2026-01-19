@@ -82,8 +82,7 @@ class FeedbackError(BaseUserReturnableError):
             additional=self.additional,
             paragraphs=paragraphs,
         )
-
-
+    
 class DatabaseError(FeedbackError):
     def __init__(self):
         super().__init__(

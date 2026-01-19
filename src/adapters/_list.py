@@ -113,20 +113,6 @@ def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
     return tuple(map(text.RealStr, aliases))
 
 
-def _get_norm_syn_to_attribute_s[T: AnyAttributeT](
-    type: type[T], *types: type[T]
-) -> dict[text.NormStr, T]:
-    syn_to_attr: dict[text.NormStr, T] = {}
-
-    for attr_type in (type, *types):
-        for alias, attr in list_obj._s.get_attribute_alias_mapping(attr_type).items():
-            syn_to_attr[text.NormStr(alias)] = attr
-
-        syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
-
-    return syn_to_attr
-
-
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
 
@@ -145,7 +131,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def get_tasks_of_user(self, user: CommunityUserAdapter) -> list[TaskAdapter]:
         return [
-            TaskAdapter(task, self) for task in self._o.get_tasks_of_user(user._o.id)
+            TaskAdapter(task, self) for task in self._o.get_tasks_of_user(self._c, user._o.id)
         ]
 
     def get_task(self, syn: str) -> TaskAdapter:

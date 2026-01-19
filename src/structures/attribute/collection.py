@@ -77,3 +77,12 @@ class Collection(t.Sequence[CollectionEntry]):
             return self._syn_to_entry[norm_syn]
 
         return self._syn_to_entry.get(norm_syn, default)
+
+    def __eq__(self, value: object) -> bool:
+        if self.__class__ is not value.__class__:
+            return NotImplemented
+        
+        return self.attribute.id == value.attribute.id  # type: ignore
+    
+    def __hash__(self) -> int:
+        return hash(self.attribute.id)
