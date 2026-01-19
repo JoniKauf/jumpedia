@@ -1,7 +1,7 @@
 import enum
 import itertools
 import typing as t
-from types import MappingProxyType
+from types import EllipsisType, MappingProxyType
 
 from structures import attribute
 from utils import orm, text
@@ -29,7 +29,7 @@ from .user import CommunityUser
 if t.TYPE_CHECKING:
     from .community import Community
 
-import functools
+from . import utils_
 
 
 class Kind(enum.IntEnum):
@@ -93,6 +93,35 @@ TaskAttributeValueTable = db.TaskAttributeValue
 CommunityUserTaskTable = db.CommunityUserTask
 CommunityUserTaskAttributeValueTable = db.CommunityUserTaskAttributeValue
 
+type _AttributeTypeT[T: AnyAttributeT = AnyAttributeT] = type[T] | tuple[type[T], ...]
+
+
+def _attribute_type_to_where(
+    type: _AttributeTypeT | None,
+) -> tuple[()] | tuple[tuple[t.Any, orm.Operator, t.Any]] | None:
+    where: tuple[t.Any, orm.Operator, t.Any] | None
+
+    if type is None:
+        where = None
+
+    elif not isinstance(type, tuple):
+        where = (db.Attribute.type_id, orm.Operator.EQ, type.type_id)
+
+    elif len(type) == 0:
+        return None
+
+    elif len(type) == 1:
+        where = (db.Attribute.type_id, orm.Operator.EQ, type[0].type_id)
+
+    else:
+        where = (
+            db.Attribute.type_id,
+            orm.Operator.IN,
+            (attr_type.type_id for attr_type in type),
+        )
+
+    return () if where is None else (where,)
+
 
 class List(BaseStructure):
     community: Community
@@ -103,31 +132,42 @@ class List(BaseStructure):
     def name(self) -> str:
         return self.real_name
 
+    @t.overload
     def _get_attributes_inner(
-        self, c: orm.Cursor, /, *where: tuple[t.Any, orm.Operator, t.Any]
-    ) -> list[AnyAttributeT]:
-        return list(
-            map(
-                self._attribute_row_to_obj,
-                c.fetch_all(
-                    db.Attribute.select("*").where(
-                        (db.Attribute.list_id, orm.Operator.EQ, self.id),
-                        *where,
-                    )
-                ),
-            )
-        )
+        self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any], type: None = ...
+    ) -> map[AnyAttributeT]:
+        pass
 
-    def _get_attributes_of_type_inner[T: AnyAttributeT](
+    @t.overload
+    def _get_attributes_inner[T: AnyAttributeT](
         self,
         c: orm.Cursor,
-        type: type[T],
-        /,
         *where: tuple[t.Any, orm.Operator, t.Any],
-    ) -> list[T]:
-        return self._get_attributes_inner(
-            c, (db.Attribute.type_id, orm.Operator.EQ, type.type_id), *where
-        )  # type: ignore
+        type: type[T] | tuple[type[T], ...],
+    ) -> map[T]:
+        pass
+
+    def _get_attributes_inner(
+        self,
+        c: orm.Cursor,
+        *where: tuple[t.Any, orm.Operator, t.Any],
+        type: type[AnyAttributeT] | tuple[type[AnyAttributeT], ...] | None = None,
+    ) -> map[AnyAttributeT]:
+        type_where = _attribute_type_to_where(type)
+
+        if type_where is None:
+            return map(lambda _: _, ())
+
+        return map(
+            self._attribute_row_to_obj,
+            c.fetch_all(
+                db.Attribute.select("*").where(
+                    (db.Attribute.list_id, orm.Operator.EQ, self.id),
+                    *type_where,
+                    *where,
+                )
+            ),
+        )
 
     @t.overload
     def _attribute_row_to_obj(
@@ -160,80 +200,6 @@ class List(BaseStructure):
             kind=None if row.kind is None else Kind(row.kind),  # type: ignore
         )
 
-    def get_attributes_of_type[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], /
-    ) -> list[T]:
-        return self._get_attributes_of_type_inner(c, type)
-
-    def get_attributes_of_type_by_id[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], id: int, /, *ids: int
-    ) -> list[T]:
-        return self._get_attributes_of_type_inner(
-            c, type, (db.Attribute.id, orm.Operator.IN, (id, *ids))
-        )
-
-    def get_attributes_of_type_by_name[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], name: NormStr, /, *names: NormStr
-    ) -> dict[text.RealStr, T]:
-        return {
-            attr.real_name: attr
-            for attr in self._get_attributes_of_type_inner(
-                c, type, (db.Attribute.norm_name, orm.Operator.IN, (name, *names))
-            )
-        }
-
-    def get_attributes_of_type_by_alias[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], alias: NormStr, /, *aliases: NormStr
-    ) -> dict[text.RealStr, T]:
-        rows = c.fetch_all(
-            db.AttributeAlias.select(
-                db.AttributeAlias.attribute_id,
-                db.AttributeAlias.real_alias,
-            ).where(
-                (db.AttributeAlias.list_id, orm.Operator.EQ, self.id),
-                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, type.type_id),
-                (
-                    db.AttributeAlias.norm_alias,
-                    orm.Operator.IN,
-                    (alias, *aliases),
-                ),
-            )
-        )
-
-        if not rows:
-            return {}
-
-        attr_id_RealStr_aliases: dict[int, tuple[text.RealStr, ...]] = {
-            attr_id: tuple(text.RealStr(row.real_alias, check=False) for row in rows)
-            for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
-        }
-
-        attrs = self.get_attributes_of_type_by_id(c, type, *attr_id_RealStr_aliases)
-
-        return {
-            real_alias: attr
-            for attr in attrs
-            for real_alias in attr_id_RealStr_aliases[attr.id]
-        }
-
-    def get_attributes_of_type_by_syn[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], syn: NormStr, /, *syns: NormStr
-    ) -> dict[text.RealStr, T]:
-        return self.get_attributes_of_type_by_name(
-            c, type, syn, *syns
-        ) | self.get_attributes_of_type_by_alias(c, type, syn, *syns)
-
-    def get_single_attribute_of_type_by_syn[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], syn: NormStr, /
-    ) -> T | None:
-        for attr in self.get_attributes_of_type_by_syn(c, type, syn).values():
-            return attr
-
-        return None
-
-    def get_attributes(self, c: orm.Cursor, /) -> list[AnyAttributeT]:
-        return self._get_attributes_inner(c)
-
     def get_attributes_grouped(
         self, c: orm.Cursor, /
     ) -> tuple[list[StaticAttribute], list[TaskAttribute], list[UserAttribute]]:
@@ -242,40 +208,189 @@ class List(BaseStructure):
         ] = ([], [], [])
 
         for attr in self._get_attributes_inner(c):
-            result[attr.__class__.type_id].append(attr)  # type: ignore
+            result[type(attr).type_id].append(attr)  # type: ignore
 
         return result
 
+    @t.overload
+    def get_attributes(self, c: orm.Cursor, /, type: None = ...) -> list:
+        pass
+
+    @t.overload
+    def get_attributes[T: AnyAttributeT](self, c: orm.Cursor, /, type: _AttributeTypeT[T]) -> list:
+        pass
+
+    def get_attributes(self, c: orm.Cursor, /, type: _AttributeTypeT | None = None) -> list:
+        return list(self._get_attributes_inner(c, type=type))
+
+    @t.overload
+    def get_attribute_by_id(
+        self, c: orm.Cursor, id: int, /, type: None = ...
+    ) -> AnyAttributeT | None:
+        pass
+
+    @t.overload
+    def get_attribute_by_id[T: AnyAttributeT](
+        self, c: orm.Cursor, id: int, /, type: type[T]
+    ) -> T | None:
+        pass
+
+    def get_attribute_by_id(
+        self, c: orm.Cursor, id: int, /, type: _AttributeTypeT | None = None
+    ) -> AnyAttributeT | None:
+        return utils_.first_or_none(self.get_attributes_by_id(c, (id,), type=type).values())
+
+    @t.overload
     def get_attributes_by_id(
-        self, c: orm.Cursor, id: int, /, *ids: int
-    ) -> list[AnyAttributeT]:
-        return self._get_attributes_inner(
-            c, (db.Attribute.id, orm.Operator.IN, (id, *ids))
+        self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /, type: None = ...
+    ) -> dict[int, AnyAttributeT]:
+        pass
+
+    @t.overload
+    def get_attributes_by_id[T: AnyAttributeT](
+        self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /, type: _AttributeTypeT[T]
+    ) -> dict[int, T]:
+        pass
+
+    def get_attributes_by_id(
+        self,
+        c: orm.Cursor,
+        ids: t.Collection[int] | EllipsisType,
+        /,
+        type: _AttributeTypeT | None = None,
+    ) -> dict[int, AnyAttributeT]:
+        return {
+            attr.id: attr for attr in
+            (self._get_attributes_inner(c, type=type) if ids is ... else self._get_attributes_inner(
+                c, (db.Attribute.id, orm.Operator.IN, ids), type=type
+            ))
+        }
+
+    @t.overload
+    def get_attribute_by_name(
+        self, c: orm.Cursor, name: NormStr, /, type: None = ...
+    ) -> AnyAttributeT | None:
+        pass
+
+    @t.overload
+    def get_attribute_by_name[T: AnyAttributeT](
+        self, c: orm.Cursor, name: NormStr, /, type: _AttributeTypeT[T]
+    ) -> T | None:
+        pass
+
+    def get_attribute_by_name(
+        self, c: orm.Cursor, name: NormStr, /, type: _AttributeTypeT | None = None
+    ) -> AnyAttributeT | None:
+        return utils_.first_or_none(
+            self.get_attributes_by_name(c, (name,), type=type).values()
         )
 
+    @t.overload
     def get_attributes_by_name(
-        self, c: orm.Cursor, name: NormStr, /, *names: NormStr
-    ) -> dict[text.RealStr, AnyAttributeT]:
+        self,
+        c: orm.Cursor,
+        names: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: None = ...,
+    ) -> dict[RealStr, AnyAttributeT]:
+        pass
+
+    @t.overload
+    def get_attributes_by_name[T: AnyAttributeT](
+        self,
+        c: orm.Cursor,
+        names: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: _AttributeTypeT[T],
+    ) -> dict[RealStr, T]:
+        pass
+
+    def get_attributes_by_name(
+        self,
+        c: orm.Cursor,
+        names: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: _AttributeTypeT | None = None,
+    ) -> dict[RealStr, AnyAttributeT]:
         return {
             attr.real_name: attr
-            for attr in self._get_attributes_inner(
-                c, (db.Attribute.norm_name, orm.Operator.IN, (name, *names))
+            for attr in (
+                self._get_attributes_inner(c, type=type)
+                if names is ...
+                else self._get_attributes_inner(
+                    c, (db.Attribute.norm_name, orm.Operator.IN, names), type=type
+                )
             )
         }
 
+    @t.overload
+    def get_attribute_by_alias(
+        self, c: orm.Cursor, alias: NormStr, /, type: None = ...
+    ) -> AnyAttributeT | None:
+        pass
+
+    @t.overload
+    def get_attribute_by_alias[T: AnyAttributeT](
+        self, c: orm.Cursor, alias: NormStr, /, type: _AttributeTypeT[T]
+    ) -> T | None:
+        pass
+
+    def get_attribute_by_alias(
+        self, c: orm.Cursor, alias: NormStr, /, type: _AttributeTypeT | None = None
+    ) -> AnyAttributeT | None:
+        return utils_.first_or_none(
+            self.get_attributes_by_alias(c, (alias,), type=type).values()
+        )
+
+    @t.overload
     def get_attributes_by_alias(
-        self, c: orm.Cursor, alias: NormStr, /, *aliases: NormStr
+        self,
+        c: orm.Cursor,
+        aliases: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: None = ...,
     ) -> dict[text.RealStr, AnyAttributeT]:
+        pass
+
+    @t.overload
+    def get_attributes_by_alias[T: AnyAttributeT](
+        self,
+        c: orm.Cursor,
+        aliases: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: _AttributeTypeT[T],
+    ) -> dict[text.RealStr, T]:
+        pass
+
+    def get_attributes_by_alias(
+        self,
+        c: orm.Cursor,
+        aliases: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: _AttributeTypeT | None = None,
+    ) -> dict[text.RealStr, AnyAttributeT]:
+        type_where = _attribute_type_to_where(type)
+
+        if type_where is None:
+            return {}
+
         rows = c.fetch_all(
             db.AttributeAlias.select(
                 db.AttributeAlias.attribute_id,
                 db.AttributeAlias.real_alias,
             ).where(
                 (db.AttributeAlias.list_id, orm.Operator.EQ, self.id),
-                (
-                    db.AttributeAlias.norm_alias,
-                    orm.Operator.IN,
-                    (alias, *aliases),
+                *type_where,
+                *(
+                    ()
+                    if aliases is ...
+                    else (
+                        (
+                            db.AttributeAlias.norm_alias,
+                            orm.Operator.IN,
+                            aliases,
+                        ),
+                    )
                 ),
             )
         )
@@ -283,27 +398,65 @@ class List(BaseStructure):
         if not rows:
             return {}
 
-        attr_id_RealStr_aliases: dict[int, tuple[text.RealStr, ...]] = {
+        attr_id_real_str_aliases: dict[int, tuple[text.RealStr, ...]] = {
             attr_id: tuple(text.RealStr(row.real_alias, check=False) for row in rows)
             for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
-        attrs = self.get_attributes_by_id(c, *attr_id_RealStr_aliases)
+        attrs = self.get_attributes_by_id(c, attr_id_real_str_aliases)
 
         return {
             real_alias: attr
-            for attr in attrs
-            for real_alias in attr_id_RealStr_aliases[attr.id]
+            for attr in attrs.values()
+            for real_alias in attr_id_real_str_aliases[attr.id]
         }
 
+    @t.overload
+    def get_attribute_by_syn(
+        self, c: orm.Cursor, syn: NormStr, /, type: None = ...
+    ) -> AnyAttributeT | None:
+        pass
+
+    @t.overload
+    def get_attribute_by_syn[T: AnyAttributeT](
+        self, c: orm.Cursor, syn: NormStr, /, type: _AttributeTypeT[T]
+    ) -> T | None:
+        pass
+
+    def get_attribute_by_syn(
+        self, c: orm.Cursor, syn: NormStr, /, type: _AttributeTypeT | None = None
+    ) -> AnyAttributeT | None:
+        return utils_.first_or_none(
+            self.get_attributes_by_syn(c, (syn,), type=type).values()
+        )
+
+    @t.overload
     def get_attributes_by_syn(
-        self, c: orm.Cursor, syn: NormStr, /, *syns: NormStr
+        self, c: orm.Cursor, syns: t.Collection[NormStr] | EllipsisType, /, type: None = ...
     ) -> dict[text.RealStr, AnyAttributeT]:
-        return {
-            k: v
-            for type in ALL_ATTRIBUTE_TYPES
-            for k, v in self.get_attributes_of_type_by_syn(c, type, syn, *syns).items()
-        }
+        pass
+
+    @t.overload
+    def get_attributes_by_syn[T: AnyAttributeT](
+        self, c: orm.Cursor, syns: t.Collection[NormStr] | EllipsisType, /, type: _AttributeTypeT[T]
+    ) -> dict[text.RealStr, T]:
+        pass
+
+    def get_attributes_by_syn(
+        self,
+        c: orm.Cursor,
+        syns: t.Collection[NormStr] | EllipsisType,
+        /,
+        type: _AttributeTypeT | None = None,
+    ) -> dict[text.RealStr, AnyAttributeT]:
+        by_name = self.get_attributes_by_name(c, syns, type=type)
+        
+        if syns is not ... and len(by_name) >= len(syns):
+            return by_name  # type: ignore
+
+        return by_name | self.get_attributes_by_alias(c, syns, type=type)  # type: ignore
+
+    print("uwu")
 
     def get_static_attribute_by_kind(
         self, c: orm.Cursor, kind: Kind, /
@@ -311,75 +464,15 @@ class List(BaseStructure):
         if kind not in Kind:
             raise ValueError(f"Kind {kind} is not valid")
 
-        rows = self._get_attributes_of_type_inner(
-            c, StaticAttribute, (AttributeTable.kind, orm.Operator.EQ, kind)
+        rows = tuple(
+            self._get_attributes_inner(
+                c, (AttributeTable.kind, orm.Operator.EQ, kind), type=StaticAttribute
+            )
         )
 
-        if len(rows) != 1:
-            raise RuntimeError(
-                f"Critical error! Could not find static attribute with kind {kind}"
-            )
+        assert len(rows) == 1
 
         return rows[0]
-
-    def get_attribute_alias_mappings_of_type[T: AnyAttributeT](
-        self, c: orm.Cursor, type: type[T], /
-    ) -> dict[RealStr, T]:
-        AttributeAliasTable = db.AttributeAlias
-
-        rows = c.fetch_all(
-            AttributeAliasTable.select(
-                AttributeAliasTable.attribute_id,
-                AttributeAliasTable.real_alias,
-            ).where(
-                (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-                (db.AttributeAlias.attribute_type_id, orm.Operator.EQ, type.type_id),
-            )
-        )
-
-        attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
-            k: tuple(text.RealStr(r.real_alias, check=False) for r in g)
-            for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
-        }
-
-        if not attr_id_to_aliases:
-            return {}
-
-        return {
-            alias: attr
-            for attr in self.get_attributes_of_type_by_id(c, type, *attr_id_to_aliases)
-            for alias in attr_id_to_aliases[attr.id]
-        }
-
-    def get_attribute_alias_mappings(
-        self,
-        c: orm.Cursor,
-        /,
-    ) -> dict[RealStr, AnyAttributeT]:
-        AttributeAliasTable = db.AttributeAlias
-
-        rows = c.fetch_all(
-            AttributeAliasTable.select(
-                AttributeAliasTable.attribute_id,
-                AttributeAliasTable.real_alias,
-            ).where(
-                (AttributeAliasTable.list_id, orm.Operator.EQ, self.id),
-            )
-        )
-
-        attr_id_to_aliases: dict[int, tuple[RealStr, ...]] = {
-            k: tuple(text.RealStr(r.real_alias, check=False) for r in g)
-            for k, g in itertools.groupby(rows, lambda row: row.attribute_id)
-        }
-
-        if not attr_id_to_aliases:
-            return {}
-
-        return {
-            alias: attr
-            for attr in self.get_attributes_by_id(c, *attr_id_to_aliases)
-            for alias in attr_id_to_aliases[attr.id]
-        }
 
     def _get_default_static_attribute(
         self, kind: Kind, id: int = -1, /
@@ -543,9 +636,9 @@ class List(BaseStructure):
     ) -> None:
         norm_name = NormStr(real_name)
 
-        try:
-            attribute = self.get_attributes_of_type_by_id(c, type, id)[0]
-        except IndexError:
+        attribute = self.get_attribute_by_id(c, id, type=type)
+        
+        if attribute is None:
             raise errors.StructureNotFoundError(type)
 
         if real_name == attribute.real_name:
@@ -606,9 +699,9 @@ class List(BaseStructure):
             aliases
         )
 
-        try:
-            attribute = self.get_attributes_of_type_by_id(c, type, id)[0]
-        except IndexError:
+        attribute = self.get_attribute_by_id(c, id, type=type)
+        
+        if attribute is None:
             raise errors.StructureNotFoundError(type)
 
         self._validate_attribute_syns(
@@ -650,7 +743,7 @@ class List(BaseStructure):
         type: type[T],
         attribute_value_mapping: dict[int, t.Sequence[RealStr]],
     ) -> MappingProxyType[T, tuple[SlotStr, ...]]:
-        id_to_attr = {attr.id: attr for attr in self.get_attributes_of_type(c, type)}
+        id_to_attr = self.get_attributes_by_id(c, ..., type=type)
 
         for id in attribute_value_mapping:
             if id not in id_to_attr:

@@ -154,7 +154,7 @@ class ListAdapter(BaseStructureAdapter[List]):
             ).items()
         }
 
-        avm = {} if not task_attribute_value_mapping else parsing.avm.run(
+        avm = {} if not task_attribute_value_mapping else parsing.avm.parse(
             self._c,
             text.RealStr(task_attribute_value_mapping), attributes
         )
@@ -183,7 +183,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
-        real_aliases = tuple(map(text.RealStr, parsing.LIST_PARSER.parse(aliases)))
+        real_aliases = tuple(map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases))))
 
         task = self.get_task(syn)
         self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
@@ -196,8 +196,9 @@ class ListAdapter(BaseStructureAdapter[List]):
         avm: dict[int, t.Sequence[text.RealStr]]
 
         if task_attribute_value_mapping:
-            avm = factory.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
-                task_attribute_value_mapping,
+            avm = parsing.avm.parse(
+                self._c,
+                text.RealStr(task_attribute_value_mapping),
                 _get_norm_syn_to_attribute_s(TaskAttribute),
             )
         else:

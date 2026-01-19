@@ -11,7 +11,7 @@ from utils.text import NormStr, RealStr
 from . import mapping
 import typing as t
 
-def run[T: AnyAttributeT](
+def parse[T: AnyAttributeT](
     c: orm.Cursor,
     s: RealStr,
     syn_to_attr: t.Mapping[NormStr, T]

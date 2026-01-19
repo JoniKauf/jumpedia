@@ -162,12 +162,12 @@ class TokenStream:
 class Node:
     pass
 
-class Attr(Node):
-    expected: t.ClassVar[Template] = t"a string representing the name or alias of an attribute"
-
-    def __init__(self, syn: str) -> None:
+class String(Node):
+    def __init__(self, s: str) -> None:
         super().__init__()
-        self.syn = syn
+        self.s = s
+
+EXPECTED_ATTR: Template = t"a string representing the name or alias of an attribute"
 
 
 def transform_factory[T1: Node](*, transform: t.Callable[[TokenStream, int], T1], expected_but_received: t.Callable[[Template, Token], SyntaxFeedbackError]) -> t.Callable[[t.Iterable[Token]], T1]:

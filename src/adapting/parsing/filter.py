@@ -99,15 +99,11 @@ class Gt(Op):
 class GtE(Op):
     pass
 
-
-class Val(factory.Node):
-    def __init__(self, value: str | EllipsisType) -> None:
-        super().__init__()
-        self.value = value
-
+class Empty(factory.Node):
+    pass
 
 class Comparison(factory.Node):
-    def __init__(self, attr: factory.Attr, op: Op, val: Val) -> None:
+    def __init__(self, attr: factory.String, op: Op, val: factory.String | Empty) -> None:
         super().__init__()
         self.attr = attr
         self.op = op
@@ -161,22 +157,22 @@ def _transform_comparison(ts: factory.TokenStream, depth: int) -> Comparison:
 
     if attr.type is not TokenTypes.STR:
         raise expected_but_received(
-            factory.Attr.expected, attr
+            factory.EXPECTED_ATTR, attr
         )
 
     op = _transform_op(ts, depth)
     v = next(ts)
 
     if v.type is TokenTypes.STR:
-        val = Val(v.string)
+        val = factory.String(v.string)
     elif v.type is TokenTypes.UNDERSCORE:
-        val = Val(...)
+        val = Empty()
     else:
         raise expected_but_received(
             t"a string representing a value or the empty value symbol {'_':,} to compare the attribute against", v
         )
 
-    return Comparison(factory.Attr(attr.string), op, val)
+    return Comparison(factory.String(attr.string), op, val)
 
 @check_depth_decorator
 def _transform_atom(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
@@ -321,17 +317,16 @@ def _handle_comparison(
     seen_attrs: set[AnyAttributeT],
     cache: _Cache,
 ) -> _FastAvmT: 
-    attr = syn_to_attr.get(NormStr(node.attr.syn))
+    attr = syn_to_attr.get(NormStr(node.attr.s))
 
     if attr is None:
-        raise errors.StructureNotFoundViaSyn(node.attr.syn, BaseAttribute)
+        raise errors.StructureNotFoundViaSyn(node.attr.s, BaseAttribute)
 
     op_func = _OP_TO_FUNC[type(node.op)]
 
-    value = node.val.value
     op = node.op
 
-    if value is ...:
+    if isinstance(node.val, Empty):
         if not isinstance(op, Is | IsNot):
             raise SyntaxError(
                 t"The empty value symbol {'_':,} can only be used with the {('is', 'is not'):&} operator!"
@@ -345,8 +340,7 @@ def _handle_comparison(
             if (not tav.get(attr.norm_name)) == MUST_BE_EMPTY
         }
     
-    value_real: RealStr = RealStr(value)
-    del value
+    value_real: RealStr = RealStr(node.val.s)
     
     # Throws appropriate error in __new__ if invalid
     value_typed = attr.slot_type(SlotStr(value_real, attr.slot_type, attr.list.community.jumpedia.limits))

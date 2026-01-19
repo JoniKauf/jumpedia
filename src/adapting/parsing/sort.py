@@ -47,7 +47,7 @@ class Desc(Order):
 
 
 class Sort(factory.Node):
-    def __init__(self, order: Order, attr: factory.Attr) -> None:
+    def __init__(self, order: Order, attr: factory.String) -> None:
         super().__init__()
         self.order = order
         self.attr = attr
@@ -69,9 +69,9 @@ def _transform_sort(ts: factory.TokenStream) -> Sort:
     attr = next(ts)
 
     if attr.type is not TokenTypes.STR:
-        raise expected_but_received(factory.Attr.expected, attr)
+        raise expected_but_received(factory.EXPECTED_ATTR, attr)
     
-    return Sort(Asc() if order.type is TokenTypes.PLUS else Desc(), factory.Attr(attr.string))
+    return Sort(Asc() if order.type is TokenTypes.PLUS else Desc(), factory.String(attr.string))
     
 
 def _transform_sort_collection(ts: factory.TokenStream, _: int) -> SortCollection:
@@ -165,10 +165,10 @@ def parse[T: AttributeValueMapping](
     used_attributes: set[AnyAttributeT] = set()
 
     for sort_elem in (sorts_node.first, *sorts_node.others):
-        attr = syn_to_attr.get(NormStr(sort_elem.attr.syn))
+        attr = syn_to_attr.get(NormStr(sort_elem.attr.s))
 
         if attr is None:
-            raise errors.StructureNotFoundViaSyn(sort_elem.attr.syn, BaseAttribute)
+            raise errors.StructureNotFoundViaSyn(sort_elem.attr.s, BaseAttribute)
         
         asc = isinstance(sort_elem.order, Asc)
 
