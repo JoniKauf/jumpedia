@@ -26,15 +26,22 @@ def adapt[T: cmds.Cog, **P](
 
         ia = InteractionAdapter(interaction)
 
-        success = await func(self, ia, *args, **kwargs)
-
         try:
-            if not ia._c._mariadb_connection.autocommit:
-                ia._c.commit()
+            success = await func(self, ia, *args, **kwargs)
 
+            try:
+                if not ia._c._mariadb_connection.autocommit:
+                    ia._c.commit()
+            except mariadb.Error:
+                raise errors.DatabaseError()
+            
+        except Exception:
+            ia._c._mariadb_connection.rollback()
+            raise
+
+        finally:
             ia._c._mariadb_cursor.close()
-        except mariadb.Error:
-            raise errors.DatabaseError()
+            ia._c._mariadb_connection.close()
 
         await success
 

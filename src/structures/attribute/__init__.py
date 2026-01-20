@@ -1,3 +1,4 @@
+import functools
 import itertools
 import typing as t
 from collections import defaultdict
@@ -76,6 +77,7 @@ class BaseAttribute(BaseStructure):
             for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)
         )
 
+    @functools.lru_cache(1)
     def get_collection(self, c: orm.Cursor, /) -> Collection:
         return Collection(attribute=self, entries=())
 
@@ -127,6 +129,7 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         return tuple(result)
 
+    @functools.lru_cache(1)
     def get_collection(self, c: orm.Cursor, /) -> Collection:
         AttributeCollectionEntryTable = db.AttributeCollectionEntry
         AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias

@@ -9,20 +9,20 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+from adapting import parsing
 from adapting.parsing import factory
+import dc_utils
 from dc_utils.errors import FeedbackError
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, message, shortcuts
+from dc_utils import command, message, predicate, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
+from structures.task.attribute_value_mapping import AttributeValueMapping, UserAttributeValueMapping
 from utils import gist
 from utils.expression_parsing.errors import BaseExpressionParsingError
 from utils.rank import CommunityRank
-from utils.text import NormStr
-
-from ..discord_utils import predicate
-from ..discord_utils import user as user_
+from utils.text import NormStr, RealStr
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
     {char: rf"\{char}" for char in r"$&\`*_~#+-.!|()[]{}<>"}
@@ -189,6 +189,8 @@ async def _browse(
 
     ATTRIBUTE_TYPES_TO_HANDLE: tuple[type[AnyAttributeT], ...]
 
+    avms: list[AttributeValueMapping] | list[UserAttributeValueMapping]
+
     # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
@@ -235,31 +237,22 @@ async def _browse(
     syn_to_attr: dict[NormStr, AnyAttributeT] = {}
 
     if filter or sort:
-        for attr_type in ATTRIBUTE_TYPES_TO_HANDLE:
-            for alias, attr in list_obj._o.get_attribute_alias_mappings_of_type(ia._c,
-                attr_type
-            ).items():
-                syn_to_attr[NormStr(alias)] = attr
-
-            syn_to_attr |= {attr.norm_name: attr for attr in ATTRS_SORTED}
+        syn_to_attr = {NormStr(k): v for k, v in list_obj._o.get_attributes_by_syn(ia._c, ..., type=ATTRIBUTE_TYPES_TO_HANDLE).items()}
 
     # - Filter -
     if filter:
         await msg.edit(content="Filtering data...")
 
-        try:
-            avms, filter_used_attributes = factory.FilterStringParser().parse(
-                filter,
-                avms,
-                syn_to_attr,
-            )
-        except BaseExpressionParsingError:
-            raise FeedbackError(
-                "Invalid Filter Syntax",
-                t"The syntax specified for the filter is invalid.",
-            )
+        avms, filter_used_attributes = parsing.filter.parse(
+            ia._c,
+            RealStr(filter),
+            avms,
+            syn_to_attr,
+        )
 
         used_attributes |= filter_used_attributes
+
+        del filter_used_attributes
 
     if not avms:
         raise FeedbackError(
@@ -271,16 +264,14 @@ async def _browse(
     await msg.edit(content="Sorting data...")
 
     if not sort:
-        avms = factory.sort(avms, [(NAME_ATTR, True)])
+        avms = parsing.sort.sort(ia._c, avms, [(NAME_ATTR, True)])
+        sort_used_attributes = {NAME_ATTR}
     else:
-        try:
-            avms = factory.SORT_PARSER.parse(sort, avms, syn_to_attr)
-        except BaseExpressionParsingError:
-            raise FeedbackError(
-                "Invalid Sort Syntax", t"The syntax specified for the sort is invalid."
-            )
+        avms, sort_used_attributes = parsing.sort.parse(ia._c, RealStr(sort), avms, syn_to_attr)
 
-    del syn_to_attr
+    used_attributes |= sort_used_attributes
+
+    del syn_to_attr, sort_used_attributes
 
     # --- Convert to text ---
     await msg.edit(content="Converting data into text...")
@@ -299,7 +290,7 @@ async def _browse(
 
     table: tuple[tuple[tuple[SlotStr, ...], ...], ...] = tuple(
         tuple(
-            avm.combined.get(attr, ())
+            avm.combined.get(attr, ())  # type: ignore
             for attr in ATTRS_SORTED
             if attr in attribute_yield
         )
@@ -452,7 +443,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         user: dc.User | None = None,
         list: str | None = None,
     ) -> CoroutineType[None, None, t.Any]:
-        user_.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
+        dc_utils.user.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
 
         community_user = shortcuts.get_or_create_specified_or_current_community_user(
             ia, user

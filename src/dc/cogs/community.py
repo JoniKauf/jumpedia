@@ -75,7 +75,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def nuke(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
-        return confirm.confirm_nuke(ia, community._o)
+        return confirm.confirm_nuke(ia, community._o, lambda: community.jumpedia.delete_community(community.name))
 
     @acmds.command(description="Connect a community to this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))

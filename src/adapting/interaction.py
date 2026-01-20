@@ -5,6 +5,7 @@ from functools import cached_property
 import discord as dc
 import mariadb
 
+from dc_utils import errors
 from structures.jumpedia import Jumpedia, JumpediaLimits
 from utils import orm, secret
 from utils.rank import JumpediaRank
@@ -30,40 +31,33 @@ def is_joni(interaction: dc.Interaction) -> bool:
     return interaction.user.id == 679564566769827841
 
 
-_CONN: mariadb.Connection | None = None
-
+__POOL = mariadb.ConnectionPool(
+    pool_name="pool",
+    pool_size=10,
+    **secret.listen().DATABASE_CONNECTION_DATA
+)
 
 def _get_connection(*, meta: bool = False) -> mariadb.Connection:
-    # Meta is used at startup. Do not do checks and caching and so on.
     if meta:
-        data = secret.listen().DATABASE_CONNECTION_DATA | {"db": None}
-        return mariadb.connect(**data)
-
-    global _CONN
-
-    if _CONN is not None:
-        if _CONN.open:
-            return _CONN
-
-        try:
-            _CONN.close()
-        except mariadb.ProgrammingError:
-            pass
+        return mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA | {"db": None})
 
     wait: float = 0.01
-    TRIES = 6
+    TRIES = 5
+    
+    last_error: Exception | None = None
 
     for i in range(TRIES):
         try:
-            _CONN = mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA)
-        except mariadb.Error:
+            return __POOL.get_connection()
+        except mariadb.Error as e:
             if i < TRIES - 1:
                 time.sleep(wait)
                 wait *= 2
-        else:
-            return _CONN
+            else:
+                last_error = e
 
-    raise ConnectionError("Could not reach Jumpedia database!!")
+    print(f"Error connecting: {last_error}")
+    raise errors.DatabaseError()
 
 
 def _get_cursor_adapter(*, meta: bool = False) -> orm.Cursor:

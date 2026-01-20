@@ -425,19 +425,17 @@ class List(BaseStructure):
         if not rows:
             return {}
 
-        attr_id_real_str_aliases: dict[int, tuple[text.RealStr, ...]] = {
+        attr_id_to_real_str_aliases: dict[int, tuple[text.RealStr, ...]] = {
             attr_id: tuple(text.RealStr(row.real_alias, check=False) for row in rows)
             for attr_id, rows in itertools.groupby(rows, lambda row: row.attribute_id)
         }
 
-        attrs = self.get_attributes_by_id(c, attr_id_real_str_aliases)
-
-        assert len(attr_id_real_str_aliases) == len(attrs)
+        attrs = self.get_attributes_by_id(c, attr_id_to_real_str_aliases)
 
         return {
             real_alias: attr
             for attr in attrs.values()
-            for real_alias in attr_id_real_str_aliases[attr.id]
+            for real_alias in attr_id_to_real_str_aliases[attr.id]
         }
 
     @t.overload
@@ -782,25 +780,21 @@ class List(BaseStructure):
         self,
         c: orm.Cursor,
         type: type[T],
-        attribute_value_mapping: dict[int, t.Sequence[RealStr]],
+        attribute_value_mapping: t.Mapping[int, t.Sequence[RealStr]],
     ) -> MappingProxyType[T, tuple[SlotStr, ...]]:
         id_to_attr = self.get_attributes_by_id(c, ..., type=type)
 
-        for id in attribute_value_mapping:
-            if id not in id_to_attr:
+        for attr_id in attribute_value_mapping:
+            if attr_id not in id_to_attr:
                 raise errors.StructureNotFoundError(type)
-
-        for attr in id_to_attr.values():
-            attribute_value_mapping.setdefault(attr.id, ())
-
+            
         avm: dict[T, tuple[SlotStr, ...]] = {}
 
         # Convert ids to attributes and validate value
-        for attr_id, v in attribute_value_mapping.items():
-            attr = id_to_attr[attr_id]
-            val = attr.real_to_slot_value(c, v)
-
-            avm[attr] = val
+        for attr in id_to_attr.values():
+            v = attribute_value_mapping.get(attr.id, ())
+            
+            avm[attr] = attr.real_to_slot_value(c, v)
 
         return MappingProxyType(avm)
 
@@ -1356,7 +1350,7 @@ class List(BaseStructure):
         self,
         c: orm.Cursor,
         task_id: int,
-        task_attribute_value_mapping: t.Mapping[int, t.Sequence[RealStr]],
+        task_attribute_value_mapping: t.MutableMapping[int, t.Sequence[RealStr]],
     ) -> None:
         tavm = self._calc_attribute_value_mapping(
             c, TaskAttribute, task_attribute_value_mapping
@@ -1563,7 +1557,7 @@ class List(BaseStructure):
         c: orm.Cursor,
         task_id: int,
         community_user_id: int,
-        user_attribute_value_mapping: t.Mapping[int, t.Sequence[text.RealStr]],
+        user_attribute_value_mapping: t.MutableMapping[int, t.Sequence[text.RealStr]],
     ) -> None:
         uavm = self._calc_attribute_value_mapping(
             c, UserAttribute, user_attribute_value_mapping
@@ -1621,7 +1615,7 @@ class List(BaseStructure):
         c: orm.Cursor,
         task_id: int,
         community_user_id: int,
-        user_attribute_value_mapping: dict[int, t.Sequence[text.RealStr]],
+        user_attribute_value_mapping: t.MutableMapping[int, t.Sequence[text.RealStr]],
     ) -> None:
         uavm = self._calc_attribute_value_mapping(
             c, UserAttribute, user_attribute_value_mapping

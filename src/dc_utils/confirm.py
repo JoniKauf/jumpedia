@@ -62,7 +62,7 @@ class ConfirmConfig(t.NamedTuple):
     wait_until_yes: int = 0
     timeout: int = TIMEOUT
 
-async def confirm_nuke(ia: InteractionAdapter, structure: BaseStructure) -> CoroutineType[None, None, t.Any]:
+async def confirm_nuke(ia: InteractionAdapter, structure: BaseStructure, nuke: t.Callable[[], t.Any]) -> CoroutineType[None, None, t.Any]:
     CONFIG = ConfirmConfig('💣', '⚙️', '❌', 5, 30)
 
     if not ia.dc.response.is_done():
@@ -82,6 +82,8 @@ async def confirm_nuke(ia: InteractionAdapter, structure: BaseStructure) -> Coro
     if not await emoji_confirm(ia, msg, **CONFIG._asdict()):
         raise errors.DeletionAborted(structure)
     
+    nuke()
+
     return msg.edit(
         content=message.layout(
             f"{type(structure).type_name.title()} Nuked",

@@ -40,6 +40,12 @@ class Cursor:
 
         self._mariadb_cursor.close()
 
+    def __hash__(self) -> int:
+        return hash(id(self))
+    
+    def __eq__(self, value: object) -> bool:
+        return id(self) == id(value)
+
     def _core_execute(self, query: Query, /) -> None:
         sql, data = query._to_sql()
 

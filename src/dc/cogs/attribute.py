@@ -7,8 +7,9 @@ from types import CoroutineType
 import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
+from adapting._attribute import AnyAttributeAdapterT
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, predicate, shortcuts
+from dc_utils import command, confirm, predicate, shortcuts
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
     TaskAttribute,
@@ -101,24 +102,23 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
-    async def delete(
+    async def nuke(
         self,
         ia: InteractionAdapter,
         type: NonStaticAttributeEnum,
-        syn: str,
+        attribute: str,
         list: str | None,
     ) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
-        attr_s: TaskAttribute | UserAttribute = list_obj.get_attribute(
-            type.value, syn
-        )._o
+        attr: AnyAttributeAdapterT = list_obj.get_attribute(
+            type.value, attribute
+        )
 
-        return modal.delete_structure_confirmation(
-            ia.dc,
-            type.value,
-            attr_s.name,
-            lambda _: list_obj._o.delete_attribute(ia._c, type.value, attr_s.id),
+        return confirm.confirm_nuke(
+            ia,
+            attr._o,
+            lambda: list_obj.delete_attribute(type.value, attr.name),
         )
 
 
