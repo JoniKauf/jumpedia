@@ -259,3 +259,11 @@ class NotUniqueStructureInMapping(FeedbackError):
             f"{type(structure).type_name.title()} Not Unique",
             t"The {type(structure).type_name} {structure:,} has been referenced multiple times as a key in the same mapping, but keys must be unique!"
         )
+
+class DeletionAborted(FeedbackError):
+    def __init__(self, structure: BaseStructure) -> None:
+        super().__init__(
+            "Deletion Aborted",
+            t"The deletion of the {type(structure)} {structure:,} was aborted!",
+            explicit_message_status=message.MessageStatus.WARNING
+        )

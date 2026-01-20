@@ -1,8 +1,3 @@
-
-
-
-
-
 from dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_str import SlotStr
@@ -11,12 +6,11 @@ from utils.text import NormStr, RealStr
 from . import mapping
 import typing as t
 
+
 def parse[T: AnyAttributeT](
-    c: orm.Cursor,
-    s: RealStr,
-    syn_to_attr: t.Mapping[NormStr, T]
+    c: orm.Cursor, s: RealStr, syn_to_attr: t.Mapping[NormStr, T]
 ) -> dict[T, tuple[RealStr, ...]]:
-    
+
     raw_avm = mapping.parse(s)
 
     res: dict[T, tuple[RealStr, ...]] = {}
@@ -26,10 +20,10 @@ def parse[T: AnyAttributeT](
 
         if attr is None:
             raise errors.StructureNotFoundViaSyn(attr_raw, BaseAttribute)
-        
+
         if attr in res:
             raise errors.NotUniqueStructureInMapping(attr)
-        
+
         res[attr] = tuple(map(RealStr, value_raw))
 
     return res

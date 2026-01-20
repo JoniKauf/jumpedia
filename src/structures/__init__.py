@@ -35,6 +35,9 @@ class _StructureMeta(ABCMeta):
 
         return cls
 
+    def __str__(self) -> str:
+        return self.type_name
+    
     @property
     def type_name(self) -> str:
         v = getattr(self, "_type_name", None)
@@ -43,6 +46,7 @@ class _StructureMeta(ABCMeta):
             v = text.pascal_to_snake(self.__name__.removeprefix("Base"), delim=" ")
 
         return v
+    
 
 
 class BaseStructure(metaclass=_StructureMeta):
@@ -60,3 +64,5 @@ class BaseStructure(metaclass=_StructureMeta):
 
     def __str__(self) -> str:
         return self.name
+
+    

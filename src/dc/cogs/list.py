@@ -14,7 +14,7 @@ from structures.list import List
 from utils import text
 from utils.rank import CommunityRank
 
-from ..discord_utils import message, modal, predicate
+from dc_utils import message, modal, predicate
 import typing as t
 
 class ListCog(cmds.GroupCog, group_name="list"):
@@ -47,26 +47,6 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    @acmds.command(description="Browse all lists of the community.")
-    @command.adapt
-    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
-        lists = shortcuts.get_current_community(ia).get_lists()
-
-        listing: Template
-
-        if lists:
-            listing = text.join_t("\n", (t"- {list.name}" for list in lists))
-        else:
-            listing = t"None"
-
-        return ia.dc.response.send_message(
-            message.layout(
-                "All Lists",
-                listing,
-                message.MessageStatus.INFO,
-            )
-        )
-
     @acmds.command(description="Create a new list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
@@ -94,4 +74,26 @@ class ListCog(cmds.GroupCog, group_name="list"):
             List,
             list_s.name,
             lambda _: list_s.community.delete_list(ia._c, list_s.id),
+        )
+
+
+class ListsCog(cmds.GroupCog, group_name="lists"):
+    @acmds.command(description="Browse all lists of the community.")
+    @command.adapt
+    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
+        lists = shortcuts.get_current_community(ia).get_lists()
+
+        listing: Template
+
+        if lists:
+            listing = text.join_t("\n", (t"- {list.name}" for list in lists))
+        else:
+            listing = t"None"
+
+        return ia.dc.response.send_message(
+            message.layout(
+                "All Lists",
+                listing,
+                message.MessageStatus.INFO,
+            )
         )

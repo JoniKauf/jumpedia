@@ -1,3 +1,4 @@
+import asyncio
 import typing as t
 from string.templatelib import Template
 from types import CoroutineType
@@ -11,7 +12,7 @@ from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-from ..discord_utils import command, message, modal, predicate, shortcuts
+from dc_utils import command, confirm, message, modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -47,26 +48,6 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    @acmds.command(description="Browse all communities.")
-    @command.adapt
-    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
-        communities = ia.jumpedia.get_communities()
-
-        listing: Template
-
-        if communities:
-            listing = text.join_t("\n", (t"- {comm.name:p}" for comm in communities))
-        else:
-            listing = t"None"
-
-        return ia.dc.response.send_message(
-            message.layout(
-                "All Communities",
-                listing,
-                message.MessageStatus.INFO,
-            )
-        )
-
     @acmds.command(description="Create a community.")
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
     @command.adapt
@@ -94,12 +75,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def nuke(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
-        return modal.delete_structure_confirmation(
-            ia._o,
-            Community,
-            community._o.name,
-            lambda _: ia.jumpedia.delete_community(community.name),
-        )
+        return confirm.confirm_nuke(ia, community._o)
 
     @acmds.command(description="Connect a community to this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
@@ -135,54 +111,50 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
     @acmds.command(description="Transfer the ownership of a community to another user.")
     @acmds.check(predicate.rank_required(CommunityRank.OWNER))
+    @command.adapt
     async def transfer_ownership(
-        self, interaction: dc.Interaction, user: dc.User
-    ) -> None:
-        community = shortcuts.get_current_community(InteractionAdapter(interaction))
+        self, ia: InteractionAdapter, user: dc.User
+    ) -> CoroutineType[None, None, t.Any]:
+        community = shortcuts.get_current_community(ia)
         transfer_jumpedia_user = (
             shortcuts.get_or_create_specified_or_current_jumpedia_user(
                 community.jumpedia, user
             )
         )
 
-        async def after_submit(interaction: dc.Interaction, success: bool) -> None:
-            if success:
-                current_community_user = (
-                    shortcuts.get_or_create_specified_or_current_community_user(
-                        community, None
-                    )
-                )
+        await ia.dc.response.defer()
 
-                community.get_or_create_community_user(
-                    transfer_jumpedia_user
-                ).transfer_ownership(current_community_user)
+        CONFIG = confirm.ConfirmConfig()
 
-                await interaction.response.send_message(
-                    message.layout(
-                        "Ownership Transferred",
-                        t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
-                        additional=t"The rank of {current_community_user:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
-                        message_status=message.MessageStatus.SUCCESS,
-                    )
-                )
-            else:
-                await interaction.response.send_message(
-                    message.layout(
-                        "Ownership Transfer Aborted",
-                        t"The ownership of the community {community:,} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:,})!",
-                        message.MessageStatus.WARNING,
-                    )
-                )
+        msg = await ia.dc.followup.send(
+            message.layout(
+                "Transfer Ownership?",
+                t"Are you sure you want to transfer the ownership of {community:,} to {transfer_jumpedia_user:,}?",
+                additional=t"This action CANNOT be undone!",
+                paragraphs=confirm.get_confirm_paragraphs(CONFIG),
+                message_status=message.MessageStatus.WARNING
+            ),
+            wait=True
+        )
 
-        await interaction.response.send_modal(
-            modal.ConfirmByEnteringModal(
-                interaction,
-                f"Confirm Ownership Transfer",
-                f"Enter the other user's name to confirm:",
-                lambda s: s == transfer_jumpedia_user.name,
-                after_submit,
+        if confirm.emoji_confirm(ia, msg, config=CONFIG):
+            return msg.edit(
+                content=message.layout(
+                    "Ownership Transferred",
+                    t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
+                    additional=t"The rank of {ia.current_user.name:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
+                    message_status=message.MessageStatus.SUCCESS,
+                )
+            )
+
+        return msg.edit(
+            content=message.layout(
+                "Ownership Transfer Aborted",
+                t"The ownership of the community {community:,} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:,})!",
+                message.MessageStatus.WARNING,
             )
         )
+
 
     @acmds.command(description="Set the default selected list of the community.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
@@ -207,5 +179,27 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                     else t"The default selected list has successfully been changed to be unset."
                 ),
                 message.MessageStatus.SUCCESS,
+            )
+        )
+
+
+class CommunitiesCog(cmds.GroupCog, group_name="communities"):
+    @acmds.command(description="Browse all communities.")
+    @command.adapt
+    async def browse(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
+        communities = ia.jumpedia.get_communities()
+
+        listing: Template
+
+        if communities:
+            listing = text.join_t("\n", (t"- {comm.name:p}" for comm in communities))
+        else:
+            listing = t"None"
+
+        return ia.dc.response.send_message(
+            message.layout(
+                "All Communities",
+                listing,
+                message.MessageStatus.INFO,
             )
         )

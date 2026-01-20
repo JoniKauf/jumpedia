@@ -24,7 +24,6 @@ from structures.errors import (
 from structures.list import List
 from structures.task import Task
 from utils import orm, text
-from utils.expression_parsing.errors import BaseExpressionParsingError
 
 from . import BaseStructureAdapter
 from ._attribute import (
@@ -40,7 +39,6 @@ from adapting import parsing
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
 
-from .parsing import factory
 
 
 @t.overload
@@ -80,37 +78,30 @@ def _get_attribute_adapter(
 
 
 def _require_task_with_syn(c: orm.Cursor, norm_syn: text.NormStr, list: List) -> Task:
-    task = list.get_single_task_by_syn(c, norm_syn)
+    tup = list.get_task_by_syn(c, norm_syn)
 
-    if task is None:
+    if tup is None:
         raise errors.StructureNotFoundViaSyn(norm_syn, Task, False)
 
-    return task
+    return tup[0]
 
 
 def _require_attribute_with_syn[T: AnyAttributeT](
     c: orm.Cursor, norm_syn: text.NormStr, attribute_type: type[T], list: List
 ) -> T:
-    attribute = list.get_single_attribute_of_type_by_syn(c, attribute_type, norm_syn)
+    tup = list.get_attribute_by_syn(c, norm_syn, type=attribute_type)
 
-    if attribute is None:
+    if tup is None:
         raise errors.StructureNotFoundViaSyn(norm_syn, TaskAttribute, False)
 
-    return attribute
+    return tup[0]
 
 
-def _parse_aliases(aliases: str | None) -> tuple[text.RealStr, ...]:
-    if not aliases:
+def _parse_aliases(aliases_raw: str | None) -> tuple[text.RealStr, ...]:
+    if not aliases_raw:
         return ()
 
-    try:
-        aliases = factory.LIST_PARSER.parse(aliases)
-    except BaseExpressionParsingError:
-        raise FeedbackError(
-            "Invalid Alias Format",
-            t"The syntax used to specify the aliases {aliases:,} is invalid!",
-            additional=t'The syntax should represent a list of strings, so `alias1 "alias2"` would be a valid for example.',
-        )
+    aliases = parsing.aliases.parse(text.RealStr(aliases_raw))
 
     return tuple(map(text.RealStr, aliases))
 
@@ -141,26 +132,27 @@ class ListAdapter(BaseStructureAdapter[List]):
             _require_task_with_syn(self._c, text.NormStr(syn), self._o), self
         )
 
+    def _parse_attribute_value_mapping(self, type: type[AnyAttributeT], attribute_value_mapping: str | None) -> dict[int, tuple[text.RealStr, ...]]:
+        if not attribute_value_mapping:
+            return {}
+        
+        avm = parsing.avm.parse(
+            self._c,
+            text.RealStr(attribute_value_mapping),
+            {text.NormStr(k): v for k, v in self._o.get_attributes_by_syn(self._c, ..., type=type).items()}
+        )
+
+        return {k.id: v for k, v in avm.items()}
+
     def create_task(
         self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
         real_name = text.RealStr(name)
 
         real_aliases = _parse_aliases(aliases)
-        attributes = {
-            text.NormStr(k): v
-            for k, v in self._o.get_attribute_alias_mappings_of_type(
-                self._c, TaskAttribute
-            ).items()
-        }
-
-        avm = {} if not task_attribute_value_mapping else parsing.avm.parse(
-            self._c,
-            text.RealStr(task_attribute_value_mapping), attributes
-        )
 
         try:
-            task_s = self._o.create_task(self._c, real_name, real_aliases, {k.id: v for k, v in avm.items()})
+            task_s = self._o.create_task(self._c, real_name, real_aliases, self._parse_attribute_value_mapping(TaskAttribute, task_attribute_value_mapping))
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
         except StructureCountLimitReachedError as e:
@@ -193,18 +185,7 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         task = self.get_task(syn)
 
-        avm: dict[int, t.Sequence[text.RealStr]]
-
-        if task_attribute_value_mapping:
-            avm = parsing.avm.parse(
-                self._c,
-                text.RealStr(task_attribute_value_mapping),
-                _get_norm_syn_to_attribute_s(TaskAttribute),
-            )
-        else:
-            avm = {}
-
-        self._o.edit_task_attribute_value_mapping(self._c, task._o.id, avm)
+        self._o.edit_task_attribute_value_mapping(self._c, task._o.id, self._parse_attribute_value_mapping(TaskAttribute, task_attribute_value_mapping))
 
     # --- Attribute ---
 
@@ -231,7 +212,7 @@ class ListAdapter(BaseStructureAdapter[List]):
     def get_attributes(self, type: type[AnyAttributeT]) -> list[AnyAttributeAdapterT]:  # type: ignore
         return [
             _get_attribute_adapter(attr, self)
-            for attr in self._o.get_attributes_of_type(self._c, type)
+            for attr in self._o.get_attributes(self._c, type=type)
         ]
 
     def get_all_attributes(
@@ -307,13 +288,16 @@ class ListAdapter(BaseStructureAdapter[List]):
         collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
         real_aliases = _parse_aliases(aliases)
-
-        real_collection = tuple(
-            (text.RealStr(name), tuple(map(text.RealStr, aliases)))
-            for name, aliases in factory.LIST_OF_NAME_ALIASES_PARSER.parse(
-                collection or "[]"
+        
+        if not collection:
+            real_collection = ()
+        else:
+            real_collection = tuple(
+                (text.RealStr(name), tuple(map(text.RealStr, aliases)))
+                for name, aliases in parsing.mapping.parse(
+                    text.RealStr(collection)
+                )
             )
-        )
 
         try:
             attr_s = self._o.create_attribute(
@@ -357,18 +341,9 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> TaskAdapter:
         task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
 
-        avm: dict[int, t.Sequence[text.RealStr]]
-
-        if user_attribute_value_mapping:
-            avm = factory.ATTRIBUTE_VALUE_MAPPING_PARSER.parse(
-                syn, _get_norm_syn_to_attribute_s(UserAttribute)
-            )
-        else:
-            avm = {}
-
         try:
             self._o.give_task_to_community_user(
-                self._c, task_s.id, community_user._o.id, avm
+                self._c, task_s.id, community_user._o.id, self._parse_attribute_value_mapping(UserAttribute, user_attribute_value_mapping)
             )
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRange(e)

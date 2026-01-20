@@ -5,6 +5,7 @@ import discord as dc
 
 from adapting._server import ServerAdapter
 from dc_utils import message
+import dc_utils
 from ..dc_utils import errors
 from structures.community import CommunityUser, JumpediaUser
 from utils import orm, text
@@ -135,10 +136,57 @@ def get_success_msg(
         message_status=message.MessageStatus.SUCCESS,
     )
 
+class UserAdapter(BaseAdapter[dc.User]):
+    interaction: InteractionAdapter
+
+    @property
+    def _c(self) -> orm.Cursor:
+        return self.interaction._c
+
+    @property
+    def id(self) -> int:
+        return self._o.id
+
+    @property
+    def name(self) -> str:
+        return self._o.global_name or self._o.name
+
+class ServerMemberAdapter(BaseAdapter[dc.Member]):
+    server: ServerAdapter
+    user: UserAdapter
+
+    @property
+    def _c(self) -> orm.Cursor:
+        return self.server._c
+
+    @cached_property
+    def server_rank(self) -> ServerRank:
+        if self._o == self.server._o.owner:
+            return ServerRank.OWNER
+
+        if self._o.guild_permissions.administrator:
+            return ServerRank.ADMINISTRATOR
+
+        return ServerRank.USER
+    
+    @property
+    def id(self) -> int:
+        return self.user.id
+    
+    @property
+    def name(self) -> str:
+        return self.user.name
+    
+    
+
 
 class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     jumpedia: JumpediaAdapter
 
+    @cached_property
+    def user(self) -> UserAdapter:
+        return self.jumpedia.interaction.current_user
+    
     @property
     def _c(self) -> orm.Cursor:
         return self.jumpedia._c
@@ -175,6 +223,10 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     community: CommunityAdapter
     jumpedia_user: JumpediaUserAdapter
 
+    @cached_property
+    def server_member(self):
+        return self.community.jumpedia.interaction.current_member
+    
     @property
     def _c(self) -> orm.Cursor:
         return self.community._c
@@ -183,6 +235,10 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     def name(self) -> str:
         return self.jumpedia_user.name
 
+    @cached_property
+    def server_rank(self) -> ServerRank:
+        return self.server_member.server_rank
+        
     @property
     def community_rank(self) -> CommunityRank:
         return self._o.community_rank
@@ -190,8 +246,8 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     @property
     def jumpedia_rank(self) -> JumpediaRank:
         return self.jumpedia_user.jumpedia_rank
-
-    @property
+    
+    @cached_property
     def most_powerful_rank(self) -> JumpediaRank | CommunityRank:
         return self._o.jumpedia_user.jumpedia_rank or self.community_rank
 
@@ -237,7 +293,9 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         from ._list import ListAdapter
 
         REQ_RANK = CommunityRank.MODERATOR
-
+        
+        dc_utils.user.validate_allowed_for_others(self.community.jumpedia.interaction.dc, executing_community_user.jumpedia_user.user._o, CommunityRank.MODERATOR)
+        
         if (
             self != executing_community_user
             and executing_community_user.most_powerful_rank.value < REQ_RANK.value
@@ -321,36 +379,3 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             raise e
 
 
-class UserAdapter(BaseAdapter[dc.User]):
-    interaction: InteractionAdapter
-
-    @property
-    def _c(self) -> orm.Cursor:
-        return self.interaction._c
-
-    @property
-    def id(self) -> int:
-        return self._o.id
-
-    @property
-    def name(self) -> str:
-        return self._o.global_name or self._o.name
-
-
-class ServerMemberAdapter(BaseAdapter[dc.Member]):
-    server: ServerAdapter
-    user: UserAdapter
-
-    @property
-    def _c(self) -> orm.Cursor:
-        return self.server._c
-
-    @cached_property
-    def server_rank(self) -> ServerRank:
-        if self._o == self.server._o.owner:
-            return ServerRank.OWNER
-
-        if self._o.guild_permissions.administrator:
-            return ServerRank.ADMINISTRATOR
-
-        return ServerRank.USER

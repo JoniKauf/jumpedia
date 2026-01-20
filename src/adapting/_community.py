@@ -138,7 +138,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
                 False,
             ),
             self,
-            jumpedia_user,
+            jumpedia_user
         )
 
     # --- Server ---

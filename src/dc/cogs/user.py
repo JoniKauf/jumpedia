@@ -5,7 +5,8 @@ import discord.ext.commands as cmds
 from adapting._community import CommunityAdapter
 from adapting._user import UserAdapter
 from adapting.interaction import InteractionAdapter
-from dc_utils import message, shortcuts
+from dc_utils import command, message, shortcuts
+import dc_utils
 from utils import text
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
@@ -30,7 +31,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         NOT_IN_COMMUNITY = "<Not executed in a community>"
 
-        community_s = jumpedia._o.get_community_by_server_id(ia._c, ia.current_server.id)
+        community_s = jumpedia._o.get_communities_by_server_id(ia._c, ia.current_server.id)
         community_user = (
             shortcuts.get_or_create_specified_or_current_community_user(
                 CommunityAdapter(community_s, jumpedia), jumpedia_user
@@ -78,28 +79,18 @@ class UserCog(cmds.GroupCog, group_name="user"):
         )
 
     @acmds.command()
+    @command.adapt
     async def set_selected_list(
         self,
-        interaction: dc.Interaction,
+        ia: InteractionAdapter,
         list: str | None = None,
         user: dc.User | None = None,
     ) -> None:
-        user_.validate_allowed_for_others(interaction, user, CommunityRank.MODERATOR)
+        dc_utils.user.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
 
-        ia = InteractionAdapter(interaction)
+        ia_community_user = shortcuts.get_or_create_specified_or_current_community_user(ia, user)
 
-        jumpedia = ia.jumpedia
-        community = jumpedia.get()
-
-        set_community_user = community.get_or_create_community_user(
-            jumpedia.get_or_create_jumpedia_user_or_current(
-                None if user is None else UserAdapter(user, ia)
-            )
-        )
-
-        ia_community_user = community.get_or_create_current_community_user()
-
-        list_obj = set_community_user.set_selected_list(list, ia_community_user)
+        list_obj = ia_community_user.set_selected_list(list, ia_community_user)
 
         await interaction.response.send_message(
             message.layout(

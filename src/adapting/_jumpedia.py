@@ -22,12 +22,12 @@ if t.TYPE_CHECKING:
 def _require_community_with_name(
     c: orm.Cursor, name: text.NormStr, jumpedia_s: Jumpedia
 ) -> Community:
-    community = jumpedia_s.get_community_by_name(c, name)
+    tup = jumpedia_s.get_community_by_name(c, name)
 
-    if community is None:
+    if tup is None:
         raise errors.StructureNotFoundViaSyn(name, Community, only_name=True)
 
-    return community
+    return tup[0]
 
 
 class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):

@@ -4,22 +4,17 @@ import typing as t
 from string.templatelib import Template
 from types import CoroutineType
 
-import discord as dc
 import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
 from adapting.interaction import InteractionAdapter
 from dc_utils import command, predicate, shortcuts
-from structures import list
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
-    AnyAttributeT,
-    StaticAttribute,
     TaskAttribute,
     UserAttribute,
 )
 from structures.attribute.slot_str import SLOT_TYPES
-from structures.list import Kind, List
 from utils import text
 from utils.rank import CommunityRank
 
@@ -42,9 +37,6 @@ NonStaticAttributeEnum = enum.Enum(
 
 
 class AttributeCog(cmds.GroupCog, group_name="attribute"):
-    def __init__(self, bot: cmds.Bot) -> None:
-        self.bot = bot
-
     @acmds.command()
     @command.adapt
     async def info(
@@ -75,34 +67,6 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                     ),
                 ),
                 message_status=message.MessageStatus.INFO,
-            )
-        )
-
-    @acmds.command()
-    @command.adapt
-    async def browse(
-        self,
-        ia: InteractionAdapter,
-        type: AnyAttributeEnum | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[None, None, t.Any]:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
-
-        return ia.dc.response.send_message(
-            message.layout(
-                "All Attributes",
-                Template(
-                    "\n".join(
-                        f"- {attr}"
-                        for attr in (
-                            itertools.chain.from_iterable(list_obj.get_all_attributes())
-                            if type is None
-                            else list_obj.get_attributes(type.value)
-                        )
-                    )
-                    or "None"
-                ),
-                message.MessageStatus.INFO,
             )
         )
 
@@ -155,4 +119,37 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             type.value,
             attr_s.name,
             lambda _: list_obj._o.delete_attribute(ia._c, type.value, attr_s.id),
+        )
+
+
+class AttributesCog(cmds.GroupCog, group_name="attributes"):
+    def __init__(self, bot: cmds.Bot) -> None:
+        self.bot = bot
+        
+    @acmds.command()
+    @command.adapt
+    async def browse(
+        self,
+        ia: InteractionAdapter,
+        type: AnyAttributeEnum | None = None,
+        list: str | None = None,
+    ) -> CoroutineType[None, None, t.Any]:
+        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
+
+        return ia.dc.response.send_message(
+            message.layout(
+                "All Attributes",
+                Template(
+                    "\n".join(
+                        f"- {attr}"
+                        for attr in (
+                            itertools.chain.from_iterable(list_obj.get_all_attributes())
+                            if type is None
+                            else list_obj.get_attributes(type.value)
+                        )
+                    )
+                    or "None"
+                ),
+                message.MessageStatus.INFO,
+            )
         )

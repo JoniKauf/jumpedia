@@ -19,6 +19,11 @@ def placehold(o: object, params: list[t.Any], left_operator: Operator | None) ->
         and isinstance(o, t.Iterable)
     ):
         o = tuple(o)
+
+        if not o:
+            # Empty set
+            return "(SELECT NULL WHERE 1 != 1)"
+
         params.extend(o)
 
         return f"({','.join(itertools.repeat('?', len(o)))})"

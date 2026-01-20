@@ -37,7 +37,7 @@ def get_current_community(
 
     del data
 
-    community_s = jumpedia._o.get_community_by_server_id(
+    community_s = jumpedia._o.get_communities_by_server_id(
         interaction._c, interaction.current_server.id
     )
 
