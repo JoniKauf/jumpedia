@@ -3,29 +3,21 @@ import itertools
 import operator
 import typing as t
 from asyncio import taskgroups
+from collections import defaultdict
 from types import EllipsisType, MappingProxyType
 
 from structures import attribute
-from utils import orm, text
+from utils import itertools2, orm, text
 from utils.text import NormStr, RealStr
 
 from . import BaseStructure, db, errors, utils_
-from .attribute import (
-    ALL_ATTRIBUTE_TYPES,
-    AnyAttributeT,
-    BaseAttribute,
-    BaseNonStaticAttribute,
-    StaticAttribute,
-    TaskAttribute,
-    UserAttribute,
-)
+from .attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
+                        BaseNonStaticAttribute, StaticAttribute, TaskAttribute,
+                        UserAttribute)
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
 from .task import Task
-from .task.attribute_value_mapping import (
-    AttributeValueMapping,
-    AvmT,
-    UserAttributeValueMapping,
-)
+from .task.attribute_value_mapping import (AttributeValueMapping, AvmT,
+                                           UserAttributeValueMapping)
 from .user import CommunityUser
 
 if t.TYPE_CHECKING:
@@ -403,7 +395,8 @@ class List(BaseStructure):
             db.AttributeAlias.select(
                 db.AttributeAlias.attribute_id,
                 db.AttributeAlias.real_alias,
-            ).where(
+            )
+            .where(
                 self._where_this_list(db.AttributeAlias.list_id),
                 *type_where,
                 *(
@@ -418,6 +411,7 @@ class List(BaseStructure):
                     )
                 ),
             )
+            .order_by(db.AttributeAlias.attribute_id)
         )
 
         if not rows:
@@ -924,7 +918,8 @@ class List(BaseStructure):
         task_ids: t.Collection[int] | EllipsisType = ...,
     ) -> dict[SlotStr, Task]:
         rows = c.fetch_all(
-            db.TaskAlias.select(db.TaskAlias.task_id, db.TaskAlias.slot_alias).where(
+            db.TaskAlias.select(db.TaskAlias.task_id, db.TaskAlias.slot_alias)
+            .where(
                 self._where_this_list(db.TaskAlias.list_id),
                 *(
                     ()
@@ -937,6 +932,7 @@ class List(BaseStructure):
                     else ((db.TaskAlias.norm_alias, orm.Operator.IN, aliases),)
                 ),
             )
+            .order_by(db.TaskAlias.task_id)
         )
 
         if not rows:
@@ -1104,14 +1100,18 @@ class List(BaseStructure):
         )
         attr_type_id_to_attrs: dict[int, tuple[AnyAttributeT, ...]] = {
             k: tuple(it)
-            for k, it in itertools.groupby(
+            for k, it in itertools2.groupby_unsorted(
                 id_to_attribute.values(), lambda attr: attr.type_id
-            )
+            ).items()
         }
 
         raw_avms: dict[int, _RawAvmT] = {}
 
         # --- Static Attribute ---
+
+        id_attr: StaticAttribute
+        name_attr: StaticAttribute
+        aliases_attr: StaticAttribute
 
         id_attr, name_attr, aliases_attr = sorted(
             attr_type_id_to_attrs[StaticAttribute.type_id],
@@ -1129,17 +1129,15 @@ class List(BaseStructure):
                 self._task_real_name_to_slot(c, task.slot_name),
             )
 
-        task_id_to_aliases = itertools.groupby(
+        aliases_data = itertools2.groupby_unsorted(
             self.get_tasks_by_alias(c, ..., task_ids=task_ids).items(),
-            lambda item: item[1].id,
+            lambda alias_task: alias_task[1].id,
         )
 
-        for task_id, aliases_tasks in task_id_to_aliases:
-            raw_avms[task_id][aliases_attr.id] = tuple(
-                pair[0] for pair in aliases_tasks
-            )
+        for task_id, alias_items in aliases_data.items():
+            raw_avms[task_id][aliases_attr.id] = tuple(elem[0] for elem in alias_items)
 
-        del task_id_to_aliases
+        del aliases_data
 
         # --- Task Attribute ---
 

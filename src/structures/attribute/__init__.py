@@ -45,7 +45,7 @@ class BaseAttribute(BaseStructure):
     @property
     def unique_slots_across_list(self) -> bool:
         return False
-    
+
     # --- Methods ---
 
     def __post_init__(self) -> None:

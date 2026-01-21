@@ -352,47 +352,6 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         return _info(ia, task, user, list)
 
     @acmds.command()
-    @acmds.rename(yield_="yield")
-    @command.adapt
-    async def browse(
-        self,
-        ia: InteractionAdapter,
-        filter: str | None = None,
-        sort: str | None = None,
-        yield_: Yield = Yield.DEFAULT,
-        list: str | None = None,
-    ) -> CoroutineType[None, None, t.Any]:
-        return await _browse(ia, filter, sort, yield_, ..., False, list)
-
-    @acmds.command()
-    @acmds.rename(yield_="yield")
-    @command.adapt
-    async def browse_user(
-        self,
-        ia: InteractionAdapter,
-        filter: str | None = None,
-        sort: str | None = None,
-        yield_: Yield = Yield.DEFAULT,
-        user: dc.User | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[None, None, t.Any]:
-        return await _browse(ia, filter, sort, yield_, user, False, list)
-
-    @acmds.command()
-    @acmds.rename(yield_="yield")
-    @command.adapt
-    async def browse_missing(
-        self,
-        ia: InteractionAdapter,
-        filter: str | None = None,
-        sort: str | None = None,
-        yield_: Yield = Yield.DEFAULT,
-        user: dc.User | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[None, None, t.Any]:
-        return await _browse(ia, filter, sort, yield_, user, True, list)
-
-    @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.HELPER))
     @command.adapt
     async def create(
@@ -463,3 +422,49 @@ class TaskCog(cmds.GroupCog, group_name="task"):
                 message.MessageStatus.SUCCESS,
             )
         )
+
+
+class TasksCog(cmds.GroupCog, group_name="tasks"):
+    def __init__(self, bot: cmds.Bot) -> None:
+        self.bot = bot
+
+    @acmds.command()
+    @acmds.rename(yield_="yield")
+    @command.adapt
+    async def browse(
+        self,
+        ia: InteractionAdapter,
+        filter: str | None = None,
+        sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
+        list: str | None = None,
+    ) -> CoroutineType[None, None, t.Any]:
+        return await _browse(ia, filter, sort, yield_, ..., False, list)
+
+    @acmds.command()
+    @acmds.rename(yield_="yield")
+    @command.adapt
+    async def browse_user(
+        self,
+        ia: InteractionAdapter,
+        filter: str | None = None,
+        sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
+        user: dc.User | None = None,
+        list: str | None = None,
+    ) -> CoroutineType[None, None, t.Any]:
+        return await _browse(ia, filter, sort, yield_, user, False, list)
+
+    @acmds.command()
+    @acmds.rename(yield_="yield")
+    @command.adapt
+    async def browse_missing(
+        self,
+        ia: InteractionAdapter,
+        filter: str | None = None,
+        sort: str | None = None,
+        yield_: Yield = Yield.DEFAULT,
+        user: dc.User | None = None,
+        list: str | None = None,
+    ) -> CoroutineType[None, None, t.Any]:
+        return await _browse(ia, filter, sort, yield_, user, True, list)

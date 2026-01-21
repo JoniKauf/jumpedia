@@ -118,7 +118,7 @@ def sort[T: AttributeValueMapping](
 
         if attr in seen_attrs:
             continue
-        
+
         seen_attrs.add(attr)
         sorts_unique_and_simplified.append(sort)
 

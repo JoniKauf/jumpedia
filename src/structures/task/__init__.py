@@ -73,7 +73,7 @@ class Task(BaseStructure):
         name = self.slot_name
         aliases = self.get_slot_aliases(c)
 
-        static_attrs = self.list.get_attributes_of_type(c, StaticAttribute)
+        static_attrs = self.list.get_attributes(c, type=StaticAttribute)
         static_attrs.sort(key=lambda attr: attr.kind)
 
         id_attr, name_attr, alias_attr = static_attrs
@@ -91,7 +91,7 @@ class Task(BaseStructure):
         )
 
         id_to_task_attr = {
-            attr.id: attr for attr in self.list.get_attributes_of_type(c, TaskAttribute)
+            attr.id: attr for attr in self.list.get_attributes(c, type=TaskAttribute)
         }
 
         rows = c.fetch_all(
@@ -99,19 +99,18 @@ class Task(BaseStructure):
                 db.TaskAttributeValue.slot_slot,
                 db.TaskAttributeValue.index,
                 db.TaskAttributeValue.attribute_id,
-            ).where(
+            )
+            .where(
                 (db.TaskAttributeValue.list_id, orm.Operator.EQ, self.list.id),
                 (db.TaskAttributeValue.task_id, orm.Operator.EQ, self.id),
             )
+            .order_by(db.TaskAttributeValue.attribute_id, db.TaskAttributeValue.index)
         )
 
         task_mapping: dict[TaskAttribute, tuple[SlotStr, ...]] = {}
 
+        # Sorted indices above, so just iterate
         for k, g in itertools.groupby(rows, lambda r: r.attribute_id):
-            g = list(g)
-
-            g.sort(key=lambda row: row.index)
-
             task_mapping[id_to_task_attr[k]] = tuple(row.slot_slot for row in g)
 
         if community_user_id is None:
@@ -119,16 +118,15 @@ class Task(BaseStructure):
                 self, static_mapping, MappingProxyType(task_mapping)
             )
 
-        id_to_user_attr = {
-            attr.id: attr for attr in self.list.get_attributes_of_type(c, UserAttribute)
-        }
+        id_to_user_attr = self.list.get_attributes_by_id(c, ..., type=UserAttribute)
 
         rows = c.fetch_all(
             db.CommunityUserTaskAttributeValue.select(
                 db.CommunityUserTaskAttributeValue.slot_slot,
                 db.CommunityUserTaskAttributeValue.index,
                 db.CommunityUserTaskAttributeValue.attribute_id,
-            ).where(
+            )
+            .where(
                 (
                     db.CommunityUserTaskAttributeValue.list_id,
                     orm.Operator.EQ,
@@ -141,17 +139,18 @@ class Task(BaseStructure):
                     community_user_id,
                 ),
             )
+            .order_by(
+                db.CommunityUserTaskAttributeValue.attribute_id,
+                db.CommunityUserTaskAttributeValue.index,
+            )
         )
 
         assert community_user is not None
 
         user_mapping: dict[UserAttribute, tuple[SlotStr, ...]] = {}
 
+        # Indices sorted above
         for k, g in itertools.groupby(rows, lambda r: r.attribute_id):
-            g = list(g)
-
-            g.sort(key=lambda row: row.index)
-
             user_mapping[id_to_user_attr[k]] = tuple(row.slot_slot for row in g)
 
         return UserAttributeValueMapping(
