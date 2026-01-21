@@ -111,28 +111,32 @@ def sort[T: AttributeValueMapping](
 ) -> list[T]:
     # Remove duplicates while preserving order
     seen_attrs: set[AnyAttributeT] = set()
-    sorts_unique: list[tuple[AnyAttributeT, bool]] = []
+    sorts_unique_and_simplified: list[tuple[AnyAttributeT, bool]] = []
 
     for sort in sorts:
         attr, _ = sort
 
         if attr in seen_attrs:
             continue
-
+        
         seen_attrs.add(attr)
-        sorts_unique.append(sort)
+        sorts_unique_and_simplified.append(sort)
+
+        # If the slots are unique, there is no point in any more lower priority sorts, it won't change
+        if attr.unique_slots_across_list:
+            break
 
     del seen_attrs, sorts
 
     attr_to_coll: dict[AnyAttributeT, Collection] = {
-        attr: attr.get_collection(c) for attr, _ in sorts_unique
+        attr: attr.get_collection(c) for attr, _ in sorts_unique_and_simplified
     }
     task_to_sort_value: dict[Task, list[tuple[t.Any, ...]]] = {}
 
     for avm in avms:
         result: list[tuple[t.Any, ...]] = []
 
-        for attr, _ in sorts_unique:
+        for attr, _ in sorts_unique_and_simplified:
             coll = attr_to_coll[attr]
 
             if coll:
@@ -156,7 +160,7 @@ def sort[T: AttributeValueMapping](
         values_a = task_to_sort_value[a.task]
         values_b = task_to_sort_value[b.task]
 
-        for va, vb, (_, asc) in zip(values_a, values_b, sorts_unique):
+        for va, vb, (_, asc) in zip(values_a, values_b, sorts_unique_and_simplified):
             if va < vb:
                 return -1 if asc else 1
 

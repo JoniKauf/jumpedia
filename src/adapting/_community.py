@@ -1,5 +1,5 @@
-from functools import cached_property
 import typing as t
+from functools import cached_property
 
 from dc_utils import errors, message
 from dc_utils.rank import CommunityRank
@@ -16,9 +16,7 @@ if t.TYPE_CHECKING:
     from ._jumpedia import JumpediaAdapter
 
 
-def _require_list_with_name(
-    c: orm.Cursor, name: str, community: Community
-) -> List:
+def _require_list_with_name(c: orm.Cursor, name: str, community: Community) -> List:
     tup = community.get_list_by_name(c, text.NormStr(name))
 
     if tup is None:
@@ -44,9 +42,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         return [ListAdapter(list, self) for list in self._o.get_lists(self._c)]
 
     def get_list(self, name: str) -> ListAdapter:
-        return ListAdapter(
-            _require_list_with_name(self._c, name, self._o), self
-        )
+        return ListAdapter(_require_list_with_name(self._c, name, self._o), self)
 
     def create_list(self, name: str) -> ListAdapter:
         try:
@@ -138,7 +134,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
                 False,
             ),
             self,
-            jumpedia_user
+            jumpedia_user,
         )
 
     # --- Server ---

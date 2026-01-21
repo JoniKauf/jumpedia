@@ -4,7 +4,6 @@ from string.templatelib import Template
 from types import CoroutineType
 from typing import Any
 
-import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 

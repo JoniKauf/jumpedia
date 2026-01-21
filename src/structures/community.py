@@ -6,7 +6,7 @@ from utils import orm, text
 
 from . import BaseStructure, db, errors
 from .attribute import StaticAttribute
-from .list import Kind, List, KIND_TO_PREDEFINED_DATA
+from .list import KIND_TO_PREDEFINED_DATA, Kind, List
 from .user import CommunityUser, JumpediaUser
 
 if t.TYPE_CHECKING:
@@ -101,7 +101,7 @@ class Community(BaseStructure):
             )
 
         return tup
-    
+
     def delete_list(self, c: orm.Cursor, id: int, /) -> None:
         execute_data = c.execute(
             db.List.delete().where(
@@ -127,7 +127,6 @@ class Community(BaseStructure):
                 ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
             ),
         )
-        
 
     def _list_row_to_obj(self, row: db.List) -> List:
         return List(
@@ -142,9 +141,14 @@ class Community(BaseStructure):
 
     def get_list_by_id(self, c: orm.Cursor, id: int, /) -> tuple[List, int] | None:
         return first_or_none_of_item_vk_of_mapping(self.get_lists_by_id(c, (id,)))
-    
-    def get_lists_by_id(self, c: orm.Cursor, ids: t.Collection[int], /) -> dict[int, List]:
-        return {list.id: list for list in self._get_lists_inner(c, (db.List.id, orm.Operator.IN, ids))}
+
+    def get_lists_by_id(
+        self, c: orm.Cursor, ids: t.Collection[int], /
+    ) -> dict[int, List]:
+        return {
+            list.id: list
+            for list in self._get_lists_inner(c, (db.List.id, orm.Operator.IN, ids))
+        }
 
     def get_list_by_name(
         self, c: orm.Cursor, name: text.NormStr, /
@@ -154,10 +158,13 @@ class Community(BaseStructure):
     def get_lists_by_name(
         self, c: orm.Cursor, names: t.Collection[text.NormStr], /
     ) -> dict[text.RealStr, List]:
-        return {list.real_name: list for list in self._get_lists_inner(
-            c, (db.List.norm_name, orm.Operator.IN, names)
-        )}
-    
+        return {
+            list.real_name: list
+            for list in self._get_lists_inner(
+                c, (db.List.norm_name, orm.Operator.IN, names)
+            )
+        }
+
     def get_default_selected_list(self, c: orm.Cursor, /) -> List | None:
         row = c.fetch_one(
             db.Community.select(db.Community.default_selected_list_id).where(

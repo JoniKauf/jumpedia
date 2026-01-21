@@ -151,14 +151,23 @@ class UserAdapter(BaseAdapter[dc.User]):
     @property
     def name(self) -> str:
         return self._o.global_name or self._o.name
-    
-    def try_member(self) -> ServerMemberAdapter:
+
+    # Cached property bec we want the same obj and it's simple
+    @cached_property
+    def try_as_member(self) -> ServerMemberAdapter:
         if self._member is None:
             raise errors.FeedbackError(
                 "Not On Server", t"You must execute this command on a server!"
             )
 
-        return ServerMemberAdapter(self._member, ServerAdapter(self._member.guild, self.interaction), self)
+        return ServerMemberAdapter(
+            self._member, ServerAdapter(self._member.guild, self.interaction), self
+        )
+
+    @cached_property
+    def is_interacting_user(self) -> bool:
+        return self.id == self.interaction.user.id
+
 
 class ServerMemberAdapter(BaseAdapter[dc.Member]):
     server: ServerAdapter
@@ -237,8 +246,8 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
 
     @cached_property
     def server_member(self) -> ServerMemberAdapter:
-        return self.jumpedia_user.user.try_member()
-    
+        return self.jumpedia_user.user.try_as_member
+
     @cached_property
     def server_rank(self) -> ServerRank:
         return self.server_member.server_rank
@@ -288,9 +297,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
 
         return get_success_msg(self, community_rank)
 
-    def set_selected_list(
-        self, list: str | None
-    ) -> ListAdapter | None:
+    def set_selected_list(self, list: str | None) -> ListAdapter | None:
         from . import _community
         from ._list import ListAdapter
 
@@ -309,7 +316,8 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         if self.get_selected_list() == selected_list:
             start = (
                 "You already have"
-                if self.server_member.id == self.community.jumpedia.interaction.server_member.id
+                if self.server_member.id
+                == self.community.jumpedia.interaction.server_member.id
                 else f"The user {self:,} already has"
             )
             selection = (

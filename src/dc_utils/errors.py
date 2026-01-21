@@ -252,7 +252,7 @@ class NotPermittedError(FeedbackError):
     def __init__[T: AnyRankT](self, my_rank: T, rank_required: T) -> None:
         self.my_rank = my_rank
         self.rank_required = rank_required
-        
+
         super().__init__(
             "Not Permitted",
             t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",

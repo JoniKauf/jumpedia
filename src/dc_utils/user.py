@@ -151,9 +151,7 @@ def validate_allowed(
 
 
 def validate_allowed_for_others(
-    interaction: dc.Interaction,
-    user: dc.User | None,
-    rank_required: AnyRankT
+    interaction: dc.Interaction, user: dc.User | None, rank_required: AnyRankT
 ) -> None:
     if user is None or interaction.user.id == user.id:
         return
@@ -161,6 +159,4 @@ def validate_allowed_for_others(
     try:
         return validate_allowed(interaction, rank_required)
     except errors.NotPermittedError as e:
-        raise errors.NotEnoughPowerToAffectOtherUsers(
-            e.my_rank, e.rank_required
-        )
+        raise errors.NotEnoughPowerToAffectOtherUsers(e.my_rank, e.rank_required)

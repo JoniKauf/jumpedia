@@ -193,20 +193,22 @@ def layout(
             still_shortable,
         )
 
+
 def layout_success(
     header: str,
     core: Template,
     *,
     additional: Template | None = None,
-    paragraphs: t.Sequence[Template] = ()
+    paragraphs: t.Sequence[Template] = (),
 ) -> str:
     return layout(
         header,
         core,
         MessageStatus.SUCCESS,
         additional=additional,
-        paragraphs=paragraphs
+        paragraphs=paragraphs,
     )
+
 
 _SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
     {

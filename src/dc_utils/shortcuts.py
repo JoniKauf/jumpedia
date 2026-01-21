@@ -43,9 +43,7 @@ def get_current_community(
 
     del data
 
-    tup = jumpedia._o.get_community_by_server_id(
-        interaction._c, interaction.server.id
-    )
+    tup = jumpedia._o.get_community_by_server_id(interaction._c, interaction.server.id)
 
     if tup is None:
         raise errors.ServerNotConnectedToACommunity()

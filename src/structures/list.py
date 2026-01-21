@@ -98,14 +98,12 @@ CommunityUserTaskAttributeValueTable = db.CommunityUserTaskAttributeValue
 type _AttributeTypeT[T: AnyAttributeT = AnyAttributeT] = type[T] | tuple[type[T], ...]
 
 
-def _attribute_type_to_where(
-    type: _AttributeTypeT | None,
-) -> tuple[()] | tuple[tuple[t.Any, orm.Operator, t.Any]] | None:
+def _attribute_type_to_where[T: orm.Column[t.Any, int]](
+    type: _AttributeTypeT | None, col: T
+) -> tuple[()] | tuple[tuple[T, orm.Operator, t.Any]] | None:
     where: (
-        tuple[orm.Column[db.Attribute, int], t.Literal[orm.Operator.EQ], int]
-        | tuple[
-            orm.Column[db.Attribute, int], t.Literal[orm.Operator.IN], t.Iterable[int]
-        ]
+        tuple[T, t.Literal[orm.Operator.EQ], int]
+        | tuple[T, t.Literal[orm.Operator.IN], t.Iterable[int]]
         | None
     )
 
@@ -113,17 +111,17 @@ def _attribute_type_to_where(
         where = None
 
     elif not isinstance(type, tuple):
-        where = (db.Attribute.type_id, orm.Operator.EQ, type.type_id)
+        where = (col, orm.Operator.EQ, type.type_id)
 
     elif len(type) == 0:
         return None
 
     elif len(type) == 1:
-        where = (db.Attribute.type_id, orm.Operator.EQ, type[0].type_id)
+        where = (col, orm.Operator.EQ, type[0].type_id)
 
     else:
         where = (
-            db.Attribute.type_id,
+            col,
             orm.Operator.IN,
             (attr_type.type_id for attr_type in type),
         )
@@ -166,7 +164,7 @@ class List(BaseStructure):
         *where: tuple[t.Any, orm.Operator, t.Any],
         type: type[AnyAttributeT] | tuple[type[AnyAttributeT], ...] | None = None,
     ) -> map[AnyAttributeT]:
-        type_where = _attribute_type_to_where(type)
+        type_where = _attribute_type_to_where(type, db.Attribute.type_id)
 
         if type_where is None:
             return map(lambda _: _, ())
@@ -396,7 +394,7 @@ class List(BaseStructure):
         /,
         type: _AttributeTypeT | None = None,
     ) -> dict[text.RealStr, AnyAttributeT]:
-        type_where = _attribute_type_to_where(type)
+        type_where = _attribute_type_to_where(type, db.AttributeAlias.attribute_type_id)
 
         if type_where is None:
             return {}
@@ -868,7 +866,9 @@ class List(BaseStructure):
         )
 
     def get_task_by_id(self, c: orm.Cursor, id: int) -> tuple[Task, int] | None:
-        return utils_.first_or_none_of_item_vk_of_mapping(self.get_tasks_by_id(c, (id,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(
+            self.get_tasks_by_id(c, (id,))
+        )
 
     def get_tasks_by_id(
         self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /
@@ -960,7 +960,9 @@ class List(BaseStructure):
     def get_task_by_syn(
         self, c: orm.Cursor, syn: NormStr, /
     ) -> tuple[Task, SlotStr] | None:
-        return utils_.first_or_none_of_item_vk_of_mapping(self.get_tasks_by_syn(c, (syn,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(
+            self.get_tasks_by_syn(c, (syn,))
+        )
 
     def get_tasks_by_syn(
         self, c: orm.Cursor, syns: t.Collection[NormStr] | EllipsisType, /

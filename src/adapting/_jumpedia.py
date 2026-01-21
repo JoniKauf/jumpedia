@@ -1,5 +1,5 @@
-from functools import cached_property
 import typing as t
+from functools import cached_property
 
 from dc_utils import errors
 from dc_utils.rank import JumpediaRank

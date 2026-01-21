@@ -1,5 +1,5 @@
-from functools import cached_property
 import typing as t
+from functools import cached_property
 
 from structures.attribute import BaseAttribute
 from structures.attribute.slot_str import SlotTypeT

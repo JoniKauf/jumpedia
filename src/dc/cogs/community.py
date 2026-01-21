@@ -1,4 +1,3 @@
-import asyncio
 import typing as t
 from string.templatelib import Template
 from types import CoroutineType
@@ -8,9 +7,8 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, confirm, message, modal, predicate, shortcuts
+from dc_utils import command, confirm, message, predicate, shortcuts
 from dc_utils.rank import CommunityRank, JumpediaRank, ServerRank
-from structures.community import Community
 from utils import text
 
 

@@ -1,5 +1,5 @@
-from functools import cached_property
 import typing as t
+from functools import cached_property
 
 from adapting._user import CommunityUserAdapter
 from structures.attribute.slot_str import SlotStr

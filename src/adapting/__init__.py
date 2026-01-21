@@ -1,6 +1,6 @@
-from functools import cached_property
 import typing as t
 from dataclasses import dataclass
+from functools import cached_property
 
 from structures import BaseStructure
 from utils import orm
@@ -32,7 +32,7 @@ class BaseAdapter[T](metaclass=_AdapterMeta):
             raise TypeError
 
     def __eq__(self, value: object) -> bool:
-        if self.__class__ != value.__class__:
+        if type(self) != type(value):
             return NotImplemented
 
         return self._o == value._o  # type: ignore
@@ -59,12 +59,9 @@ class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
 
         return self._o == value._o
 
-    def mention(self, title: bool = False) -> str:
-        type_name: str = self._o.__class__.type_name
+    def mention(self) -> str:
+        return type(self).do_mention(self._o)
 
-        if title:
-            type_name = type_name.title()
-        else:
-            type_name = type_name.lower()
-
-        return f"{type_name} {self}"
+    @classmethod
+    def do_mention(cls, structure: BaseStructure) -> str:
+        return f"{type(structure).type_name.lower()} {structure.name.lower()}"

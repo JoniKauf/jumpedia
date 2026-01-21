@@ -12,7 +12,6 @@ import discord.ext.commands as cmds
 import dc_utils
 from adapting import parsing
 from adapting.interaction import InteractionAdapter
-from adapting.parsing import factory
 from dc_utils import command, message, predicate, shortcuts
 from dc_utils.errors import FeedbackError
 from dc_utils.rank import CommunityRank
@@ -24,7 +23,6 @@ from structures.task.attribute_value_mapping import (
     UserAttributeValueMapping,
 )
 from utils import gist
-from utils.expression_parsing.errors import BaseExpressionParsingError
 from utils.text import NormStr, RealStr
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
@@ -170,7 +168,7 @@ async def _browse(
     user: dc.User | None | EllipsisType,
     missing: bool,
     list: str | None,
-) -> None:
+) -> CoroutineType[None, None, t.Any]:
     assert missing is (user is not Ellipsis)
 
     # Get the list of the executing user, not the specified user
@@ -316,7 +314,7 @@ async def _browse(
     )
 
     # --- Success ---
-    await msg.edit(
+    return msg.edit(
         content=message.layout(
             "All Tasks",
             Template(
@@ -364,7 +362,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         yield_: Yield = Yield.DEFAULT,
         list: str | None = None,
     ) -> CoroutineType[None, None, t.Any]:
-        return _browse(ia, filter, sort, yield_, ..., False, list)
+        return await _browse(ia, filter, sort, yield_, ..., False, list)
 
     @acmds.command()
     @acmds.rename(yield_="yield")
@@ -378,7 +376,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         user: dc.User | None = None,
         list: str | None = None,
     ) -> CoroutineType[None, None, t.Any]:
-        return _browse(ia, filter, sort, yield_, user, False, list)
+        return await _browse(ia, filter, sort, yield_, user, False, list)
 
     @acmds.command()
     @acmds.rename(yield_="yield")
@@ -392,7 +390,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         user: dc.User | None = None,
         list: str | None = None,
     ) -> CoroutineType[None, None, t.Any]:
-        return _browse(ia, filter, sort, yield_, user, True, list)
+        return await _browse(ia, filter, sort, yield_, user, True, list)
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.HELPER))

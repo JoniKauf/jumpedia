@@ -9,7 +9,7 @@ from discord import app_commands as acmds
 
 from adapting._attribute import AnyAttributeAdapterT
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, confirm, message, modal, predicate, shortcuts
+from dc_utils import command, confirm, message, predicate, shortcuts
 from dc_utils.rank import CommunityRank
 from structures.attribute import ALL_ATTRIBUTE_TYPES, TaskAttribute, UserAttribute
 from structures.attribute.slot_str import SLOT_TYPES

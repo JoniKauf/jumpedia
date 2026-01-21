@@ -42,6 +42,10 @@ class BaseAttribute(BaseStructure):
     def required(self) -> bool:
         return self.min_slots > 0
 
+    @property
+    def unique_slots_across_list(self) -> bool:
+        return False
+    
     # --- Methods ---
 
     def __post_init__(self) -> None:
@@ -77,7 +81,7 @@ class BaseAttribute(BaseStructure):
             for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)
         )
 
-    @functools.lru_cache(1)
+    @functools.lru_cache(16)
     def get_collection(self, c: orm.Cursor, /) -> Collection:
         return Collection(attribute=self, entries=())
 
@@ -129,7 +133,7 @@ class BaseNonStaticAttribute(BaseAttribute):
 
         return tuple(result)
 
-    @functools.lru_cache(1)
+    @functools.lru_cache(16)
     def get_collection(self, c: orm.Cursor, /) -> Collection:
         AttributeCollectionEntryTable = db.AttributeCollectionEntry
         AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias
@@ -306,6 +310,10 @@ class StaticAttribute(BaseAttribute):
     type_id = 0
 
     kind: Kind
+
+    @property
+    def unique_slots_across_list(self) -> bool:
+        return True
 
 
 class TaskAttribute(BaseNonStaticAttribute):

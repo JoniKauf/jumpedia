@@ -94,17 +94,17 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
 
         if isinstance(user_or_member, dc.User):
             return UserAdapter(user_or_member, self)
-        
+
         return UserAdapter(user_or_member._user, self, user_or_member)
-    
+
     @cached_property
     def server_member(self) -> ServerMemberAdapter:
-        return self.user.try_member()
+        return self.user.try_as_member
 
     @cached_property
     def server(self) -> ServerAdapter:
         return self.server_member.server
-    
+
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:
         return JumpediaAdapter(_get_or_create_the_one_piece(), self)

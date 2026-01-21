@@ -1,4 +1,6 @@
+import typing as t
 from types import CoroutineType
+
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
@@ -10,7 +12,7 @@ from adapting.interaction import InteractionAdapter
 from dc_utils import command, message, shortcuts
 from dc_utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 from utils import text
-import typing as t
+
 
 class UserCog(cmds.GroupCog, group_name="user"):
 
@@ -29,10 +31,8 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         NOT_IN_COMMUNITY = "<Not executed in a community>"
 
-        tup = jumpedia._o.get_community_by_server_id(
-            ia._c, ia.server.id
-        )
-        
+        tup = jumpedia._o.get_community_by_server_id(ia._c, ia.server.id)
+
         community_user = (
             shortcuts.get_or_create_specified_or_current_community_user(
                 CommunityAdapter(tup[0], jumpedia), jumpedia_user
@@ -89,8 +89,8 @@ class UserCog(cmds.GroupCog, group_name="user"):
     ) -> CoroutineType[None, None, t.Any]:
         dc_utils.user.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
 
-        specified_community_user = shortcuts.get_or_create_specified_or_current_community_user(
-            ia, user
+        specified_community_user = (
+            shortcuts.get_or_create_specified_or_current_community_user(ia, user)
         )
 
         list_obj = specified_community_user.set_selected_list(list)
