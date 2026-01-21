@@ -9,19 +9,22 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapting import parsing
-from adapting.parsing import factory
 import dc_utils
-from dc_utils.errors import FeedbackError
+from adapting import parsing
 from adapting.interaction import InteractionAdapter
+from adapting.parsing import factory
 from dc_utils import command, message, predicate, shortcuts
+from dc_utils.errors import FeedbackError
+from dc_utils.rank import CommunityRank
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
-from structures.task.attribute_value_mapping import AttributeValueMapping, UserAttributeValueMapping
+from structures.task.attribute_value_mapping import (
+    AttributeValueMapping,
+    UserAttributeValueMapping,
+)
 from utils import gist
 from utils.expression_parsing.errors import BaseExpressionParsingError
-from utils.rank import CommunityRank
 from utils.text import NormStr, RealStr
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
@@ -119,9 +122,7 @@ async def _info(
     user: dc.User | None | EllipsisType,
     list: str | None,
 ) -> None:
-    list_obj = shortcuts.get_specified_or_selected_or_default_list(
-        ia, None, list
-    )
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
     avm = list_obj.get_task(task).get_attribute_value_mapping(
         None
@@ -173,9 +174,7 @@ async def _browse(
     assert missing is (user is not Ellipsis)
 
     # Get the list of the executing user, not the specified user
-    list_obj = shortcuts.get_specified_or_selected_or_default_list(
-        ia, None, list
-    )
+    list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
     community_user = shortcuts.get_or_create_specified_or_current_community_user(
         list_obj.community, None if user is ... else user
@@ -212,8 +211,8 @@ async def _browse(
 
         # Don't include user attribute values when missing, because those don't have any values, because well they are missing
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._o.get_task_attribute_value_mappings(ia._c,
-                None if missing else community_user._o.id, task_ids_to_fetch
+            list_obj._o.get_task_attribute_value_mappings(
+                ia._c, None if missing else community_user._o.id, task_ids_to_fetch
             )
         )
 
@@ -237,7 +236,12 @@ async def _browse(
     syn_to_attr: dict[NormStr, AnyAttributeT] = {}
 
     if filter or sort:
-        syn_to_attr = {NormStr(k): v for k, v in list_obj._o.get_attributes_by_syn(ia._c, ..., type=ATTRIBUTE_TYPES_TO_HANDLE).items()}
+        syn_to_attr = {
+            NormStr(k): v
+            for k, v in list_obj._o.get_attributes_by_syn(
+                ia._c, ..., type=ATTRIBUTE_TYPES_TO_HANDLE
+            ).items()
+        }
 
     # - Filter -
     if filter:
@@ -267,7 +271,9 @@ async def _browse(
         avms = parsing.sort.sort(ia._c, avms, [(NAME_ATTR, True)])
         sort_used_attributes = {NAME_ATTR}
     else:
-        avms, sort_used_attributes = parsing.sort.parse(ia._c, RealStr(sort), avms, syn_to_attr)
+        avms, sort_used_attributes = parsing.sort.parse(
+            ia._c, RealStr(sort), avms, syn_to_attr
+        )
 
     used_attributes |= sort_used_attributes
 
@@ -399,9 +405,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         attribute_value_mapping: str | None = None,
         list: str | None = None,
     ) -> CoroutineType[None, None, t.Any]:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            ia, None, list
-        )
+        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
         task = list_obj.create_task(name, aliases, attribute_value_mapping)
 
@@ -419,9 +423,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     async def nuke(
         self, ia: InteractionAdapter, task: str, list: str | None = None
     ) -> CoroutineType[None, None, t.Any]:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(
-            ia, None, list
-        )
+        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
         list_obj.delete_task(task)
 

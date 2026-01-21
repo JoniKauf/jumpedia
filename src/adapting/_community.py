@@ -1,12 +1,12 @@
+from functools import cached_property
 import typing as t
 
-from dc_utils import message
-from ..dc_utils import errors
+from dc_utils import errors, message
+from dc_utils.rank import CommunityRank
 from structures.community import Community
 from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
 from utils import orm, text
-from utils.rank import CommunityRank
 
 from . import BaseStructureAdapter
 from ._list import ListAdapter
@@ -17,20 +17,20 @@ if t.TYPE_CHECKING:
 
 
 def _require_list_with_name(
-    c: orm.Cursor, name: text.NormStr, community: Community
+    c: orm.Cursor, name: str, community: Community
 ) -> List:
-    list = community.get_list_by_name(c, name)
+    tup = community.get_list_by_name(c, text.NormStr(name))
 
-    if list is None:
+    if tup is None:
         raise errors.StructureNotFoundViaSyn(name, List, True)
 
-    return list
+    return tup[0]
 
 
 class CommunityAdapter(BaseStructureAdapter[Community]):
     jumpedia: JumpediaAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.jumpedia._c
 
@@ -45,7 +45,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
 
     def get_list(self, name: str) -> ListAdapter:
         return ListAdapter(
-            _require_list_with_name(self._c, text.NormStr(name), self._o), self
+            _require_list_with_name(self._c, name, self._o), self
         )
 
     def create_list(self, name: str) -> ListAdapter:
@@ -59,7 +59,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         return ListAdapter(list, self)
 
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(self._c, text.NormStr(name), self._o)
+        list = _require_list_with_name(self._c, name, self._o)
         self._o.delete_list(self._c, list.id)
 
     @t.overload
@@ -91,7 +91,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         if name is None:
             list_id = None
         else:
-            list_id = _require_list_with_name(self._c, text.NormStr(name), self._o).id
+            list_id = _require_list_with_name(self._c, name, self._o).id
 
         curr_default_selected_list = self.get_default_selected_list(None)
 

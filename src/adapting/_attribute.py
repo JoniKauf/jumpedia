@@ -1,3 +1,4 @@
+from functools import cached_property
 import typing as t
 
 from structures.attribute import BaseAttribute
@@ -15,7 +16,7 @@ if t.TYPE_CHECKING:
 class BaseAttributeAdapter[T: BaseAttribute](BaseStructureAdapter[T]):
     list: ListAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.list._c
 

@@ -42,7 +42,7 @@ class Cursor:
 
     def __hash__(self) -> int:
         return hash(id(self))
-    
+
     def __eq__(self, value: object) -> bool:
         return id(self) == id(value)
 
@@ -141,6 +141,13 @@ class Cursor:
 
     def commit(self) -> None:
         return self._mariadb_connection.commit()
+
+    def _close(self) -> None:
+        self._mariadb_cursor.close()
+
+    def _close_connection(self) -> None:
+        self._close()
+        self._mariadb_connection.close()
 
 
 __all__ = ["ExecuteData", "Cursor"]

@@ -2,8 +2,6 @@ import typing as t
 from types import EllipsisType, MappingProxyType
 
 from dc_utils import errors
-
-from . import factory
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.attribute.slot_str import SlotStr, SlotTypeT
@@ -12,10 +10,14 @@ from structures.task.attribute_value_mapping import AttributeValueMapping
 from utils import orm
 from utils.text import NormStr, RealStr
 
+from . import factory
+
 # --- Errors ---
+
 
 class SyntaxError(factory.SyntaxFeedbackError, category="filter"):
     pass
+
 
 expected_but_received = factory.expected_but_received_factory(error_type=SyntaxError)
 
@@ -23,12 +25,15 @@ expected_but_received = factory.expected_but_received_factory(error_type=SyntaxE
 
 _OP_NAMES: t.Final[tuple[str, ...]] = ("is", "is not", "<", "<=", ">", ">=")
 
+
 class TokenTypes(factory.TokenTypesWithParens):
     AND = factory.TokenType(5, lambda _: t"the keyword {'and':,}")
     OR = factory.TokenType(6, lambda _: t"the keyword {'or':,}")
 
     OP = factory.TokenType(7, lambda token: t"the operator {token.string:,}")
-    UNDERSCORE = factory.TokenType(8, lambda token: t"the empty value symbol {token.string:,}")
+    UNDERSCORE = factory.TokenType(
+        8, lambda token: t"the empty value symbol {token.string:,}"
+    )
 
 
 def _token_from_buf(buf: str) -> factory.Token | None:
@@ -43,7 +48,7 @@ def _token_from_buf(buf: str) -> factory.Token | None:
 
     elif buf in _OP_FIRST_SIGHT_STR_TO_NODE_TYPE:
         return factory.Token(TokenTypes.OP, buf)
-    
+
     return None
 
 
@@ -57,12 +62,16 @@ def _token_from_c(c: str) -> factory.Token | None:
     return None
 
 
-tokenize = factory.tokenize_factory(token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=SyntaxError)
+tokenize = factory.tokenize_factory(
+    token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=SyntaxError
+)
 
 # --- Transformation ---
 
+
 class BoolOp(factory.Node):
     pass
+
 
 class And(BoolOp):
     pass
@@ -99,11 +108,15 @@ class Gt(Op):
 class GtE(Op):
     pass
 
+
 class Empty(factory.Node):
     pass
 
+
 class Comparison(factory.Node):
-    def __init__(self, attr: factory.String, op: Op, val: factory.String | Empty) -> None:
+    def __init__(
+        self, attr: factory.String, op: Op, val: factory.String | Empty
+    ) -> None:
         super().__init__()
         self.attr = attr
         self.op = op
@@ -124,20 +137,25 @@ class BoolExpr(factory.Node):
         self.op = op
         self.others = list(others)
 
-_OP_FIRST_SIGHT_STR_TO_NODE_TYPE: t.Final[MappingProxyType[str, type[Op]]] = MappingProxyType(
-    {"is": Is, "not": IsNot, "<": Lt, "<=": LtE, ">": Gt, ">=": GtE}
+
+_OP_FIRST_SIGHT_STR_TO_NODE_TYPE: t.Final[MappingProxyType[str, type[Op]]] = (
+    MappingProxyType({"is": Is, "not": IsNot, "<": Lt, "<=": LtE, ">": Gt, ">=": GtE})
 )
 
 
 check_depth_decorator = factory.check_depth_decorator_factory(127)
 
+
 @check_depth_decorator
 def _transform_op(ts: factory.TokenStream, _: int) -> Op:
     op = next(ts)
 
-    if op.type is not TokenTypes.OP or (op_type := _OP_FIRST_SIGHT_STR_TO_NODE_TYPE[op.string]) is IsNot:
+    if (
+        op.type is not TokenTypes.OP
+        or (op_type := _OP_FIRST_SIGHT_STR_TO_NODE_TYPE[op.string]) is IsNot
+    ):
         raise expected_but_received(t"an operator ({_OP_NAMES:,})", op)
-    
+
     if (
         op_type is Is
         and (nxt := ts.peek())
@@ -149,6 +167,7 @@ def _transform_op(ts: factory.TokenStream, _: int) -> Op:
 
     return op_type()
 
+
 @check_depth_decorator
 def _transform_comparison(ts: factory.TokenStream, depth: int) -> Comparison:
     depth += 1
@@ -156,9 +175,7 @@ def _transform_comparison(ts: factory.TokenStream, depth: int) -> Comparison:
     attr = next(ts)
 
     if attr.type is not TokenTypes.STR:
-        raise expected_but_received(
-            factory.EXPECTED_ATTR, attr
-        )
+        raise expected_but_received(factory.EXPECTED_ATTR, attr)
 
     op = _transform_op(ts, depth)
     v = next(ts)
@@ -169,10 +186,12 @@ def _transform_comparison(ts: factory.TokenStream, depth: int) -> Comparison:
         val = Empty()
     else:
         raise expected_but_received(
-            t"a string representing a value or the empty value symbol {'_':,} to compare the attribute against", v
+            t"a string representing a value or the empty value symbol {'_':,} to compare the attribute against",
+            v,
         )
 
     return Comparison(factory.String(attr.string), op, val)
+
 
 @check_depth_decorator
 def _transform_atom(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
@@ -187,13 +206,12 @@ def _transform_atom(ts: factory.TokenStream, depth: int) -> Comparison | BoolExp
         tok = next(ts)
 
         if tok.type is not TokenTypes.RPAREN:
-            raise expected_but_received(
-                t"a closing parenthesis ({')':,})", tok
-            )
+            raise expected_but_received(t"a closing parenthesis ({')':,})", tok)
 
         return expr
 
     return _transform_comparison(ts, depth)
+
 
 @check_depth_decorator
 def _transform_and(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
@@ -210,6 +228,7 @@ def _transform_and(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr
         return first
 
     return BoolExpr(first, And(), *rest)
+
 
 @check_depth_decorator
 def _transform_or(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
@@ -228,16 +247,21 @@ def _transform_or(ts: factory.TokenStream, depth: int) -> Comparison | BoolExpr:
     return BoolExpr(first, Or(), *rest)
 
 
-transform = factory.transform_factory(transform=_transform_or, expected_but_received=expected_but_received)
+transform = factory.transform_factory(
+    transform=_transform_or, expected_but_received=expected_but_received
+)
 
 # --- Run ---
+
 
 class _Cache:
     def __init__(self) -> None:
         self._norm_str_from_str_cache: dict[SlotStr, NormStr] = {}
         self._slot_type_cache: dict[tuple[type[SlotTypeT], NormStr], SlotTypeT] = {}
         self._collection_cache: dict[AnyAttributeT, Collection] = {}
-        self._collection_entry_index_cache: dict[tuple[Collection, NormStr], int | None] = {}
+        self._collection_entry_index_cache: dict[
+            tuple[Collection, NormStr], int | None
+        ] = {}
 
     def slot_str_to_slot_norm_str(self, slot: SlotStr) -> NormStr:
         try:
@@ -267,8 +291,10 @@ class _Cache:
             v = attr.get_collection(c)
             self._collection_cache[attr] = v
             return v
-        
-    def real_str_to_collection_index(self, collection: Collection, real_str: RealStr) -> int:
+
+    def real_str_to_collection_index(
+        self, collection: Collection, real_str: RealStr
+    ) -> int:
         norm_str = NormStr(real_str)
         key = (collection, norm_str)
 
@@ -283,9 +309,10 @@ class _Cache:
         else:
             if v is not None:
                 return v
-        
-        raise errors.CollectionEntryNotFound(CollectionEntryNotFoundError(real_str, collection))
-        
+
+        raise errors.CollectionEntryNotFound(
+            CollectionEntryNotFoundError(real_str, collection)
+        )
 
 
 _OP_TO_FUNC: t.Final[
@@ -293,21 +320,18 @@ _OP_TO_FUNC: t.Final[
 ] = {
     Is: lambda tav, v: v in tav,
     IsNot: lambda tav, v: v not in tav,
-    Lt: lambda tav, v: any(
-        s < v for s in tav  # pyright: ignore[reportOperatorIssue]
-    ),
+    Lt: lambda tav, v: any(s < v for s in tav),  # pyright: ignore[reportOperatorIssue]
     LtE: lambda tav, v: any(
         s <= v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
-    Gt: lambda tav, v: any(
-        s > v for s in tav  # pyright: ignore[reportOperatorIssue]
-    ),
+    Gt: lambda tav, v: any(s > v for s in tav),  # pyright: ignore[reportOperatorIssue]
     GtE: lambda tav, v: any(
         s >= v for s in tav  # pyright: ignore[reportOperatorIssue]
     ),
 }
 
 type _FastAvmT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
+
 
 def _handle_comparison(
     c: orm.Cursor,
@@ -316,7 +340,7 @@ def _handle_comparison(
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
     cache: _Cache,
-) -> _FastAvmT: 
+) -> _FastAvmT:
     attr = syn_to_attr.get(NormStr(node.attr.s))
 
     if attr is None:
@@ -330,8 +354,8 @@ def _handle_comparison(
         if not isinstance(op, Is | IsNot):
             raise SyntaxError(
                 t"The empty value symbol {'_':,} can only be used with the {('is', 'is not'):&} operator!"
-            ) 
-        
+            )
+
         MUST_BE_EMPTY = isinstance(op, Is)
 
         return {
@@ -339,11 +363,13 @@ def _handle_comparison(
             for i, tav in fast_avms.items()
             if (not tav.get(attr.norm_name)) == MUST_BE_EMPTY
         }
-    
+
     value_real: RealStr = RealStr(node.val.s)
-    
+
     # Throws appropriate error in __new__ if invalid
-    value_typed = attr.slot_type(SlotStr(value_real, attr.slot_type, attr.list.community.jumpedia.limits))
+    value_typed = attr.slot_type(
+        SlotStr(value_real, attr.slot_type, attr.list.community.jumpedia.limits)
+    )
 
     seen_attrs.add(attr)
     collection = cache.attribute_to_collection(c, attr)
@@ -354,7 +380,7 @@ def _handle_comparison(
             for i, tav in fast_avms.items()
             if op_func(tav.get(attr.norm_name, frozenset()), value_typed)
         }
-    
+
     idx = cache.real_str_to_collection_index(collection, value_real)
 
     if idx is None:
@@ -367,12 +393,15 @@ def _handle_comparison(
         for i, tav in fast_avms.items()
         if op_func(
             frozenset(
-                cache.real_str_to_collection_index(collection, RealStr(str(slot), check=False))
+                cache.real_str_to_collection_index(
+                    collection, RealStr(str(slot), check=False)
+                )
                 for slot in tav.get(attr.norm_name, frozenset())
             ),
-            idx
+            idx,
         )
     }
+
 
 def _handle_bool_expr(
     c: orm.Cursor,
@@ -381,7 +410,7 @@ def _handle_bool_expr(
     syn_to_attr: dict[NormStr, AnyAttributeT],
     seen_attrs: set[AnyAttributeT],
     cache: _Cache,
-) -> _FastAvmT: 
+) -> _FastAvmT:
     fast_avms = fast_avms.copy()
 
     if isinstance(node.op, Or):
@@ -408,8 +437,8 @@ def _handle_bool_expr(
             if not fast_avms:
                 break
 
-            checked_successfully = _handle_node(c,
-                v, fast_avms, syn_to_attr, seen_attrs, cache
+            checked_successfully = _handle_node(
+                c, v, fast_avms, syn_to_attr, seen_attrs, cache
             )
             fast_avms = {
                 k: v for k, v in fast_avms.items() if k in checked_successfully
@@ -418,6 +447,7 @@ def _handle_bool_expr(
         return fast_avms
 
     t.assert_never(node.op)  # type: ignore
+
 
 def _handle_node(
     c: orm.Cursor,
@@ -429,7 +459,7 @@ def _handle_node(
 ) -> _FastAvmT:
     if isinstance(node, BoolExpr):
         return _handle_bool_expr(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
-    
+
     if isinstance(node, Comparison):
         return _handle_comparison(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
 
@@ -443,7 +473,7 @@ def parse[T: AttributeValueMapping](
     syn_to_attr: dict[NormStr, AnyAttributeT],
 ) -> tuple[list[T], set[AnyAttributeT]]:
     # RealStr cannot be empty
-    
+
     node = transform(tokenize(s))
 
     id_to_avm: dict[int, T] = {id(avm): avm for avm in avms}
@@ -464,7 +494,9 @@ def parse[T: AttributeValueMapping](
     return (
         [
             id_to_avm[avm_id]
-            for avm_id in _handle_node(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
+            for avm_id in _handle_node(
+                c, node, fast_avms, syn_to_attr, seen_attrs, cache
+            )
         ],
         seen_attrs,
     )

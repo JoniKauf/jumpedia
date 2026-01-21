@@ -9,17 +9,11 @@ from discord import app_commands as acmds
 
 from adapting._attribute import AnyAttributeAdapterT
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, confirm, predicate, shortcuts
-from structures.attribute import (
-    ALL_ATTRIBUTE_TYPES,
-    TaskAttribute,
-    UserAttribute,
-)
+from dc_utils import command, confirm, message, modal, predicate, shortcuts
+from dc_utils.rank import CommunityRank
+from structures.attribute import ALL_ATTRIBUTE_TYPES, TaskAttribute, UserAttribute
 from structures.attribute.slot_str import SLOT_TYPES
 from utils import text
-from utils.rank import CommunityRank
-
-from dc_utils import message, modal
 
 SlotTypeEnum = enum.Enum(
     "SlotTypeEnum",
@@ -111,9 +105,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     ) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
-        attr: AnyAttributeAdapterT = list_obj.get_attribute(
-            type.value, attribute
-        )
+        attr: AnyAttributeAdapterT = list_obj.get_attribute(type.value, attribute)
 
         return confirm.confirm_nuke(
             ia,
@@ -125,7 +117,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
 class AttributesCog(cmds.GroupCog, group_name="attributes"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
-        
+
     @acmds.command()
     @command.adapt
     async def browse(

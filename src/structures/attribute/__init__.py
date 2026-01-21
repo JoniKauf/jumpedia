@@ -194,9 +194,9 @@ class BaseNonStaticAttribute(BaseAttribute):
         if not count:
             return Collection(attribute=self, entries=())
 
-        if count > self.list.community.limits.attribute_collection_entry_count_max:
+        if count > self.list.community.limits["attribute_collection_entry_count_max"]:
             raise errors.CollectionEntryLimitReachedError(
-                self.list.community.limits.attribute_collection_entry_count_max
+                self.list.community.limits["attribute_collection_entry_count_max"]
             )
 
         norm_syns: set[text.NormStr] = set()

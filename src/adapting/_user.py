@@ -3,13 +3,12 @@ from functools import cached_property
 
 import discord as dc
 
-from adapting._server import ServerAdapter
-from dc_utils import message
 import dc_utils
-from ..dc_utils import errors
+from adapting._server import ServerAdapter
+from dc_utils import errors, message
+from dc_utils.rank import CommunityRank, JumpediaRank, ServerRank
 from structures.community import CommunityUser, JumpediaUser
 from utils import orm, text
-from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 from . import BaseAdapter, BaseStructureAdapter
 
@@ -136,10 +135,12 @@ def get_success_msg(
         message_status=message.MessageStatus.SUCCESS,
     )
 
+
 class UserAdapter(BaseAdapter[dc.User]):
     interaction: InteractionAdapter
+    _member: None | dc.Member = None
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.interaction._c
 
@@ -150,12 +151,20 @@ class UserAdapter(BaseAdapter[dc.User]):
     @property
     def name(self) -> str:
         return self._o.global_name or self._o.name
+    
+    def try_member(self) -> ServerMemberAdapter:
+        if self._member is None:
+            raise errors.FeedbackError(
+                "Not On Server", t"You must execute this command on a server!"
+            )
+
+        return ServerMemberAdapter(self._member, ServerAdapter(self._member.guild, self.interaction), self)
 
 class ServerMemberAdapter(BaseAdapter[dc.Member]):
     server: ServerAdapter
     user: UserAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.server._c
 
@@ -168,26 +177,21 @@ class ServerMemberAdapter(BaseAdapter[dc.Member]):
             return ServerRank.ADMINISTRATOR
 
         return ServerRank.USER
-    
+
     @property
     def id(self) -> int:
         return self.user.id
-    
+
     @property
     def name(self) -> str:
         return self.user.name
-    
-    
 
 
 class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     jumpedia: JumpediaAdapter
+    user: UserAdapter
 
     @cached_property
-    def user(self) -> UserAdapter:
-        return self.jumpedia.interaction.current_user
-    
-    @property
     def _c(self) -> orm.Cursor:
         return self.jumpedia._c
 
@@ -224,10 +228,6 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     jumpedia_user: JumpediaUserAdapter
 
     @cached_property
-    def server_member(self):
-        return self.community.jumpedia.interaction.current_member
-    
-    @property
     def _c(self) -> orm.Cursor:
         return self.community._c
 
@@ -236,9 +236,13 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         return self.jumpedia_user.name
 
     @cached_property
+    def server_member(self) -> ServerMemberAdapter:
+        return self.jumpedia_user.user.try_member()
+    
+    @cached_property
     def server_rank(self) -> ServerRank:
         return self.server_member.server_rank
-        
+
     @property
     def community_rank(self) -> CommunityRank:
         return self._o.community_rank
@@ -246,7 +250,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
     @property
     def jumpedia_rank(self) -> JumpediaRank:
         return self.jumpedia_user.jumpedia_rank
-    
+
     @cached_property
     def most_powerful_rank(self) -> JumpediaRank | CommunityRank:
         return self._o.jumpedia_user.jumpedia_rank or self.community_rank
@@ -285,24 +289,10 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         return get_success_msg(self, community_rank)
 
     def set_selected_list(
-        self, list: str | None, executing_community_user: CommunityUserAdapter
+        self, list: str | None
     ) -> ListAdapter | None:
-        assert self.community == executing_community_user.community
-
         from . import _community
         from ._list import ListAdapter
-
-        REQ_RANK = CommunityRank.MODERATOR
-        
-        dc_utils.user.validate_allowed_for_others(self.community.jumpedia.interaction.dc, executing_community_user.jumpedia_user.user._o, CommunityRank.MODERATOR)
-        
-        if (
-            self != executing_community_user
-            and executing_community_user.most_powerful_rank.value < REQ_RANK.value
-        ):
-            raise errors.NotEnoughPowerToAffectOtherUsers(
-                executing_community_user.most_powerful_rank, REQ_RANK
-            )
 
         selected_list: ListAdapter | None
 
@@ -319,7 +309,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
         if self.get_selected_list() == selected_list:
             start = (
                 "You already have"
-                if self == executing_community_user
+                if self.server_member.id == self.community.jumpedia.interaction.server_member.id
                 else f"The user {self:,} already has"
             )
             selection = (
@@ -335,8 +325,7 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             )
 
         self._o.set_selected_list(
-            self._c,
-            None if selected_list is None else selected_list._o.id
+            self._c, None if selected_list is None else selected_list._o.id
         )
 
         return selected_list
@@ -377,5 +366,3 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             )
 
             raise e
-
-

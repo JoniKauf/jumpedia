@@ -1,10 +1,12 @@
+import typing as t
+
 from dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.slot_str import SlotStr
 from utils import orm
 from utils.text import NormStr, RealStr
+
 from . import mapping
-import typing as t
 
 
 def parse[T: AnyAttributeT](

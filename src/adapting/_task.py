@@ -1,3 +1,4 @@
+from functools import cached_property
 import typing as t
 
 from adapting._user import CommunityUserAdapter
@@ -19,7 +20,7 @@ if t.TYPE_CHECKING:
 class TaskAdapter(BaseStructureAdapter[Task]):
     list: ListAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.list._c
 

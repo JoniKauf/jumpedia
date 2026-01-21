@@ -1,8 +1,8 @@
-from asyncio import taskgroups
 import enum
 import itertools
 import operator
 import typing as t
+from asyncio import taskgroups
 from types import EllipsisType, MappingProxyType
 
 from structures import attribute
@@ -255,7 +255,7 @@ class List(BaseStructure):
     def get_attribute_by_id(
         self, c: orm.Cursor, id: int, /, type: _AttributeTypeT | None = None
     ) -> tuple[AnyAttributeT, int] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_id(c, (id,), type=type)
         )
 
@@ -308,7 +308,7 @@ class List(BaseStructure):
     def get_attribute_by_name(
         self, c: orm.Cursor, name: NormStr, /, type: _AttributeTypeT | None = None
     ) -> tuple[AnyAttributeT, RealStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_name(c, (name,), type=type)
         )
 
@@ -365,7 +365,7 @@ class List(BaseStructure):
     def get_attribute_by_alias(
         self, c: orm.Cursor, alias: NormStr, /, type: _AttributeTypeT | None = None
     ) -> tuple[AnyAttributeT, RealStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_alias(c, (alias,), type=type)
         )
 
@@ -453,7 +453,7 @@ class List(BaseStructure):
     def get_attribute_by_syn(
         self, c: orm.Cursor, syn: NormStr, /, type: _AttributeTypeT | None = None
     ) -> tuple[AnyAttributeT, RealStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_syn(c, (syn,), type=type)
         )
 
@@ -588,14 +588,14 @@ class List(BaseStructure):
             0
             <= min_slots
             <= max_slots
-            <= self.community.limits.attribute_task_value_slot_count_max
+            <= self.community.limits["attribute_task_value_slot_count_max"]
             and max_slots >= 1
         ):
             raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
                 min_slots,
                 max_slots,
                 0,
-                self.community.limits.attribute_task_value_slot_count_max,
+                self.community.limits["attribute_task_value_slot_count_max"],
             )
 
         if position == -1:
@@ -787,13 +787,13 @@ class List(BaseStructure):
         for attr_id in attribute_value_mapping:
             if attr_id not in id_to_attr:
                 raise errors.StructureNotFoundError(type)
-            
+
         avm: dict[T, tuple[SlotStr, ...]] = {}
 
         # Convert ids to attributes and validate value
         for attr in id_to_attr.values():
             v = attribute_value_mapping.get(attr.id, ())
-            
+
             avm[attr] = attr.real_to_slot_value(c, v)
 
         return MappingProxyType(avm)
@@ -868,7 +868,7 @@ class List(BaseStructure):
         )
 
     def get_task_by_id(self, c: orm.Cursor, id: int) -> tuple[Task, int] | None:
-        return utils_.first_or_none_of_mapping_vk_item(self.get_tasks_by_id(c, (id,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(self.get_tasks_by_id(c, (id,)))
 
     def get_tasks_by_id(
         self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /
@@ -887,7 +887,7 @@ class List(BaseStructure):
     def get_task_by_name(
         self, c: orm.Cursor, name: NormStr, /
     ) -> tuple[Task, RealStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_tasks_by_name(c, (name,))
         )
 
@@ -912,7 +912,7 @@ class List(BaseStructure):
         /,
         task_ids: t.Collection[int] | EllipsisType = ...,
     ) -> tuple[Task, SlotStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_tasks_by_alias(c, (alias,), task_ids=task_ids)
         )
 
@@ -960,7 +960,7 @@ class List(BaseStructure):
     def get_task_by_syn(
         self, c: orm.Cursor, syn: NormStr, /
     ) -> tuple[Task, SlotStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(self.get_tasks_by_syn(c, (syn,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(self.get_tasks_by_syn(c, (syn,)))
 
     def get_tasks_by_syn(
         self, c: orm.Cursor, syns: t.Collection[NormStr] | EllipsisType, /
@@ -1212,9 +1212,9 @@ class List(BaseStructure):
 
         all_tasks = self.get_tasks(c)
 
-        if len(all_tasks) >= self.community.limits.list_task_count_max:
+        if len(all_tasks) >= self.community.limits["list_task_count_max"]:
             raise errors.StructureCountLimitReachedError(
-                self.community.limits.list_task_count_max, Task
+                self.community.limits["list_task_count_max"], Task
             )
 
         avm = self._calc_attribute_value_mapping(
@@ -1350,7 +1350,7 @@ class List(BaseStructure):
         self,
         c: orm.Cursor,
         task_id: int,
-        task_attribute_value_mapping: t.MutableMapping[int, t.Sequence[RealStr]],
+        task_attribute_value_mapping: t.Mapping[int, t.Sequence[RealStr]],
     ) -> None:
         tavm = self._calc_attribute_value_mapping(
             c, TaskAttribute, task_attribute_value_mapping
@@ -1467,9 +1467,9 @@ class List(BaseStructure):
         norm_aliases: frozenset[NormStr] = frozenset(),
         allowed_attributes: frozenset[BaseAttribute] = frozenset(),
     ) -> None:
-        if len(norm_aliases) > self.community.limits.attribute_alias_count_max:
+        if len(norm_aliases) > self.community.limits["attribute_alias_count_max"]:
             raise errors.TooManyAliasesError(
-                norm_aliases, self.community.limits.attribute_alias_count_max, type
+                norm_aliases, self.community.limits["attribute_alias_count_max"], type
             )
 
         norm_syns: set[NormStr] = set()
@@ -1483,10 +1483,13 @@ class List(BaseStructure):
             return
 
         for norm_syn in norm_syns:
-            if len(norm_syn) > self.community.jumpedia.limits.attribute_syn_length_max:
+            if (
+                len(norm_syn)
+                > self.community.jumpedia.limits["attribute_syn_length_max"]
+            ):
                 raise errors.TooLongSynError(
                     norm_syn,
-                    self.community.jumpedia.limits.attribute_syn_length_max,
+                    self.community.jumpedia.limits["attribute_syn_length_max"],
                     type,
                 )
 
@@ -1557,7 +1560,7 @@ class List(BaseStructure):
         c: orm.Cursor,
         task_id: int,
         community_user_id: int,
-        user_attribute_value_mapping: t.MutableMapping[int, t.Sequence[text.RealStr]],
+        user_attribute_value_mapping: t.Mapping[int, t.Sequence[text.RealStr]],
     ) -> None:
         uavm = self._calc_attribute_value_mapping(
             c, UserAttribute, user_attribute_value_mapping
@@ -1615,7 +1618,7 @@ class List(BaseStructure):
         c: orm.Cursor,
         task_id: int,
         community_user_id: int,
-        user_attribute_value_mapping: t.MutableMapping[int, t.Sequence[text.RealStr]],
+        user_attribute_value_mapping: t.Mapping[int, t.Sequence[text.RealStr]],
     ) -> None:
         uavm = self._calc_attribute_value_mapping(
             c, UserAttribute, user_attribute_value_mapping

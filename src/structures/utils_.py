@@ -19,7 +19,7 @@ def first_or_none[T](seq: t.Iterable[T]) -> T | None:
     return next(iter(seq), None)
 
 
-def first_or_none_of_mapping_vk_item[TK, TV](
+def first_or_none_of_item_vk_of_mapping[TK, TV](
     mapping: t.Mapping[TK, TV],
 ) -> tuple[TV, TK] | None:
     first = first_or_none(mapping.items())

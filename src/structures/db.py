@@ -2,6 +2,7 @@ import types
 import typing as t
 
 from utils.orm import *
+from utils.text import RealStr
 
 if t.TYPE_CHECKING:
     from .attribute.slot_str import SlotStr
@@ -333,10 +334,15 @@ class CommunityUserTaskAttributeValue(Model, table_name=SNAKE):
 
 
 def create_database(
-    j: Jumpedia, database_name: str, meta_c: Cursor, get_c: t.Callable[[], Cursor]
+    j: Jumpedia,
+    database_name: str,
+    get_meta_c: t.Callable[[], Cursor],
+    get_root_meta_c: t.Callable[[], Cursor],
+    get_c: t.Callable[[], Cursor],
 ) -> None:
     import time
 
+    meta_c = get_meta_c()
     meta_c.raw_execute("SHOW SCHEMAS")
 
     rows = meta_c.raw_fetchall()
@@ -346,9 +352,16 @@ def create_database(
             print("Database exists!")
             return
 
-    print("Jumpedia database does NOT exist, creating new in 5 seconds!")
+    if (
+        input("Jumpedia database does NOT exist!\nEnter 'yes' to create new one: ")
+        != "yes"
+    ):
+        print("Aborted")
+        exit()
+        return
 
-    time.sleep(5)
+    meta_c._close_connection()
+    meta_c = get_root_meta_c()
 
     meta_c.raw_execute(
         f"""
@@ -358,11 +371,19 @@ def create_database(
     """
     )
 
-    meta_c.commit()
-    meta_c._mariadb_cursor.close()
-    meta_c._mariadb_connection.close()
+    meta_c.raw_execute(
+        f"""
+        GRANT CREATE ON *.* TO 'jonikauf'@'localhost'
+        """
+    )
 
-    del meta_c
+    meta_c.raw_execute(
+        f"""
+        GRANT ALL PRIVILEGES ON `{database_name}`.* TO 'jonikauf'@'localhost'
+        """
+    )
+
+    meta_c.commit()
 
     from structures import attribute
     from structures.attribute.slot_str import SLOT_TYPES
@@ -375,8 +396,8 @@ def create_database(
             f"""
             CREATE TABLE {Community} (
                 {Community.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                {Community.norm_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
-                {Community.real_name} VARCHAR({j.limits.community_name_length_max}) UNIQUE NOT NULL,
+                {Community.norm_name} VARCHAR({j.limits['community_name_length_max']}) UNIQUE NOT NULL,
+                {Community.real_name} VARCHAR({j.limits['community_name_length_max']}) UNIQUE NOT NULL,
                 {Community.default_selected_list_id} INT UNSIGNED DEFAULT NULL,
                 {Community.limits} JSON NOT NULL
             )
@@ -401,8 +422,8 @@ def create_database(
             CREATE TABLE {List} (
                 {List.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {List.community_id} INT UNSIGNED NOT NULL,
-                {List.norm_name} VARCHAR({j.limits.list_name_length_max}) NOT NULL,
-                {List.real_name} VARCHAR({j.limits.list_name_length_max}) NOT NULL,
+                {List.norm_name} VARCHAR({j.limits['list_name_length_max']}) NOT NULL,
+                {List.real_name} VARCHAR({j.limits['list_name_length_max']}) NOT NULL,
 
                 FOREIGN KEY ({List.community_id.unqualified})
                     REFERENCES {Community}({Community.id.unqualified})
@@ -463,8 +484,8 @@ def create_database(
                 {Attribute.list_id} INT UNSIGNED NOT NULL,
                 {Attribute.type_id} TINYINT UNSIGNED NOT NULL,
                 {Attribute.kind} TINYINT UNSIGNED,
-                {Attribute.norm_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                {Attribute.real_name} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                {Attribute.norm_name} VARCHAR({j.limits['attribute_syn_length_max']}) NOT NULL,
+                {Attribute.real_name} VARCHAR({j.limits['attribute_syn_length_max']}) NOT NULL,
                 {Attribute.slot_type} TINYINT UNSIGNED NOT NULL,
                 {Attribute.position} TINYINT UNSIGNED NOT NULL,
                 {Attribute.min_slots} TINYINT UNSIGNED NOT NULL,
@@ -492,8 +513,8 @@ def create_database(
                 {AttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
                 {AttributeAlias.list_id} INT UNSIGNED NOT NULL,
                 {AttributeAlias.attribute_type_id} TINYINT UNSIGNED NOT NULL,
-                {AttributeAlias.norm_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
-                {AttributeAlias.real_alias} VARCHAR({j.limits.attribute_syn_length_max}) NOT NULL,
+                {AttributeAlias.norm_alias} VARCHAR({j.limits['attribute_syn_length_max']}) NOT NULL,
+                {AttributeAlias.real_alias} VARCHAR({j.limits['attribute_syn_length_max']}) NOT NULL,
 
                 FOREIGN KEY ({AttributeAlias.attribute_id.unqualified})
                     REFERENCES {Attribute}({Attribute.id.unqualified})
@@ -565,8 +586,8 @@ def create_database(
             CREATE TABLE {Task} (
                 {Task.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {Task.list_id} INT UNSIGNED NOT NULL,
-                {Task.norm_name} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
-                {Task.slot_name} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                {Task.norm_name} VARCHAR({j.limits['attribute_task_value_slot_length_max']}) NOT NULL,
+                {Task.slot_name} VARCHAR({j.limits['attribute_task_value_slot_length_max']}) NOT NULL,
 
                 FOREIGN KEY ({Task.list_id.unqualified})
                     REFERENCES {List}({List.id.unqualified})
@@ -583,8 +604,8 @@ def create_database(
                 {TaskAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {TaskAlias.task_id} INT UNSIGNED NOT NULL,
                 {TaskAlias.list_id} INT UNSIGNED NOT NULL,
-                {TaskAlias.norm_alias} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
-                {TaskAlias.slot_alias} VARCHAR({j.limits.attribute_task_value_slot_length_max}) NOT NULL,
+                {TaskAlias.norm_alias} VARCHAR({j.limits['attribute_task_value_slot_length_max']}) NOT NULL,
+                {TaskAlias.slot_alias} VARCHAR({j.limits['attribute_task_value_slot_length_max']}) NOT NULL,
 
                 FOREIGN KEY ({TaskAlias.task_id.unqualified})
                     REFERENCES {Task}({Task.id.unqualified})
@@ -698,19 +719,16 @@ def create_database(
             )
         """
         )
-    except Exception as e:
-        try:
-            c.raw_execute(
-                f"""
-                DROP DATABASE {database_name}
-            """
-            )
-        except Exception as e2:
-            raise e2
+    except Exception:
+        print("Error! Dropping database in 5 seconds...")
+        time.sleep(5)
 
-        raise e
-    else:
-        print("Jumpedia database successfully created!")
+        meta_c.raw_execute(f"DROP DATABASE {database_name}")
+        meta_c.commit()
+        raise
+
+    print("Jumpedia database successfully created!")
 
     c.commit()
-    c._mariadb_cursor.close()
+    c._close_connection()
+    meta_c._close_connection()

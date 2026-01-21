@@ -1,3 +1,4 @@
+from functools import cached_property
 import typing as t
 
 import discord as dc
@@ -13,7 +14,7 @@ if t.TYPE_CHECKING:
 class ServerAdapter(BaseAdapter[dc.Guild]):
     interaction: InteractionAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.interaction._c
 

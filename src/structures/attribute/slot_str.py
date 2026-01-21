@@ -2,13 +2,12 @@ import decimal
 import typing as t
 from decimal import Decimal
 
-from structures.jumpedia import JumpediaLimits
 from utils import text
 
 from .. import errors
 
 if t.TYPE_CHECKING:
-    from ..jumpedia import Jumpedia
+    from structures.jumpedia import JumpediaLimits
 
 type SlotTypeT = (bool | int | Decimal | str)
 SLOT_TYPES = (bool, int, Decimal, str)
@@ -44,7 +43,7 @@ class SlotStr(text.RealStr):
     ) -> t.Self:
         # String is definitely used most often, so check it first
         if issubclass(type, str):
-            if len(s) > limits.attribute_task_value_slot_length_max:
+            if len(s) > limits["attribute_task_value_slot_length_max"]:
                 raise errors.InvalidSlotStrError(s, type)
 
             return super().__new__(cls, s, check=False)

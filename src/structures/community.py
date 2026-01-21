@@ -1,30 +1,40 @@
-import builtins
 import typing as t
 
+from dc_utils.rank import CommunityRank
+from structures.utils_ import first_or_none_of_item_vk_of_mapping
 from utils import orm, text
-from utils.rank import CommunityRank
 
-from . import BaseStructure, db, errors, list
+from . import BaseStructure, db, errors
 from .attribute import StaticAttribute
-from .list import Kind, List
+from .list import Kind, List, KIND_TO_PREDEFINED_DATA
 from .user import CommunityUser, JumpediaUser
 
 if t.TYPE_CHECKING:
     from .jumpedia import Jumpedia
 
 
-class CommunityLimits(t.NamedTuple):
-    community_list_count_max: int = 1
-    list_attribute_count_max: int = 16
-    list_task_count_max: int = 100
-    attribute_alias_count_max: int = (
-        8  # Don't confuse with task alias count max, which is retrieved via the static attribute
-    )
-    attribute_task_value_slot_count_max: int = (
-        32  # DO NOT DECREASE! If increased, make sure to update database!! Import for alias static attribute!!
-    )
-    attribute_collection_entry_count_max: int = 32
-    attribute_collection_entry_alias_count_max: int = 8
+class CommunityLimits(t.TypedDict):
+    # DO NOT RENAME KEYS!! This is a TypedDict on purpose
+    # to accidentally rename keys without going unnoticed
+
+    community_list_count_max: int
+    list_attribute_count_max: int
+    list_task_count_max: int
+    attribute_alias_count_max: int
+    attribute_task_value_slot_count_max: int
+    attribute_collection_entry_count_max: int
+    attribute_collection_entry_alias_count_max: int
+
+
+DEFAULT_COMMUNITY_LIMITS: CommunityLimits = {
+    "community_list_count_max": 1,
+    "list_attribute_count_max": 16,
+    "list_task_count_max": 100,
+    "attribute_alias_count_max": 8,
+    "attribute_task_value_slot_count_max": 32,  # DO NOT DECREASE! If increased, make sure to update database!! Important for alias static attribute!!
+    "attribute_collection_entry_count_max": 32,
+    "attribute_collection_entry_alias_count_max": 8,
+}
 
 
 class Community(BaseStructure):
@@ -49,16 +59,16 @@ class Community(BaseStructure):
     def create_list(self, c: orm.Cursor, name: text.RealStr, /) -> List:
         norm_name = text.NormStr(name)
 
-        list_obj = self.get_list_by_name(c, norm_name)
+        tup = self.get_list_by_name(c, norm_name)
 
-        if list_obj is not None:
-            raise errors.SynsAlreadyTakenError({list_obj.real_name: list_obj})
+        if tup is not None:
+            raise errors.SynsAlreadyTakenError({tup[1]: tup[0]})
 
         count = len(self.get_lists(c))
 
-        if count >= self.limits.community_list_count_max:
+        if count >= self.limits["community_list_count_max"]:
             raise errors.StructureCountLimitReachedError(
-                self.limits.community_list_count_max, List
+                self.limits["community_list_count_max"], List
             )
 
         execute_data = c.execute(
@@ -73,12 +83,12 @@ class Community(BaseStructure):
         list_id = execute_data.last_generated_id
         assert list_id is not None
 
-        list_obj = List(community=self, id=list_id, real_name=name, norm_name=norm_name)
+        tup = List(community=self, id=list_id, real_name=name, norm_name=norm_name)
 
         for kind in Kind:
-            static_attr_data = list.KIND_TO_PREDEFINED_DATA[kind]
+            static_attr_data = KIND_TO_PREDEFINED_DATA[kind]
 
-            list_obj.create_attribute(
+            tup.create_attribute(
                 c,
                 StaticAttribute,
                 static_attr_data.real_name,
@@ -90,8 +100,8 @@ class Community(BaseStructure):
                 position=static_attr_data.position,
             )
 
-        return list_obj
-
+        return tup
+    
     def delete_list(self, c: orm.Cursor, id: int, /) -> None:
         execute_data = c.execute(
             db.List.delete().where(
@@ -108,17 +118,16 @@ class Community(BaseStructure):
 
     def _get_lists_inner(
         self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]
-    ) -> builtins.list[List]:
-        return builtins.list(
-            map(
-                self._list_row_to_obj,
-                c.fetch_all(
-                    db.List.select(
-                        "*",
-                    ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
-                ),
-            )
+    ) -> map[List]:
+        return map(
+            self._list_row_to_obj,
+            c.fetch_all(
+                db.List.select(
+                    "*",
+                ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
+            ),
         )
+        
 
     def _list_row_to_obj(self, row: db.List) -> List:
         return List(
@@ -128,21 +137,27 @@ class Community(BaseStructure):
             norm_name=text.NormStr(row.norm_name, check=False),
         )
 
-    def get_lists(self, c: orm.Cursor, /) -> builtins.list[List]:
-        return self._get_lists_inner(c)
+    def get_lists(self, c: orm.Cursor, /) -> list[List]:
+        return list(self._get_lists_inner(c))
 
-    def get_list_by_id(self, c: orm.Cursor, id: int, /) -> List | None:
-        lists = self._get_lists_inner(c, (db.List.id, orm.Operator.EQ, id))
-        return lists[0] if lists else None
+    def get_list_by_id(self, c: orm.Cursor, id: int, /) -> tuple[List, int] | None:
+        return first_or_none_of_item_vk_of_mapping(self.get_lists_by_id(c, (id,)))
+    
+    def get_lists_by_id(self, c: orm.Cursor, ids: t.Collection[int], /) -> dict[int, List]:
+        return {list.id: list for list in self._get_lists_inner(c, (db.List.id, orm.Operator.IN, ids))}
 
     def get_list_by_name(
-        self, c: orm.Cursor, norm_name: text.NormStr, /
-    ) -> List | None:
-        lists = self._get_lists_inner(
-            c, (db.List.norm_name, orm.Operator.EQ, norm_name)
-        )
-        return lists[0] if lists else None
+        self, c: orm.Cursor, name: text.NormStr, /
+    ) -> tuple[List, text.RealStr] | None:
+        return first_or_none_of_item_vk_of_mapping(self.get_lists_by_name(c, (name,)))
 
+    def get_lists_by_name(
+        self, c: orm.Cursor, names: t.Collection[text.NormStr], /
+    ) -> dict[text.RealStr, List]:
+        return {list.real_name: list for list in self._get_lists_inner(
+            c, (db.List.norm_name, orm.Operator.IN, names)
+        )}
+    
     def get_default_selected_list(self, c: orm.Cursor, /) -> List | None:
         row = c.fetch_one(
             db.Community.select(db.Community.default_selected_list_id).where(
@@ -153,11 +168,11 @@ class Community(BaseStructure):
         if row is None or row.default_selected_list_id is None:
             return None
 
-        list = self.get_list_by_id(c, row.default_selected_list_id)
+        tup = self.get_list_by_id(c, row.default_selected_list_id)
 
-        assert list is not None
+        assert tup is not None
 
-        return list
+        return tup[0]
 
     def set_default_selected_list(self, c: orm.Cursor, list_id: int | None, /) -> None:
         execute_data = c.execute(

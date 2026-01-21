@@ -1,7 +1,7 @@
 import platform
 import sys
 
-from scripts import one_to_two
+# from scripts import one_to_two
 
 
 def __main() -> None:

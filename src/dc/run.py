@@ -7,20 +7,19 @@ import typing as t
 from pathlib import Path
 
 import discord as dc
-import mariadb
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
+from dc_utils import message
 from dc_utils.errors import (
     BaseUserReturnableError,
     DoubleBacktick,
     EmptyString,
     FeedbackError,
 )
-from dc_utils import message
 from utils import secret, text
 
-BOT = cmds.Bot(command_prefix="33e32r230ro2dd", intents=dc.Intents.none())
+BOT = cmds.Bot(command_prefix="awjkefejjefejffsn", intents=dc.Intents.default())
 DEV_MODE: bool = True
 
 
@@ -65,8 +64,10 @@ async def on_app_command_error(
     else:
         e = error
 
-    if interaction.response.is_done():
+    try:
         await interaction.response.defer()
+    except (dc.errors.InteractionResponded, dc.HTTPException):
+        pass
 
     if (
         isinstance(e, acmds.errors.TransformerError)
@@ -100,6 +101,10 @@ async def on_app_command_error(
         )
     )
 
+
+from adapting import interaction
+
+interaction._get_or_create_the_one_piece()
 
 TOKEN = secret.listen().DISCORD_TOKEN
 BOT.run(TOKEN)

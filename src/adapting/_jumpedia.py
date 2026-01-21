@@ -1,7 +1,9 @@
+from functools import cached_property
 import typing as t
 
-from ..dc_utils import errors
-from structures.community import Community, CommunityLimits
+from dc_utils import errors
+from dc_utils.rank import JumpediaRank
+from structures.community import DEFAULT_COMMUNITY_LIMITS, Community, CommunityLimits
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
     ServerNotConnectedToACommunityError,
@@ -9,7 +11,6 @@ from structures.errors import (
 )
 from structures.jumpedia import Jumpedia
 from utils import orm, text
-from utils.rank import JumpediaRank
 
 from . import BaseStructureAdapter
 from ._community import CommunityAdapter
@@ -33,7 +34,7 @@ def _require_community_with_name(
 class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     interaction: InteractionAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.interaction._c
 
@@ -50,15 +51,15 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def create_community(
         self, name: str, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.current_user)
+        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.user)
 
         try:
             comm = self._o.create_community(
                 self._c,
                 name=text.RealStr(name),
-                server_id=self.interaction.current_server.id,
+                server_id=self.interaction.server.id,
                 creator=jumpedia_user._o,
-                limits=CommunityLimits(),
+                limits=DEFAULT_COMMUNITY_LIMITS,
             )
         except ServerAlreadyConnectedToCommunityError as e:
             raise errors.ServerAlreadyConnectedToACommunity(e)
@@ -94,7 +95,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
                 self._o.add_community_to_server(
                     self._c,
                     self.get_community(name)._o.id,
-                    self.interaction.current_server.id,
+                    self.interaction.server.id,
                 ),
                 self,
             )
@@ -104,7 +105,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def remove_community_from_current_server(self) -> CommunityAdapter:
         try:
             community = self._o.remove_community_from_server(
-                self._c, self.interaction.current_server._o.id
+                self._c, self.interaction.server._o.id
             )
         except ServerNotConnectedToACommunityError:
             raise errors.ServerNotConnectedToACommunity()
@@ -128,4 +129,4 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
             override_jumpedia_rank is not None,
         )
 
-        return JumpediaUserAdapter(jumpedia_user, self)
+        return JumpediaUserAdapter(jumpedia_user, self, user)

@@ -6,18 +6,17 @@ import typing as t
 
 import mariadb
 
-from adapting.interaction import _THE_ONE_PIECE
+from adapting import interaction
+from adapting.interaction import _get_or_create_the_one_piece
+from dc_utils import connect
+from dc_utils.rank import CommunityRank, JumpediaRank
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits
 from structures.list import Kind, List
 from structures.task import Task
-from utils import orm, secret
-from utils import text
-from utils.rank import CommunityRank, JumpediaRank
+from utils import numbers, orm, secret, text
 from utils.text import NormStr, RealStr
-
-_32_BIT_INTEGER_LIMIT = 2**31 - 1
 
 DATA_PATH = os.path.join(os.path.abspath(__file__.removesuffix("__init__.py")), "data")
 
@@ -367,30 +366,38 @@ def main():
 
     META_C = orm.Cursor(
         conn := mariadb.connect(
-            **secret.listen().DATABASE_CONNECTION_DATA | {"db": None}
+            **secret.listen().DATABASE_CONNECTION_DATA
+            | {"db": None}
+            | {"user": "root", "password": input("Please enter password for root: ")}
         ),
         conn.cursor(dictionary=True),
     )
-    DATABASE_NAME = "jumpedia"
 
-    META_C.raw_execute(f"DROP SCHEMA {DATABASE_NAME}")
-    get_c = lambda: orm.Cursor(
-        conn := mariadb.connect(**secret.listen().DATABASE_CONNECTION_DATA),
-        conn.cursor(dictionary=True),
-    )
+    META_C.raw_execute("DROP DATABASE IF EXISTS jumpedia")
+    META_C.commit()
 
-    db.create_database(_THE_ONE_PIECE, DATABASE_NAME, META_C, get_c)
+    META_C._close_connection()
 
-    C = get_c()
+    THE_ONE_PIECE = interaction._get_or_create_the_one_piece()
 
-    community = _THE_ONE_PIECE.create_community(
+    C = connect.get_new_connection_cursor_adapter()
+
+    community = THE_ONE_PIECE.create_community(
         C,
         RealStr("SMO Trickjumping"),
         469869605570084886,
-        _THE_ONE_PIECE.get_or_create_jumpedia_user(
+        THE_ONE_PIECE.get_or_create_jumpedia_user(
             C, 679564566769827841, "JoniKauf", JumpediaRank.JONIKAUF, True, True
         ),
-        CommunityLimits(32, 32, _32_BIT_INTEGER_LIMIT, 32, 32, 1024, 32),
+        {
+            "community_list_count_max": 32,
+            "list_attribute_count_max": 32,
+            "list_task_count_max": numbers.INT32_MAX,
+            "attribute_alias_count_max": 32,
+            "attribute_task_value_slot_count_max": 32,
+            "attribute_collection_entry_count_max": 1024,
+            "attribute_collection_entry_alias_count_max": 32,
+        },
     )
 
     main_list = community.create_list(C, RealStr("Main"))
@@ -439,3 +446,5 @@ def main():
 
 # if __name__ == "__main__":
 main()
+
+exit()

@@ -1,17 +1,16 @@
+from types import CoroutineType
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
+import dc_utils
 from adapting._community import CommunityAdapter
 from adapting._user import UserAdapter
 from adapting.interaction import InteractionAdapter
 from dc_utils import command, message, shortcuts
-import dc_utils
+from dc_utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 from utils import text
-from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
-
-from ..discord_utils import user as user_
-
+import typing as t
 
 class UserCog(cmds.GroupCog, group_name="user"):
 
@@ -19,11 +18,10 @@ class UserCog(cmds.GroupCog, group_name="user"):
         self.bot = bot
 
     @acmds.command(description="Get information about a user.")
+    @command.adapt
     async def info(
-        self, interaction: dc.Interaction, user: dc.User | None = None
-    ) -> None:
-        ia = InteractionAdapter(interaction)
-
+        self, ia: InteractionAdapter, user: dc.User | None = None
+    ) -> CoroutineType[None, None, t.Any]:
         jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
             ia, user
         )
@@ -31,12 +29,15 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         NOT_IN_COMMUNITY = "<Not executed in a community>"
 
-        community_s = jumpedia._o.get_communities_by_server_id(ia._c, ia.current_server.id)
+        tup = jumpedia._o.get_community_by_server_id(
+            ia._c, ia.server.id
+        )
+        
         community_user = (
             shortcuts.get_or_create_specified_or_current_community_user(
-                CommunityAdapter(community_s, jumpedia), jumpedia_user
+                CommunityAdapter(tup[0], jumpedia), jumpedia_user
             )
-            if community_s is not None
+            if tup is not None
             else None
         )
 
@@ -49,7 +50,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
             selected_list = selected_list.name if selected_list is not None else None
 
         server_rank: ServerRank | str = (
-            ia.current_member.server_rank
+            ia.server_member.server_rank
             if isinstance(ia._o.user, dc.Member)
             else "<Not executed on a server>"
         )
@@ -60,7 +61,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
             ("Jumpedia Rank", jumpedia_user.jumpedia_rank),
         ]
 
-        await interaction.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "User Info",
                 text.join_t(
@@ -85,19 +86,21 @@ class UserCog(cmds.GroupCog, group_name="user"):
         ia: InteractionAdapter,
         list: str | None = None,
         user: dc.User | None = None,
-    ) -> None:
+    ) -> CoroutineType[None, None, t.Any]:
         dc_utils.user.validate_allowed_for_others(ia.dc, user, CommunityRank.MODERATOR)
 
-        ia_community_user = shortcuts.get_or_create_specified_or_current_community_user(ia, user)
+        specified_community_user = shortcuts.get_or_create_specified_or_current_community_user(
+            ia, user
+        )
 
-        list_obj = ia_community_user.set_selected_list(list, ia_community_user)
+        list_obj = specified_community_user.set_selected_list(list)
 
-        await interaction.response.send_message(
+        return ia.dc.response.send_message(
             message.layout(
                 "Selected List Set",
                 (
                     t"Your selected list "
-                    if ia_community_user == set_community_user
+                    if specified_community_user == specified_community_user
                     else t"The selected list of the user {set_community_user:,} "
                 )
                 + t"has successfully been set to {list_obj:,}!",

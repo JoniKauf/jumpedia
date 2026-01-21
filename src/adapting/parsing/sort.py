@@ -1,46 +1,57 @@
-
 import functools
 import typing as t
 
+from dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.task import Task
 from structures.task.attribute_value_mapping import AttributeValueMapping
 from utils import orm
 from utils.text import NormStr, RealStr
+
 from . import factory
-from dc_utils import errors
+
 
 class SyntaxError(factory.SyntaxFeedbackError, category="sort"):
     pass
+
 
 class TokenTypes(factory.TokenTypes):
     MINUS = factory.TokenType(5, lambda tok: t"the descending order symbol {'-':,}")
     PLUS = factory.TokenType(6, lambda tok: t"the ascending order symbol {'+':,}")
 
+
 expected_but_received = factory.expected_but_received_factory(error_type=SyntaxError)
 
+
 def _token_from_c(c: str) -> factory.Token | None:
-    if c == '+':
+    if c == "+":
         return factory.Token(TokenTypes.PLUS, c)
-    
-    if c == '-':
+
+    if c == "-":
         return factory.Token(TokenTypes.MINUS, c)
-    
+
     return None
+
 
 def _token_from_buf(buf: str) -> factory.Token | None:
     return None
 
-_ORDER_OPS = ('+', '-')
 
-tokenize = factory.tokenize_factory(token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=SyntaxError)
+_ORDER_OPS = ("+", "-")
+
+tokenize = factory.tokenize_factory(
+    token_from_c=_token_from_c, token_from_buf=_token_from_buf, error_type=SyntaxError
+)
+
 
 class Order(factory.Node):
     pass
 
+
 class Asc(Order):
     pass
+
 
 class Desc(Order):
     pass
@@ -64,15 +75,19 @@ def _transform_sort(ts: factory.TokenStream) -> Sort:
     order = next(ts)
 
     if order.type not in (TokenTypes.PLUS, TokenTypes.MINUS):
-        raise expected_but_received(t"the ascending or descending operator {_ORDER_OPS:|}", order)
-    
+        raise expected_but_received(
+            t"the ascending or descending operator {_ORDER_OPS:|}", order
+        )
+
     attr = next(ts)
 
     if attr.type is not TokenTypes.STR:
         raise expected_but_received(factory.EXPECTED_ATTR, attr)
-    
-    return Sort(Asc() if order.type is TokenTypes.PLUS else Desc(), factory.String(attr.string))
-    
+
+    return Sort(
+        Asc() if order.type is TokenTypes.PLUS else Desc(), factory.String(attr.string)
+    )
+
 
 def _transform_sort_collection(ts: factory.TokenStream, _: int) -> SortCollection:
     sorts: list[Sort] = []
@@ -82,12 +97,13 @@ def _transform_sort_collection(ts: factory.TokenStream, _: int) -> SortCollectio
 
     if not sorts:
         raise expected_but_received(t"sort syntax", ts.peek())
-    
+
     return SortCollection(*sorts)
 
 
-transform = factory.transform_factory(transform=_transform_sort_collection, expected_but_received=expected_but_received)
-
+transform = factory.transform_factory(
+    transform=_transform_sort_collection, expected_but_received=expected_but_received
+)
 
 
 def sort[T: AttributeValueMapping](
@@ -169,7 +185,7 @@ def parse[T: AttributeValueMapping](
 
         if attr is None:
             raise errors.StructureNotFoundViaSyn(sort_elem.attr.s, BaseAttribute)
-        
+
         asc = isinstance(sort_elem.order, Asc)
 
         sorts_extracted.append((attr, asc))

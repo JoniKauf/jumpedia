@@ -1,3 +1,4 @@
+from functools import cached_property
 import typing as t
 from dataclasses import dataclass
 
@@ -22,7 +23,7 @@ class _AdapterMeta(type):
 class BaseAdapter[T](metaclass=_AdapterMeta):
     _o: T
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         raise NotImplementedError()
 

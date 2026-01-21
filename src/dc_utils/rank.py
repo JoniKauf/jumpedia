@@ -56,7 +56,7 @@ class CommunityRank(_BaseRank):
 
 
 class JumpediaRank(_BaseRank):
-    def __lt__(self, value: t.Self | CommunityRank) -> bool:
+    def __lt__(self, value: t.Self | CommunityRank) -> bool:  # type: ignore
         if not isinstance(value, self.__class__ | CommunityRank):
             return NotImplemented
 

@@ -3,17 +3,21 @@ import typing as t
 import discord as dc
 
 from dc_utils import errors
-from adapting._community import CommunityAdapter
-from adapting._jumpedia import JumpediaAdapter
-from adapting._list import ListAdapter
-from adapting._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
-from adapting.interaction import InteractionAdapter
-from utils.rank import CommunityRank, JumpediaRank
+from dc_utils.rank import CommunityRank, JumpediaRank
+
+if t.TYPE_CHECKING:
+    from adapting._community import CommunityAdapter
+    from adapting._jumpedia import JumpediaAdapter
+    from adapting._list import ListAdapter
+    from adapting._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
+    from adapting.interaction import InteractionAdapter
 
 
 def _get_jumpedia_and_interaction(
     data: JumpediaAdapter | InteractionAdapter, /
 ) -> tuple[InteractionAdapter, JumpediaAdapter]:
+    from adapting.interaction import InteractionAdapter
+
     if isinstance(data, InteractionAdapter):
         return data, data.jumpedia
 
@@ -33,18 +37,20 @@ def get_current_community(interaction: InteractionAdapter, /) -> CommunityAdapte
 def get_current_community(
     data: JumpediaAdapter | InteractionAdapter, /
 ) -> CommunityAdapter:
+    from adapting._community import CommunityAdapter
+
     interaction, jumpedia = _get_jumpedia_and_interaction(data)
 
     del data
 
-    community_s = jumpedia._o.get_communities_by_server_id(
-        interaction._c, interaction.current_server.id
+    tup = jumpedia._o.get_community_by_server_id(
+        interaction._c, interaction.server.id
     )
 
-    if community_s is None:
+    if tup is None:
         raise errors.ServerNotConnectedToACommunity()
 
-    return CommunityAdapter(community_s, jumpedia)
+    return CommunityAdapter(tup[0], jumpedia)
 
 
 @t.overload
@@ -76,6 +82,9 @@ def get_or_create_specified_or_current_jumpedia_user(
     *,
     override_jumpedia_rank: JumpediaRank | None = None,
 ) -> JumpediaUserAdapter:
+    from adapting._jumpedia import JumpediaAdapter
+    from adapting._user import UserAdapter
+
     jumpedia: JumpediaAdapter = (
         data if isinstance(data, JumpediaAdapter) else data.jumpedia
     )
@@ -84,7 +93,7 @@ def get_or_create_specified_or_current_jumpedia_user(
 
     return jumpedia.get_or_create_jumpedia_user(
         (
-            jumpedia.interaction.current_user
+            jumpedia.interaction.user
             if user is None
             else UserAdapter(user, jumpedia.interaction)
         ),
@@ -147,6 +156,11 @@ def get_or_create_specified_or_current_community_user(
     override_jumpedia_rank: JumpediaRank | None = None,
     override_community_rank: CommunityRank | None = None,
 ) -> CommunityUserAdapter:
+    from adapting._community import CommunityAdapter
+    from adapting._jumpedia import JumpediaAdapter
+    from adapting._user import JumpediaUserAdapter
+    from adapting.interaction import InteractionAdapter
+
     if isinstance(user, JumpediaUserAdapter):
         assert isinstance(data, CommunityAdapter)
 
@@ -278,6 +292,8 @@ def get_specified_or_selected_or_default_list(
     *,
     error: bool = True,
 ) -> ListAdapter | None:
+    from adapting._community import CommunityUserAdapter
+
     community_user: CommunityUserAdapter
     list: str | None
 

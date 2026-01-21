@@ -4,9 +4,10 @@ from typing import Any, Mapping, Sequence
 
 from discord.app_commands import CheckFailure
 
-from . import message
+from dc_utils.rank import AnyRankT
 from structures import BaseStructure, errors
-from utils.rank import AnyRankT
+
+from . import message
 
 
 class SetupError(RuntimeError):
@@ -80,7 +81,8 @@ class FeedbackError(BaseUserReturnableError):
             additional=self.additional,
             paragraphs=paragraphs,
         )
-    
+
+
 class DatabaseError(FeedbackError):
     def __init__(self):
         super().__init__(
@@ -182,6 +184,7 @@ class SynNotUnique(FeedbackError):
             t"The name or alias {e.given:,} has been specified multiple times, but they must be unique!",
         )
 
+
 class AttributeValueSlotCountOutOfRange(FeedbackError):
     def __init__(self, e: errors.AttributeValueSlotCountOutOfRangeError) -> None:
         super().__init__(
@@ -219,8 +222,8 @@ class DoubleBacktick(FeedbackError):
     def __init__(self) -> None:
         super().__init__(
             "Double Backtick",
-            t"You entered a string that contains a double backtick (``` ```), which is not allowed!",
-            additional=t"The reason it is not allowed is because otherwise it would be impossible to correctly format such messages inside Discord.",
+            t"You entered a string that contains a double backtick (`` ` `` `` ` ``), which is not allowed!",
+            additional=t"The reason it is not allowed is because otherwise it would be impossible to correctly format Discord messages.",
         )
 
 
@@ -245,25 +248,32 @@ class TooManyAliases(FeedbackError):
         )
 
 
-
 class NotPermittedError(FeedbackError):
     def __init__[T: AnyRankT](self, my_rank: T, rank_required: T) -> None:
+        self.my_rank = my_rank
+        self.rank_required = rank_required
+        
         super().__init__(
             "Not Permitted",
             t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",
         )
 
+
 class NotUniqueStructureInMapping(FeedbackError):
-    def __init__(self, structure: BaseStructure, ):
+    def __init__(
+        self,
+        structure: BaseStructure,
+    ):
         super().__init__(
             f"{type(structure).type_name.title()} Not Unique",
-            t"The {type(structure).type_name} {structure:,} has been referenced multiple times as a key in the same mapping, but keys must be unique!"
+            t"The {type(structure).type_name} {structure:,} has been referenced multiple times as a key in the same mapping, but keys must be unique!",
         )
+
 
 class DeletionAborted(FeedbackError):
     def __init__(self, structure: BaseStructure) -> None:
         super().__init__(
             "Deletion Aborted",
             t"The deletion of the {type(structure)} {structure:,} was aborted!",
-            explicit_message_status=message.MessageStatus.WARNING
+            explicit_message_status=message.MessageStatus.WARNING,
         )

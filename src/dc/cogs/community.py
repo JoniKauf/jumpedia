@@ -8,11 +8,10 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapting.interaction import InteractionAdapter
+from dc_utils import command, confirm, message, modal, predicate, shortcuts
+from dc_utils.rank import CommunityRank, JumpediaRank, ServerRank
 from structures.community import Community
 from utils import text
-from utils.rank import CommunityRank, JumpediaRank, ServerRank
-
-from dc_utils import command, confirm, message, modal, predicate, shortcuts
 
 
 class CommunityCog(cmds.GroupCog, group_name="community"):
@@ -75,7 +74,13 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def nuke(self, ia: InteractionAdapter) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
-        return confirm.confirm_nuke(ia, community._o, lambda: community.jumpedia.delete_community(community.name))
+        success = await confirm.confirm_nuke(
+            ia,
+            community._o,
+            lambda: community.jumpedia.delete_community(community.name),
+        )
+
+        return success
 
     @acmds.command(description="Connect a community to this server.")
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
@@ -132,29 +137,28 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
                 t"Are you sure you want to transfer the ownership of {community:,} to {transfer_jumpedia_user:,}?",
                 additional=t"This action CANNOT be undone!",
                 paragraphs=confirm.get_confirm_paragraphs(CONFIG),
-                message_status=message.MessageStatus.WARNING
+                message_status=message.MessageStatus.WARNING,
             ),
-            wait=True
+            wait=True,
         )
 
-        if confirm.emoji_confirm(ia, msg, config=CONFIG):
+        if not await confirm.emoji_confirm(ia, msg, config=CONFIG):
             return msg.edit(
                 content=message.layout(
-                    "Ownership Transferred",
-                    t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
-                    additional=t"The rank of {ia.current_user.name:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
-                    message_status=message.MessageStatus.SUCCESS,
+                    "Ownership Transfer Aborted",
+                    t"The ownership of the community {community:,} stays in your hands, because the request has been aborted!",
+                    message.MessageStatus.WARNING,
                 )
             )
 
         return msg.edit(
             content=message.layout(
-                "Ownership Transfer Aborted",
-                t"The ownership of the community {community:,} stays in your hands, because the name entered was not the specified user's name ({transfer_jumpedia_user:,})!",
-                message.MessageStatus.WARNING,
+                "Ownership Transferred",
+                t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
+                additional=t"The rank of {ia.user.name:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
+                message_status=message.MessageStatus.SUCCESS,
             )
         )
-
 
     @acmds.command(description="Set the default selected list of the community.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))

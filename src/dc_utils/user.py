@@ -3,12 +3,13 @@ import typing as t
 
 import discord as dc
 
-from adapting._jumpedia import JumpediaAdapter
-from adapting._user import JumpediaUserAdapter
-from . import errors
-from adapting.interaction import InteractionAdapter
-from . import shortcuts
-from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
+from dc_utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
+
+from . import errors, shortcuts
+
+if t.TYPE_CHECKING:
+    from adapting._jumpedia import JumpediaAdapter
+    from adapting._user import JumpediaUserAdapter
 
 MAX_NAME_LENGTH: t.Final[int] = 32
 
@@ -53,6 +54,8 @@ def identifier_to_id(identifier: str | int) -> int:
 def validate_allowed(
     interaction: dc.Interaction, rank_required: AnyRankT, *ranks_required: AnyRankT
 ) -> None:
+    from adapting.interaction import InteractionAdapter
+
     server_rank: ServerRank | None = None
     jumpedia_rank: JumpediaRank | None = None
     community_rank: CommunityRank | None = None
@@ -90,7 +93,7 @@ def validate_allowed(
         if server_rank is not None:
             return server_rank
 
-        server_rank = InteractionAdapter(interaction).current_member.server_rank
+        server_rank = InteractionAdapter(interaction).server_member.server_rank
 
         return server_rank
 
@@ -150,10 +153,14 @@ def validate_allowed(
 def validate_allowed_for_others(
     interaction: dc.Interaction,
     user: dc.User | None,
-    rank_required: AnyRankT,
-    *ranks_required: AnyRankT,
+    rank_required: AnyRankT
 ) -> None:
     if user is None or interaction.user.id == user.id:
         return
 
-    return validate_allowed(interaction, rank_required, *ranks_required)
+    try:
+        return validate_allowed(interaction, rank_required)
+    except errors.NotPermittedError as e:
+        raise errors.NotEnoughPowerToAffectOtherUsers(
+            e.my_rank, e.rank_required
+        )

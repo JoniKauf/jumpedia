@@ -76,7 +76,7 @@ class RealStr(str):
     def __new__(cls, s: str, *, check: bool = True) -> t.Self:
         if not check:
             return super().__new__(cls, s)
-        
+
         if isinstance(s, cls):
             return s
 
@@ -97,7 +97,7 @@ class NormStr(str):
     def __new__(cls, s: str, *, check: bool = True) -> t.Self:
         if not check:
             return super().__new__(cls, s)
-        
+
         if not isinstance(s, RealStr):
             s = RealStr(s)
 

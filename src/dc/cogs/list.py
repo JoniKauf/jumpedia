@@ -1,4 +1,5 @@
 import builtins
+import typing as t
 from string.templatelib import Template
 from types import CoroutineType
 from typing import Any
@@ -8,14 +9,12 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, shortcuts
+from dc_utils import command, message, modal, predicate, shortcuts
+from dc_utils.rank import CommunityRank
 from structures.attribute import ALL_ATTRIBUTE_TYPES
 from structures.list import List
 from utils import text
-from utils.rank import CommunityRank
 
-from dc_utils import message, modal, predicate
-import typing as t
 
 class ListCog(cmds.GroupCog, group_name="list"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -23,7 +22,9 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
     @acmds.command(description="Show information about a list.")
     @command.adapt
-    async def info(self, ia: InteractionAdapter, list: str | None = None) -> CoroutineType[None, None, t.Any]:
+    async def info(
+        self, ia: InteractionAdapter, list: str | None = None
+    ) -> CoroutineType[None, None, t.Any]:
         list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
         info: builtins.list[tuple[str, Any]] = [("Name", list_obj.name)]
@@ -50,7 +51,9 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Create a new list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
-    async def create(self, ia: InteractionAdapter, list: str) -> CoroutineType[None, None, t.Any]:
+    async def create(
+        self, ia: InteractionAdapter, list: str
+    ) -> CoroutineType[None, None, t.Any]:
         community = shortcuts.get_current_community(ia)
 
         new_list = community.create_list(list)
@@ -66,7 +69,9 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Delete an existing list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt
-    async def nuke(self, ia: InteractionAdapter, list: str) -> CoroutineType[None, None, t.Any]:
+    async def nuke(
+        self, ia: InteractionAdapter, list: str
+    ) -> CoroutineType[None, None, t.Any]:
         list_s = shortcuts.get_current_community(ia).get_list(list)._o
 
         return modal.delete_structure_confirmation(

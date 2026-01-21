@@ -2,9 +2,9 @@ import json
 import typing as t
 from dataclasses import InitVar
 
+from dc_utils.rank import CommunityRank, JumpediaRank
 from structures import utils_
 from utils import orm, text
-from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits
@@ -12,7 +12,7 @@ from .errors import StructureNotFoundError, SynsAlreadyTakenError
 from .user import JumpediaUser
 
 
-class JumpediaLimits(t.NamedTuple):
+class JumpediaLimits(t.TypedDict):
     """Global limits for Jumpedia.
 
     A limit should only be a Jumpedia limit if it has
@@ -20,29 +20,24 @@ class JumpediaLimits(t.NamedTuple):
     community wide limit.
     """
 
+    # DO NOT RENAME KEYS!! This is a TypedDict on purpose
+    # to accidentally rename keys without going unnoticed
+
     # All here are currently length limits, simply because it is one giant shared table
     # and so they share the same VARCHAR(N)
     community_name_length_max: int  # By nature a Jumpedia limit
-    list_name_length_max: int
+    list_name_length_max: int  # Db needs a maximum varchar
     user_name_length_max: int  # Discord limit
-    attribute_syn_length_max: int
-    attribute_task_value_slot_length_max: int
+    attribute_syn_length_max: int  # Db needs a maximum varchar
+    attribute_task_value_slot_length_max: int  # Db needs a maximum varchar
 
 
 class Jumpedia(BaseStructure):
     limits: JumpediaLimits
-    db_name: InitVar[str]
-    meta_c: InitVar[orm.Cursor]
-    get_c: InitVar[t.Callable[[], orm.Cursor]]
 
     @property
     def name(self) -> str:
         return self.__class__.type_name
-
-    def __post_init__(
-        self, db_name: str, meta_c: orm.Cursor, get_c: t.Callable[[], orm.Cursor]
-    ) -> None:
-        db.create_database(self, db_name, meta_c, get_c)
 
     # --- Communities ---
 
@@ -75,7 +70,7 @@ class Jumpedia(BaseStructure):
             db.Community.insert(
                 db.Community.norm_name.bind(norm_name),
                 db.Community.real_name.bind(name),
-                db.Community.limits.bind(json.dumps(limits._asdict())),
+                db.Community.limits.bind(json.dumps(limits)),
             ),
             get_last_generated_id=True,
         )
@@ -139,7 +134,7 @@ class Jumpedia(BaseStructure):
     def get_community_by_id(
         self, c: orm.Cursor, id: int, /
     ) -> tuple[Community, int] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_communities_by_id(c, (id,))
         )
 
@@ -156,7 +151,7 @@ class Jumpedia(BaseStructure):
     def get_community_by_name(
         self, c: orm.Cursor, name: text.NormStr, /
     ) -> tuple[Community, text.RealStr] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_communities_by_name(c, (name,))
         )
 
@@ -173,7 +168,7 @@ class Jumpedia(BaseStructure):
     def get_community_by_server_id(
         self, c: orm.Cursor, server_id: int, /
     ) -> tuple[Community, int] | None:
-        return utils_.first_or_none_of_mapping_vk_item(
+        return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_communities_by_server_id(c, (server_id,))
         )
 

@@ -1,7 +1,9 @@
+from functools import cached_property
 import typing as t
 
+from adapting import parsing
+from dc_utils import errors
 from dc_utils.errors import FeedbackError
-from ..dc_utils import errors
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
@@ -34,11 +36,9 @@ from ._attribute import (
 )
 from ._task import TaskAdapter
 from ._user import CommunityUserAdapter
-from adapting import parsing
 
 if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
-
 
 
 @t.overload
@@ -109,7 +109,7 @@ def _parse_aliases(aliases_raw: str | None) -> tuple[text.RealStr, ...]:
 class ListAdapter(BaseStructureAdapter[List]):
     community: CommunityAdapter
 
-    @property
+    @cached_property
     def _c(self) -> orm.Cursor:
         return self.community._c
 
@@ -124,7 +124,8 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def get_tasks_of_user(self, user: CommunityUserAdapter) -> list[TaskAdapter]:
         return [
-            TaskAdapter(task, self) for task in self._o.get_tasks_of_user(self._c, user._o.id)
+            TaskAdapter(task, self)
+            for task in self._o.get_tasks_of_user(self._c, user._o.id)
         ]
 
     def get_task(self, syn: str) -> TaskAdapter:
@@ -132,14 +133,21 @@ class ListAdapter(BaseStructureAdapter[List]):
             _require_task_with_syn(self._c, text.NormStr(syn), self._o), self
         )
 
-    def _parse_attribute_value_mapping(self, type: type[AnyAttributeT], attribute_value_mapping: str | None) -> dict[int, tuple[text.RealStr, ...]]:
+    def _parse_attribute_value_mapping(
+        self, type: type[AnyAttributeT], attribute_value_mapping: str | None
+    ) -> dict[int, tuple[text.RealStr, ...]]:
         if not attribute_value_mapping:
             return {}
-        
+
         avm = parsing.avm.parse(
             self._c,
             text.RealStr(attribute_value_mapping),
-            {text.NormStr(k): v for k, v in self._o.get_attributes_by_syn(self._c, ..., type=type).items()}
+            {
+                text.NormStr(k): v
+                for k, v in self._o.get_attributes_by_syn(
+                    self._c, ..., type=type
+                ).items()
+            },
         )
 
         return {k.id: v for k, v in avm.items()}
@@ -152,7 +160,14 @@ class ListAdapter(BaseStructureAdapter[List]):
         real_aliases = _parse_aliases(aliases)
 
         try:
-            task_s = self._o.create_task(self._c, real_name, real_aliases, self._parse_attribute_value_mapping(TaskAttribute, task_attribute_value_mapping))
+            task_s = self._o.create_task(
+                self._c,
+                real_name,
+                real_aliases,
+                self._parse_attribute_value_mapping(
+                    TaskAttribute, task_attribute_value_mapping
+                ),
+            )
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
         except StructureCountLimitReachedError as e:
@@ -175,7 +190,9 @@ class ListAdapter(BaseStructureAdapter[List]):
         self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
 
     def edit_task_aliases(self, syn: str, aliases: str) -> None:
-        real_aliases = tuple(map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases))))
+        real_aliases = tuple(
+            map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))
+        )
 
         task = self.get_task(syn)
         self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
@@ -185,7 +202,13 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         task = self.get_task(syn)
 
-        self._o.edit_task_attribute_value_mapping(self._c, task._o.id, self._parse_attribute_value_mapping(TaskAttribute, task_attribute_value_mapping))
+        self._o.edit_task_attribute_value_mapping(
+            self._c,
+            task._o.id,
+            self._parse_attribute_value_mapping(
+                TaskAttribute, task_attribute_value_mapping
+            ),
+        )
 
     # --- Attribute ---
 
@@ -288,15 +311,13 @@ class ListAdapter(BaseStructureAdapter[List]):
         collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
         real_aliases = _parse_aliases(aliases)
-        
+
         if not collection:
             real_collection = ()
         else:
             real_collection = tuple(
                 (text.RealStr(name), tuple(map(text.RealStr, aliases)))
-                for name, aliases in parsing.mapping.parse(
-                    text.RealStr(collection)
-                )
+                for name, aliases in parsing.mapping.parse(text.RealStr(collection))
             )
 
         try:
@@ -343,7 +364,12 @@ class ListAdapter(BaseStructureAdapter[List]):
 
         try:
             self._o.give_task_to_community_user(
-                self._c, task_s.id, community_user._o.id, self._parse_attribute_value_mapping(UserAttribute, user_attribute_value_mapping)
+                self._c,
+                task_s.id,
+                community_user._o.id,
+                self._parse_attribute_value_mapping(
+                    UserAttribute, user_attribute_value_mapping
+                ),
             )
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRange(e)

@@ -34,7 +34,7 @@ def adapt[T: cmds.Cog, **P](
                     ia._c.commit()
             except mariadb.Error:
                 raise errors.DatabaseError()
-            
+
         except Exception:
             ia._c._mariadb_connection.rollback()
             raise

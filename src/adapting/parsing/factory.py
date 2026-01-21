@@ -1,6 +1,7 @@
 import functools
-from string.templatelib import Template
 import typing as t
+from string.templatelib import Template
+
 from dc_utils.errors import FeedbackError
 
 
@@ -9,24 +10,24 @@ class SyntaxFeedbackError(FeedbackError):
         super().__init_subclass__()
 
         cls._category = category.title()
-    
-    def __init__(
-        self,
-        core: Template,
-        *,
-        additional: Template | None = None
-    ):
+
+    def __init__(self, core: Template, *, additional: Template | None = None):
         super().__init__(
-            f"{type(self)._category} Syntax Error",
-            core,
-            additional=additional
+            f"{type(self)._category} Syntax Error", core, additional=additional
         )
+
 
 class NestingError(FeedbackError):
     def __init__(self) -> None:
-        super().__init__("Too Much Nesting", t"The specified syntax is nested way too much, more than anybody would reasonably need!")
+        super().__init__(
+            "Too Much Nesting",
+            t"The specified syntax is nested way too much, more than anybody would reasonably need!",
+        )
 
-def expected_but_received_factory[T: SyntaxFeedbackError](*, error_type: type[T]) -> t.Callable[[Template, Token], T]:
+
+def expected_but_received_factory[T: SyntaxFeedbackError](
+    *, error_type: type[T]
+) -> t.Callable[[Template, Token], T]:
     def expected_but_received(expected: Template, received: Token) -> T:
         assert received.type is not TokenTypes.INVALID
 
@@ -54,9 +55,16 @@ class TokenTypes:
 
     INVALID = TokenType(255, lambda _: t"something unexpected")
 
+
 class TokenTypesWithParens(TokenTypes):
-    LPAREN = TokenType(3, lambda token: t"an opening parenthesis ({token.string:,})",)
-    RPAREN = TokenType(4, lambda token: t"a closing parenthesis ({token.string:,})",)
+    LPAREN = TokenType(
+        3,
+        lambda token: t"an opening parenthesis ({token.string:,})",
+    )
+    RPAREN = TokenType(
+        4,
+        lambda token: t"a closing parenthesis ({token.string:,})",
+    )
 
 
 class Token(t.NamedTuple):
@@ -64,7 +72,12 @@ class Token(t.NamedTuple):
     string: str
 
 
-def tokenize_factory(*, token_from_c: t.Callable[[str], Token | None], token_from_buf: t.Callable[[str], Token | None], error_type: type[SyntaxFeedbackError]) -> t.Callable[[str], t.Generator[Token]]:
+def tokenize_factory(
+    *,
+    token_from_c: t.Callable[[str], Token | None],
+    token_from_buf: t.Callable[[str], Token | None],
+    error_type: type[SyntaxFeedbackError],
+) -> t.Callable[[str], t.Generator[Token]]:
     def tokenize(s: str):
         def _yield_from_buf() -> t.Generator[Token, None, None]:
             if not buf:
@@ -117,7 +130,7 @@ def tokenize_factory(*, token_from_c: t.Callable[[str], Token | None], token_fro
                 quote_buf.clear()
 
                 continue
-            
+
             if c.isspace():
                 yield from _yield_from_buf()
                 continue
@@ -157,20 +170,26 @@ class TokenStream:
             self._peeked = next(self._it, Token(TokenTypes.INVALID, ""))
 
         return self._peeked
-    
+
 
 class Node:
     pass
+
 
 class String(Node):
     def __init__(self, s: str) -> None:
         super().__init__()
         self.s = s
 
+
 EXPECTED_ATTR: Template = t"a string representing the name or alias of an attribute"
 
 
-def transform_factory[T1: Node](*, transform: t.Callable[[TokenStream, int], T1], expected_but_received: t.Callable[[Template, Token], SyntaxFeedbackError]) -> t.Callable[[t.Iterable[Token]], T1]:
+def transform_factory[T1: Node](
+    *,
+    transform: t.Callable[[TokenStream, int], T1],
+    expected_but_received: t.Callable[[Template, Token], SyntaxFeedbackError],
+) -> t.Callable[[t.Iterable[Token]], T1]:
     @functools.wraps(transform)
     def transform_(iterable: t.Iterable[Token]) -> T1:
         ts = TokenStream(iterable)
@@ -184,7 +203,7 @@ def transform_factory[T1: Node](*, transform: t.Callable[[TokenStream, int], T1]
             expr = transform(ts, 0)
         except RecursionError:
             raise NestingError()
-        
+
         end = ts.peek()
 
         if end.type is not TokenTypes.END:
@@ -195,15 +214,19 @@ def transform_factory[T1: Node](*, transform: t.Callable[[TokenStream, int], T1]
     return transform_
 
 
-def check_depth_decorator_factory[T: Node](max: int) -> t.Callable[[t.Callable[[TokenStream, int], T]], t.Callable[[TokenStream, int], T]]:
-    def check_depth(func: t.Callable[[TokenStream, int], T]) -> t.Callable[[TokenStream, int], T]:
+def check_depth_decorator_factory[T: Node](
+    max: int,
+) -> t.Callable[[t.Callable[[TokenStream, int], T]], t.Callable[[TokenStream, int], T]]:
+    def check_depth(
+        func: t.Callable[[TokenStream, int], T],
+    ) -> t.Callable[[TokenStream, int], T]:
         @functools.wraps(func)
         def wrapper(ts: TokenStream, depth: int) -> T:
             if depth > max:
                 raise RecursionError
-            
+
             return func(ts, depth)
-        
+
         return wrapper
-    
+
     return check_depth

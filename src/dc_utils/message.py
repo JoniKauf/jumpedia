@@ -7,8 +7,10 @@ from types import MappingProxyType
 import discord as dc
 from discord.ext import commands as cmds
 
-from structures.attribute.slot_str import SLOT_TYPES, SlotTypeT
 from utils import text
+
+if t.TYPE_CHECKING:
+    from structures.attribute.slot_str import SlotTypeT
 
 type InteractionFuncT = t.Callable[..., t.Coroutine]
 
@@ -191,6 +193,20 @@ def layout(
             still_shortable,
         )
 
+def layout_success(
+    header: str,
+    core: Template,
+    *,
+    additional: Template | None = None,
+    paragraphs: t.Sequence[Template] = ()
+) -> str:
+    return layout(
+        header,
+        core,
+        MessageStatus.SUCCESS,
+        additional=additional,
+        paragraphs=paragraphs
+    )
 
 _SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
     {
@@ -201,8 +217,10 @@ _SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
     }
 )
 
-assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
-
 
 def slot_type_to_name(slot_type: type[SlotTypeT]) -> str:
+    from structures.attribute.slot_str import SLOT_TYPES
+
+    assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
+
     return _SLOT_TYPE_TO_NAME[slot_type]

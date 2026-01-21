@@ -1,8 +1,8 @@
 import re
 import typing as t
 
+from dc_utils.rank import CommunityRank, JumpediaRank
 from utils import orm
-from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 
