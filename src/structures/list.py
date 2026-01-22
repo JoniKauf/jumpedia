@@ -7,17 +7,27 @@ from collections import defaultdict
 from types import EllipsisType, MappingProxyType
 
 from structures import attribute
+from structures.attribute import collection
 from utils import itertools2, orm, text
 from utils.text import NormStr, RealStr
 
 from . import BaseStructure, db, errors, utils_
-from .attribute import (ALL_ATTRIBUTE_TYPES, AnyAttributeT, BaseAttribute,
-                        BaseNonStaticAttribute, StaticAttribute, TaskAttribute,
-                        UserAttribute)
+from .attribute import (
+    ALL_ATTRIBUTE_TYPES,
+    AnyAttributeT,
+    BaseAttribute,
+    BaseNonStaticAttribute,
+    StaticAttribute,
+    TaskAttribute,
+    UserAttribute,
+)
 from .attribute.slot_str import SLOT_TYPES, SlotStr, SlotTypeT
 from .task import Task
-from .task.attribute_value_mapping import (AttributeValueMapping, AvmT,
-                                           UserAttributeValueMapping)
+from .task.attribute_value_mapping import (
+    AttributeValueMapping,
+    AvmT,
+    UserAttributeValueMapping,
+)
 from .user import CommunityUser
 
 if t.TYPE_CHECKING:
@@ -121,7 +131,7 @@ def _attribute_type_to_where[T: orm.Column[t.Any, int]](
     return () if where is None else (where,)
 
 
-class List(BaseStructure):
+class List(BaseStructure, naming=("list", "lists")):
     community: Community
     real_name: RealStr
     norm_name: NormStr
@@ -1034,7 +1044,7 @@ class List(BaseStructure):
             data[k[0]][k[1]] = tuple(row.slot_slot for row in g)
 
     @t.overload
-    def get_task_attribute_value_mappings(
+    def get_attribute_value_mappings(
         self,
         c: orm.Cursor,
         community_user_id: None = ...,
@@ -1048,7 +1058,7 @@ class List(BaseStructure):
         pass
 
     @t.overload
-    def get_task_attribute_value_mappings(
+    def get_attribute_value_mappings(
         self,
         c: orm.Cursor,
         community_user_id: int,
@@ -1061,7 +1071,7 @@ class List(BaseStructure):
     ]:
         pass
 
-    def get_task_attribute_value_mappings(
+    def get_attribute_value_mappings(
         self,
         c: orm.Cursor,
         community_user_id: int | None = None,
@@ -1184,6 +1194,57 @@ class List(BaseStructure):
                 )
 
         return (final, list(id_to_attribute.values()), ATTRIBUTE_TYPES_TO_HANDLE)
+
+    def get_collections(
+        self, c: orm.Cursor, /, type: _AttributeTypeT | None = None
+    ) -> list[collection.Collection]:
+        id_to_attr = self.get_attributes_by_id(c, ..., type=type)
+
+        entry_rows = c.fetch_all(
+            db.AttributeCollectionEntry.select("*")
+            .where(
+                (db.AttributeCollectionEntry.attribute_id, orm.Operator.IN, id_to_attr)
+            )
+            .order_by(db.AttributeCollectionEntry.attribute_id)
+        )
+
+        entry_alias_rows = {
+            k: frozenset(r.slot_alias for r in g)
+            for k, g in itertools.groupby(
+                c.fetch_all(
+                    db.AttributeCollectionEntryAlias.select("*")
+                    .where(
+                        (
+                            db.AttributeCollectionEntryAlias.attribute_id,
+                            orm.Operator.IN,
+                            id_to_attr,
+                        )
+                    )
+                    .order_by(
+                        db.AttributeCollectionEntryAlias.attribute_collection_entry_id,
+                    )
+                ),
+                lambda r: r.attribute_collection_entry_id,
+            )
+        }
+
+        return [
+            collection.Collection(
+                id_to_attr[attr_id],
+                tuple(
+                    collection.CollectionEntry(
+                        entry_row.id,
+                        entry_row.index,
+                        entry_row.slot_slot,
+                        entry_alias_rows.get(entry_row.id, frozenset()),
+                    )
+                    for entry_row in sorted(entry_rows, key=lambda r: r.index)
+                ),
+            )
+            for attr_id, entry_rows in itertools.groupby(
+                entry_rows, lambda r: r.attribute_id
+            )
+        ]
 
     def create_task(
         self,

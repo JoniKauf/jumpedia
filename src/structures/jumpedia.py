@@ -32,7 +32,7 @@ class JumpediaLimits(t.TypedDict):
     attribute_task_value_slot_length_max: int  # Db needs a maximum varchar
 
 
-class Jumpedia(BaseStructure):
+class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
     limits: JumpediaLimits
 
     @property

@@ -10,45 +10,43 @@ type StructuresTypeT = type[BaseStructure] | tuple[
 ]
 
 
+_cls_to_naming: t.Final[dict[str, tuple[str, str]]] = {}
+
+
 @t.dataclass_transform(frozen_default=True, kw_only_default=True, eq_default=False)
 class _StructureMeta(ABCMeta):
     """Metaclass of all structures.
 
-    It combines ABC and dataclass(frozen=True, kw_only=True) behaviour,
-    with support for typing.
+    It combines ABC and dataclass behaviour with fully supported typing.
     """
+
+    type_name: str
+    type_name_plural: str
 
     def __new__(
         mcls: type[_StructureMeta],
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, t.Any],
-        /,
-        **kwargs: t.Any,
+        *,
+        naming: tuple[str, str] = None,  # type: ignore
     ) -> _StructureMeta:
-        cls = super().__new__(
-            mcls, name, bases, namespace | {"_type_name": None}, **kwargs
-        )
+        cls = super().__new__(mcls, name, bases, namespace)
 
+        # First we go in here, then dataclass calls this function again without naming, so we pass by here the second time
         if namespace.get("__dataclass_fields__") is None:
+            _cls_to_naming[cls.__qualname__] = naming
             return dataclass(frozen=True, slots=True, kw_only=True, eq=False)(cls)  # type: ignore
 
-        return cls
+        cls.type_name, cls.type_name_plural = _cls_to_naming[cls.__qualname__]
+
+        return cls  # type: ignore
 
     def __str__(self) -> str:
         return self.type_name
 
-    @property
-    def type_name(self) -> str:
-        v = getattr(self, "_type_name", None)
 
-        if v is None:
-            v = text.pascal_to_snake(self.__name__.removeprefix("Base"), delim=" ")
-
-        return v
-
-
-class BaseStructure(metaclass=_StructureMeta):
+class BaseStructure(metaclass=_StructureMeta, naming=("structure", "structures")):
     id: int
 
     @property

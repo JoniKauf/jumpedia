@@ -18,7 +18,7 @@ if t.TYPE_CHECKING:
     from ..list import List
 
 
-class Task(BaseStructure):
+class Task(BaseStructure, naming=("task", "tasks")):
     list: List
     slot_name: SlotStr
     norm_name: text.NormStr

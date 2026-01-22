@@ -20,9 +20,14 @@ SORT_KEY_NONE_NUMBER: t.Final[int] = (
 )
 
 type AttributeTypeId = t.Literal[0, 1, 2]
+ALL_ATTRIBUTE_TYPE_IDS: t.Final[tuple[t.Literal[0], t.Literal[1], t.Literal[2]]] = (
+    0,
+    1,
+    2,
+)
 
 
-class BaseAttribute(BaseStructure):
+class BaseAttribute(BaseStructure, naming=("attribute", "attributes")):
     type_id: t.ClassVar[AttributeTypeId]
 
     list: List
@@ -102,8 +107,14 @@ class RawCollectionEntryItem(t.NamedTuple):
     aliases: t.Iterable[str]
 
 
-class BaseNonStaticAttribute(BaseAttribute):
+class BaseNonStaticAttribute(
+    BaseAttribute, naming=("task or user attribute", "task or user attributes")
+):
     kind: None = None
+
+    @property
+    def unique_slots_across_list(self) -> bool:
+        return False
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -306,7 +317,7 @@ class BaseNonStaticAttribute(BaseAttribute):
         return Collection(attribute=self, entries=entries)
 
 
-class StaticAttribute(BaseAttribute):
+class StaticAttribute(BaseAttribute, naming=("static attribute", "static attributes")):
     type_id = 0
 
     kind: Kind
@@ -316,11 +327,15 @@ class StaticAttribute(BaseAttribute):
         return True
 
 
-class TaskAttribute(BaseNonStaticAttribute):
+class TaskAttribute(
+    BaseNonStaticAttribute, naming=("task attribute", "task attributes")
+):
     type_id = 1
 
 
-class UserAttribute(BaseNonStaticAttribute):
+class UserAttribute(
+    BaseNonStaticAttribute, naming=("user attribute", "user attributes")
+):
     type_id = 2
 
 

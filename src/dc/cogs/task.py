@@ -12,106 +12,19 @@ import discord.ext.commands as cmds
 import dc_utils
 from adapting import parsing
 from adapting.interaction import InteractionAdapter
-from dc_utils import command, message, predicate, shortcuts
+from dc_utils import command, layouts, message, predicate, shortcuts
 from dc_utils.errors import FeedbackError
 from dc_utils.rank import CommunityRank
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.attribute.slot_str import SlotStr
 from structures.list import Kind
+from structures.task import Task
 from structures.task.attribute_value_mapping import (
     AttributeValueMapping,
     UserAttributeValueMapping,
 )
 from utils import gist
 from utils.text import NormStr, RealStr
-
-_ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
-    {char: rf"\{char}" for char in r"$&\`*_~#+-.!|()[]{}<>"}
-)
-_DELIM: t.Final[str] = "|"
-_DIV: t.Final[str] = ":---"
-
-
-def _escape_cell(c: tuple[str, ...], /) -> str:
-    if not c:
-        return ""
-
-    global _ESCAPE_TABLE
-
-    if "`" in c:
-        return "<br/>".join(f"<code>{s.translate(_ESCAPE_TABLE)}</code>" for s in c)
-
-    return "<br/>".join(f"`{s}`".replace("|", r"\|") for s in c)
-
-
-class RowToStrMode(enum.Enum):
-    HEADER = enum.auto()
-    DIVIDER = enum.auto()
-    BODY = enum.auto()
-
-
-def _row_to_str(
-    row: t.Iterable[tuple[str, ...]],
-    mode: RowToStrMode = RowToStrMode.BODY,
-    # pos: int = 0,
-) -> str:
-    if mode is RowToStrMode.BODY:
-        # {_DELIM}**{pos}**
-        return f"{_DELIM}{_DELIM.join(map(_escape_cell, row))}"
-
-    if mode is RowToStrMode.HEADER:
-        # {_DELIM}**#**
-        return f"{_DELIM}{_DELIM.join(map(_escape_cell, row))}"
-
-    if mode is RowToStrMode.DIVIDER:
-        # {_DELIM}{_DIV}
-        return f"{_DELIM}{_DELIM.join(map('<br/>'.join, row))}"
-
-    t.assert_never(mode)
-
-
-def _task_data_table_to_gist_files(
-    table: t.Iterable[t.Iterable[tuple[str, ...]]],
-    headers: t.Sequence[str] | None = None,
-    *,
-    soft_split_limit: int = 1_000_000,
-) -> list[str]:
-    result: list[str] = []
-
-    curr_rows: deque[str] = deque()
-    char_count: int = 0
-
-    headers_str_rev: tuple[str, str] | tuple[()] = ()
-
-    if headers is not None:
-        headers_str_rev = (
-            _row_to_str(((_DIV,) for _ in range(len(headers))), RowToStrMode.DIVIDER),
-            _row_to_str(((h,) for h in headers), RowToStrMode.HEADER),
-        )
-
-    del headers
-
-    for row in table:
-        row_str = _row_to_str(row)
-
-        del row
-
-        char_count += len(row_str)
-
-        curr_rows.append(row_str)
-
-        if char_count >= soft_split_limit:
-            curr_rows.extendleft(headers_str_rev)
-            result.append("\n".join(curr_rows))
-
-            curr_rows.clear()
-            char_count = 0
-
-    if curr_rows:
-        curr_rows.extendleft(headers_str_rev)
-        result.append("\n".join(curr_rows))
-
-    return result
 
 
 async def _info(
@@ -171,6 +84,19 @@ async def _browse(
 ) -> CoroutineType[None, None, t.Any]:
     assert missing is (user is not Ellipsis)
 
+    finished_content: str = ""
+    prev_content: str = ""
+
+    def update_loading(s: str) -> str:
+        nonlocal finished_content, prev_content
+
+        if prev_content:
+            finished_content += f"✅ {prev_content}\n"
+
+        prev_content = s
+
+        return finished_content + f"⚙️ {s}"
+
     # Get the list of the executing user, not the specified user
     list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
 
@@ -179,9 +105,12 @@ async def _browse(
     )
 
     await ia.dc.response.defer()
+
     msg = t.cast(
         dc.Message,
-        await ia.dc.followup.send("Retrieving data...", suppress_embeds=True),
+        await ia.dc.followup.send(
+            update_loading("Retrieving data..."), suppress_embeds=True
+        ),
     )
 
     ATTRIBUTE_TYPES_TO_HANDLE: tuple[type[AnyAttributeT], ...]
@@ -191,7 +120,7 @@ async def _browse(
     # --- Get attribute value mapping of jumpedia or user ---
     if user is Ellipsis:
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._o.get_task_attribute_value_mappings(ia._c, None)
+            list_obj._o.get_attribute_value_mappings(ia._c, None)
         )
     else:
         user_task_ids = tuple(
@@ -209,7 +138,7 @@ async def _browse(
 
         # Don't include user attribute values when missing, because those don't have any values, because well they are missing
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
-            list_obj._o.get_task_attribute_value_mappings(
+            list_obj._o.get_attribute_value_mappings(
                 ia._c, None if missing else community_user._o.id, task_ids_to_fetch
             )
         )
@@ -243,7 +172,7 @@ async def _browse(
 
     # - Filter -
     if filter:
-        await msg.edit(content="Filtering data...")
+        await msg.edit(content=update_loading("Filtering data..."))
 
         avms, filter_used_attributes = parsing.filter.parse(
             ia._c,
@@ -257,13 +186,15 @@ async def _browse(
         del filter_used_attributes
 
     if not avms:
-        raise FeedbackError(
-            "No Matching Tasks",
-            t"There is no task that matches the specified criteria!",
+        return msg.edit(
+            content=layouts.info(
+                "Tasks Browsed",
+                t"No tasks that match the specified criteria have been found!",
+            )
         )
 
     # - Sort -
-    await msg.edit(content="Sorting data...")
+    await msg.edit(content=update_loading("Sorting data..."))
 
     if not sort:
         avms = parsing.sort.sort(ia._c, avms, [(NAME_ATTR, True)])
@@ -278,7 +209,7 @@ async def _browse(
     del syn_to_attr, sort_used_attributes
 
     # --- Convert to text ---
-    await msg.edit(content="Converting data into text...")
+    await msg.edit(content=update_loading("Converting data into text..."))
 
     # - Yield -
     attribute_yield: set[AnyAttributeT]
@@ -292,41 +223,31 @@ async def _browse(
     else:
         t.assert_never(yield_)
 
-    table: tuple[tuple[tuple[SlotStr, ...], ...], ...] = tuple(
-        tuple(
-            avm.combined.get(attr, ())  # type: ignore
-            for attr in ATTRS_SORTED
-            if attr in attribute_yield
-        )
-        for avm in avms
-    )
-
-    files = _task_data_table_to_gist_files(
-        table, tuple(attr.real_name for attr in ATTRS_SORTED if attr in attribute_yield)
-    )
-
-    # --- Data to gists ---
-    await msg.edit(content="Sending text to GitHub gist...")
-
-    urls = tuple(
-        gist.create_gist({f"Task Data #{str(i).zfill(3)}.md": file})
-        for i, file in enumerate(files, 1)
+    tasks = tuple(avm.task for avm in avms)
+    
+    return command.browse(
+        ia,
+        Task,
+        rows=tuple(
+            tuple(
+                avm.combined.get(attr, ())  # type: ignore
+                for attr in ATTRS_SORTED
+                if attr in attribute_yield
+            )
+            for avm in avms
+        ),
+        headers=tuple(
+            attr.real_name for attr in ATTRS_SORTED if attr in attribute_yield
+        ),
+        before_send=lambda strings: msg.edit(
+            content=update_loading(
+                f"Sending text to GitHub Gist... ({sum(map(len, strings)):,} Bytes across {len(strings)} file{'s' if len(strings) > 1 else ''})"
+            )
+        ),
     )
 
     # --- Success ---
-    return msg.edit(
-        content=message.layout(
-            "All Tasks",
-            Template(
-                "\n".join(
-                    f"- **#{str(i).zfill(3)}**: {url}" for i, url in enumerate(urls, 1)
-                )
-                if len(urls) > 1
-                else urls[0]  # type: ignore
-            ),
-            message.MessageStatus.INFO,
-        ),
-    )
+    return msg.edit(content=layout)
 
 
 class TaskCog(cmds.GroupCog, group_name="task"):

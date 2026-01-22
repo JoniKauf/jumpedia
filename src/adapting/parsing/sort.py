@@ -1,4 +1,5 @@
 import functools
+import itertools
 import typing as t
 
 from dc_utils import errors
@@ -109,6 +110,17 @@ transform = factory.transform_factory(
 def sort[T: AttributeValueMapping](
     c: orm.Cursor, avms: t.Iterable[T], sorts: t.Iterable[tuple[AnyAttributeT, bool]]
 ) -> list[T]:
+    # Remove data unchanged for 0 or 1 elements
+    first_two_avms: list[T] = []
+
+    for avm in avms:
+        first_two_avms.append(avm)
+
+        if len(first_two_avms) == 2:
+            break
+    else:
+        return first_two_avms
+
     # Remove duplicates while preserving order
     seen_attrs: set[AnyAttributeT] = set()
     sorts_unique_and_simplified: list[tuple[AnyAttributeT, bool]] = []
@@ -133,7 +145,7 @@ def sort[T: AttributeValueMapping](
     }
     task_to_sort_value: dict[Task, list[tuple[t.Any, ...]]] = {}
 
-    for avm in avms:
+    for avm in itertools.chain(first_two_avms, avms):
         result: list[tuple[t.Any, ...]] = []
 
         for attr, _ in sorts_unique_and_simplified:

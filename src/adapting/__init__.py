@@ -1,6 +1,7 @@
 import typing as t
 from dataclasses import dataclass
 from functools import cached_property
+from string.templatelib import Template
 
 from structures import BaseStructure
 from utils import orm
@@ -59,9 +60,10 @@ class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
 
         return self._o == value._o
 
-    def mention(self) -> str:
+    def mention(self) -> Template:
         return type(self).do_mention(self._o)
 
     @classmethod
-    def do_mention(cls, structure: BaseStructure) -> str:
-        return f"{type(structure).type_name.lower()} {structure.name.lower()}"
+    def do_mention(cls, structure: BaseStructure, title: bool = False) -> Template:
+        casing = str.title if title else str.lower
+        return t"{casing(type(structure).type_name):p} {structure.name:,}"

@@ -4,7 +4,11 @@ from functools import cached_property
 from dc_utils import errors, message
 from dc_utils.rank import CommunityRank
 from structures.community import Community
-from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
+from structures.errors import (
+    StructureCountLimitReachedError,
+    StructureNotFoundError,
+    SynsAlreadyTakenError,
+)
 from structures.list import List
 from utils import orm, text
 
@@ -16,7 +20,9 @@ if t.TYPE_CHECKING:
     from ._jumpedia import JumpediaAdapter
 
 
-def _require_list_with_name(c: orm.Cursor, name: str, community: Community) -> List:
+def _require_list_with_name(
+    c: orm.Cursor, name: text.RealStr, community: Community
+) -> List:
     tup = community.get_list_by_name(c, text.NormStr(name))
 
     if tup is None:
@@ -42,7 +48,9 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         return [ListAdapter(list, self) for list in self._o.get_lists(self._c)]
 
     def get_list(self, name: str) -> ListAdapter:
-        return ListAdapter(_require_list_with_name(self._c, name, self._o), self)
+        return ListAdapter(
+            _require_list_with_name(self._c, text.RealStr(name), self._o), self
+        )
 
     def create_list(self, name: str) -> ListAdapter:
         try:
@@ -55,8 +63,27 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         return ListAdapter(list, self)
 
     def delete_list(self, name: str) -> None:
-        list = _require_list_with_name(self._c, name, self._o)
+        list = _require_list_with_name(self._c, text.RealStr(name), self._o)
         self._o.delete_list(self._c, list.id)
+
+    def rename_list(
+        self, old_name: str, new_name: str
+    ) -> tuple[text.RealStr, text.RealStr]:
+        lst = _require_list_with_name(self._c, text.RealStr(old_name), self._o)
+        old_name = lst.real_name
+        new_name = text.RealStr(new_name)
+
+        if old_name == new_name:
+            raise errors.SameName(lst)
+
+        try:
+            self._o.rename_list(self._c, lst.id, new_name)
+        except StructureNotFoundError:
+            raise errors.StructureNotFoundViaSyn(new_name, List, only_name=True)
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTaken(e)
+
+        return lst.real_name, new_name
 
     @t.overload
     def get_default_selected_list(self) -> ListAdapter:
@@ -87,7 +114,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         if name is None:
             list_id = None
         else:
-            list_id = _require_list_with_name(self._c, name, self._o).id
+            list_id = _require_list_with_name(self._c, text.RealStr(name), self._o).id
 
         curr_default_selected_list = self.get_default_selected_list(None)
 

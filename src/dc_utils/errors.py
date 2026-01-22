@@ -4,6 +4,7 @@ from typing import Any, Mapping, Sequence
 
 from discord.app_commands import CheckFailure
 
+from adapting import BaseStructureAdapter
 from dc_utils.rank import AnyRankT
 from structures import BaseStructure, errors
 
@@ -275,5 +276,16 @@ class DeletionAborted(FeedbackError):
         super().__init__(
             "Deletion Aborted",
             t"The deletion of the {type(structure)} {structure:,} was aborted!",
+            explicit_message_status=message.MessageStatus.WARNING,
+        )
+
+
+class SameName(FeedbackError):
+    def __init__(self, structure: BaseStructure) -> None:
+        super().__init__(
+            "Already Specified Name",
+            t"The "
+            + BaseStructureAdapter.do_mention(structure)
+            + t" already has the same name as the one specified, therefore nothing changed!",
             explicit_message_status=message.MessageStatus.WARNING,
         )

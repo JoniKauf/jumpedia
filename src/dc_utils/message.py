@@ -1,52 +1,22 @@
+import enum
 import typing as t
 from dataclasses import dataclass
 from decimal import Decimal
 from string.templatelib import Interpolation, Template
 from types import MappingProxyType
 
-import discord as dc
-from discord.ext import commands as cmds
-
 from utils import text
 
 if t.TYPE_CHECKING:
     from structures.attribute.slot_str import SlotTypeT
 
-type InteractionFuncT = t.Callable[..., t.Coroutine]
 
-
-def is_followup_func(func: InteractionFuncT, interaction: dc.Interaction):
-    return func not in (
-        interaction.response.send_message,
-        interaction.response.edit_message,
-        interaction.response.send_modal,
-        interaction.response.pong,
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class MessageStatus:
-    _init_done: t.ClassVar[bool] = False
-
-    emoji: str
-    name: str
-
-    def __post_init__(self) -> None:
-        if self.__class__._init_done:
-            raise RuntimeError
-
-    @classmethod
-    def _init(cls) -> None:
-        cls.NONE = cls("", "")
-        cls.INFO = cls("information_source", "Info")
-        cls.SUCCESS = cls("white_check_mark", "Success")
-        cls.WARNING = cls("warning", "Warning")
-        cls.ERROR = cls("x", "Error")
-
-        cls._init_done = True
-
-
-MessageStatus._init()
+class MessageStatus(enum.StrEnum):
+    NONE = ""
+    INFO = "information_source"
+    SUCCESS = "white_check_mark"
+    WARNING = "warning"
+    ERROR = "x"
 
 
 class _InterpolationData(t.NamedTuple):
@@ -101,7 +71,7 @@ def layout(
 
     if message_status is not MessageStatus.NONE:
         final_templ += Template(
-            f"\n\n-# :{message_status.emoji}:  {message_status.name}"
+            f"\n\n-# :{message_status.value}:  {message_status.name.title()}"
         )
 
     interp_to_data: dict[int, _InterpolationData] = {}
@@ -192,22 +162,6 @@ def layout(
             interp_to_data[id_].evaluated[:new_length] + MORE,
             still_shortable,
         )
-
-
-def layout_success(
-    header: str,
-    core: Template,
-    *,
-    additional: Template | None = None,
-    paragraphs: t.Sequence[Template] = (),
-) -> str:
-    return layout(
-        header,
-        core,
-        MessageStatus.SUCCESS,
-        additional=additional,
-        paragraphs=paragraphs,
-    )
 
 
 _SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(

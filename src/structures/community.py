@@ -37,7 +37,7 @@ DEFAULT_COMMUNITY_LIMITS: CommunityLimits = {
 }
 
 
-class Community(BaseStructure):
+class Community(BaseStructure, naming=("community", "communities")):
     jumpedia: Jumpedia
     real_name: text.RealStr
     norm_name: text.NormStr
@@ -193,6 +193,22 @@ class Community(BaseStructure):
             raise errors.StructureNotFoundError(Community)
 
         assert execute_data.affected_row_count == 1
+
+    def rename_list(self, c: orm.Cursor, list_id: int, name: text.RealStr) -> None:
+        norm_name = text.NormStr(name)
+        tup = self.get_list_by_name(c, norm_name)
+
+        if tup is not None and tup[0].id != list_id:
+            raise errors.SynsAlreadyTakenError({tup[1]: tup[0]})
+
+        c.execute(
+            db.List.update(
+                db.List.real_name.set(name), db.List.norm_name.set(norm_name)
+            ).where(
+                (db.List.community_id, orm.Operator.EQ, self.id),
+                (db.List.id, orm.Operator.EQ, list_id),
+            )
+        )
 
     def get_or_create_community_user(
         self,

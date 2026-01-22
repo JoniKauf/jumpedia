@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
     from .list import List
 
 
-class JumpediaUser(BaseStructure):
+class JumpediaUser(BaseStructure, naming=("jumpedia user", "jumpedia users")):
     jumpedia: Jumpedia
     user_name: str
     jumpedia_rank: JumpediaRank
@@ -25,7 +25,7 @@ class JumpediaUser(BaseStructure):
         return self.user_name
 
 
-class CommunityUser(BaseStructure):
+class CommunityUser(BaseStructure, naming=("community user", "community users")):
     jumpedia_user: JumpediaUser
     community: Community
     community_rank: CommunityRank
