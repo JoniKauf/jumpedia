@@ -67,7 +67,7 @@ async def delete_structure_confirmation(
         if success:
             delete(interaction)
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 message.layout(
                     f"{structure_type.type_name.title()} Deleted",
                     t"The specifed {structure_type.type_name} has successfully been deleted!",
@@ -75,7 +75,7 @@ async def delete_structure_confirmation(
                 )
             )
         else:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 message.layout(
                     f"{structure_type.type_name.title()} Deletion Aborted",
                     t"The {structure_type.type_name} has **not** been deleted because the name entered is not correct!",

@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from utils import orm, text
 
-from .. import BaseStructure, db, errors
+from .. import BaseStructure, BaseStructureWithAliases, db, errors
 from . import slot_str
 from .collection import Collection, CollectionEntry
 from .slot_str import SlotStr, SlotTypeT
@@ -27,7 +27,7 @@ ALL_ATTRIBUTE_TYPE_IDS: t.Final[tuple[t.Literal[0], t.Literal[1], t.Literal[2]]]
 )
 
 
-class BaseAttribute(BaseStructure, naming=("attribute", "attributes")):
+class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")):
     type_id: t.ClassVar[AttributeTypeId]
 
     list: List
@@ -50,6 +50,9 @@ class BaseAttribute(BaseStructure, naming=("attribute", "attributes")):
     @property
     def unique_slots_across_list(self) -> bool:
         return False
+
+    def get_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
+        return self.get_real_aliases(c)
 
     # --- Methods ---
 

@@ -37,7 +37,8 @@ class Sequence(factory.Node):
 def _transform_sequence(ts: factory.TokenStream, _: int) -> Sequence:
     lst: list[factory.String] = []
 
-    while (tok := next(ts)) is TokenTypes.STR:
+    while (tok := ts.peek()).type is TokenTypes.STR:
+        next(ts)
         lst.append(factory.String(tok.string))
 
     if tok.type is not TokenTypes.END:

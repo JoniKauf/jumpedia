@@ -64,10 +64,11 @@ async def on_app_command_error(
     else:
         e = error
 
-    try:
-        await interaction.response.defer()
-    except (dc.errors.InteractionResponded, dc.HTTPException):
-        pass
+    # Should be deferred already
+    # try:
+    #     await interaction.response.defer()
+    # except (dc.errors.InteractionResponded, dc.HTTPException):
+    #     pass
 
     if (
         isinstance(e, acmds.errors.TransformerError)

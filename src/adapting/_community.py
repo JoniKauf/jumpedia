@@ -26,7 +26,7 @@ def _require_list_with_name(
     tup = community.get_list_by_name(c, text.NormStr(name))
 
     if tup is None:
-        raise errors.StructureNotFoundViaSyn(name, List, True)
+        raise errors.StructureNotFoundViaSyn(name, List)
 
     return tup[0]
 
@@ -79,7 +79,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         try:
             self._o.rename_list(self._c, lst.id, new_name)
         except StructureNotFoundError:
-            raise errors.StructureNotFoundViaSyn(new_name, List, only_name=True)
+            raise errors.StructureNotFoundViaSyn(new_name, List)
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
 
@@ -105,7 +105,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
             raise errors.FeedbackError(
                 "No Default Selected List",
                 t"The community {self.name:,} has no default selected list!",
-                additional=t"Please specify the list you want to use in the command.",
+                additional=t"Please explicitly specify the list that should be used for this command.",
             )
 
         return ListAdapter(list, self)

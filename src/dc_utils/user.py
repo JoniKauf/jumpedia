@@ -93,7 +93,7 @@ def validate_allowed(
         if server_rank is not None:
             return server_rank
 
-        server_rank = InteractionAdapter(interaction).server_member.server_rank
+        server_rank = InteractionAdapter(interaction).ia_server_member.server_rank
 
         return server_rank
 

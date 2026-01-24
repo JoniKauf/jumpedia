@@ -54,11 +54,11 @@ _DIV: t.Final[str] = ":---"
 
 
 def _escape_cell(c: str | t.Sequence[str], /) -> str:
-    if isinstance(c, str):
-        c = (c,)
-
     if not c:
         return ""
+
+    if isinstance(c, str):
+        c = (c,)
 
     if "`" in c:
         return "<br/>".join(f"<code>{s.translate(_ESCAPE_TABLE)}</code>" for s in c)

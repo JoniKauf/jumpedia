@@ -14,7 +14,7 @@ from utils import orm, secret
 from . import BaseAdapter
 from ._jumpedia import JumpediaAdapter
 from ._server import ServerAdapter
-from ._user import ServerMemberAdapter, UserAdapter
+from ._user import JumpediaUserAdapter, ServerMemberAdapter, UserAdapter
 
 
 def is_joni(interaction: dc.Interaction) -> bool:
@@ -66,16 +66,22 @@ def _get_or_create_the_one_piece():
 
 
 class InteractionAdapter(BaseAdapter[dc.Interaction]):
+    ia_jumpedia_user: JumpediaUserAdapter = field(init=False, default=None)  # type: ignore
+
     def __post_init__(self) -> None:
         # If a user interacts with Jumpedia, we want to save them.
         #
         # This action basically counts as registering and if somebody ever wants
         # to find out something about this user, then as long as they ever
         # used a single jumpedia command, they will find information.
-        self.jumpedia.get_or_create_jumpedia_user(
-            self.user,
-            override_jumpedia_rank=(
-                JumpediaRank.JONIKAUF if is_joni(self._o) else None
+        object.__setattr__(
+            self,
+            "ia_jumpedia_user",
+            self.jumpedia.get_or_create_jumpedia_user(
+                self.ia_user,
+                override_jumpedia_rank=(
+                    JumpediaRank.JONIKAUF if is_joni(self._o) else None
+                ),
             ),
         )
 
@@ -89,7 +95,7 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         return connect.get_new_connection_cursor_adapter()
 
     @cached_property
-    def user(self) -> UserAdapter:
+    def ia_user(self) -> UserAdapter:
         user_or_member = self.dc.user
 
         if isinstance(user_or_member, dc.User):
@@ -98,12 +104,12 @@ class InteractionAdapter(BaseAdapter[dc.Interaction]):
         return UserAdapter(user_or_member._user, self, user_or_member)
 
     @cached_property
-    def server_member(self) -> ServerMemberAdapter:
-        return self.user.try_as_member
+    def ia_server_member(self) -> ServerMemberAdapter:
+        return self.ia_user.try_as_member
 
     @cached_property
-    def server(self) -> ServerAdapter:
-        return self.server_member.server
+    def ia_server(self) -> ServerAdapter:
+        return self.ia_server_member.server
 
     @cached_property
     def jumpedia(self) -> JumpediaAdapter:

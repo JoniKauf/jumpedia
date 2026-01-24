@@ -1,8 +1,6 @@
 import builtins
 import enum
-import itertools
 import typing as t
-from string.templatelib import Template
 from types import CoroutineType
 
 import discord.ext.commands as cmds
@@ -18,9 +16,28 @@ from structures.attribute import (
     TaskAttribute,
     UserAttribute,
 )
-from structures.attribute.collection import Collection, CollectionEntry
+from structures.attribute.collection import CollectionEntry
 from structures.attribute.slot_str import SLOT_TYPES
-from utils import itertools2, text
+from utils import itertools2
+
+
+def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:
+    if not entry.aliases:
+        return f"({entry.value!r})"
+
+    return f"({entry.value!r}: {' '.join(repr(alias) for alias in entry.aliases)})"
+
+
+class _AttrRow(t.NamedTuple):
+    name: str
+    alias: tuple[str, ...]
+    type: str
+    slot_type: str
+    position: str
+    min_slots: str
+    max_slots: str
+    collection: tuple[str, ...]
+
 
 SlotTypeEnum = enum.Enum(
     "SlotTypeEnum",
@@ -40,41 +57,39 @@ NonStaticAttributeEnum = enum.Enum(
 
 class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @acmds.command()
-    @command.adapt
+    @command.adapt()
     async def info(
         self,
         ia: InteractionAdapter,
         attribute: str,
-        type: AnyAttributeEnum,
         list: str | None = None,
-    ):
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
+    ) -> CoroutineType:
+        attr = (
+            shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+            .get_attribute(..., attribute)
+            ._o
+        )
 
-        attr = list_obj.get_attribute(type.value, attribute)
+        del list, attribute
 
-        return ia.dc.response.send_message(
-            message.layout(
-                "Attribute Info",
-                text.join_t(
-                    "\n",
-                    (
-                        t"**{k:p}:** {v}"
-                        for k, v in [
-                            ("Name", attr.name),
-                            ("Type", attr._o.__class__.type_name),
-                            ("Slot Type", message.slot_type_to_name(attr.slot_type)),
-                            ("Minimum Slot Count", attr.min_slots),
-                            ("Maximum Slot Count", attr.max_slots),
-                        ]
-                    ),
-                ),
-                message_status=message.MessageStatus.INFO,
-            )
+        return await command.info(
+            ia,
+            attr,
+            _AttrRow(
+                attr.name,
+                tuple(attr.get_aliases(ia._c)),
+                str(type(attr)).title(),
+                message.slot_type_to_name(attr.slot_type),
+                str(attr.position),
+                str(attr.min_slots),
+                str(attr.max_slots),
+                tuple(map(_collection_entry_to_browse_str, attr.get_collection(ia._c))),
+            ),
         )
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    @command.adapt
+    @command.adapt()
     async def create(
         self,
         ia: InteractionAdapter,
@@ -85,14 +100,14 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
         aliases: str | None,
         collection: str | None,
         list: str | None,
-    ) -> CoroutineType[None, None, t.Any]:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
         attr = list_obj.create_attribute(
             type.value, name, slot_type.value, max_slots, aliases, collection
         )
 
-        return ia.dc.response.send_message(
+        return ia.dc.followup.send(
             layouts.success(
                 f"{type.name} Created",
                 t"The {type.name.lower()} {attr.name:,} has successfully been created!",
@@ -101,15 +116,15 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    @command.adapt
+    @command.adapt()
     async def nuke(
         self,
         ia: InteractionAdapter,
         type: NonStaticAttributeEnum,
         attribute: str,
-        list: str | None,
-    ) -> CoroutineType[None, None, t.Any]:
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
+        list: str,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
         attr: AnyAttributeAdapterT = list_obj.get_attribute(type.value, attribute)
 
@@ -119,12 +134,33 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             lambda: list_obj.delete_attribute(type.value, attr.name),
         )
 
+    attribute_edit_group = acmds.Group(name="edit", description="Edit attribute data.")
 
-def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:
-    if not entry.aliases:
-        return f"({entry.value!r})"
+    @attribute_edit_group.command(name="name")
+    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
+    @command.adapt()
+    async def edit_name(
+        self,
+        ia: InteractionAdapter,
+        type: AnyAttributeEnum,
+        attribute: str,
+        new_name: str,
+        list: str | None = None,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-    return f"({entry.value!r}: {' '.join(repr(alias) for alias in entry.aliases)})"
+        old_attr, new_name = list_obj.edit_attribute_name(
+            type.value, attribute, new_name
+        )
+
+        return ia.dc.followup.send(
+            layouts.success(
+                "Attribute Name Edited",
+                t"The name of the "
+                + old_attr.mention()
+                + t" has successfully been changed to {new_name:,}!",
+            )
+        )
 
 
 class AttributesCog(cmds.GroupCog, group_name="attributes"):
@@ -132,53 +168,48 @@ class AttributesCog(cmds.GroupCog, group_name="attributes"):
         self.bot = bot
 
     @acmds.command()
-    @command.adapt
+    @command.adapt()
     async def browse(
         self,
         ia: InteractionAdapter,
         type: AnyAttributeEnum | None = None,
         list: str | None = None,
-    ) -> CoroutineType[None, None, t.Any]:
-        await ia.dc.response.defer()
+    ) -> CoroutineType:
+        attr_type = ... if type is None else type.value
 
-        list_obj = shortcuts.get_specified_or_selected_or_default_list(ia, None, list)
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+        list_s = list_obj._o
+        del list
 
         attr_to_aliases = {
             attr: tuple(item[0] for item in items)
             for attr, items in itertools2.groupby_unsorted(
-                list_obj._o.get_attributes_by_alias(
-                    ia._c, ..., type=None if type is None else type.value
-                ).items(),
+                list_s.get_attributes_by_alias(ia._c, ..., type=attr_type).items(),
                 lambda item: item[1],
             ).items()
         }
 
-        attr_to_coll = {c.attribute: c for c in list_obj._o.get_collections(ia._c)}
+        attr_to_coll = {c.attribute: c for c in list_s.get_collections(ia._c)}
 
-        attrs = list_obj._o.get_attributes(ia._c, None if type is None else type.value)
+        attrs = list_s.get_attributes(ia._c, type=attr_type)
         attrs.sort(key=lambda attr: attr.position)
 
-        data: dict[str, tuple[str | tuple[str, ...], ...]] = {
-            "Name": tuple(attr.name for attr in attrs),
-            "Alias": tuple(attr_to_aliases.get(attr, ()) for attr in attrs),
-            "Type": tuple(str(builtins.type(attr)).title() for attr in attrs),
-            "Slot Type": tuple(
-                message.slot_type_to_name(attr.slot_type) for attr in attrs
-            ),
-            "Position": tuple(str(attr.position) for attr in attrs),
-            "Min Slots": tuple(str(attr.min_slots) for attr in attrs),
-            "Max Slots": tuple(str(attr.max_slots) for attr in attrs),
-            "Collection": tuple(
-                tuple(map(_collection_entry_to_browse_str, attr_to_coll.get(attr, ())))
+        return await command.browse(
+            ia,
+            BaseAttribute if attr_type is ... else attr_type,
+            tuple(
+                _AttrRow(
+                    attr.name,
+                    attr_to_aliases.get(attr, ()),
+                    str(builtins.type(attr)).title(),
+                    message.slot_type_to_name(attr.slot_type),
+                    str(attr.position),
+                    str(attr.min_slots),
+                    str(attr.max_slots),
+                    tuple(
+                        map(_collection_entry_to_browse_str, attr_to_coll.get(attr, ()))
+                    ),
+                )
                 for attr in attrs
             ),
-        }
-
-        return ia.dc.followup.send(
-            await layouts.browse(
-                BaseAttribute if type is None else type.value,
-                tuple(zip(*data.values())),
-                tuple(data),
-            ),
-            suppress_embeds=True,
         )

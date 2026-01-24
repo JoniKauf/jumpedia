@@ -20,10 +20,10 @@ if t.TYPE_CHECKING:
 
 
 def _get_set_own_rank_error(
-    executing_user: JumpediaUserAdapter | CommunityUserAdapter,
+    ia_user: JumpediaUserAdapter | CommunityUserAdapter,
     set_user: JumpediaUserAdapter | CommunityUserAdapter,
 ) -> errors.FeedbackError | None:
-    if set_user == executing_user and not executing_user.jumpedia_rank:
+    if set_user == ia_user and not ia_user.jumpedia_rank:
         return errors.FeedbackError(
             "Cannot Set Own Rank",
             t"You cannot set your own rank!",
@@ -35,7 +35,7 @@ def _get_set_own_rank_error(
 
 @t.overload
 def _get_set_rank_error(
-    executing_user: CommunityUserAdapter,
+    ia_user: CommunityUserAdapter,
     set_user: CommunityUserAdapter,
     rank: CommunityRank,
 ) -> errors.FeedbackError | None:
@@ -44,7 +44,7 @@ def _get_set_rank_error(
 
 @t.overload
 def _get_set_rank_error(
-    executing_user: JumpediaUserAdapter,
+    ia_user: JumpediaUserAdapter,
     set_user: JumpediaUserAdapter,
     rank: JumpediaRank,
 ) -> errors.FeedbackError | None:
@@ -52,52 +52,54 @@ def _get_set_rank_error(
 
 
 def _get_set_rank_error(
-    executing_user: JumpediaUserAdapter | CommunityUserAdapter,
+    ia_user: JumpediaUserAdapter | CommunityUserAdapter,
     set_user: JumpediaUserAdapter | CommunityUserAdapter,
     rank: JumpediaRank | CommunityRank,
 ) -> errors.FeedbackError | None:
-    err = _get_set_own_rank_error(executing_user, set_user)
+    err = _get_set_own_rank_error(ia_user, set_user)
 
     if err is not None:
         return err
 
-    executing_best_rank: JumpediaRank | CommunityRank
+    ia_best_rank: JumpediaRank | CommunityRank
     set_best_rank: JumpediaRank | CommunityRank
 
-    if isinstance(executing_user, JumpediaUserAdapter):
+    if isinstance(ia_user, JumpediaUserAdapter):
         assert isinstance(set_user, JumpediaUserAdapter)
         assert isinstance(rank, JumpediaRank)
 
-        executing_best_rank = executing_user.jumpedia_rank
+        ia_best_rank = ia_user.jumpedia_rank
         set_best_rank = set_user.jumpedia_rank
 
     else:
         assert isinstance(set_user, CommunityUserAdapter)
         assert isinstance(rank, CommunityRank)
 
-        executing_best_rank = executing_user.most_powerful_rank
+        ia_best_rank = ia_user.most_powerful_rank
         set_best_rank = set_user.most_powerful_rank
 
-    if executing_best_rank <= set_best_rank:
+    if ia_best_rank <= set_best_rank:
         return errors.FeedbackError(
             "Cannot Set Rank Of More Powerful User",
             t"You cannot set the rank of a user more powerful than you!",
             additional=(
                 t"The user {set_user:,} has the "
-                t"{set_best_rank.mention()}, "
-                t"but you have the less powerful "
-                t"{executing_best_rank.mention()}."
+                + set_best_rank.mention()
+                + t", but you have the less powerful "
+                + ia_best_rank.mention()
+                + t"."
             ),
         )
 
-    if rank >= executing_best_rank:
+    if rank >= ia_best_rank:
         return errors.FeedbackError(
             "Cannot Set Rank Of Own Power Or Higher",
             t"You cannot set the rank of a user to a rank that is equally or more powerful than yours!",
             additional=(
-                t"The {rank.mention()} "
-                t"you are trying set for {set_user:,} is equally or more powerful "
-                t"than your {executing_best_rank.mention()}."
+                t"The "
+                + rank.mention()
+                + t"you are trying set for {set_user:,} is equally or more powerful "
+                t"than your " + ia_best_rank.mention() + t"."
             ),
         )
 
@@ -166,7 +168,7 @@ class UserAdapter(BaseAdapter[dc.User]):
 
     @cached_property
     def is_interacting_user(self) -> bool:
-        return self.id == self.interaction.user.id
+        return self.id == self.interaction.ia_user.id
 
 
 class ServerMemberAdapter(BaseAdapter[dc.Member]):
@@ -212,10 +214,10 @@ class JumpediaUserAdapter(BaseStructureAdapter[JumpediaUser]):
     def jumpedia_rank(self) -> JumpediaRank:
         return self._o.jumpedia_rank
 
-    def set_jumpedia_rank(
-        self, jumpedia_rank: JumpediaRank, executing_jumpedia_user: JumpediaUserAdapter
-    ) -> str:
-        error = _get_set_rank_error(executing_jumpedia_user, self, jumpedia_rank)
+    def set_jumpedia_rank(self, jumpedia_rank: JumpediaRank) -> str:
+        error = _get_set_rank_error(
+            self.jumpedia.interaction.ia_jumpedia_user, self, jumpedia_rank
+        )
 
         if error is not None:
             raise error
@@ -314,21 +316,17 @@ class CommunityUserAdapter(BaseStructureAdapter[CommunityUser]):
             )
 
         if self.get_selected_list() == selected_list:
-            start = (
-                "You already have"
-                if self.server_member.id
-                == self.community.jumpedia.interaction.server_member.id
-                else f"The user {self:,} already has"
-            )
             selection = (
-                "no selected list"
+                t"no selected list"
                 if selected_list is None
-                else f"the selected list {selected_list:,}"
+                else t"the selected list {selected_list:,}"
             )
 
             raise errors.FeedbackError(
                 "User Already Has Specified Selected List Set",
-                t"{start} {selection} set, therefore nothing changed!",
+                t"The user {self:,} already has "
+                + selection
+                + t" set, therefore nothing changed!",
                 explicit_message_status=message.MessageStatus.WARNING,
             )
 

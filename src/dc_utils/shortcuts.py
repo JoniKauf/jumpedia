@@ -43,7 +43,9 @@ def get_current_community(
 
     del data
 
-    tup = jumpedia._o.get_community_by_server_id(interaction._c, interaction.server.id)
+    tup = jumpedia._o.get_community_by_server_id(
+        interaction._c, interaction.ia_server.id
+    )
 
     if tup is None:
         raise errors.ServerNotConnectedToACommunity()
@@ -89,9 +91,12 @@ def get_or_create_specified_or_current_jumpedia_user(
 
     del data
 
+    if user is None and override_jumpedia_rank is None:
+        return jumpedia.interaction.ia_jumpedia_user
+
     return jumpedia.get_or_create_jumpedia_user(
         (
-            jumpedia.interaction.user
+            jumpedia.interaction.ia_user
             if user is None
             else UserAdapter(user, jumpedia.interaction)
         ),
@@ -187,31 +192,8 @@ def get_or_create_specified_or_current_community_user(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
-    user: CommunityUserAdapter,
-    list: str | None,
-    /,
-    *,
-    error: t.Literal[True] = ...,
-) -> ListAdapter:
-    pass
-
-
-@t.overload
-def get_specified_or_selected_or_default_list(
-    user: CommunityUserAdapter,
-    list: str | None,
-    /,
-    *,
-    error: t.Literal[False],
-) -> ListAdapter | None:
-    pass
-
-
-@t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     community: CommunityAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -221,9 +203,8 @@ def get_specified_or_selected_or_default_list(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     community: CommunityAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -233,9 +214,8 @@ def get_specified_or_selected_or_default_list(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     jumpedia: JumpediaAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -245,9 +225,8 @@ def get_specified_or_selected_or_default_list(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     jumpedia: JumpediaAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -257,9 +236,8 @@ def get_specified_or_selected_or_default_list(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     interaction: InteractionAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -269,9 +247,8 @@ def get_specified_or_selected_or_default_list(
 
 
 @t.overload
-def get_specified_or_selected_or_default_list(
+def get_specified_or_ia_user_selected_or_default_list(
     interaction: InteractionAdapter,
-    user: dc.User | None,
     list: str | None,
     /,
     *,
@@ -280,47 +257,35 @@ def get_specified_or_selected_or_default_list(
     pass
 
 
-def get_specified_or_selected_or_default_list(
-    data: (
-        CommunityUserAdapter | CommunityAdapter | JumpediaAdapter | InteractionAdapter
-    ),
-    user_or_list: str | dc.User | None,
-    optional_list: str | None = None,
+def get_specified_or_ia_user_selected_or_default_list(
+    data: CommunityAdapter | JumpediaAdapter | InteractionAdapter,
+    list: str | None = None,
     /,
     *,
     error: bool = True,
 ) -> ListAdapter | None:
-    from adapting._community import CommunityUserAdapter
+    from adapting._community import CommunityAdapter
 
-    community_user: CommunityUserAdapter
-    list: str | None
+    community: CommunityAdapter
 
-    if isinstance(data, CommunityUserAdapter):
-        assert user_or_list is None or isinstance(user_or_list, str)
-
-        community_user = data
-        list = user_or_list
-
+    if isinstance(data, CommunityAdapter):
+        community = data
     else:
-        assert user_or_list is None or isinstance(user_or_list, dc.User)
-        assert optional_list is None or isinstance(optional_list, str)
-
-        list = optional_list
-        community_user = get_or_create_specified_or_current_community_user(
-            data, user_or_list
-        )
+        community = get_current_community(_get_jumpedia_and_interaction(data)[1])
 
     del data
-
-    community = community_user.community
 
     if list is not None:
         return community.get_list(list)
 
-    list_obj = community_user.get_selected_list()
+    community_user = get_or_create_specified_or_current_community_user(
+        community, community.jumpedia.interaction.ia_jumpedia_user
+    )
 
-    if list_obj is not None:
-        return list_obj
+    selected_list = community_user.get_selected_list()
+
+    if selected_list is not None:
+        return selected_list
 
     return (
         community.get_default_selected_list()

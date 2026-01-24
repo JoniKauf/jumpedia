@@ -1,6 +1,7 @@
 import enum
 import functools
 import typing as t
+from string.templatelib import Template
 
 from utils import text
 
@@ -36,11 +37,11 @@ class _BaseRank(enum.Enum, metaclass=_BaseRankMeta):
 
         raise ValueError(power)
 
-    def mention(self, title: bool = False) -> str:
-        type_name = self.__class__.type_name
+    def mention(self, title: bool = False) -> Template:
+        type_name = type(self).type_name
         type_name = type_name.title() if title else type_name.lower()
 
-        return f"{type_name} {self:,}"
+        return t"{type_name} {self:,}"
 
 
 class CommunityRank(_BaseRank):

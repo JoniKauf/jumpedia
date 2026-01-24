@@ -61,3 +61,8 @@ class BaseStructure(metaclass=_StructureMeta, naming=("structure", "structures")
 
     def __str__(self) -> str:
         return self.name
+
+
+class BaseStructureWithAliases(BaseStructure, naming=("structure", "structures")):
+    @abstractmethod
+    def get_aliases(self, c: orm.Cursor, /) -> frozenset[str]: ...

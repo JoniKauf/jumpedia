@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
     from .list import List
 
 
-class JumpediaUser(BaseStructure, naming=("jumpedia user", "jumpedia users")):
+class JumpediaUser(BaseStructure, naming=("user", "users")):
     jumpedia: Jumpedia
     user_name: str
     jumpedia_rank: JumpediaRank
@@ -25,7 +25,7 @@ class JumpediaUser(BaseStructure, naming=("jumpedia user", "jumpedia users")):
         return self.user_name
 
 
-class CommunityUser(BaseStructure, naming=("community user", "community users")):
+class CommunityUser(BaseStructure, naming=("user", "users")):
     jumpedia_user: JumpediaUser
     community: Community
     community_rank: CommunityRank
@@ -63,4 +63,4 @@ class CommunityUser(BaseStructure, naming=("community user", "community users"))
         assert execute_data.affected_row_count <= 1
 
         if execute_data.affected_row_count < 1:
-            raise errors.StructureNotFoundError(CommunityUser)
+            raise errors.StructureNotFoundError(id, CommunityUser)

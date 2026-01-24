@@ -54,12 +54,6 @@ class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
     def __str__(self) -> str:
         return self._o.name
 
-    def __eq__(self, value: object) -> bool:
-        if not isinstance(value, self.__class__):
-            return NotImplemented
-
-        return self._o == value._o
-
     def mention(self) -> Template:
         return type(self).do_mention(self._o)
 

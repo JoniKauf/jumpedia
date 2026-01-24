@@ -101,7 +101,7 @@ type _AttributeTypeT[T: AnyAttributeT = AnyAttributeT] = type[T] | tuple[type[T]
 
 
 def _attribute_type_to_where[T: orm.Column[t.Any, int]](
-    type: _AttributeTypeT | None, col: T
+    type: _AttributeTypeT | EllipsisType, col: T
 ) -> tuple[()] | tuple[tuple[T, orm.Operator, t.Any]] | None:
     where: (
         tuple[T, t.Literal[orm.Operator.EQ], int]
@@ -109,7 +109,7 @@ def _attribute_type_to_where[T: orm.Column[t.Any, int]](
         | None
     )
 
-    if type is None:
+    if type is ...:
         where = None
 
     elif not isinstance(type, tuple):
@@ -147,7 +147,10 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def _get_attributes_from_this_list_inner(
-        self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any], type: None = ...
+        self,
+        c: orm.Cursor,
+        *where: tuple[t.Any, orm.Operator, t.Any],
+        type: EllipsisType = ...,
     ) -> map[AnyAttributeT]:
         pass
 
@@ -164,7 +167,7 @@ class List(BaseStructure, naming=("list", "lists")):
         self,
         c: orm.Cursor,
         *where: tuple[t.Any, orm.Operator, t.Any],
-        type: type[AnyAttributeT] | tuple[type[AnyAttributeT], ...] | None = None,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> map[AnyAttributeT]:
         type_where = _attribute_type_to_where(type, db.Attribute.type_id)
 
@@ -184,7 +187,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def _attribute_row_to_obj(
-        self, row: db.Attribute, expected_type: None = ...
+        self, row: db.Attribute, expected_type: EllipsisType = ...
     ) -> AnyAttributeT:
         pass
 
@@ -195,11 +198,11 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def _attribute_row_to_obj(
-        self, row: db.Attribute, expected_type: type[AnyAttributeT] | None = None
+        self, row: db.Attribute, expected_type: type[AnyAttributeT] | EllipsisType = ...
     ) -> AnyAttributeT:
         found_type = attribute.type_id_to_type(row.type_id)  # type: ignore
 
-        assert expected_type is None or expected_type is found_type
+        assert expected_type is ... or expected_type is found_type
 
         return found_type(
             list=self,
@@ -226,7 +229,9 @@ class List(BaseStructure, naming=("list", "lists")):
         return result
 
     @t.overload
-    def get_attributes(self, c: orm.Cursor, /, type: None = ...) -> list[AnyAttributeT]:
+    def get_attributes(
+        self, c: orm.Cursor, /, type: EllipsisType = ...
+    ) -> list[AnyAttributeT]:
         pass
 
     @t.overload
@@ -236,13 +241,13 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def get_attributes(
-        self, c: orm.Cursor, /, type: _AttributeTypeT | None = None
+        self, c: orm.Cursor, /, type: _AttributeTypeT | EllipsisType = ...
     ) -> list[AnyAttributeT]:
         return list(self._get_attributes_from_this_list_inner(c, type=type))
 
     @t.overload
     def get_attribute_by_id(
-        self, c: orm.Cursor, id: int, /, type: None = ...
+        self, c: orm.Cursor, id: int, /, type: EllipsisType = ...
     ) -> tuple[AnyAttributeT, int] | None:
         pass
 
@@ -253,7 +258,7 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def get_attribute_by_id(
-        self, c: orm.Cursor, id: int, /, type: _AttributeTypeT | None = None
+        self, c: orm.Cursor, id: int, /, type: _AttributeTypeT | EllipsisType = ...
     ) -> tuple[AnyAttributeT, int] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_id(c, (id,), type=type)
@@ -261,7 +266,11 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def get_attributes_by_id(
-        self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /, type: None = ...
+        self,
+        c: orm.Cursor,
+        ids: t.Collection[int] | EllipsisType,
+        /,
+        type: EllipsisType = ...,
     ) -> dict[int, AnyAttributeT]:
         pass
 
@@ -280,7 +289,7 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         ids: t.Collection[int] | EllipsisType,
         /,
-        type: _AttributeTypeT | None = None,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> dict[int, AnyAttributeT]:
         return {
             attr.id: attr
@@ -295,7 +304,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def get_attribute_by_name(
-        self, c: orm.Cursor, name: NormStr, /, type: None = ...
+        self, c: orm.Cursor, name: NormStr, /, type: EllipsisType = ...
     ) -> tuple[AnyAttributeT, RealStr] | None:
         pass
 
@@ -306,7 +315,11 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def get_attribute_by_name(
-        self, c: orm.Cursor, name: NormStr, /, type: _AttributeTypeT | None = None
+        self,
+        c: orm.Cursor,
+        name: NormStr,
+        /,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> tuple[AnyAttributeT, RealStr] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_name(c, (name,), type=type)
@@ -318,7 +331,7 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         names: t.Collection[NormStr] | EllipsisType,
         /,
-        type: None = ...,
+        type: EllipsisType = ...,
     ) -> dict[RealStr, AnyAttributeT]:
         pass
 
@@ -337,7 +350,7 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         names: t.Collection[NormStr] | EllipsisType,
         /,
-        type: _AttributeTypeT | None = None,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> dict[RealStr, AnyAttributeT]:
         return {
             attr.real_name: attr
@@ -352,7 +365,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def get_attribute_by_alias(
-        self, c: orm.Cursor, alias: NormStr, /, type: None = ...
+        self, c: orm.Cursor, alias: NormStr, /, type: EllipsisType = ...
     ) -> tuple[AnyAttributeT, RealStr] | None:
         pass
 
@@ -363,7 +376,11 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def get_attribute_by_alias(
-        self, c: orm.Cursor, alias: NormStr, /, type: _AttributeTypeT | None = None
+        self,
+        c: orm.Cursor,
+        alias: NormStr,
+        /,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> tuple[AnyAttributeT, RealStr] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_alias(c, (alias,), type=type)
@@ -375,7 +392,8 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         aliases: t.Collection[NormStr] | EllipsisType,
         /,
-        type: None = ...,
+        type: EllipsisType = ...,
+        attribute_ids: t.Collection[int] | EllipsisType = ...,
     ) -> dict[text.RealStr, AnyAttributeT]:
         pass
 
@@ -386,6 +404,7 @@ class List(BaseStructure, naming=("list", "lists")):
         aliases: t.Collection[NormStr] | EllipsisType,
         /,
         type: _AttributeTypeT[T],
+        attribute_ids: t.Collection[int] | EllipsisType = ...,
     ) -> dict[text.RealStr, T]:
         pass
 
@@ -394,7 +413,8 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         aliases: t.Collection[NormStr] | EllipsisType,
         /,
-        type: _AttributeTypeT | None = None,
+        type: _AttributeTypeT | EllipsisType = ...,
+        attribute_ids: t.Collection[int] | EllipsisType = ...,
     ) -> dict[text.RealStr, AnyAttributeT]:
         type_where = _attribute_type_to_where(type, db.AttributeAlias.attribute_type_id)
 
@@ -409,6 +429,17 @@ class List(BaseStructure, naming=("list", "lists")):
             .where(
                 self._where_this_list(db.AttributeAlias.list_id),
                 *type_where,
+                *(
+                    ()
+                    if attribute_ids is ...
+                    else (
+                        (
+                            db.AttributeAlias.attribute_id,
+                            orm.Operator.IN,
+                            attribute_ids,
+                        ),
+                    )
+                ),
                 *(
                     ()
                     if aliases is ...
@@ -442,7 +473,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
     @t.overload
     def get_attribute_by_syn(
-        self, c: orm.Cursor, syn: NormStr, /, type: None = ...
+        self, c: orm.Cursor, syn: NormStr, /, type: EllipsisType = ...
     ) -> tuple[AnyAttributeT, RealStr] | None:
         pass
 
@@ -453,7 +484,7 @@ class List(BaseStructure, naming=("list", "lists")):
         pass
 
     def get_attribute_by_syn(
-        self, c: orm.Cursor, syn: NormStr, /, type: _AttributeTypeT | None = None
+        self, c: orm.Cursor, syn: NormStr, /, type: _AttributeTypeT | EllipsisType = ...
     ) -> tuple[AnyAttributeT, RealStr] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_attributes_by_syn(c, (syn,), type=type)
@@ -465,7 +496,7 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         syns: t.Collection[NormStr] | EllipsisType,
         /,
-        type: None = ...,
+        type: EllipsisType = ...,
     ) -> dict[text.RealStr, AnyAttributeT]:
         pass
 
@@ -484,7 +515,7 @@ class List(BaseStructure, naming=("list", "lists")):
         c: orm.Cursor,
         syns: t.Collection[NormStr] | EllipsisType,
         /,
-        type: _AttributeTypeT | None = None,
+        type: _AttributeTypeT | EllipsisType = ...,
     ) -> dict[text.RealStr, AnyAttributeT]:
         by_name = self.get_attributes_by_name(c, syns, type=type)
 
@@ -520,6 +551,21 @@ class List(BaseStructure, naming=("list", "lists")):
             )
 
         t.assert_never(kind.value)
+
+    def _validate_min_max_slots(self, min_slots: int, max_slots: int) -> None:
+        if not (
+            0
+            <= min_slots
+            <= max_slots
+            <= self.community.limits["attribute_task_value_slot_count_max"]
+            and max_slots >= 1
+        ):
+            raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
+                min_slots,
+                max_slots,
+                0,
+                self.community.limits["attribute_task_value_slot_count_max"],
+            )
 
     @t.overload
     def create_attribute[T: StaticAttribute](
@@ -586,19 +632,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
         self._validate_attribute_syns(c, type, norm_name, frozenset(norm_aliases))
 
-        if not (
-            0
-            <= min_slots
-            <= max_slots
-            <= self.community.limits["attribute_task_value_slot_count_max"]
-            and max_slots >= 1
-        ):
-            raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
-                min_slots,
-                max_slots,
-                0,
-                self.community.limits["attribute_task_value_slot_count_max"],
-            )
+        self._validate_min_max_slots(min_slots, max_slots)
 
         if position == -1:
             position = max(attr.position for attr in attrs) + 1 if attrs else 0
@@ -666,7 +700,7 @@ class List(BaseStructure, naming=("list", "lists")):
         )
 
         if execute_data.affected_row_count < 1:
-            raise errors.StructureNotFoundError(type)
+            raise errors.StructureNotFoundError(id, type)
 
     def edit_attribute_name(
         self, c: orm.Cursor, type: type[AnyAttributeT], id: int, real_name: RealStr
@@ -676,7 +710,7 @@ class List(BaseStructure, naming=("list", "lists")):
         tup = self.get_attribute_by_id(c, id, type=type)
 
         if tup is None:
-            raise errors.StructureNotFoundError(type)
+            raise errors.StructureNotFoundError(id, type)
 
         attr, _ = tup
         del tup
@@ -731,7 +765,6 @@ class List(BaseStructure, naming=("list", "lists")):
     def edit_attribute_aliases(
         self,
         c: orm.Cursor,
-        type: type[AnyAttributeT],
         id: int,
         aliases: t.Iterable[RealStr],
     ) -> None:
@@ -739,17 +772,17 @@ class List(BaseStructure, naming=("list", "lists")):
             aliases
         )
 
-        tup = self.get_attribute_by_id(c, id, type=type)
+        tup = self.get_attribute_by_id(c, id)
 
         if tup is None:
-            raise errors.StructureNotFoundError(type)
+            raise errors.StructureNotFoundError(id, BaseAttribute)
 
         attr, _ = tup
         del tup
 
         self._validate_attribute_syns(
             c,
-            type,
+            BaseAttribute,
             norm_aliases=frozenset(norm_aliases),
             allowed_attributes=frozenset([attr]),
         )
@@ -767,7 +800,6 @@ class List(BaseStructure, naming=("list", "lists")):
         c.execute(
             AttributeAliasTable.delete().where(
                 self._where_this_list(AttributeAliasTable.list_id),
-                (AttributeAliasTable.attribute_type_id, orm.Operator.EQ, type.type_id),
                 (
                     AttributeAliasTable.attribute_id,
                     orm.Operator.EQ,
@@ -776,7 +808,59 @@ class List(BaseStructure, naming=("list", "lists")):
             )
         )
 
-        self._insert_attribute_aliases(c, type, attr.id, real_aliases, norm_aliases)
+        self._insert_attribute_aliases(
+            c, type(attr), attr.id, real_aliases, norm_aliases
+        )
+
+    def edit_attribute_min_max_slots(
+        self,
+        c: orm.Cursor,
+        type: type[AnyAttributeT],
+        id: int,
+        min_slots: int,
+        max_slots: int,
+    ) -> None:
+        tup = self.get_attribute_by_id(c, id, type=type)
+
+        if tup is None:
+            raise errors.StructureNotFoundError(id, type)
+
+        attr, _ = tup
+        del tup
+
+        if isinstance(attr, StaticAttribute):
+            raise errors.CannotChangeThisAboutStaticAttribute
+
+        self._validate_min_max_slots(min_slots, max_slots)
+
+        # User attributes are too much to check and basically impossible to handle for moderators
+        # We therefore see them as soft limits for user attributes
+        if isinstance(attr, TaskAttribute):
+            out_of_bounds: dict[Task, tuple[SlotStr, ...]] = {}
+
+            avms, _, _ = self.get_attribute_value_mappings(c)
+
+            for avm in avms:
+                value = avm.task_attribute_value_mapping.get(attr, ())
+                length = len(value)
+
+                if length < min_slots or length > max_slots:
+                    out_of_bounds[avm.task] = value
+
+            if out_of_bounds:
+                raise errors.NotAllTasksFulfillRequiredMinMaxSlotsChanges(
+                    attr, out_of_bounds
+                )
+
+        c.execute(
+            db.Attribute.update(
+                db.Attribute.min_slots.set(min_slots),
+                db.Attribute.max_slots.set(max_slots),
+            ).where(
+                self._where_this_list(db.Attribute.list_id),
+                (db.Attribute.id, orm.Operator.EQ, id),
+            )
+        )
 
     def _calc_attribute_value_mapping[T: TaskAttribute | UserAttribute](
         self,
@@ -788,7 +872,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
         for attr_id in attribute_value_mapping:
             if attr_id not in id_to_attr:
-                raise errors.StructureNotFoundError(type)
+                raise errors.StructureNotFoundError(attr_id, type)
 
         avm: dict[T, tuple[SlotStr, ...]] = {}
 
@@ -847,10 +931,10 @@ class List(BaseStructure, naming=("list", "lists")):
             c, aliases
         )
 
-    def get_tasks(self, c: orm.Cursor) -> list[Task]:
+    def get_tasks(self, c: orm.Cursor, /) -> list[Task]:
         return list(self._get_tasks_from_this_list_inner(c))
 
-    def get_tasks_of_user(self, c: orm.Cursor, community_user_id: int) -> list[Task]:
+    def get_tasks_of_user(self, c: orm.Cursor, community_user_id: int, /) -> list[Task]:
         rows = c.fetch_all(
             db.CommunityUserTask.select(db.CommunityUserTask.task_id).where(
                 self._where_this_list(db.CommunityUserTask.list_id),
@@ -869,7 +953,7 @@ class List(BaseStructure, naming=("list", "lists")):
             self.get_tasks_by_id(c, tuple(row.task_id for row in rows)).values()
         )
 
-    def get_task_by_id(self, c: orm.Cursor, id: int) -> tuple[Task, int] | None:
+    def get_task_by_id(self, c: orm.Cursor, id: int, /) -> tuple[Task, int] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
             self.get_tasks_by_id(c, (id,))
         )
@@ -990,11 +1074,12 @@ class List(BaseStructure, naming=("list", "lists")):
         community_user_id: int,
         type: type[T],
     ) -> None:
-        where_task_id = (
-            ()
-            if task_ids is ...
-            else ((TaskAttributeValueTable.task_id, orm.Operator.IN, task_ids),)
-        )
+        def where_task_id[T1: orm.Column[t.Any, int]](
+            col: T1,
+        ) -> (
+            tuple[()] | tuple[tuple[T1, t.Literal[orm.Operator.IN], t.Collection[int]]]
+        ):
+            return () if task_ids is ... else ((col, orm.Operator.IN, task_ids),)
 
         if issubclass(type, TaskAttribute):
             rows = c.fetch_all(
@@ -1005,7 +1090,7 @@ class List(BaseStructure, naming=("list", "lists")):
                 )
                 .where(
                     self._where_this_list(TaskAttributeValueTable.list_id),
-                    *where_task_id,
+                    *where_task_id(TaskAttributeValueTable.task_id),
                 )
                 .order_by(
                     (TaskAttributeValueTable.task_id, orm.Order.ASC),
@@ -1022,7 +1107,7 @@ class List(BaseStructure, naming=("list", "lists")):
                 )
                 .where(
                     self._where_this_list(CommunityUserTaskAttributeValueTable.list_id),
-                    *where_task_id,
+                    *where_task_id(CommunityUserTaskAttributeValueTable.task_id),
                     (
                         CommunityUserTaskAttributeValueTable.community_user_id,
                         orm.Operator.EQ,
@@ -1086,7 +1171,7 @@ class List(BaseStructure, naming=("list", "lists")):
             )
 
             if community_user is None:
-                raise errors.StructureNotFoundError(CommunityUser)
+                raise errors.StructureNotFoundError(community_user_id, CommunityUser)
 
         del community_user_id
 
@@ -1196,7 +1281,7 @@ class List(BaseStructure, naming=("list", "lists")):
         return (final, list(id_to_attribute.values()), ATTRIBUTE_TYPES_TO_HANDLE)
 
     def get_collections(
-        self, c: orm.Cursor, /, type: _AttributeTypeT | None = None
+        self, c: orm.Cursor, /, type: _AttributeTypeT | EllipsisType = ...
     ) -> list[collection.Collection]:
         id_to_attr = self.get_attributes_by_id(c, ..., type=type)
 
@@ -1311,16 +1396,17 @@ class List(BaseStructure, naming=("list", "lists")):
         )
 
         if execute_data.affected_row_count == 0:
-            raise errors.StructureNotFoundError(Task)
+            raise errors.StructureNotFoundError(id, Task)
 
         assert execute_data.affected_row_count == 1
 
-    def edit_task_name(self, c: orm.Cursor, task_id: int, name: text.RealStr) -> None:
-        tup = self.get_task_by_id(c, task_id)
-        del task_id
+    def edit_task_name(self, c: orm.Cursor, id: int, name: text.RealStr) -> None:
+        tup = self.get_task_by_id(c, id)
 
         if tup is None:
-            raise errors.StructureNotFoundError(Task)
+            raise errors.StructureNotFoundError(id, Task)
+
+        del id
 
         task, _ = tup
         del tup
@@ -1359,7 +1445,7 @@ class List(BaseStructure, naming=("list", "lists")):
         assert execute_data.affected_row_count in (0, 1)
 
     def edit_task_aliases(
-        self, c: orm.Cursor, task_id: int, aliases: t.Sequence[RealStr]
+        self, c: orm.Cursor, id: int, aliases: t.Sequence[RealStr]
     ) -> None:
         real_aliases, norm_aliases = utils_.handled_unique_reals_and_norms(aliases)
         del aliases
@@ -1367,11 +1453,12 @@ class List(BaseStructure, naming=("list", "lists")):
         slot_aliases = self._task_real_aliases_to_slot_value(c, real_aliases)
         del real_aliases
 
-        tup = self.get_task_by_id(c, task_id)
-        del task_id
+        tup = self.get_task_by_id(c, id)
 
         if tup is None:
-            raise errors.StructureNotFoundError(Task)
+            raise errors.StructureNotFoundError(id, Task)
+
+        del id
 
         task, _ = tup
 
@@ -1410,19 +1497,19 @@ class List(BaseStructure, naming=("list", "lists")):
     def edit_task_attribute_value_mapping(
         self,
         c: orm.Cursor,
-        task_id: int,
+        id: int,
         task_attribute_value_mapping: t.Mapping[int, t.Sequence[RealStr]],
-    ) -> None:
+    ) -> MappingProxyType[TaskAttribute, tuple[SlotStr, ...]]:
         tavm = self._calc_attribute_value_mapping(
             c, TaskAttribute, task_attribute_value_mapping
         )
 
         del task_attribute_value_mapping
 
-        tup = self.get_task_by_id(c, task_id)
+        tup = self.get_task_by_id(c, id)
 
         if tup is None:
-            raise errors.StructureNotFoundError(Task)
+            raise errors.StructureNotFoundError(id, Task)
 
         task, _ = tup
         del tup
@@ -1432,11 +1519,13 @@ class List(BaseStructure, naming=("list", "lists")):
         c.execute(
             TaskAttributeValueTable.delete().where(
                 (TaskAttributeValueTable.list_id, orm.Operator.EQ, self.id),
-                (TaskAttributeValueTable.task_id, orm.Operator.EQ, task_id),
+                (TaskAttributeValueTable.task_id, orm.Operator.EQ, id),
             )
         )
 
         self._insert_task_attribute_value_mapping(c, task.id, tavm)
+
+        return tavm
 
     def _get_tasks_from_this_list_inner(
         self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]

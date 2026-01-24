@@ -80,11 +80,8 @@ class ConfirmConfig(t.NamedTuple):
 
 async def confirm_nuke(
     ia: InteractionAdapter, structure: BaseStructure, nuke: t.Callable[[], t.Any]
-) -> CoroutineType[None, None, t.Any]:
+) -> CoroutineType[t.Any, t.Any, t.Any]:
     CONFIG = ConfirmConfig("💣", "⚙️", "❌", 5, 30)
-
-    if not ia.dc.response.is_done():
-        await ia.dc.response.defer()
 
     msg = await ia.dc.followup.send(
         message.layout(

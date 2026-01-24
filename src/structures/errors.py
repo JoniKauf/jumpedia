@@ -5,10 +5,11 @@ from utils import text
 
 if t.TYPE_CHECKING:
     from . import BaseStructure
-    from .attribute import BaseAttribute, SlotStr
+    from .attribute import BaseAttribute, SlotStr, TaskAttribute
     from .attribute.collection import Collection
     from .attribute.slot_str import SlotTypeT
     from .community import Community
+    from .task import Task
 
 
 @t.dataclass_transform(eq_default=False)
@@ -32,6 +33,7 @@ class BaseStructureError(Exception, metaclass=_BaseStructureErrorMeta):
 
 
 class StructureNotFoundError(BaseStructureError):
+    id: int
     structure_type: type[BaseStructure]
 
 
@@ -92,7 +94,7 @@ class AttributeMinSlotsOrMaxSlotsOutOfRangeError(BaseStructureError):
 
 class InvalidSlotStrError(BaseStructureError):
     s: str
-    expected_type: type[SlotTypeT]
+    slot_type: type[SlotTypeT]
 
 
 class CommunityUserAlreadyHasTaskError(BaseStructureError):
@@ -108,3 +110,12 @@ class CommunityUserDoesNotHaveTaskError(BaseStructureError):
 class NotUniqueStringError(BaseStructureError):
     given: text.RealStr
     existing: text.RealStr
+
+
+class CannotChangeThisAboutStaticAttribute(BaseStructureError):
+    pass
+
+
+class NotAllTasksFulfillRequiredMinMaxSlotsChanges(BaseStructureError):
+    attribute: TaskAttribute
+    wrong: dict[Task, tuple[SlotStr, ...]]

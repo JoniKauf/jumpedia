@@ -1,9 +1,10 @@
 import typing as t
 from functools import cached_property
+from types import EllipsisType
 
 from adapting import parsing
 from dc_utils import errors
-from dc_utils.errors import FeedbackError
+from dc_utils.errors import FeedbackError, SynNotUnique
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
@@ -11,7 +12,7 @@ from structures.attribute import (
     TaskAttribute,
     UserAttribute,
 )
-from structures.attribute.slot_str import SlotTypeT
+from structures.attribute.slot_str import SlotStr, SlotTypeT
 from structures.errors import (
     AttributeMinSlotsOrMaxSlotsOutOfRangeError,
     AttributeValueSlotCountOutOfRangeError,
@@ -19,9 +20,12 @@ from structures.errors import (
     CollectionEntrySynNotUniqueError,
     CommunityUserAlreadyHasTaskError,
     CommunityUserDoesNotHaveTaskError,
+    InvalidSlotStrError,
     NotUniqueStringError,
     StructureCountLimitReachedError,
+    StructureNotFoundError,
     SynsAlreadyTakenError,
+    TooLongSynError,
 )
 from structures.list import List
 from structures.task import Task
@@ -62,6 +66,13 @@ def _get_attribute_adapter(
     pass
 
 
+@t.overload
+def _get_attribute_adapter(
+    attribute: attribute.AnyAttributeT, list: ListAdapter
+) -> AnyAttributeAdapterT:
+    pass
+
+
 def _get_attribute_adapter(
     attribute: attribute.AnyAttributeT, list: ListAdapter
 ) -> AnyAttributeAdapterT:
@@ -81,18 +92,38 @@ def _require_task_with_syn(c: orm.Cursor, norm_syn: text.NormStr, list: List) ->
     tup = list.get_task_by_syn(c, norm_syn)
 
     if tup is None:
-        raise errors.StructureNotFoundViaSyn(norm_syn, Task, False)
+        raise errors.StructureNotFoundViaSyn(norm_syn, Task)
 
     return tup[0]
 
 
+@t.overload
+def _require_attribute_with_syn(
+    c: orm.Cursor, norm_syn: text.NormStr, attribute_type: EllipsisType, list: List
+) -> AnyAttributeT:
+    pass
+
+
+@t.overload
 def _require_attribute_with_syn[T: AnyAttributeT](
-    c: orm.Cursor, norm_syn: text.NormStr, attribute_type: type[T], list: List
+    c: orm.Cursor,
+    norm_syn: text.NormStr,
+    attribute_type: type[T] | EllipsisType,
+    list: List,
 ) -> T:
+    pass
+
+
+def _require_attribute_with_syn(
+    c: orm.Cursor,
+    norm_syn: text.NormStr,
+    attribute_type: type[AnyAttributeT] | EllipsisType,
+    list: List,
+) -> AnyAttributeT:
     tup = list.get_attribute_by_syn(c, norm_syn, type=attribute_type)
 
     if tup is None:
-        raise errors.StructureNotFoundViaSyn(norm_syn, TaskAttribute, False)
+        raise errors.StructureNotFoundViaSyn(norm_syn, TaskAttribute)
 
     return tup[0]
 
@@ -133,24 +164,21 @@ class ListAdapter(BaseStructureAdapter[List]):
             _require_task_with_syn(self._c, text.NormStr(syn), self._o), self
         )
 
-    def _parse_attribute_value_mapping(
-        self, type: type[AnyAttributeT], attribute_value_mapping: str | None
-    ) -> dict[int, tuple[text.RealStr, ...]]:
+    def _parse_attribute_value_mapping[T: AnyAttributeT](
+        self, type: type[T], attribute_value_mapping: str | None
+    ) -> tuple[dict[int, tuple[text.RealStr, ...]], dict[text.RealStr, T]]:
         if not attribute_value_mapping:
-            return {}
+            return {}, {}
+
+        syn_to_attr = self._o.get_attributes_by_syn(self._c, ..., type=type)
 
         avm = parsing.avm.parse(
             self._c,
             text.RealStr(attribute_value_mapping),
-            {
-                text.NormStr(k): v
-                for k, v in self._o.get_attributes_by_syn(
-                    self._c, ..., type=type
-                ).items()
-            },
+            {text.NormStr(k): v for k, v in syn_to_attr.items()},
         )
 
-        return {k.id: v for k, v in avm.items()}
+        return {k.id: v for k, v in avm.items()}, syn_to_attr
 
     def create_task(
         self, name: str, aliases: str | None, task_attribute_value_mapping: str | None
@@ -158,15 +186,16 @@ class ListAdapter(BaseStructureAdapter[List]):
         real_name = text.RealStr(name)
 
         real_aliases = _parse_aliases(aliases)
+        avms, _ = self._parse_attribute_value_mapping(
+            TaskAttribute, task_attribute_value_mapping
+        )
 
         try:
             task_s = self._o.create_task(
                 self._c,
                 real_name,
                 real_aliases,
-                self._parse_attribute_value_mapping(
-                    TaskAttribute, task_attribute_value_mapping
-                ),
+                avms,
             )
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
@@ -183,32 +212,66 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def delete_task(self, syn: str) -> None:
         task = self.get_task(syn)
-        self._o.delete_task(self._c, task._o.id)
 
-    def edit_task_name(self, syn: str, name: str) -> None:
+        try:
+            self._o.delete_task(self._c, task._o.id)
+        except StructureNotFoundError:
+            raise errors.StructureNotFoundViaSyn(syn, Task)
+
+    def edit_task_name(self, syn: str, name: str) -> TaskAdapter:
         task = self.get_task(syn)
-        self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
 
-    def edit_task_aliases(self, syn: str, aliases: str) -> None:
+        try:
+            self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTaken(e)
+        except InvalidSlotStrError as e:
+            raise errors.InvalidSlotStr(e)
+
+        return task
+
+    def edit_task_aliases(
+        self, syn: str, aliases: str
+    ) -> tuple[TaskAdapter, tuple[text.RealStr, ...]]:
         real_aliases = tuple(
             map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))
         )
 
         task = self.get_task(syn)
-        self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
+
+        try:
+            self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTaken(e)
+        except NotUniqueStringError as e:
+            raise errors.SynNotUnique(e)
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.AttributeValueSlotCountOutOfRange(e)
+        except InvalidSlotStrError as e:
+            raise errors.InvalidSlotStr(e)
+
+        return (task, real_aliases)
 
     def edit_task_attribute_value_mapping(
         self, syn: str, task_attribute_value_mapping: str | None
-    ) -> None:
+    ) -> TaskAdapter:
         task = self.get_task(syn)
 
-        self._o.edit_task_attribute_value_mapping(
-            self._c,
-            task._o.id,
-            self._parse_attribute_value_mapping(
-                TaskAttribute, task_attribute_value_mapping
-            ),
-        )
+        try:
+            _ = self._o.edit_task_attribute_value_mapping(
+                self._c,
+                task._o.id,
+                self._parse_attribute_value_mapping(
+                    TaskAttribute, task_attribute_value_mapping
+                )[0],
+            )
+        except StructureNotFoundError as e:
+            if e.structure_type is Task:
+                raise errors.StructureNotFoundViaSyn(syn, e.structure_type)
+            else:
+                assert False
+
+        return task  # we dont return the mapping bec of issues with hashing attribute adapter
 
     # --- Attribute ---
 
@@ -251,6 +314,10 @@ class ListAdapter(BaseStructureAdapter[List]):
         )  # type: ignore
 
     @t.overload
+    def get_attribute(self, type: EllipsisType, syn: str) -> AnyAttributeAdapterT:
+        pass
+
+    @t.overload
     def get_attribute(
         self, type: type[StaticAttribute], syn: str
     ) -> StaticAttributeAdapter:
@@ -269,7 +336,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         pass
 
     def get_attribute(
-        self, type: type[AnyAttributeT], syn: str
+        self, type: type[AnyAttributeT] | EllipsisType, syn: str
     ) -> AnyAttributeAdapterT:
         attribute = _require_attribute_with_syn(
             self._c, text.NormStr(syn), type, self._o
@@ -352,7 +419,11 @@ class ListAdapter(BaseStructureAdapter[List]):
         self, type: type[TaskAttribute | UserAttribute], syn: str
     ) -> None:
         attr = self.get_attribute(type, syn)
-        self._o.delete_attribute(self._c, type, attr._o.id)
+
+        try:
+            self._o.delete_attribute(self._c, type, attr._o.id)
+        except StructureNotFoundError:
+            raise errors.StructureNotFoundViaSyn(syn, type)
 
     def give_task_to_user(
         self,
@@ -369,7 +440,7 @@ class ListAdapter(BaseStructureAdapter[List]):
                 community_user._o.id,
                 self._parse_attribute_value_mapping(
                     UserAttribute, user_attribute_value_mapping
-                ),
+                )[0],
             )
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRange(e)
@@ -385,7 +456,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def remove_task_from_user(
         self, syn: str, community_user: CommunityUserAdapter
-    ) -> None:
+    ) -> TaskAdapter:
         task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
 
         try:
@@ -393,7 +464,16 @@ class ListAdapter(BaseStructureAdapter[List]):
                 self._c, task_s.id, community_user._o.id
             )
         except CommunityUserDoesNotHaveTaskError:
-            raise FeedbackError(
-                "Task Not Given Yet",
-                t"The user {community_user:,} has not been given the task {task_s.name:,} yet, therefore nothing changed!",
-            )
+            raise errors.TaskNotGivenYet(community_user._o, task_s)
+
+        return TaskAdapter(task_s, self)
+
+    def edit_attribute_name(
+        self, type: type[AnyAttributeT], syn: str, name: str
+    ) -> tuple[AnyAttributeAdapterT, text.RealStr]:
+        name = text.RealStr(name)
+        attribute = self.get_attribute(type, syn)
+
+        self._o.edit_attribute_name(self._c, type, attribute._o.id, name)
+
+        return (attribute, name)

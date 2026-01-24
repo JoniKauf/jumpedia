@@ -5,8 +5,12 @@ from typing import Any, Mapping, Sequence
 from discord.app_commands import CheckFailure
 
 from adapting import BaseStructureAdapter
+from adapting._user import CommunityUserAdapter
 from dc_utils.rank import AnyRankT
-from structures import BaseStructure, errors
+from structures import BaseStructure, BaseStructureWithAliases, errors
+from structures.task import Task
+from structures.user import CommunityUser
+from utils import text
 
 from . import message
 
@@ -94,12 +98,10 @@ class DatabaseError(FeedbackError):
 
 
 class StructureNotFoundViaSyn(FeedbackError):
-    def __init__(
-        self, syn: str, structure_type: type[BaseStructure], only_name: bool = False
-    ) -> None:
+    def __init__(self, syn: str, structure_type: type[BaseStructure]) -> None:
         super().__init__(
             f"{structure_type.type_name.title()} Not Found",
-            t"The specified {structure_type.type_name} with the name {"" if only_name else "or alias "}{syn:,} could not be found!",
+            t"The specified {structure_type.type_name} with the name {"or alias " if issubclass(structure_type, BaseStructureWithAliases) else ""}{syn:,} could not be found!",
         )
 
 
@@ -166,7 +168,9 @@ class NotEnoughPowerToAffectOtherUsers(FeedbackError):
     def __init__(self, executing_rank: AnyRankT, required_rank: AnyRankT) -> None:
         super().__init__(
             "Not Enough Power To Affect Other Users",
-            t"You must at least have the {required_rank.mention()} to execute this command for other users, but you only have the {executing_rank.mention()}!",
+            t"You must at least have the "
+            + required_rank.mention()
+            + t" to execute this command for other users, but you only have the {executing_rank.mention()}!",
         )
 
 
@@ -288,4 +292,34 @@ class SameName(FeedbackError):
             + BaseStructureAdapter.do_mention(structure)
             + t" already has the same name as the one specified, therefore nothing changed!",
             explicit_message_status=message.MessageStatus.WARNING,
+        )
+
+
+class TaskNotGivenYet(FeedbackError):
+    def __init__(self, community_user: CommunityUser, task: Task) -> None:
+        super().__init__(
+            "Task Not Given Yet",
+            t"The user {community_user:,} has not been given the task {task.name:,} yet, therefore it cannot be taken!",
+        )
+
+
+class TooLongSynError(FeedbackError):
+    def __init__(self, e: errors.TooLongSynError, is_name: bool) -> None:
+        typ = "name" if is_name else "alias"
+
+        super().__init__(
+            f"{e.syn.title()} Too Long",
+            t"The {typ} {e.syn:,} is too long for !",
+            additional=t"It is {len(e.syn):,} characters long, but the maximum allowed is {e.limit:,}.",
+        )
+
+
+class InvalidSlotStr(FeedbackError):
+    def __init__(self, e: errors.InvalidSlotStrError) -> None:
+        super().__init__(
+            f"Invalid Slot String",
+            t"The specified string {text.shorten(e.s):,} is invalid for the slot type {message.slot_type_to_name(e.slot_type):,}!",
+            additional=t"The string must "
+            + message.slot_type_to_must(e.slot_type)
+            + t".",
         )

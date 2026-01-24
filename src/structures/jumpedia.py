@@ -107,7 +107,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         )
 
         if execute_data.affected_row_count < 1:
-            raise StructureNotFoundError(Community)
+            raise StructureNotFoundError(id, Community)
 
     def _get_communities_inner(
         self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]

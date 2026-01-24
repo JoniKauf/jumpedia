@@ -26,7 +26,7 @@ def _require_community_with_name(
     tup = jumpedia_s.get_community_by_name(c, name)
 
     if tup is None:
-        raise errors.StructureNotFoundViaSyn(name, Community, only_name=True)
+        raise errors.StructureNotFoundViaSyn(name, Community)
 
     return tup[0]
 
@@ -51,13 +51,13 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def create_community(
         self, name: str, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.user)
+        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.ia_user)
 
         try:
             comm = self._o.create_community(
                 self._c,
                 name=text.RealStr(name),
-                server_id=self.interaction.server.id,
+                server_id=self.interaction.ia_server.id,
                 creator=jumpedia_user._o,
                 limits=DEFAULT_COMMUNITY_LIMITS,
             )
@@ -95,7 +95,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
                 self._o.add_community_to_server(
                     self._c,
                     self.get_community(name)._o.id,
-                    self.interaction.server.id,
+                    self.interaction.ia_server.id,
                 ),
                 self,
             )
@@ -105,7 +105,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     def remove_community_from_current_server(self) -> CommunityAdapter:
         try:
             community = self._o.remove_community_from_server(
-                self._c, self.interaction.server._o.id
+                self._c, self.interaction.ia_server._o.id
             )
         except ServerNotConnectedToACommunityError:
             raise errors.ServerNotConnectedToACommunity()

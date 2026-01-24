@@ -164,19 +164,38 @@ def layout(
         )
 
 
-_SLOT_TYPE_TO_NAME: MappingProxyType[type[SlotTypeT], str] = MappingProxyType(
-    {
-        bool: "Boolean (true/false)",
-        int: "Integer",
-        Decimal: "Decimal",
-        str: "String (Text)",
-    }
+_SLOT_TYPE_TO_DATA: MappingProxyType[type[SlotTypeT], tuple[str, Template]] = (
+    MappingProxyType(
+        {
+            bool: ("Boolean (true/false)", t"either be {'true':,} or {'false':,}"),
+            int: (
+                "Integer",
+                t"represent any whole number between -(2^63) and 2^63 - 1",
+            ),
+            Decimal: (
+                "Decimal",
+                t"represent any real number between -(2^63) and 2^63 - 1 with preferrably less than or exactly 28 decimal places (all decimals after that are trimmed).",
+            ),
+            str: (
+                "String (Text)",
+                t"represent any characters sequence between {1:,} and {255:,} characters (unicode code points) in length",
+            ),
+        }
+    )
 )
 
 
 def slot_type_to_name(slot_type: type[SlotTypeT]) -> str:
     from structures.attribute.slot_str import SLOT_TYPES
 
-    assert _SLOT_TYPE_TO_NAME.keys() == frozenset(SLOT_TYPES)
+    assert _SLOT_TYPE_TO_DATA.keys() == frozenset(SLOT_TYPES)
 
-    return _SLOT_TYPE_TO_NAME[slot_type]
+    return _SLOT_TYPE_TO_DATA[slot_type][0]
+
+
+def slot_type_to_must(slot_type: type[SlotTypeT]) -> Template:
+    from structures.attribute.slot_str import SLOT_TYPES
+
+    assert _SLOT_TYPE_TO_DATA.keys() == frozenset(SLOT_TYPES)
+
+    return _SLOT_TYPE_TO_DATA[slot_type][1]

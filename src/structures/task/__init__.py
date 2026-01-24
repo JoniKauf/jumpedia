@@ -11,14 +11,14 @@ from structures.task.attribute_value_mapping import (
 from structures.user import CommunityUser
 from utils import orm, text
 
-from .. import BaseStructure, db
+from .. import BaseStructure, BaseStructureWithAliases, db
 from ..attribute.slot_str import SlotStr
 
 if t.TYPE_CHECKING:
     from ..list import List
 
 
-class Task(BaseStructure, naming=("task", "tasks")):
+class Task(BaseStructureWithAliases, naming=("task", "tasks")):
     list: List
     slot_name: SlotStr
     norm_name: text.NormStr
@@ -26,6 +26,9 @@ class Task(BaseStructure, naming=("task", "tasks")):
     @property
     def name(self) -> str:
         return self.slot_name
+
+    def get_aliases(self, c: orm.Cursor, /) -> frozenset[SlotStr]:
+        return self.get_slot_aliases(c)
 
     def get_slot_aliases(self, c: orm.Cursor, /) -> frozenset[SlotStr]:
         rows = c.fetch_all(

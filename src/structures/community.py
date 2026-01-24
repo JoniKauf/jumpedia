@@ -1,6 +1,9 @@
+import itertools
 import typing as t
+from types import EllipsisType
 
 from dc_utils.rank import CommunityRank
+from structures.task import Task
 from structures.utils_ import first_or_none_of_item_vk_of_mapping
 from utils import orm, text
 
@@ -112,7 +115,7 @@ class Community(BaseStructure, naming=("community", "communities")):
         )
 
         if execute_data.affected_row_count == 0:
-            raise errors.StructureNotFoundError(List)
+            raise errors.StructureNotFoundError(id, List)
 
         assert execute_data.affected_row_count == 1
 
@@ -143,11 +146,13 @@ class Community(BaseStructure, naming=("community", "communities")):
         return first_or_none_of_item_vk_of_mapping(self.get_lists_by_id(c, (id,)))
 
     def get_lists_by_id(
-        self, c: orm.Cursor, ids: t.Collection[int], /
+        self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /
     ) -> dict[int, List]:
         return {
             list.id: list
-            for list in self._get_lists_inner(c, (db.List.id, orm.Operator.IN, ids))
+            for list in self._get_lists_inner(
+                c, *(() if ids is ... else ((db.List.id, orm.Operator.IN, ids),))
+            )
         }
 
     def get_list_by_name(
@@ -190,7 +195,7 @@ class Community(BaseStructure, naming=("community", "communities")):
         )
 
         if execute_data.affected_row_count == 0:
-            raise errors.StructureNotFoundError(Community)
+            raise errors.StructureNotFoundError(-1, Community)
 
         assert execute_data.affected_row_count == 1
 
@@ -341,3 +346,17 @@ class Community(BaseStructure, naming=("community", "communities")):
             community_rank=CommunityRank.get(community_user_row.power),
             selected_list_id=community_user_row.selected_list_id,
         )
+
+    def get_tasks_by_list(self, c: orm.Cursor) -> dict[List, tuple[Task, ...]]:
+        id_to_list = self.get_lists_by_id(c, ...)
+
+        rows = c.fetch_all(
+            db.Task.select("*")
+            .where((db.Task.list_id, orm.Operator.IN, id_to_list))
+            .order_by(db.Task.list_id)
+        )
+
+        return {
+            (lst := id_to_list[list_id]): tuple(map(lst._task_row_to_obj, rows))
+            for list_id, rows in itertools.groupby(rows, lambda row: row.list_id)
+        }
