@@ -13,12 +13,12 @@ from discord.ext import commands as cmds
 
 import dc_utils
 from dc_utils import errors, layouts
-from dc_utils.rank import AnyRankT, CommunityRank
 from structures import BaseStructure
 from utils import gist
+from utils.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
-    from adapting.interaction import InteractionAdapter
+    from adapters.interaction import InteractionAdapter
 
 
 def adapt[T: cmds.Cog, **P](
@@ -52,12 +52,15 @@ def adapt[T: cmds.Cog, **P](
         async def decorated(
             self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
         ) -> None:
-            from adapting.interaction import InteractionAdapter
+            from adapters.interaction import InteractionAdapter
 
+            # --- Defer; Always Use Followup ---
             await interaction.response.defer()
 
+            # --- Create Interaction Adapter ---
             ia = InteractionAdapter(interaction)
 
+            # --- Apply Required Rank When 'user' Is Specified ---
             sig = inspect.signature(func)
             bound = sig.bind_partial(self, interaction, *args, **kwargs)
             bound.apply_defaults()
@@ -81,7 +84,7 @@ def adapt[T: cmds.Cog, **P](
                     interaction, other_user, rank_to_specify_user
                 )
 
-            # Commit changes or rollback on error
+            # --- Handle One And Only, Final Commit Per Interaction ---
             try:
                 success = await func(self, ia, *args, **kwargs)
 
@@ -99,6 +102,7 @@ def adapt[T: cmds.Cog, **P](
                 ia._c._mariadb_cursor.close()
                 ia._c._mariadb_connection.close()
 
+            # --- Show Success Message ---
             await success
 
         return decorated

@@ -2,9 +2,9 @@ import json
 import typing as t
 from dataclasses import InitVar
 
-from dc_utils.rank import CommunityRank, JumpediaRank
 from structures import utils_
 from utils import orm, text
+from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits

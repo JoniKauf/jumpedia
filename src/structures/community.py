@@ -2,10 +2,10 @@ import itertools
 import typing as t
 from types import EllipsisType
 
-from dc_utils.rank import CommunityRank
 from structures.task import Task
 from structures.utils_ import first_or_none_of_item_vk_of_mapping
 from utils import orm, text
+from utils.rank import CommunityRank
 
 from . import BaseStructure, db, errors
 from .attribute import StaticAttribute

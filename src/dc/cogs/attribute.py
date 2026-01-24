@@ -6,10 +6,9 @@ from types import CoroutineType
 import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
-from adapting._attribute import AnyAttributeAdapterT
-from adapting.interaction import InteractionAdapter
+from adapters._attribute import AnyAttributeAdapterT
+from adapters.interaction import InteractionAdapter
 from dc_utils import command, confirm, layouts, message, predicate, shortcuts
-from dc_utils.rank import CommunityRank
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
     BaseAttribute,
@@ -19,6 +18,7 @@ from structures.attribute import (
 from structures.attribute.collection import CollectionEntry
 from structures.attribute.slot_str import SLOT_TYPES
 from utils import itertools2
+from utils.rank import CommunityRank
 
 
 def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:
@@ -63,7 +63,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
         ia: InteractionAdapter,
         attribute: str,
         list: str | None = None,
-    ) -> CoroutineType:
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
         attr = (
             shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
             .get_attribute(..., attribute)
@@ -108,9 +108,8 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
         )
 
         return ia.dc.followup.send(
-            layouts.success(
-                f"{type.name} Created",
-                t"The {type.name.lower()} {attr.name:,} has successfully been created!",
+            layouts.structure_created(
+                attr._o
             )
         )
 

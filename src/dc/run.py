@@ -103,7 +103,7 @@ async def on_app_command_error(
     )
 
 
-from adapting import interaction
+from adapters import interaction
 
 interaction._get_or_create_the_one_piece()
 

@@ -2,8 +2,7 @@ import typing as t
 from functools import cached_property
 from types import EllipsisType
 
-from adapting import parsing
-from dc_utils import errors
+from dc_utils import errors, parsing
 from dc_utils.errors import FeedbackError, SynNotUnique
 from structures import attribute
 from structures.attribute import (
@@ -26,6 +25,7 @@ from structures.errors import (
     StructureNotFoundError,
     SynsAlreadyTakenError,
     TooLongSynError,
+    TooManyAliasesError,
 )
 from structures.list import List
 from structures.task import Task
@@ -210,7 +210,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
         return TaskAdapter(task_s, self)
 
-    def delete_task(self, syn: str) -> None:
+    def delete_task(self, syn: str) -> TaskAdapter:
         task = self.get_task(syn)
 
         try:
@@ -218,29 +218,31 @@ class ListAdapter(BaseStructureAdapter[List]):
         except StructureNotFoundError:
             raise errors.StructureNotFoundViaSyn(syn, Task)
 
-    def edit_task_name(self, syn: str, name: str) -> TaskAdapter:
+        return task
+
+    def edit_task_name(self, syn: str, name: str) -> tuple[TaskAdapter, SlotStr]:
         task = self.get_task(syn)
 
         try:
-            self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
+            new_name = self._o.edit_task_name(self._c, task._o.id, text.RealStr(name))
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
         except InvalidSlotStrError as e:
             raise errors.InvalidSlotStr(e)
 
-        return task
+        return task, new_name
 
     def edit_task_aliases(
         self, syn: str, aliases: str
-    ) -> tuple[TaskAdapter, tuple[text.RealStr, ...]]:
-        real_aliases = tuple(
-            map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))
-        )
-
+    ) -> tuple[TaskAdapter, tuple[SlotStr, ...]]:
         task = self.get_task(syn)
 
         try:
-            self._o.edit_task_aliases(self._c, task._o.id, real_aliases)
+            slot_aliases = self._o.edit_task_aliases(
+                self._c,
+                task._o.id,
+                tuple(map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))),
+            )
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
         except NotUniqueStringError as e:
@@ -250,26 +252,23 @@ class ListAdapter(BaseStructureAdapter[List]):
         except InvalidSlotStrError as e:
             raise errors.InvalidSlotStr(e)
 
-        return (task, real_aliases)
+        return (task, slot_aliases)
 
     def edit_task_attribute_value_mapping(
         self, syn: str, task_attribute_value_mapping: str | None
     ) -> TaskAdapter:
         task = self.get_task(syn)
-
-        try:
-            _ = self._o.edit_task_attribute_value_mapping(
-                self._c,
-                task._o.id,
-                self._parse_attribute_value_mapping(
-                    TaskAttribute, task_attribute_value_mapping
-                )[0],
-            )
-        except StructureNotFoundError as e:
-            if e.structure_type is Task:
-                raise errors.StructureNotFoundViaSyn(syn, e.structure_type)
-            else:
-                assert False
+        tavm = self._parse_attribute_value_mapping(
+            TaskAttribute, task_attribute_value_mapping
+        )[0]
+        
+        # Yes really, no exception should be raised by this (I can't believe it either)
+        _ = self._o.edit_task_attribute_value_mapping(
+            self._c,
+            task._o.id,
+            tavm,
+        )
+        
 
         return task  # we dont return the mapping bec of issues with hashing attribute adapter
 
@@ -397,12 +396,21 @@ class ListAdapter(BaseStructureAdapter[List]):
                 max_slots,
                 collection=real_collection,
             )
-        except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
-        except StructureCountLimitReachedError as e:
-            raise errors.StructureCountLimitReached(e)
         except NotUniqueStringError as e:
             raise errors.SynNotUnique(e)
+        except StructureCountLimitReachedError as e:
+            raise errors.StructureCountLimitReached(e)
+        
+        # _validate_attribute_syns
+        except TooManyAliasesError as e:
+            raise errors.TooManyAliases(e)
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTaken(e)
+        except TooLongSynError as e:
+            raise errors.TooLongSynError(e, True)
+        
+        except SynsAlreadyTakenError as e:
+            raise errors.SynsAlreadyTaken(e)
         except AttributeValueSlotCountOutOfRangeError as e:
             raise errors.AttributeValueSlotCountOutOfRange(e)
         except CollectionEntrySynNotUniqueError as e:
@@ -413,7 +421,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         if isinstance(attr_s, TaskAttribute):
             return TaskAttributeAdapter(attr_s, self)
 
-        return UserAttributeAdapter(attr_s, self)  # type: ignore
+        return UserAttributeAdapter(attr_s, self)
 
     def delete_attribute(
         self, type: type[TaskAttribute | UserAttribute], syn: str
@@ -431,28 +439,24 @@ class ListAdapter(BaseStructureAdapter[List]):
         community_user: CommunityUserAdapter,
         user_attribute_value_mapping: str | None = None,
     ) -> TaskAdapter:
-        task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
+        task_o = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
+
+        uavm = self._parse_attribute_value_mapping(
+            UserAttribute, user_attribute_value_mapping
+        )[0]
 
         try:
             self._o.give_task_to_community_user(
-                self._c,
-                task_s.id,
-                community_user._o.id,
-                self._parse_attribute_value_mapping(
-                    UserAttribute, user_attribute_value_mapping
-                )[0],
+                self._c, task_o.id, community_user._o.id, uavm
             )
-        except AttributeValueSlotCountOutOfRangeError as e:
-            raise errors.AttributeValueSlotCountOutOfRange(e)
         except CollectionEntryNotFoundError as e:
             raise errors.CollectionEntryNotFound(e)
-        except CommunityUserAlreadyHasTaskError:
-            raise FeedbackError(
-                "Task Already Given",
-                t"The user {community_user:,} has already been given the task {task_s.name:,}!",
-            )
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.AttributeValueSlotCountOutOfRange(e)
+        except CommunityUserAlreadyHasTaskError as e:
+            raise errors.CommunityUserAlreadyHasTask(community_user._o, task_o)
 
-        return TaskAdapter(task_s, self)
+        return TaskAdapter(task_o, self)
 
     def remove_task_from_user(
         self, syn: str, community_user: CommunityUserAdapter

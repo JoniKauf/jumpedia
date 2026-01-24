@@ -630,6 +630,9 @@ class List(BaseStructure, naming=("list", "lists")):
 
         attrs = self.get_attributes(c)
 
+        if len(attrs) >= (limit := self.community.limits["list_attribute_count_max"]):
+            raise errors.StructureCountLimitReachedError(limit, BaseAttribute)
+
         self._validate_attribute_syns(c, type, norm_name, frozenset(norm_aliases))
 
         self._validate_min_max_slots(min_slots, max_slots)
@@ -1400,7 +1403,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
         assert execute_data.affected_row_count == 1
 
-    def edit_task_name(self, c: orm.Cursor, id: int, name: text.RealStr) -> None:
+    def edit_task_name(self, c: orm.Cursor, id: int, name: text.RealStr) -> SlotStr:
         tup = self.get_task_by_id(c, id)
 
         if tup is None:
@@ -1444,9 +1447,11 @@ class List(BaseStructure, naming=("list", "lists")):
 
         assert execute_data.affected_row_count in (0, 1)
 
+        return slot_name
+
     def edit_task_aliases(
         self, c: orm.Cursor, id: int, aliases: t.Sequence[RealStr]
-    ) -> None:
+    ) -> tuple[SlotStr, ...]:
         real_aliases, norm_aliases = utils_.handled_unique_reals_and_norms(aliases)
         del aliases
 
@@ -1493,6 +1498,8 @@ class List(BaseStructure, naming=("list", "lists")):
         )
 
         self._insert_task_aliases(c, task.id, slot_aliases, norm_aliases)
+
+        return slot_aliases
 
     def edit_task_attribute_value_mapping(
         self,

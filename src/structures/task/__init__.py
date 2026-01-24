@@ -93,9 +93,7 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
             )
         )
 
-        id_to_task_attr = {
-            attr.id: attr for attr in self.list.get_attributes(c, type=TaskAttribute)
-        }
+        task_attrs = self.list.get_attributes(c, type=TaskAttribute)
 
         rows = c.fetch_all(
             db.TaskAttributeValue.select(
@@ -113,8 +111,14 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
         task_mapping: dict[TaskAttribute, tuple[SlotStr, ...]] = {}
 
         # Sorted indices above, so just iterate
-        for k, g in itertools.groupby(rows, lambda r: r.attribute_id):
-            task_mapping[id_to_task_attr[k]] = tuple(row.slot_slot for row in g)
+        task_attr_id_to_value_row = {
+            k: tuple(g) for k, g in itertools.groupby(rows, lambda r: r.attribute_id)
+        }
+
+        for attr in task_attrs:
+            task_mapping[attr] = tuple(
+                row.slot_slot for row in task_attr_id_to_value_row.get(attr.id, ())
+            )
 
         if community_user_id is None:
             return AttributeValueMapping(

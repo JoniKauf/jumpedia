@@ -1,8 +1,8 @@
 import re
 import typing as t
 
-from dc_utils.rank import CommunityRank, JumpediaRank
 from utils import orm
+from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 
@@ -63,4 +63,4 @@ class CommunityUser(BaseStructure, naming=("user", "users")):
         assert execute_data.affected_row_count <= 1
 
         if execute_data.affected_row_count < 1:
-            raise errors.StructureNotFoundError(id, CommunityUser)
+            raise errors.StructureNotFoundError(id or -1, CommunityUser)

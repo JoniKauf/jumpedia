@@ -1,7 +1,7 @@
 import typing as t
 from functools import cached_property
 
-from adapting._user import CommunityUserAdapter
+from adapters._user import CommunityUserAdapter
 from structures.attribute.slot_str import SlotStr
 from structures.task import Task
 from structures.task.attribute_value_mapping import (

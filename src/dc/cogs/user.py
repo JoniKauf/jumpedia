@@ -5,12 +5,11 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-import dc_utils
-from adapting._community import CommunityAdapter
-from adapting._user import UserAdapter
-from adapting.interaction import InteractionAdapter
+from adapters._community import CommunityAdapter
+from adapters._user import UserAdapter
+from adapters.interaction import InteractionAdapter
 from dc_utils import command, message, shortcuts
-from dc_utils.rank import CommunityRank, JumpediaRank, ServerRank
+from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 
 class _UserRow(t.NamedTuple):

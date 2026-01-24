@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from string.templatelib import Template
 
+from dc_utils import layouts
 from structures import BaseStructure
 from utils import orm
 
@@ -54,10 +55,5 @@ class BaseStructureAdapter[T: BaseStructure](BaseAdapter[T]):
     def __str__(self) -> str:
         return self._o.name
 
-    def mention(self) -> Template:
-        return type(self).do_mention(self._o)
-
-    @classmethod
-    def do_mention(cls, structure: BaseStructure, title: bool = False) -> Template:
-        casing = str.title if title else str.lower
-        return t"{casing(type(structure).type_name):p} {structure.name:,}"
+    def mention(self, title: bool = False) -> Template:
+        return layouts.mention(self._o, title=title)

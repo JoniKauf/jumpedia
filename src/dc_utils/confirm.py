@@ -5,8 +5,8 @@ from types import CoroutineType
 
 import discord as dc
 
-from adapting.interaction import InteractionAdapter
-from dc_utils import errors, message, shortcuts
+from adapters.interaction import InteractionAdapter
+from dc_utils import errors, layouts, message, shortcuts
 from dc_utils.errors import FeedbackError
 from structures import BaseStructure
 
@@ -84,12 +84,11 @@ async def confirm_nuke(
     CONFIG = ConfirmConfig("💣", "⚙️", "❌", 5, 30)
 
     msg = await ia.dc.followup.send(
-        message.layout(
+        layouts.warning(
             f"Nuke {type(structure).type_name.title()}?",
             t"Are you sure you want to PERMANENTLY delete the {type(structure).type_name.lower()} {structure:,}?",
             additional=t"This will also delete all associated data (including user data) from Jumpedia FOREVER!",
             paragraphs=get_confirm_paragraphs(CONFIG),
-            message_status=message.MessageStatus.WARNING,
         ),
         wait=True,
     )
@@ -99,10 +98,4 @@ async def confirm_nuke(
 
     nuke()
 
-    return msg.edit(
-        content=message.layout(
-            f"{type(structure).type_name.title()} Nuked",
-            t"The {type(structure).type_name.lower()} has successfully been deleted!",
-            message_status=message.MessageStatus.SUCCESS,
-        )
-    )
+    return msg.edit(content=layouts.structure_nuked(structure))

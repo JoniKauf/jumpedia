@@ -1,4 +1,3 @@
-import functools
 import typing as t
 
 from utils import text

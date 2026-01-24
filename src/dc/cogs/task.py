@@ -7,10 +7,9 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapting import parsing
-from adapting.interaction import InteractionAdapter
-from dc_utils import command, layouts, message, predicate, shortcuts
-from dc_utils.rank import CommunityRank
+from adapters import BaseStructureAdapter
+from adapters.interaction import InteractionAdapter
+from dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute
 from structures.list import Kind
 from structures.task import Task
@@ -18,6 +17,7 @@ from structures.task.attribute_value_mapping import (
     AttributeValueMapping,
     UserAttributeValueMapping,
 )
+from utils.rank import CommunityRank
 from utils.text import NormStr, RealStr
 
 
@@ -259,37 +259,22 @@ class TaskCog(cmds.GroupCog, group_name="task"):
 
         task = list_obj.create_task(name, aliases, task_attribute_value_mapping)
 
-        return ia.dc.followup.send(
-            message.layout(
-                "Task Created",
-                t"The task {task.name:,} has successfully been created!",
-                message.MessageStatus.SUCCESS,
-            )
-        )
+        return ia.dc.followup.send(layouts.structure_created(task._o))
 
-    task_edit_group = acmds.Group(name="edit", description="Edit task data.")
+    task_edit_group = group.create_edit_group(CommunityRank.MODERATOR)
 
     @task_edit_group.command(name="name")
-    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     @command.adapt()
     async def edit_name(
         self, ia: InteractionAdapter, task: str, new_name: str, list: str | None = None
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-        old_task = list_obj.edit_task_name(task, new_name)
+        old_task, new_name = list_obj.edit_task_name(task, new_name)
 
-        return ia.dc.followup.send(
-            layouts.success(
-                "Task Name Edited",
-                t"The name of the "
-                + old_task.mention()
-                + t" has successfully been changed to {RealStr(new_name):,}!",
-            )
-        )
+        return ia.dc.followup.send(layouts.structure_name_edited(old_task._o, new_name))
 
     @task_edit_group.command(name="aliases")
-    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     @command.adapt()
     async def edit_aliases(
         self,
@@ -300,19 +285,13 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-        old_task, real_aliases = list_obj.edit_task_aliases(name, new_aliases)
+        old_task, slot_aliases = list_obj.edit_task_aliases(name, new_aliases)
 
         return ia.dc.followup.send(
-            layouts.success(
-                "Task Aliases Edited",
-                t"The aliases of the "
-                + old_task.mention()
-                + t" have successfully been changed to {real_aliases:,}!",
-            )
+            layouts.structure_aliases_edited(old_task._o, slot_aliases)
         )
 
     @task_edit_group.command(name="task_attribute_value_mapping")
-    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     @command.adapt()
     async def edit_task_attribute_value_mapping(
         self,
@@ -332,7 +311,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
                 "Task Attribute Value Mapping Edited",
                 t"The (task) attribute value mapping of the "
                 + old_task.mention()
-                + t" has successfully been changed!",
+                + t" has been changed successfully!",
                 additional=t"Use the {TaskCog.info.qualified_name:,} command to see the new mapping.",
             )
         )
@@ -345,15 +324,9 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-        list_obj.delete_task(task)
+        nuked_task = list_obj.delete_task(task)
 
-        return ia.dc.followup.send(
-            message.layout(
-                "Task Delete",
-                t"The task {task:,} has successfully been deleted!",
-                message.MessageStatus.SUCCESS,
-            )
-        )
+        return ia.dc.followup.send(layouts.structure_nuked(nuked_task._o))
 
     @acmds.command()
     @command.adapt()
@@ -368,6 +341,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         community_user = shortcuts.get_or_create_specified_or_current_community_user(
             ia, user
         )
+
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(
             community_user.community, list
         )
@@ -377,9 +351,13 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         )
 
         return ia.dc.followup.send(
-            layouts.info(
+            layouts.success(
                 "Task Given",
-                t"The task {task_obj.name:,} has successfully been given to {community_user.name:,}!",
+                t"The "
+                + task_obj.mention()
+                + t" has been given to the "
+                + BaseStructureAdapter.mention(community_user)
+                + t" successfully!",
             )
         )
 
@@ -404,7 +382,9 @@ class TaskCog(cmds.GroupCog, group_name="task"):
                 "Task Taken",
                 t"The task "
                 + task_obj.mention()
-                + t" has successfully been taken from {community_user:,}!",
+                + t" has been taken from the "
+                + community_user.mention()
+                + t" successfully!",
             )
         )
 

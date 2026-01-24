@@ -2,7 +2,6 @@ import typing as t
 from functools import cached_property
 
 from dc_utils import errors, message
-from dc_utils.rank import CommunityRank
 from structures.community import Community
 from structures.errors import (
     StructureCountLimitReachedError,
@@ -11,6 +10,7 @@ from structures.errors import (
 )
 from structures.list import List
 from utils import orm, text
+from utils.rank import CommunityRank
 
 from . import BaseStructureAdapter
 from ._list import ListAdapter

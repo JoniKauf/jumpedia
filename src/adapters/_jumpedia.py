@@ -2,7 +2,6 @@ import typing as t
 from functools import cached_property
 
 from dc_utils import errors
-from dc_utils.rank import JumpediaRank
 from structures.community import DEFAULT_COMMUNITY_LIMITS, Community, CommunityLimits
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
@@ -11,6 +10,7 @@ from structures.errors import (
 )
 from structures.jumpedia import Jumpedia
 from utils import orm, text
+from utils.rank import JumpediaRank
 
 from . import BaseStructureAdapter
 from ._community import CommunityAdapter

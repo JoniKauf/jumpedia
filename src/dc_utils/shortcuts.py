@@ -3,20 +3,20 @@ import typing as t
 import discord as dc
 
 from dc_utils import errors
-from dc_utils.rank import CommunityRank, JumpediaRank
+from utils.rank import CommunityRank, JumpediaRank
 
 if t.TYPE_CHECKING:
-    from adapting._community import CommunityAdapter
-    from adapting._jumpedia import JumpediaAdapter
-    from adapting._list import ListAdapter
-    from adapting._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
-    from adapting.interaction import InteractionAdapter
+    from adapters._community import CommunityAdapter
+    from adapters._jumpedia import JumpediaAdapter
+    from adapters._list import ListAdapter
+    from adapters._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
+    from adapters.interaction import InteractionAdapter
 
 
 def _get_jumpedia_and_interaction(
     data: JumpediaAdapter | InteractionAdapter, /
 ) -> tuple[InteractionAdapter, JumpediaAdapter]:
-    from adapting.interaction import InteractionAdapter
+    from adapters.interaction import InteractionAdapter
 
     if isinstance(data, InteractionAdapter):
         return data, data.jumpedia
@@ -37,7 +37,7 @@ def get_current_community(interaction: InteractionAdapter, /) -> CommunityAdapte
 def get_current_community(
     data: JumpediaAdapter | InteractionAdapter, /
 ) -> CommunityAdapter:
-    from adapting._community import CommunityAdapter
+    from adapters._community import CommunityAdapter
 
     interaction, jumpedia = _get_jumpedia_and_interaction(data)
 
@@ -82,8 +82,8 @@ def get_or_create_specified_or_current_jumpedia_user(
     *,
     override_jumpedia_rank: JumpediaRank | None = None,
 ) -> JumpediaUserAdapter:
-    from adapting._jumpedia import JumpediaAdapter
-    from adapting._user import UserAdapter
+    from adapters._jumpedia import JumpediaAdapter
+    from adapters._user import UserAdapter
 
     jumpedia: JumpediaAdapter = (
         data if isinstance(data, JumpediaAdapter) else data.jumpedia
@@ -159,10 +159,10 @@ def get_or_create_specified_or_current_community_user(
     override_jumpedia_rank: JumpediaRank | None = None,
     override_community_rank: CommunityRank | None = None,
 ) -> CommunityUserAdapter:
-    from adapting._community import CommunityAdapter
-    from adapting._jumpedia import JumpediaAdapter
-    from adapting._user import JumpediaUserAdapter
-    from adapting.interaction import InteractionAdapter
+    from adapters._community import CommunityAdapter
+    from adapters._jumpedia import JumpediaAdapter
+    from adapters._user import JumpediaUserAdapter
+    from adapters.interaction import InteractionAdapter
 
     if isinstance(user, JumpediaUserAdapter):
         assert isinstance(data, CommunityAdapter)
@@ -264,7 +264,7 @@ def get_specified_or_ia_user_selected_or_default_list(
     *,
     error: bool = True,
 ) -> ListAdapter | None:
-    from adapting._community import CommunityAdapter
+    from adapters._community import CommunityAdapter
 
     community: CommunityAdapter
 

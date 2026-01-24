@@ -6,12 +6,12 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapting._community import CommunityAdapter
-from adapting.interaction import InteractionAdapter
+from adapters._community import CommunityAdapter
+from adapters.interaction import InteractionAdapter
 from dc_utils import command, confirm, message, predicate, shortcuts
-from dc_utils.rank import CommunityRank, JumpediaRank, ServerRank
 from structures.community import Community
 from utils import text
+from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 
 class _CommunityRow(t.NamedTuple):

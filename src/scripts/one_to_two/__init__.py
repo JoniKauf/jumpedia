@@ -6,16 +6,16 @@ import typing as t
 
 import mariadb
 
-from adapting import interaction
-from adapting.interaction import _get_or_create_the_one_piece
+from adapters import interaction
+from adapters.interaction import _get_or_create_the_one_piece
 from dc_utils import connect
-from dc_utils.rank import CommunityRank, JumpediaRank
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits
 from structures.list import Kind, List
 from structures.task import Task
 from utils import numbers, orm, secret, text
+from utils.rank import CommunityRank, JumpediaRank
 from utils.text import NormStr, RealStr
 
 DATA_PATH = os.path.join(os.path.abspath(__file__.removesuffix("__init__.py")), "data")

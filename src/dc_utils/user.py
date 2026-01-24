@@ -3,13 +3,13 @@ import typing as t
 
 import discord as dc
 
-from dc_utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
+from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 from . import errors, shortcuts
 
 if t.TYPE_CHECKING:
-    from adapting._jumpedia import JumpediaAdapter
-    from adapting._user import JumpediaUserAdapter
+    from adapters._jumpedia import JumpediaAdapter
+    from adapters._user import JumpediaUserAdapter
 
 MAX_NAME_LENGTH: t.Final[int] = 32
 
@@ -54,7 +54,7 @@ def identifier_to_id(identifier: str | int) -> int:
 def validate_allowed(
     interaction: dc.Interaction, rank_required: AnyRankT, *ranks_required: AnyRankT
 ) -> None:
-    from adapting.interaction import InteractionAdapter
+    from adapters.interaction import InteractionAdapter
 
     server_rank: ServerRank | None = None
     jumpedia_rank: JumpediaRank | None = None

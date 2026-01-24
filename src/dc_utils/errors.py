@@ -4,13 +4,14 @@ from typing import Any, Mapping, Sequence
 
 from discord.app_commands import CheckFailure
 
-from adapting import BaseStructureAdapter
-from adapting._user import CommunityUserAdapter
-from dc_utils.rank import AnyRankT
+from adapters import BaseStructureAdapter
+from adapters._user import CommunityUserAdapter
+from dc_utils import layouts
 from structures import BaseStructure, BaseStructureWithAliases, errors
 from structures.task import Task
 from structures.user import CommunityUser
 from utils import text
+from utils.rank import AnyRankT
 
 from . import message
 
@@ -271,7 +272,9 @@ class NotUniqueStructureInMapping(FeedbackError):
     ):
         super().__init__(
             f"{type(structure).type_name.title()} Not Unique",
-            t"The {type(structure).type_name} {structure:,} has been referenced multiple times as a key in the same mapping, but keys must be unique!",
+            t"The "
+            + layouts.mention(structure)
+            + t" has been referenced multiple times as a key in the same mapping, but keys must be unique!",
         )
 
 
@@ -289,7 +292,7 @@ class SameName(FeedbackError):
         super().__init__(
             "Already Specified Name",
             t"The "
-            + BaseStructureAdapter.do_mention(structure)
+            + layouts.mention(structure)
             + t" already has the same name as the one specified, therefore nothing changed!",
             explicit_message_status=message.MessageStatus.WARNING,
         )
@@ -299,17 +302,21 @@ class TaskNotGivenYet(FeedbackError):
     def __init__(self, community_user: CommunityUser, task: Task) -> None:
         super().__init__(
             "Task Not Given Yet",
-            t"The user {community_user:,} has not been given the task {task.name:,} yet, therefore it cannot be taken!",
+            t"The + "
+            + layouts.mention(community_user)
+            + t" has not been given the "
+            + layouts.mention(task)
+            + t" yet, therefore it cannot be taken!",
         )
 
 
 class TooLongSynError(FeedbackError):
-    def __init__(self, e: errors.TooLongSynError, is_name: bool) -> None:
+    def __init__(self, e: errors.TooLongSynError, is_name: bool, is_aliases: bool) -> None:
         typ = "name" if is_name else "alias"
 
         super().__init__(
             f"{e.syn.title()} Too Long",
-            t"The {typ} {e.syn:,} is too long for !",
+            t"The {typ} {e.syn:,} is too long for !",  # TODO
             additional=t"It is {len(e.syn):,} characters long, but the maximum allowed is {e.limit:,}.",
         )
 
@@ -322,4 +329,16 @@ class InvalidSlotStr(FeedbackError):
             additional=t"The string must "
             + message.slot_type_to_must(e.slot_type)
             + t".",
+        )
+
+
+class CommunityUserAlreadyHasTask(FeedbackError):
+    def __init__(self, community_user: CommunityUser, task: Task) -> None:
+        super().__init__(
+            "Task Already Given",
+            t"The "
+            + layouts.mention(community_user)
+            + t" has already been given the "
+            + layouts.mention(task)
+            + t"!",
         )

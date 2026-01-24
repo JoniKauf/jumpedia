@@ -5,13 +5,13 @@ from types import CoroutineType
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapting.interaction import InteractionAdapter
+from adapters.interaction import InteractionAdapter
 from dc_utils import command, layouts, message, modal, predicate, shortcuts
-from dc_utils.rank import CommunityRank
 from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
 from utils import itertools2
+from utils.rank import CommunityRank
 
 
 class _ListRow(t.NamedTuple):

@@ -3,7 +3,7 @@ from types import CoroutineType
 
 import discord as dc
 
-from dc_utils.rank import AnyRankT
+from utils.rank import AnyRankT
 
 from . import user
 

@@ -1,10 +1,9 @@
 import typing as t
 from string.templatelib import Template
-from types import CoroutineType
 
-from adapting import BaseStructureAdapter
 from structures import BaseStructure
-from utils import gist
+from structures.attribute.slot_str import SlotStr
+from utils import text
 
 from . import message
 
@@ -49,9 +48,7 @@ def _urls_additional(url: str, /, *urls: str) -> Template:
 def structure_info(structure: BaseStructure, url: str, *urls: str) -> str:
     return info(
         f"{type(structure).type_name.title()} Info",
-        t"Here is the info for the "
-        + BaseStructureAdapter.do_mention(structure)
-        + t":",
+        t"Here is the info for the " + mention(structure) + t":",
         additional=_urls_additional(url, *urls),
     )
 
@@ -91,3 +88,45 @@ def structure_browsed(
         t"A total of **{row_count}** {structure_type.type_name_plural + ' were' if row_count > 1 else structure_type.type_name + ' was'} found!",
         additional=_urls_additional(*urls),
     )
+
+
+def structure_created(created_structure: BaseStructure) -> str:
+    return success(
+        f"{type(created_structure).type_name.title()} Created",
+        t"The " + mention(created_structure) + t" has been created successfully!",
+    )
+
+
+def structure_nuked(nuked_structure: BaseStructure) -> str:
+    return success(
+        f"{type(nuked_structure).type_name.title()} Nuked",
+        t"The " + mention(nuked_structure) + t" has been nuked successfully!",
+    )
+
+
+def structure_name_edited(
+    edited_structure: BaseStructure, new_name: text.RealStr | SlotStr
+) -> str:
+    return success(
+        f"{type(edited_structure).type_name.title()} Name Edited",
+        t"The name of the "
+        + mention(edited_structure)
+        + t" has been changed to {new_name:,} successfully!",
+    )
+
+
+def structure_aliases_edited(
+    edited_structure: BaseStructure,
+    new_aliases: tuple[text.RealStr, ...] | tuple[SlotStr, ...],
+) -> str:
+    return success(
+        f"{type(edited_structure).type_name.title()} Aliases Edited",
+        t"The aliases of the "
+        + mention(edited_structure)
+        + t" have been changed to {new_aliases:,} successfully!",
+    )
+
+
+def mention(structure: BaseStructure, title: bool = False) -> Template:
+    casing = str.title if title else str.lower
+    return t"{casing(type(structure).type_name):p} {structure.name:,}"
