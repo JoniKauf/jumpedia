@@ -1,11 +1,10 @@
-import time
 from dataclasses import field
 from functools import cached_property
 
 import discord as dc
 import mariadb
 
-from dc_utils import connect, errors
+from dc_utils import connect
 from structures import db
 from structures.jumpedia import Jumpedia
 from utils import orm, secret

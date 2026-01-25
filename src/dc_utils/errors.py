@@ -1,16 +1,16 @@
 import typing as t
+from collections import namedtuple
+from operator import add
 from string.templatelib import Template
 from typing import Any, Mapping, Sequence
 
 from discord.app_commands import CheckFailure
 
-from adapters import BaseStructureAdapter
-from adapters._user import CommunityUserAdapter
 from dc_utils import layouts
 from structures import BaseStructure, BaseStructureWithAliases, errors
 from structures.task import Task
 from structures.user import CommunityUser
-from utils import text
+from utils import gist, text
 from utils.rank import AnyRankT
 
 from . import message
@@ -179,12 +179,12 @@ class StructureCountLimitReached(FeedbackError):
     def __init__(self, e: errors.StructureCountLimitReachedError) -> None:
         super().__init__(
             f"{e.structure_type.type_name.title()} Count Limit Reached",
-            t"The limit of the total amount of {e.structure_type.type_name.lower()}s in this community has been reached, therefore you cannot add any more!",
+            t"The limit of the total amount of {e.structure_type.type_name_plural} in this community has been reached, therefore you cannot add any more!",
         )
 
 
 class SynNotUnique(FeedbackError):
-    def __init__(self, e: errors.NotUniqueStringError) -> None:
+    def __init__(self, e: errors.SynNotUniqueError) -> None:
         super().__init__(
             "Name Or Aliases Not Unique",
             t"The name or alias {e.given:,} has been specified multiple times, but they must be unique!",
@@ -311,12 +311,10 @@ class TaskNotGivenYet(FeedbackError):
 
 
 class TooLongSynError(FeedbackError):
-    def __init__(self, e: errors.TooLongSynError, is_name: bool, is_aliases: bool) -> None:
-        typ = "name" if is_name else "alias"
-
+    def __init__(self, e: errors.TooLongSynError) -> None:
         super().__init__(
             f"{e.syn.title()} Too Long",
-            t"The {typ} {e.syn:,} is too long for !",  # TODO
+            t"The {'name' if e.is_name else 'alias'} {text.shorten(e.syn):,} is too long!",
             additional=t"It is {len(e.syn):,} characters long, but the maximum allowed is {e.limit:,}.",
         )
 
@@ -342,3 +340,232 @@ class CommunityUserAlreadyHasTask(FeedbackError):
             + layouts.mention(task)
             + t"!",
         )
+
+
+class CollectionEntryLimitReached(FeedbackError):
+    def __init__(self, e: errors.CollectionEntryLimitReachedError) -> None:
+        super().__init__(
+            f"Collection Entry Count Limit Reached",
+            t"The limit of the total amount of collection entries has been surpassed!",
+            additional=t"The specified collection has {e.count:,} entries, but the limit in this community is {e.limit:,}.",
+        )
+
+
+class CollectionEntryAliasLimitReached(FeedbackError):
+    def __init__(self, e: errors.CollectionEntryAliasLimitReachedError) -> None:
+        super().__init__(
+            f"Collection Entry Alias Count Limit Reached",
+            t"The limit of the total amount of collection entry aliases has been surpassed!",
+            additional=t"The collection entry {e.collection_value:,} has {e.count:,} aliases, but the limit in this community is {e.limit:,}.",
+        )
+
+
+class NotAllTasksFitMinAndMaxSlotCountChanges(FeedbackError):
+    def __init__(self, e: errors.NotAllTasksFitMinAndMaxSlotCountChangesError) -> None:
+        strings = gist.table_to_gist_strings(
+            tuple((task.name, v, str(len(v))) for task, v in e.wrong.items()),
+            (
+                "Task Name",
+                f"Its Unfitting Value For {e.attribute.name!r}",
+                "Value Slot Count",
+            ),
+        )
+
+        assert strings
+
+        urls = tuple(
+            gist.create_gist(
+                {f"Invalid Data #{str(i).zfill(len(str(len(strings))))}.md": file}
+            )
+            for i, file in enumerate(strings, 1)
+        )
+
+        assert urls
+
+        super().__init__(
+            f"Not All Tasks Fit Min And Max Slot Count",
+            t"Not every value of the "
+            + layouts.mention(e.attribute)
+            + t" for all tasks in the "
+            + layouts.mention(e.attribute.list)
+            + t" match the new min and max slots criteria!",
+            additional=t"In other words, these {Task.type_name_plural} do not have a value for the specified {type(e.attribute).type_name} with between {e.min:,} to {e.max:,} (inclusive) slots.",
+            paragraphs=(
+                t"Listed below are all values that don't fit:\n"
+                + layouts._urls_additional(*urls),
+            ),
+            msg_kwargs={"suppress_embeds": True},
+        )
+
+
+class Unhandled(FeedbackError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Unhandled Error",
+            t"An unhandled error has occurred!",
+            additional=t"This is a bug. It will be logged internally and fixed soon.",  # touch some grass
+        )
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.SynNotUniqueError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.StructureCountLimitReachedError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.TooManyAliasesError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.TooLongSynError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.SynsAlreadyTakenError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.InvalidSlotStrError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.CollectionEntryLimitReachedError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.CollectionEntryAliasLimitReachedError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.CollectionEntrySynNotUniqueError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.AttributeValueSlotCountOutOfRangeError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.CollectionEntryNotFoundError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.CommunityUserAlreadyHasTaskError,
+    *,
+    community_user: CommunityUser,
+    task: Task,
+    **kwargs: t.Any,
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.NotAllTasksFitMinAndMaxSlotCountChangesError,
+    *,
+    community_user: CommunityUser,
+    task: Task,
+    **kwargs: t.Any,
+) -> FeedbackError:
+    pass
+
+
+@t.overload
+def create_feedback_from_structure_error(
+    e: errors.NotAllTasksFitMinAndMaxSlotCountChangesError, **kwargs: t.Any
+) -> FeedbackError:
+    pass
+
+
+def create_feedback_from_structure_error[T: errors.BaseStructureError](
+    e: T,
+    *,
+    community_user: CommunityUser | None = None,
+    task: Task | None = None,
+    **kwargs: t.Any,
+) -> FeedbackError | T:
+    if isinstance(e, errors.SynNotUniqueError):
+        return SynNotUnique(e)
+    if isinstance(e, errors.StructureCountLimitReachedError):
+        return StructureCountLimitReached(e)
+
+    # _validate_attribute_syns
+    if isinstance(e, errors.TooManyAliasesError):
+        return TooManyAliases(e)
+    if isinstance(e, errors.TooLongSynError):
+        return TooLongSynError(e)
+    if isinstance(e, errors.SynsAlreadyTakenError):
+        return SynsAlreadyTaken(e)
+
+    if isinstance(e, errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError):
+        return AttributeMinSlotsOrMaxSlotsOutOfRange(e)
+
+    # set_collection
+    if isinstance(e, errors.InvalidSlotStrError):
+        return InvalidSlotStr(e)
+    if isinstance(e, errors.CollectionEntryLimitReachedError):
+        return CollectionEntryLimitReached(e)
+    if isinstance(e, errors.CollectionEntryAliasLimitReachedError):
+        return CollectionEntryAliasLimitReached(e)
+    if isinstance(e, errors.CollectionEntrySynNotUniqueError):
+        return CollectionEntrySynNotUnique(e)
+
+    if isinstance(e, errors.AttributeValueSlotCountOutOfRangeError):
+        return AttributeValueSlotCountOutOfRange(e)
+
+    if isinstance(e, errors.CollectionEntryNotFoundError):
+        return CollectionEntryNotFound(e)
+
+    if isinstance(e, errors.CommunityUserAlreadyHasTaskError):
+        assert community_user is not None
+        assert task is not None
+
+        return CommunityUserAlreadyHasTask(community_user, task)
+
+    if isinstance(e, errors.NotAllTasksFitMinAndMaxSlotCountChangesError):
+        return NotAllTasksFitMinAndMaxSlotCountChanges(e)
+
+    return e

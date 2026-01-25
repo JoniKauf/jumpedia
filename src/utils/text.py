@@ -74,11 +74,11 @@ class DoubleBacktickError(ValueError):
 
 class RealStr(str):
     def __new__(cls, s: str, *, check: bool = True) -> t.Self:
-        if not check:
-            return super().__new__(cls, s)
-
         if isinstance(s, cls):
             return s
+
+        if not check:
+            return super().__new__(cls, s)
 
         s = replace_whitespace_groups(s, " ", True)
         s = replace_bad_chars(s)

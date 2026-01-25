@@ -8,7 +8,7 @@ from discord import app_commands as acmds
 
 from adapters._attribute import AnyAttributeAdapterT
 from adapters.interaction import InteractionAdapter
-from dc_utils import command, confirm, layouts, message, predicate, shortcuts
+from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
     BaseAttribute,
@@ -107,11 +107,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             type.value, name, slot_type.value, max_slots, aliases, collection
         )
 
-        return ia.dc.followup.send(
-            layouts.structure_created(
-                attr._o
-            )
-        )
+        return ia.dc.followup.send(layouts.structure_created(attr._o))
 
     @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
@@ -133,10 +129,11 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             lambda: list_obj.delete_attribute(type.value, attr.name),
         )
 
-    attribute_edit_group = acmds.Group(name="edit", description="Edit attribute data.")
+    attribute_edit_group = group.create_edit_group(
+        min_required_rank=CommunityRank.ADMINISTRATOR
+    )
 
     @attribute_edit_group.command(name="name")
-    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     @command.adapt()
     async def edit_name(
         self,
@@ -152,12 +149,51 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             type.value, attribute, new_name
         )
 
+        return ia.dc.followup.send(layouts.structure_name_edited(old_attr._o, new_name))
+
+    @attribute_edit_group.command(name="aliases")
+    @command.adapt()
+    async def edit_aliases(
+        self,
+        ia: InteractionAdapter,
+        type: AnyAttributeEnum,
+        attribute: str,
+        new_aliases: str,
+        list: str | None = None,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        old_attr, aliases = list_obj.edit_attribute_aliases(
+            type.value, attribute, new_aliases
+        )
+
+        return ia.dc.followup.send(
+            layouts.structure_aliases_edited(old_attr._o, aliases)
+        )
+
+    @attribute_edit_group.command(name="min_and_max_slot_count")
+    @command.adapt()
+    async def edit_min_and_max_slot_count(
+        self,
+        ia: InteractionAdapter,
+        type: NonStaticAttributeEnum,
+        attribute: str,
+        min_slots: int,
+        max_slots: int,
+        list: str | None = None,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        old_attr = list_obj.edit_attribute_min_and_max_slots(
+            type.value, attribute, min_slots, max_slots
+        )
+
         return ia.dc.followup.send(
             layouts.success(
-                "Attribute Name Edited",
-                t"The name of the "
-                + old_attr.mention()
-                + t" has successfully been changed to {new_name:,}!",
+                f"{builtins.type(old_attr._o).type_name.title()} Min And Max Slot Count Edited",
+                t"The min and max slot count of the "
+                + layouts.mention(old_attr._o)
+                + t" have been changed to {min_slots:,} and {max_slots:,} successfully!",
             )
         )
 

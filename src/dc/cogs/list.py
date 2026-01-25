@@ -6,7 +6,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
-from dc_utils import command, layouts, message, modal, predicate, shortcuts
+from dc_utils import command, confirm, layouts, message, predicate, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
@@ -92,13 +92,12 @@ class ListCog(cmds.GroupCog, group_name="list"):
     async def nuke(
         self, ia: InteractionAdapter, list: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_s = shortcuts.get_current_community(ia).get_list(list)._o
+        list_o = shortcuts.get_current_community(ia).get_list(list)._o
 
-        return modal.delete_structure_confirmation(
-            ia.dc,
-            List,
-            list_s.name,
-            lambda _: list_s.community.delete_list(ia._c, list_s.id),
+        return await confirm.confirm_nuke(
+            ia,
+            list_o,
+            lambda: list_o.community.delete_list(ia._c, list_o.id)
         )
 
 

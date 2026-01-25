@@ -3,7 +3,6 @@ from functools import cached_property
 from types import EllipsisType
 
 from dc_utils import errors, parsing
-from dc_utils.errors import FeedbackError, SynNotUnique
 from structures import attribute
 from structures.attribute import (
     AnyAttributeT,
@@ -15,14 +14,17 @@ from structures.attribute.slot_str import SlotStr, SlotTypeT
 from structures.errors import (
     AttributeMinSlotsOrMaxSlotsOutOfRangeError,
     AttributeValueSlotCountOutOfRangeError,
+    CollectionEntryAliasLimitReachedError,
+    CollectionEntryLimitReachedError,
     CollectionEntryNotFoundError,
     CollectionEntrySynNotUniqueError,
     CommunityUserAlreadyHasTaskError,
     CommunityUserDoesNotHaveTaskError,
     InvalidSlotStrError,
-    NotUniqueStringError,
+    NotAllTasksFitMinAndMaxSlotCountChangesError,
     StructureCountLimitReachedError,
     StructureNotFoundError,
+    SynNotUniqueError,
     SynsAlreadyTakenError,
     TooLongSynError,
     TooManyAliasesError,
@@ -197,16 +199,14 @@ class ListAdapter(BaseStructureAdapter[List]):
                 real_aliases,
                 avms,
             )
-        except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
-        except StructureCountLimitReachedError as e:
-            raise errors.StructureCountLimitReached(e)
-        except NotUniqueStringError as e:
-            raise errors.SynNotUnique(e)
-        except AttributeValueSlotCountOutOfRangeError as e:
-            raise errors.AttributeValueSlotCountOutOfRange(e)
-        except CollectionEntryNotFoundError as e:
-            raise errors.CollectionEntryNotFound(e)
+        except (
+            SynsAlreadyTakenError,
+            StructureCountLimitReachedError,
+            SynNotUniqueError,
+            AttributeValueSlotCountOutOfRangeError,
+            CollectionEntryNotFoundError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(e)
 
         return TaskAdapter(task_s, self)
 
@@ -243,14 +243,13 @@ class ListAdapter(BaseStructureAdapter[List]):
                 task._o.id,
                 tuple(map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))),
             )
-        except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
-        except NotUniqueStringError as e:
-            raise errors.SynNotUnique(e)
-        except AttributeValueSlotCountOutOfRangeError as e:
-            raise errors.AttributeValueSlotCountOutOfRange(e)
-        except InvalidSlotStrError as e:
-            raise errors.InvalidSlotStr(e)
+        except (
+            SynsAlreadyTakenError,
+            SynNotUniqueError,
+            AttributeValueSlotCountOutOfRangeError,
+            InvalidSlotStrError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(e)
 
         return (task, slot_aliases)
 
@@ -261,16 +260,56 @@ class ListAdapter(BaseStructureAdapter[List]):
         tavm = self._parse_attribute_value_mapping(
             TaskAttribute, task_attribute_value_mapping
         )[0]
-        
+
         # Yes really, no exception should be raised by this (I can't believe it either)
         _ = self._o.edit_task_attribute_value_mapping(
             self._c,
             task._o.id,
             tavm,
         )
-        
 
         return task  # we dont return the mapping bec of issues with hashing attribute adapter
+
+    def give_task_to_user(
+        self,
+        syn: str,
+        community_user: CommunityUserAdapter,
+        user_attribute_value_mapping: str | None = None,
+    ) -> TaskAdapter:
+        task_o = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
+
+        uavm = self._parse_attribute_value_mapping(
+            UserAttribute, user_attribute_value_mapping
+        )[0]
+
+        try:
+            self._o.give_task_to_community_user(
+                self._c, task_o.id, community_user._o.id, uavm
+            )
+        except (
+            CollectionEntryNotFoundError,
+            AttributeValueSlotCountOutOfRangeError,
+            CommunityUserAlreadyHasTaskError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(
+                e, community_user=community_user._o, task=task_o
+            )
+
+        return TaskAdapter(task_o, self)
+
+    def remove_task_from_user(
+        self, syn: str, community_user: CommunityUserAdapter
+    ) -> TaskAdapter:
+        task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
+
+        try:
+            self._o.remove_task_from_community_user(
+                self._c, task_s.id, community_user._o.id
+            )
+        except CommunityUserDoesNotHaveTaskError:
+            raise errors.TaskNotGivenYet(community_user._o, task_s)
+
+        return TaskAdapter(task_s, self)
 
     # --- Attribute ---
 
@@ -396,27 +435,19 @@ class ListAdapter(BaseStructureAdapter[List]):
                 max_slots,
                 collection=real_collection,
             )
-        except NotUniqueStringError as e:
-            raise errors.SynNotUnique(e)
-        except StructureCountLimitReachedError as e:
-            raise errors.StructureCountLimitReached(e)
-        
-        # _validate_attribute_syns
-        except TooManyAliasesError as e:
-            raise errors.TooManyAliases(e)
-        except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
-        except TooLongSynError as e:
-            raise errors.TooLongSynError(e, True)
-        
-        except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
-        except AttributeValueSlotCountOutOfRangeError as e:
-            raise errors.AttributeValueSlotCountOutOfRange(e)
-        except CollectionEntrySynNotUniqueError as e:
-            raise errors.CollectionEntrySynNotUnique(e)
-        except AttributeMinSlotsOrMaxSlotsOutOfRangeError as e:
-            raise errors.AttributeMinSlotsOrMaxSlotsOutOfRange(e)
+        except (
+            SynNotUniqueError,
+            StructureCountLimitReachedError,
+            TooManyAliasesError,
+            TooLongSynError,
+            SynsAlreadyTakenError,
+            AttributeMinSlotsOrMaxSlotsOutOfRangeError,
+            InvalidSlotStrError,
+            CollectionEntryLimitReachedError,
+            CollectionEntryAliasLimitReachedError,
+            CollectionEntrySynNotUniqueError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(e)
 
         if isinstance(attr_s, TaskAttribute):
             return TaskAttributeAdapter(attr_s, self)
@@ -428,56 +459,59 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> None:
         attr = self.get_attribute(type, syn)
 
-        try:
-            self._o.delete_attribute(self._c, type, attr._o.id)
-        except StructureNotFoundError:
-            raise errors.StructureNotFoundViaSyn(syn, type)
-
-    def give_task_to_user(
-        self,
-        syn: str,
-        community_user: CommunityUserAdapter,
-        user_attribute_value_mapping: str | None = None,
-    ) -> TaskAdapter:
-        task_o = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
-
-        uavm = self._parse_attribute_value_mapping(
-            UserAttribute, user_attribute_value_mapping
-        )[0]
-
-        try:
-            self._o.give_task_to_community_user(
-                self._c, task_o.id, community_user._o.id, uavm
-            )
-        except CollectionEntryNotFoundError as e:
-            raise errors.CollectionEntryNotFound(e)
-        except AttributeValueSlotCountOutOfRangeError as e:
-            raise errors.AttributeValueSlotCountOutOfRange(e)
-        except CommunityUserAlreadyHasTaskError as e:
-            raise errors.CommunityUserAlreadyHasTask(community_user._o, task_o)
-
-        return TaskAdapter(task_o, self)
-
-    def remove_task_from_user(
-        self, syn: str, community_user: CommunityUserAdapter
-    ) -> TaskAdapter:
-        task_s = _require_task_with_syn(self._c, text.NormStr(syn), self._o)
-
-        try:
-            self._o.remove_task_from_community_user(
-                self._c, task_s.id, community_user._o.id
-            )
-        except CommunityUserDoesNotHaveTaskError:
-            raise errors.TaskNotGivenYet(community_user._o, task_s)
-
-        return TaskAdapter(task_s, self)
+        # Yes, no exception should be raised
+        self._o.delete_attribute(self._c, type, attr._o.id)
 
     def edit_attribute_name(
         self, type: type[AnyAttributeT], syn: str, name: str
     ) -> tuple[AnyAttributeAdapterT, text.RealStr]:
         name = text.RealStr(name)
+        
         attribute = self.get_attribute(type, syn)
 
         self._o.edit_attribute_name(self._c, type, attribute._o.id, name)
 
         return (attribute, name)
+
+    def edit_attribute_aliases(
+        self, type: type[AnyAttributeT], syn: str, aliases: str
+    ) -> tuple[AnyAttributeAdapterT, tuple[text.RealStr, ...]]:
+        attribute = self.get_attribute(type, syn)
+
+        new_aliases = parsing.aliases.parse(text.RealStr(aliases))
+
+        try:
+            new_aliases = self._o.edit_attribute_aliases(
+                self._c, type, attribute._o.id, map(text.RealStr, new_aliases)
+            )
+        except (
+            SynNotUniqueError,
+            TooManyAliasesError,
+            TooLongSynError,
+            SynsAlreadyTakenError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(e)
+
+        return (attribute, new_aliases)
+
+    def edit_attribute_min_and_max_slots(
+        self, type: type[TaskAttribute | UserAttribute], syn: str, min: int, max: int
+    ) ->  TaskAttributeAdapter | UserAttributeAdapter:
+        attribute = self.get_attribute(type, syn)
+
+        try:
+            self._o.edit_attribute_min_max_slots(
+                self._c, type, attribute._o.id, min, max
+            )
+        except (
+            AttributeMinSlotsOrMaxSlotsOutOfRangeError,
+            NotAllTasksFitMinAndMaxSlotCountChangesError,
+        ) as e:
+            raise errors.create_feedback_from_structure_error(e)
+
+        return attribute
+
+    def edit_attribute_collection(
+        self, type: type[TaskAttribute | UserAttribute], syn: str, collection: str
+    ) -> TaskAttributeAdapter | UserAttributeAdapter:
+        

@@ -11,7 +11,7 @@ def handled_unique_reals_and_norms(
     try:
         return text.NormStr.unique_reals_and_norms(iterable)
     except ValueError as e:
-        raise errors.NotUniqueStringError(e.args[0], e.args[1])
+        raise errors.SynNotUniqueError(e.args[0], e.args[1])
 
 
 def first_or_none[T](seq: t.Iterable[T]) -> T | None:

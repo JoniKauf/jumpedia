@@ -593,7 +593,7 @@ class List(BaseStructure, naming=("list", "lists")):
         slot_type: type[SlotTypeT],
         max_slots: int,
         *,
-        collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
+        collection: t.Sequence[tuple[RealStr, t.Sequence[RealStr]]] = (),
     ) -> T:
         pass
 
@@ -609,7 +609,7 @@ class List(BaseStructure, naming=("list", "lists")):
         position: int = -1,
         min_slots: int = 0,
         kind: Kind | None = None,
-        collection: t.Sequence[tuple[RealStr, t.Iterable[RealStr]]] = (),
+        collection: t.Sequence[tuple[RealStr, t.Sequence[RealStr]]] = (),
     ) -> T:
         assert position >= -1
 
@@ -768,24 +768,25 @@ class List(BaseStructure, naming=("list", "lists")):
     def edit_attribute_aliases(
         self,
         c: orm.Cursor,
+        type: type[AnyAttributeT],
         id: int,
         aliases: t.Iterable[RealStr],
-    ) -> None:
+    ) -> tuple[RealStr, ...]:
         (*real_aliases,), (*norm_aliases,) = utils_.handled_unique_reals_and_norms(
             aliases
         )
 
-        tup = self.get_attribute_by_id(c, id)
+        tup = self.get_attribute_by_id(c, id, type=type)
 
         if tup is None:
-            raise errors.StructureNotFoundError(id, BaseAttribute)
+            raise errors.StructureNotFoundError(id, type)
 
         attr, _ = tup
         del tup
 
         self._validate_attribute_syns(
             c,
-            BaseAttribute,
+            type,
             norm_aliases=frozenset(norm_aliases),
             allowed_attributes=frozenset([attr]),
         )
@@ -811,9 +812,9 @@ class List(BaseStructure, naming=("list", "lists")):
             )
         )
 
-        self._insert_attribute_aliases(
-            c, type(attr), attr.id, real_aliases, norm_aliases
-        )
+        self._insert_attribute_aliases(c, type, attr.id, real_aliases, norm_aliases)
+
+        return tuple(real_aliases)
 
     def edit_attribute_min_max_slots(
         self,
@@ -851,8 +852,8 @@ class List(BaseStructure, naming=("list", "lists")):
                     out_of_bounds[avm.task] = value
 
             if out_of_bounds:
-                raise errors.NotAllTasksFulfillRequiredMinMaxSlotsChanges(
-                    attr, out_of_bounds
+                raise errors.NotAllTasksFitMinAndMaxSlotCountChangesError(
+                    attr, out_of_bounds, min_slots, max_slots
                 )
 
         c.execute(
@@ -861,6 +862,7 @@ class List(BaseStructure, naming=("list", "lists")):
                 db.Attribute.max_slots.set(max_slots),
             ).where(
                 self._where_this_list(db.Attribute.list_id),
+                (db.Attribute.type_id, orm.Operator.EQ, type.type_id),
                 (db.Attribute.id, orm.Operator.EQ, id),
             )
         )
@@ -1646,6 +1648,7 @@ class List(BaseStructure, naming=("list", "lists")):
             ):
                 raise errors.TooLongSynError(
                     norm_syn,
+                    norm_syn == norm_name,
                     self.community.jumpedia.limits["attribute_syn_length_max"],
                     type,
                 )

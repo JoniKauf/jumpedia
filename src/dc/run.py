@@ -10,13 +10,6 @@ import discord as dc
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
-from dc_utils import message
-from dc_utils.errors import (
-    BaseUserReturnableError,
-    DoubleBacktick,
-    EmptyString,
-    FeedbackError,
-)
 from utils import secret, text
 
 BOT = cmds.Bot(command_prefix="awjkefejjefejffsn", intents=dc.Intents.default())
@@ -59,6 +52,14 @@ async def on_ready():
 async def on_app_command_error(
     interaction: dc.Interaction, error: acmds.AppCommandError
 ) -> None:
+    from dc_utils.errors import (
+        BaseUserReturnableError,
+        DoubleBacktick,
+        EmptyString,
+        FeedbackError,
+        Unhandled,
+    )
+
     if isinstance(error, acmds.CommandInvokeError):
         e = error.original
     else:
@@ -85,22 +86,20 @@ async def on_app_command_error(
     elif isinstance(e, text.DoubleBacktickError):
         e = DoubleBacktick()
 
+    msg_kwargs: dict[str, t.Any]
+
     if isinstance(e, BaseUserReturnableError):
-        await interaction.followup.send(str(e), **e.msg_kwargs)
-        return
+        msg_kwargs = e.msg_kwargs
 
-    if DEV_MODE:
-        await interaction.followup.send(f"Unhandled Exception!\n{e.args}")
-        raise e
+    else:
+        if DEV_MODE:
+            await interaction.followup.send(f"Unhandled Exception!\n{e.args}")
+            raise e
 
-    await interaction.followup.send(
-        message.layout(
-            "Unhandled Error",
-            t"An unhandled error has occurred!",
-            message.MessageStatus.ERROR,
-            additional=t"This is a bug. It will be logged internally and fixed soon.",
-        )
-    )
+        e = Unhandled()
+        msg_kwargs = {}
+
+    await interaction.followup.send(str(e), **msg_kwargs)
 
 
 from adapters import interaction

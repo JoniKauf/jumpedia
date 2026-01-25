@@ -20,8 +20,8 @@ class _UserRow(t.NamedTuple):
     jumpedia_rank: str
 
 
-class UserCog(cmds.GroupCog, group_name="user"):
 
+class UserCog(cmds.GroupCog, group_name="user"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
@@ -49,6 +49,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
 
         community_rank = NOT_IN_COMMUNITY
         selected_list = NOT_IN_COMMUNITY
+        task_count = NOT_IN_COMMUNITY
 
         if community_user is not None:
             community_rank = community_user.community_rank

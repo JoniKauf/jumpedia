@@ -56,6 +56,13 @@ class StructureCountLimitReachedError(BaseStructureError):
 
 
 class CollectionEntryLimitReachedError(BaseStructureError):
+    count: int
+    limit: int
+
+
+class CollectionEntryAliasLimitReachedError(BaseStructureError):
+    collection_value: SlotStr
+    count: int
     limit: int
 
 
@@ -70,6 +77,7 @@ class CollectionEntrySynNotUniqueError(BaseStructureError):
 
 class TooLongSynError(BaseStructureError):
     syn: str
+    is_name: bool
     limit: int
     structure_type: type[BaseStructure]
 
@@ -107,7 +115,7 @@ class CommunityUserDoesNotHaveTaskError(BaseStructureError):
     community_user_id: int
 
 
-class NotUniqueStringError(BaseStructureError):
+class SynNotUniqueError(BaseStructureError):
     given: text.RealStr
     existing: text.RealStr
 
@@ -116,6 +124,8 @@ class CannotChangeThisAboutStaticAttribute(BaseStructureError):
     pass
 
 
-class NotAllTasksFulfillRequiredMinMaxSlotsChanges(BaseStructureError):
+class NotAllTasksFitMinAndMaxSlotCountChangesError(BaseStructureError):
     attribute: TaskAttribute
     wrong: dict[Task, tuple[SlotStr, ...]]
+    min: int
+    max: int

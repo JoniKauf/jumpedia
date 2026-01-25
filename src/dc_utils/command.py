@@ -12,7 +12,7 @@ import mariadb
 from discord.ext import commands as cmds
 
 import dc_utils
-from dc_utils import errors, layouts
+from dc_utils import layouts
 from structures import BaseStructure
 from utils import gist
 from utils.rank import AnyRankT, CommunityRank
@@ -53,6 +53,7 @@ def adapt[T: cmds.Cog, **P](
             self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
         ) -> None:
             from adapters.interaction import InteractionAdapter
+            from dc_utils import errors
 
             # --- Defer; Always Use Followup ---
             await interaction.response.defer()

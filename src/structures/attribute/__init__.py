@@ -205,7 +205,7 @@ class BaseNonStaticAttribute(
     def set_collection(
         self,
         c: orm.Cursor,
-        collection: t.Sequence[tuple[text.RealStr, t.Iterable[text.RealStr]]],
+        collection: t.Sequence[tuple[text.RealStr, t.Sequence[text.RealStr]]],
     ) -> Collection:
         count = len(collection)
 
@@ -214,7 +214,8 @@ class BaseNonStaticAttribute(
 
         if count > self.list.community.limits["attribute_collection_entry_count_max"]:
             raise errors.CollectionEntryLimitReachedError(
-                self.list.community.limits["attribute_collection_entry_count_max"]
+                count,
+                self.list.community.limits["attribute_collection_entry_count_max"],
             )
 
         norm_syns: set[text.NormStr] = set()
@@ -229,7 +230,17 @@ class BaseNonStaticAttribute(
             set() for _ in range(count)
         )
 
+        alias_limit = self.list.community.limits[
+            "attribute_collection_entry_alias_count_max"
+        ]
+
         for i, (value, aliases) in enumerate(collection):
+            if len(aliases) > alias_limit:
+                raise errors.CollectionEntryAliasLimitReachedError(
+                    SlotStr(value, self.slot_type, self.list.community.jumpedia.limits),
+                    len(aliases),
+                    alias_limit,
+                )
             for j, syn_str in enumerate((value, *aliases)):
                 slot_syn = SlotStr(
                     syn_str, self.slot_type, self.list.community.jumpedia.limits
