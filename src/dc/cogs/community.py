@@ -111,49 +111,49 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    @acmds.command(description="Transfer the ownership of a community to another user.")
-    @acmds.check(predicate.rank_required(CommunityRank.OWNER))
-    @command.adapt(rank_to_specify_user=CommunityRank.OWNER)
-    async def transfer_ownership(
-        self, ia: InteractionAdapter, user: dc.User
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        community = shortcuts.get_current_community(ia)
-        transfer_jumpedia_user = (
-            shortcuts.get_or_create_specified_or_current_jumpedia_user(
-                community.jumpedia, user
-            )
-        )
+    # @acmds.command(description="Transfer the ownership of a community to another user.")
+    # @acmds.check(predicate.rank_required(CommunityRank.OWNER))
+    # @command.adapt(rank_to_specify_user=CommunityRank.OWNER)
+    # async def transfer_ownership(
+    #     self, ia: InteractionAdapter, user: dc.User
+    # ) -> CoroutineType[t.Any, t.Any, t.Any]:
+    #     community = shortcuts.get_current_community(ia)
+    #     transfer_jumpedia_user = (
+    #         shortcuts.get_or_create_specified_or_current_jumpedia_user(
+    #             community.jumpedia, user
+    #         )
+    #     )
 
-        CONFIG = confirm.ConfirmConfig()
+    #     CONFIG = confirm.ConfirmConfig()
 
-        msg = await ia.dc.followup.send(
-            message.layout(
-                "Transfer Ownership?",
-                t"Are you sure you want to transfer the ownership of {community:,} to {transfer_jumpedia_user:,}?",
-                additional=t"This action CANNOT be undone!",
-                paragraphs=confirm.get_confirm_paragraphs(CONFIG),
-                message_status=message.MessageStatus.WARNING,
-            ),
-            wait=True,
-        )
+    #     msg = await ia.dc.followup.send(
+    #         message.layout(
+    #             "Transfer Ownership?",
+    #             t"Are you sure you want to transfer the ownership of {community:,} to {transfer_jumpedia_user:,}?",
+    #             additional=t"This action CANNOT be undone!",
+    #             paragraphs=confirm.get_confirm_paragraphs(CONFIG),
+    #             message_status=message.MessageStatus.WARNING,
+    #         ),
+    #         wait=True,
+    #     )
 
-        if not await confirm.emoji_confirm(ia, msg, config=CONFIG):
-            return msg.edit(
-                content=message.layout(
-                    "Ownership Transfer Aborted",
-                    t"The ownership of the community {community:,} stays in your hands, because the request has been aborted!",
-                    message.MessageStatus.WARNING,
-                )
-            )
+    #     if not await confirm.emoji_confirm(ia, msg, config=CONFIG):
+    #         return msg.edit(
+    #             content=message.layout(
+    #                 "Ownership Transfer Aborted",
+    #                 t"The ownership of the community {community:,} stays in your hands, because the request has been aborted!",
+    #                 message.MessageStatus.WARNING,
+    #             )
+    #         )
 
-        return msg.edit(
-            content=message.layout(
-                "Ownership Transferred",
-                t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
-                additional=t"The rank of {ia.ia_user.name:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
-                message_status=message.MessageStatus.SUCCESS,
-            )
-        )
+    #     return msg.edit(
+    #         content=message.layout(
+    #             "Ownership Transferred",
+    #             t"The ownership of the community {community:,} has successfully been transferred to {transfer_jumpedia_user:,}!",
+    #             additional=t"The rank of {ia.ia_user.name:,} has been set to {CommunityRank.ADMINISTRATOR:,}.",
+    #             message_status=message.MessageStatus.SUCCESS,
+    #         )
+    #     )
 
     @acmds.command(description="Set the default selected list of the community.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))

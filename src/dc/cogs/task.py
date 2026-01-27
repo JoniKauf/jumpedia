@@ -10,7 +10,7 @@ import discord.ext.commands as cmds
 from adapters import BaseStructureAdapter
 from adapters.interaction import InteractionAdapter
 from dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
-from structures.attribute import AnyAttributeT, StaticAttribute
+from structures.attribute import AnyAttributeT, StaticAttribute, UserAttribute
 from structures.list import Kind
 from structures.task import Task
 from structures.task.attribute_value_mapping import (
@@ -59,7 +59,7 @@ async def _browse(
     sort: str | None,
     yield_: Yield,
     user: dc.User | None | EllipsisType,
-    missing: bool,
+    given: bool,
     list: str | None,
 ) -> CoroutineType[t.Any, t.Any, t.Any]:
     finished_content: str = ""
@@ -101,7 +101,7 @@ async def _browse(
 
         task_ids_to_fetch: tuple[int, ...]
 
-        if not missing:
+        if given:
             task_ids_to_fetch = user_task_ids
         else:
             task_ids_to_fetch = tuple(
@@ -111,7 +111,7 @@ async def _browse(
         # Don't include user attribute values when missing, because those don't have any values, because well they are missing
         avms, attrs, ATTRIBUTE_TYPES_TO_HANDLE = (
             list_obj._o.get_attribute_value_mappings(
-                ia._c, None if missing else community_user._o.id, task_ids_to_fetch
+                ia._c, community_user._o.id if given else None, task_ids_to_fetch
             )
         )
 
@@ -188,6 +188,12 @@ async def _browse(
 
     if yield_ is Yield.DEFAULT:
         attribute_yield = {NAME_ATTR} | used_attributes
+
+        if user is not ...:
+            attribute_yield |= {
+                attr for attr in ATTRS_SORTED if isinstance(attr, UserAttribute)
+            }
+
     elif yield_ is Yield.ONLY_NAME:
         attribute_yield = {NAME_ATTR}
     elif yield_ is Yield.ALL:
@@ -243,90 +249,6 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         list: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         return await _info(ia, task, user, list)
-
-    @acmds.command()
-    @acmds.check(predicate.rank_required(CommunityRank.HELPER))
-    @command.adapt()
-    async def create(
-        self,
-        ia: InteractionAdapter,
-        name: str,
-        aliases: str | None = None,
-        task_attribute_value_mapping: str | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
-
-        task = list_obj.create_task(name, aliases, task_attribute_value_mapping)
-
-        return ia.dc.followup.send(layouts.structure_created(task._o))
-
-    task_edit_group = group.create_edit_group(CommunityRank.MODERATOR)
-
-    @task_edit_group.command(name="name")
-    @command.adapt()
-    async def edit_name(
-        self, ia: InteractionAdapter, task: str, new_name: str, list: str | None = None
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
-
-        old_task, new_name = list_obj.edit_task_name(task, new_name)
-
-        return ia.dc.followup.send(layouts.structure_name_edited(old_task._o, new_name))
-
-    @task_edit_group.command(name="aliases")
-    @command.adapt()
-    async def edit_aliases(
-        self,
-        ia: InteractionAdapter,
-        name: str,
-        new_aliases: str,
-        list: str | None = None,
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
-
-        old_task, slot_aliases = list_obj.edit_task_aliases(name, new_aliases)
-
-        return ia.dc.followup.send(
-            layouts.structure_aliases_edited(old_task._o, slot_aliases)
-        )
-
-    @task_edit_group.command(name="task_attribute_value_mapping")
-    @command.adapt()
-    async def edit_task_attribute_value_mapping(
-        self,
-        ia: InteractionAdapter,
-        name: str,
-        new_attribute_value_mapping: str | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
-
-        old_task = list_obj.edit_task_attribute_value_mapping(
-            name, new_attribute_value_mapping
-        )
-
-        return ia.dc.followup.send(
-            layouts.success(
-                "Task Attribute Value Mapping Edited",
-                t"The (task) attribute value mapping of the "
-                + old_task.mention()
-                + t" has been changed successfully!",
-                additional=t"Use the {TaskCog.info.qualified_name:,} command to see the new mapping.",
-            )
-        )
-
-    @acmds.command()
-    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
-    @command.adapt()
-    async def nuke(
-        self, ia: InteractionAdapter, task: str, list: str | None = None
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
-
-        nuked_task = list_obj.delete_task(task)
-
-        return ia.dc.followup.send(layouts.structure_nuked(nuked_task._o))
 
     @acmds.command()
     @command.adapt()
@@ -388,6 +310,93 @@ class TaskCog(cmds.GroupCog, group_name="task"):
             )
         )
 
+    # --- Privileged ---
+
+    @acmds.command()
+    @acmds.check(predicate.rank_required(CommunityRank.HELPER))
+    @command.adapt()
+    async def create(
+        self,
+        ia: InteractionAdapter,
+        list: str,
+        name: str,
+        aliases: str | None = None,
+        task_attribute_value_mapping: str | None = None,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        task_obj = list_obj.create_task(name, aliases, task_attribute_value_mapping)
+
+        return ia.dc.followup.send(layouts.structure_created(task_obj._o))
+
+    @acmds.command()
+    @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
+    @command.adapt()
+    async def nuke(
+        self, ia: InteractionAdapter, list: str, task: str
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        nuked_task = list_obj.delete_task(task)
+
+        return ia.dc.followup.send(layouts.structure_nuked(nuked_task._o))
+
+
+    task_edit_group = group.create_edit_group(CommunityRank.MODERATOR)
+
+    @task_edit_group.command(name="name")
+    @command.adapt()
+    async def edit_name(
+        self, ia: InteractionAdapter, list: str, task: str, new_name: str
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        old_task, new_name = list_obj.edit_task_name(task, new_name)
+
+        return ia.dc.followup.send(layouts.structure_name_edited(old_task._o, new_name))
+
+    @task_edit_group.command(name="aliases")
+    @command.adapt()
+    async def edit_aliases(
+        self,
+        ia: InteractionAdapter,
+        list: str, 
+        task: str,
+        new_aliases: str,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        old_task, slot_aliases = list_obj.edit_task_aliases(task, new_aliases)
+
+        return ia.dc.followup.send(
+            layouts.structure_aliases_edited(old_task._o, slot_aliases)
+        )
+
+    @task_edit_group.command(name="attribute_value_mapping")
+    @command.adapt()
+    async def edit_attribute_value_mapping(
+        self,
+        ia: InteractionAdapter,
+        list: str,
+        task: str,
+        new_attribute_value_mapping: str | None = None,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        old_task = list_obj.edit_task_attribute_value_mapping(
+            task, new_attribute_value_mapping
+        )
+
+        return ia.dc.followup.send(
+            layouts.success(
+                "Task Attribute Value Mapping Edited",
+                t"The (task) attribute value mapping of the "
+                + old_task.mention()
+                + t" has been changed successfully!",
+                additional=t"Use the {TaskCog.info.qualified_name:,} command to see the new mapping.",
+            )
+        )
+
 
 class TasksCog(cmds.GroupCog, group_name="tasks"):
     def __init__(self, bot: cmds.Bot) -> None:
@@ -415,21 +424,8 @@ class TasksCog(cmds.GroupCog, group_name="tasks"):
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,
+        given: bool = True,
         user: dc.User | None = None,
         list: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        return await _browse(ia, filter, sort, yield_, user, False, list)
-
-    @acmds.command()
-    @acmds.rename(yield_="yield")
-    @command.adapt(rank_to_specify_user=None)
-    async def browse_missing(
-        self,
-        ia: InteractionAdapter,
-        filter: str | None = None,
-        sort: str | None = None,
-        yield_: Yield = Yield.DEFAULT,
-        user: dc.User | None = None,
-        list: str | None = None,
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        return await _browse(ia, filter, sort, yield_, user, True, list)
+        return await _browse(ia, filter, sort, yield_, user, given, list)

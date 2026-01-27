@@ -68,7 +68,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
 
     def rename_list(
         self, old_name: str, new_name: str
-    ) -> tuple[text.RealStr, text.RealStr]:
+    ) -> tuple[List, text.RealStr]:
         lst = _require_list_with_name(self._c, text.RealStr(old_name), self._o)
         old_name = lst.real_name
         new_name = text.RealStr(new_name)
@@ -83,7 +83,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         except SynsAlreadyTakenError as e:
             raise errors.SynsAlreadyTaken(e)
 
-        return lst.real_name, new_name
+        return lst, new_name
 
     @t.overload
     def get_default_selected_list(self) -> ListAdapter:

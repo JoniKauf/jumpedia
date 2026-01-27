@@ -466,7 +466,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         self, type: type[AnyAttributeT], syn: str, name: str
     ) -> tuple[AnyAttributeAdapterT, text.RealStr]:
         name = text.RealStr(name)
-        
+
         attribute = self.get_attribute(type, syn)
 
         self._o.edit_attribute_name(self._c, type, attribute._o.id, name)
@@ -496,7 +496,7 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def edit_attribute_min_and_max_slots(
         self, type: type[TaskAttribute | UserAttribute], syn: str, min: int, max: int
-    ) ->  TaskAttributeAdapter | UserAttributeAdapter:
+    ) -> TaskAttributeAdapter | UserAttributeAdapter:
         attribute = self.get_attribute(type, syn)
 
         try:
@@ -513,5 +513,4 @@ class ListAdapter(BaseStructureAdapter[List]):
 
     def edit_attribute_collection(
         self, type: type[TaskAttribute | UserAttribute], syn: str, collection: str
-    ) -> TaskAttributeAdapter | UserAttributeAdapter:
-        
+    ) -> TaskAttributeAdapter | UserAttributeAdapter: ...

@@ -697,6 +697,7 @@ class List(BaseStructure, naming=("list", "lists")):
         execute_data = c.execute(
             AttributeTable.delete().where(
                 (AttributeTable.list_id, orm.Operator.EQ, self.id),
+                (AttributeTable.type_id, orm.Operator.EQ, type.type_id), 
                 (AttributeTable.id, orm.Operator.EQ, id),
             ),
             get_affected_row_count=True,

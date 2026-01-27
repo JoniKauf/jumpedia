@@ -6,7 +6,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters.interaction import InteractionAdapter
-from dc_utils import command, confirm, layouts, message, predicate, shortcuts
+from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
@@ -69,23 +69,6 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    @acmds.command()
-    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
-    @command.adapt()
-    async def rename(
-        self, ia: InteractionAdapter, list: str, new_name: str
-    ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        community = shortcuts.get_current_community(ia)
-
-        old_name, new_name = community.rename_list(list, new_name)
-
-        return ia.dc.followup.send(
-            layouts.success(
-                "List Renamed",
-                t"The list {old_name:,} has successfully been renamed to {new_name:,}!",
-            )
-        )
-
     @acmds.command(description="Delete an existing list.")
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
@@ -95,11 +78,23 @@ class ListCog(cmds.GroupCog, group_name="list"):
         list_o = shortcuts.get_current_community(ia).get_list(list)._o
 
         return await confirm.confirm_nuke(
-            ia,
-            list_o,
-            lambda: list_o.community.delete_list(ia._c, list_o.id)
+            ia, list_o, lambda: list_o.community.delete_list(ia._c, list_o.id)
         )
 
+    list_edit_group = group.create_edit_group(CommunityRank.ADMINISTRATOR)
+
+    @list_edit_group.command(name="name")
+    @command.adapt()
+    async def edit_name(
+        self, ia: InteractionAdapter, list: str, new_name: str
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        community = shortcuts.get_current_community(ia)
+
+        lst, new_name = community.rename_list(list, new_name)
+
+        return ia.dc.followup.send(
+            layouts.structure_name_edited(lst, new_name)
+        )
 
 class ListsCog(cmds.GroupCog, group_name="lists"):
     @acmds.command(description="Browse all lists of the community.")

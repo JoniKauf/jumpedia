@@ -93,13 +93,13 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     async def create(
         self,
         ia: InteractionAdapter,
+        list: str,
         type: NonStaticAttributeEnum,
         name: str,
         slot_type: SlotTypeEnum,
         max_slots: int,
-        aliases: str | None,
-        collection: str | None,
-        list: str | None,
+        aliases: str | None = None,
+        collection: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -115,9 +115,9 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     async def nuke(
         self,
         ia: InteractionAdapter,
+        list: str,
         type: NonStaticAttributeEnum,
         attribute: str,
-        list: str,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -128,7 +128,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             attr._o,
             lambda: list_obj.delete_attribute(type.value, attr.name),
         )
-
+    
     attribute_edit_group = group.create_edit_group(
         min_required_rank=CommunityRank.ADMINISTRATOR
     )
@@ -138,10 +138,10 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     async def edit_name(
         self,
         ia: InteractionAdapter,
+        list: str,
         type: AnyAttributeEnum,
         attribute: str,
         new_name: str,
-        list: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -156,10 +156,10 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     async def edit_aliases(
         self,
         ia: InteractionAdapter,
+        list: str,
         type: AnyAttributeEnum,
         attribute: str,
         new_aliases: str,
-        list: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -171,21 +171,21 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             layouts.structure_aliases_edited(old_attr._o, aliases)
         )
 
-    @attribute_edit_group.command(name="min_and_max_slot_count")
+    @attribute_edit_group.command(name="min_and_max_slots")
     @command.adapt()
-    async def edit_min_and_max_slot_count(
+    async def edit_min_and_max_slots(
         self,
         ia: InteractionAdapter,
+        list: str,
         type: NonStaticAttributeEnum,
         attribute: str,
-        min_slots: int,
-        max_slots: int,
-        list: str | None = None,
+        new_min_slots: int,
+        new_max_slots: int,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
         old_attr = list_obj.edit_attribute_min_and_max_slots(
-            type.value, attribute, min_slots, max_slots
+            type.value, attribute, new_min_slots, new_max_slots
         )
 
         return ia.dc.followup.send(
@@ -193,7 +193,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                 f"{builtins.type(old_attr._o).type_name.title()} Min And Max Slot Count Edited",
                 t"The min and max slot count of the "
                 + layouts.mention(old_attr._o)
-                + t" have been changed to {min_slots:,} and {max_slots:,} successfully!",
+                + t" have been changed to {new_min_slots:,} and {new_max_slots:,} successfully!",
             )
         )
 
