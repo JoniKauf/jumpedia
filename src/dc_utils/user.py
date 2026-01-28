@@ -64,7 +64,7 @@ def validate_allowed(
 
     jumpedia_and_user: tuple[JumpediaAdapter, JumpediaUserAdapter] | None = None
 
-    with adapters.interaction.get_interaction_adapter(interaction) as ia:
+    with adapters.interaction.InteractionAdapterContext(interaction) as ia:
 
         def get_jumpedia_and_jumpedia_user() -> (
             tuple[JumpediaAdapter, JumpediaUserAdapter]

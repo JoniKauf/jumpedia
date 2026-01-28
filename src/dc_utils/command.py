@@ -79,7 +79,7 @@ def adapt[T: cmds.Cog, **P](
                 )
 
             # --- Create Interaction Adapter ---
-            with adapters.interaction.get_interaction_adapter(interaction) as ia:
+            with adapters.interaction.InteractionAdapterContext(interaction) as ia:
                 # --- Handle One And Only, Final Commit Per Interaction ---
                 try:
                     success = await func(self, ia, *args, **kwargs)

@@ -113,28 +113,6 @@ class ListsCog(cmds.GroupCog, group_name="lists"):
         dsl = community.get_default_selected_list()
         lst_to_task = community._o.get_tasks_by_list(ia._c)
 
-        data: dict[str, tuple[str | tuple[str, ...], ...]] = {
-            "Name": tuple(lst.name for lst in lists),
-            **{
-                attr_type.type_name_plural.title(): tuple(
-                    tuple(
-                        attr.name
-                        for attr in attr_type_to_attrs[lst.id].get(
-                            attr_type.type_id, ()
-                        )
-                    )
-                    for lst in lists
-                )
-                for attr_type in ALL_ATTRIBUTE_TYPES
-            },
-            Task.type_name_plural.title(): tuple(
-                str(len(lst.get_tasks())) for lst in lists
-            ),
-            "Is Default Selected List": tuple(
-                "Yes" if dsl == lst else "No" for lst in lists
-            ),
-        }
-
         list_to_attr_strings: dict[int, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {lst.id: tuple(tuple(attr.name for attr in attr_type_to_attrs[lst.id][attr_type.type_id]) for attr_type in ALL_ATTRIBUTE_TYPES) for lst in lists}  # type: ignore
 
         return await command.browse(

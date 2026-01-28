@@ -72,34 +72,43 @@ _INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}
 _LOCK: Lock = Lock()
 
 
-@contextmanager
-def get_interaction_adapter(
-    interaction: dc.Interaction,
-) -> t.Generator[_InteractionAdapter]:
-    global _INTERACTIONS
+class InteractionAdapterContext:
+    def __init__(self, interaction: dc.Interaction):
+        self.interaction = interaction
+        self._adapter: _InteractionAdapter | None = None
 
-    with _LOCK:
-        tup = _INTERACTIONS.get(interaction.id)
+    def __enter__(self) -> _InteractionAdapter:
+        global _INTERACTIONS
 
-        if tup is None:
-            _INTERACTIONS[interaction.id] = tup = (1, _InteractionAdapter(interaction))
-        else:
-            _INTERACTIONS[interaction.id] = (tup[0] + 1, tup[1])
+        with _LOCK:
+            tup = _INTERACTIONS.get(self.interaction.id)
 
-    yield tup[1]
+            if tup is None:
+                adapter = _InteractionAdapter(self.interaction)
+                _INTERACTIONS[self.interaction.id] = (1, adapter)
+                self._adapter = adapter
+            else:
+                ref_count, adapter = tup
+                _INTERACTIONS[self.interaction.id] = (ref_count + 1, adapter)
+                self._adapter = adapter
 
-    with _LOCK:
-        ref_count, ia = _INTERACTIONS[interaction.id]
+        return self._adapter
 
-        assert ref_count >= 1
+    def __exit__(self, exc_type, exc, tb) -> None:
+        global _INTERACTIONS
 
-        if ref_count == 1:
-            _INTERACTIONS.pop(interaction.id)
-        else:
-            _INTERACTIONS[interaction.id] = (ref_count - 1, ia)
+        with _LOCK:
+            ref_count, ia = _INTERACTIONS[self.interaction.id]
 
-        ia._c._mariadb_cursor.close()
-        ia._c._mariadb_connection.close()
+            assert ref_count >= 1
+
+            if ref_count == 1:
+                _INTERACTIONS.pop(self.interaction.id)
+            else:
+                _INTERACTIONS[self.interaction.id] = (ref_count - 1, ia)
+
+            ia._c._mariadb_cursor.close()
+            ia._c._mariadb_connection.close()
 
 
 class _InteractionAdapter(BaseAdapter[dc.Interaction]):
