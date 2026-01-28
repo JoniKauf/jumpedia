@@ -346,6 +346,7 @@ def create_database(
     meta_c.raw_execute("SHOW SCHEMAS")
 
     rows = meta_c.raw_fetchall()
+    meta_c._close_connection()
 
     for row in rows:
         if database_name.lower() in map(str.lower, row.values()):
@@ -360,7 +361,6 @@ def create_database(
         exit()
         return
 
-    meta_c._close_connection()
     meta_c = get_root_meta_c()
 
     meta_c.raw_execute(

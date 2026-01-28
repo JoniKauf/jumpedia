@@ -29,7 +29,7 @@ class BaseStructureError(Exception, metaclass=_BaseStructureErrorMeta):
     def __init_subclass__(cls) -> None:
         if cls is BaseStructureError:
             raise RuntimeError
-        
+
         super().__init_subclass__()
 
 

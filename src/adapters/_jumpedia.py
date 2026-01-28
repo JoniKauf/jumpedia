@@ -17,7 +17,7 @@ from ._community import CommunityAdapter
 from ._user import JumpediaUserAdapter, UserAdapter
 
 if t.TYPE_CHECKING:
-    from .interaction import InteractionAdapter
+    from .interaction import _InteractionAdapter
 
 
 def _require_community_with_name(
@@ -32,7 +32,7 @@ def _require_community_with_name(
 
 
 class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
-    interaction: InteractionAdapter
+    interaction: _InteractionAdapter
 
     @cached_property
     def _c(self) -> orm.Cursor:

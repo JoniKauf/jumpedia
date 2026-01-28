@@ -7,7 +7,7 @@ import discord.ext.commands as cmds
 
 from adapters._community import CommunityAdapter
 from adapters._user import UserAdapter
-from adapters.interaction import InteractionAdapter
+from adapters.interaction import _InteractionAdapter
 from dc_utils import command, message, shortcuts
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
@@ -27,7 +27,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
     @acmds.command(description="Get information about a user.")
     @command.adapt(rank_to_specify_user=None)
     async def info(
-        self, ia: InteractionAdapter, user: dc.User | None = None
+        self, ia: _InteractionAdapter, user: dc.User | None = None
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
             ia, user
@@ -79,7 +79,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
     @command.adapt()
     async def set_selected_list(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str | None = None,
         user: dc.User | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
@@ -98,14 +98,15 @@ class UserCog(cmds.GroupCog, group_name="user"):
         )
 
     @acmds.command(description="Set the community rank of a user.")
+    @command.adapt()
     async def set_community_rank(
-        self, interaction: dc.Interaction, user: dc.User, community_rank: CommunityRank
-    ) -> None:
+        self, ia: _InteractionAdapter, user: dc.User, community_rank: CommunityRank
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community_user = shortcuts.get_or_create_specified_or_current_community_user(
-            InteractionAdapter(interaction), user
+            ia, user
         )
 
-        await interaction.followup.send(
+        return ia.dc.followup.send(
             community_user.set_community_rank(
                 community_rank,
                 shortcuts.get_or_create_specified_or_current_community_user(
@@ -117,7 +118,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
     @acmds.command(description="Set the jumpedia rank of a user.")
     @command.adapt(rank_to_specify_user=None)
     async def set_jumpedia_rank(
-        self, ia: InteractionAdapter, user: dc.User, rank: JumpediaRank
+        self, ia: _InteractionAdapter, user: dc.User, rank: JumpediaRank
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia = ia.jumpedia
 

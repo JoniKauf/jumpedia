@@ -8,7 +8,7 @@ import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
 from adapters import BaseStructureAdapter
-from adapters.interaction import InteractionAdapter
+from adapters.interaction import _InteractionAdapter
 from dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute, UserAttribute
 from structures.list import Kind
@@ -22,7 +22,7 @@ from utils.text import NormStr, RealStr
 
 
 async def _info(
-    ia: InteractionAdapter,
+    ia: _InteractionAdapter,
     task: str,
     user: dc.User | None | EllipsisType,
     list: str | None,
@@ -54,7 +54,7 @@ class Yield(enum.Enum):
 
 
 async def _browse(
-    ia: InteractionAdapter,
+    ia: _InteractionAdapter,
     filter: str | None,
     sort: str | None,
     yield_: Yield,
@@ -235,7 +235,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @acmds.command()
     @command.adapt()
     async def info(
-        self, ia: InteractionAdapter, task: str, list: str | None = None
+        self, ia: _InteractionAdapter, task: str, list: str | None = None
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         return await _info(ia, task, ..., list)
 
@@ -243,7 +243,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt(rank_to_specify_user=None)
     async def info_user(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         task: str,
         user: dc.User | None = None,
         list: str | None = None,
@@ -254,7 +254,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt()
     async def give(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         task: str,
         user_attribute_value_mapping: str | None = None,
         user: dc.User | None = None,
@@ -287,7 +287,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt()
     async def take(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         task: str,
         user: dc.User | None = None,
         list: str | None = None,
@@ -317,7 +317,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt()
     async def create(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         name: str,
         aliases: str | None = None,
@@ -333,7 +333,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @acmds.check(predicate.rank_required(CommunityRank.MODERATOR))
     @command.adapt()
     async def nuke(
-        self, ia: InteractionAdapter, list: str, task: str
+        self, ia: _InteractionAdapter, list: str, task: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -341,13 +341,12 @@ class TaskCog(cmds.GroupCog, group_name="task"):
 
         return ia.dc.followup.send(layouts.structure_nuked(nuked_task._o))
 
-
     task_edit_group = group.create_edit_group(CommunityRank.MODERATOR)
 
     @task_edit_group.command(name="name")
     @command.adapt()
     async def edit_name(
-        self, ia: InteractionAdapter, list: str, task: str, new_name: str
+        self, ia: _InteractionAdapter, list: str, task: str, new_name: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
@@ -359,8 +358,8 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt()
     async def edit_aliases(
         self,
-        ia: InteractionAdapter,
-        list: str, 
+        ia: _InteractionAdapter,
+        list: str,
         task: str,
         new_aliases: str,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
@@ -376,7 +375,7 @@ class TaskCog(cmds.GroupCog, group_name="task"):
     @command.adapt()
     async def edit_attribute_value_mapping(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         task: str,
         new_attribute_value_mapping: str | None = None,
@@ -407,7 +406,7 @@ class TasksCog(cmds.GroupCog, group_name="tasks"):
     @command.adapt()
     async def browse(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,
@@ -420,7 +419,7 @@ class TasksCog(cmds.GroupCog, group_name="tasks"):
     @command.adapt(rank_to_specify_user=None)
     async def browse_user(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         filter: str | None = None,
         sort: str | None = None,
         yield_: Yield = Yield.DEFAULT,

@@ -1,24 +1,20 @@
 import functools
 import inspect
 import itertools
-import types
 import typing as t
-from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass
 from types import CoroutineType, EllipsisType
 
 import discord as dc
 import mariadb
 from discord.ext import commands as cmds
 
-import dc_utils
-from dc_utils import layouts
+from dc_utils import layouts, user
 from structures import BaseStructure
 from utils import gist
 from utils.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
-    from adapters.interaction import InteractionAdapter
+    from adapters.interaction import _InteractionAdapter
 
 
 def adapt[T: cmds.Cog, **P](
@@ -26,7 +22,7 @@ def adapt[T: cmds.Cog, **P](
 ) -> t.Callable[
     [
         t.Callable[
-            t.Concatenate[T, InteractionAdapter, P],
+            t.Concatenate[T, _InteractionAdapter, P],
             CoroutineType[None, None, CoroutineType[t.Any, t.Any, t.Any]],
         ]
     ],
@@ -42,7 +38,7 @@ def adapt[T: cmds.Cog, **P](
 
     def adapt_inner(
         func: t.Callable[
-            t.Concatenate[T, InteractionAdapter, P],
+            t.Concatenate[T, _InteractionAdapter, P],
             CoroutineType[None, None, CoroutineType[t.Any, t.Any, t.Any]],
         ],
     ) -> t.Callable[
@@ -52,14 +48,11 @@ def adapt[T: cmds.Cog, **P](
         async def decorated(
             self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
         ) -> None:
-            from adapters.interaction import InteractionAdapter
+            import adapters.interaction
             from dc_utils import errors
 
             # --- Defer; Always Use Followup ---
             await interaction.response.defer()
-
-            # --- Create Interaction Adapter ---
-            ia = InteractionAdapter(interaction)
 
             # --- Apply Required Rank When 'user' Is Specified ---
             sig = inspect.signature(func)
@@ -81,30 +74,28 @@ def adapt[T: cmds.Cog, **P](
                 ):  # Set default rank required if user is found
                     rank_to_specify_user = CommunityRank.MODERATOR
 
-                dc_utils.user.validate_allowed_for_others(
+                user.validate_allowed_for_others(
                     interaction, other_user, rank_to_specify_user
                 )
 
-            # --- Handle One And Only, Final Commit Per Interaction ---
-            try:
-                success = await func(self, ia, *args, **kwargs)
-
+            # --- Create Interaction Adapter ---
+            with adapters.interaction.get_interaction_adapter(interaction) as ia:
+                # --- Handle One And Only, Final Commit Per Interaction ---
                 try:
-                    if not ia._c._mariadb_connection.autocommit:
-                        ia._c.commit()
-                except mariadb.Error:
-                    raise errors.DatabaseError()
+                    success = await func(self, ia, *args, **kwargs)
 
-            except Exception:
-                ia._c._mariadb_connection.rollback()
-                raise
+                    try:
+                        if not ia._c._mariadb_connection.autocommit:
+                            ia._c.commit()
+                    except mariadb.Error:
+                        raise errors.DatabaseError()
 
-            finally:
-                ia._c._mariadb_cursor.close()
-                ia._c._mariadb_connection.close()
+                except Exception:
+                    ia._c._mariadb_connection.rollback()
+                    raise
 
-            # --- Show Success Message ---
-            await success
+                # --- Show Success Message ---
+                await success
 
         return decorated
 
@@ -115,7 +106,7 @@ def row_type_to_headers(type: type[t.NamedTuple]) -> tuple[str, ...]:
     return tuple(field.replace("_", " ").title() for field in type._fields)
 
 
-async def info(ia: InteractionAdapter, structure: BaseStructure, row: t.NamedTuple):
+async def info(ia: _InteractionAdapter, structure: BaseStructure, row: t.NamedTuple):
     row_raw: list[tuple[str, ...]] = []
 
     for v in row:
@@ -144,7 +135,7 @@ async def info(ia: InteractionAdapter, structure: BaseStructure, row: t.NamedTup
 
 
 async def browse(
-    ia: InteractionAdapter,
+    ia: _InteractionAdapter,
     structure_type: type[BaseStructure],
     rows: t.Sequence[t.NamedTuple],
     before_send: (

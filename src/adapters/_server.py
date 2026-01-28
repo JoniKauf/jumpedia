@@ -8,11 +8,11 @@ from utils import orm
 from . import BaseAdapter
 
 if t.TYPE_CHECKING:
-    from .interaction import InteractionAdapter
+    from .interaction import _InteractionAdapter
 
 
 class ServerAdapter(BaseAdapter[dc.Guild]):
-    interaction: InteractionAdapter
+    interaction: _InteractionAdapter
 
     @cached_property
     def _c(self) -> orm.Cursor:

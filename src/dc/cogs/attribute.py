@@ -7,7 +7,7 @@ import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
 from adapters._attribute import AnyAttributeAdapterT
-from adapters.interaction import InteractionAdapter
+from adapters.interaction import _InteractionAdapter
 from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
@@ -60,7 +60,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def info(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         attribute: str,
         list: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
@@ -92,7 +92,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def create(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         type: NonStaticAttributeEnum,
         name: str,
@@ -114,7 +114,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def nuke(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         type: NonStaticAttributeEnum,
         attribute: str,
@@ -128,7 +128,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             attr._o,
             lambda: list_obj.delete_attribute(type.value, attr.name),
         )
-    
+
     attribute_edit_group = group.create_edit_group(
         min_required_rank=CommunityRank.ADMINISTRATOR
     )
@@ -137,7 +137,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def edit_name(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         type: AnyAttributeEnum,
         attribute: str,
@@ -155,7 +155,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def edit_aliases(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         type: AnyAttributeEnum,
         attribute: str,
@@ -175,7 +175,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
     @command.adapt()
     async def edit_min_and_max_slots(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         list: str,
         type: NonStaticAttributeEnum,
         attribute: str,
@@ -206,7 +206,7 @@ class AttributesCog(cmds.GroupCog, group_name="attributes"):
     @command.adapt()
     async def browse(
         self,
-        ia: InteractionAdapter,
+        ia: _InteractionAdapter,
         type: AnyAttributeEnum | None = None,
         list: str | None = None,
     ) -> CoroutineType:

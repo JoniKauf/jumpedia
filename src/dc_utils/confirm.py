@@ -5,7 +5,7 @@ from types import CoroutineType
 
 import discord as dc
 
-from adapters.interaction import InteractionAdapter
+from adapters.interaction import _InteractionAdapter
 from dc_utils import errors, layouts, message, shortcuts
 from dc_utils.errors import FeedbackError
 from structures import BaseStructure
@@ -14,7 +14,7 @@ TIMEOUT: t.Final[int] = 30
 
 
 async def wait_for_emoji_of_executer(
-    ia: InteractionAdapter,
+    ia: _InteractionAdapter,
     msg: dc.WebhookMessage,
     emoji: str,
     *emojis: str,
@@ -33,7 +33,7 @@ async def wait_for_emoji_of_executer(
 
 
 async def emoji_confirm(
-    ia: InteractionAdapter, msg: dc.WebhookMessage, *, config: ConfirmConfig
+    ia: _InteractionAdapter, msg: dc.WebhookMessage, *, config: ConfirmConfig
 ) -> bool:
     await msg.add_reaction(config.no)
 
@@ -79,7 +79,7 @@ class ConfirmConfig(t.NamedTuple):
 
 
 async def confirm_nuke(
-    ia: InteractionAdapter, structure: BaseStructure, nuke: t.Callable[[], t.Any]
+    ia: _InteractionAdapter, structure: BaseStructure, nuke: t.Callable[[], t.Any]
 ) -> CoroutineType[t.Any, t.Any, t.Any]:
     CONFIG = ConfirmConfig("💣", "⚙️", "❌", 5, 30)
 

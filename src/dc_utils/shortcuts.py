@@ -10,15 +10,15 @@ if t.TYPE_CHECKING:
     from adapters._jumpedia import JumpediaAdapter
     from adapters._list import ListAdapter
     from adapters._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
-    from adapters.interaction import InteractionAdapter
+    from adapters.interaction import _InteractionAdapter
 
 
 def _get_jumpedia_and_interaction(
-    data: JumpediaAdapter | InteractionAdapter, /
-) -> tuple[InteractionAdapter, JumpediaAdapter]:
-    from adapters.interaction import InteractionAdapter
+    data: JumpediaAdapter | _InteractionAdapter, /
+) -> tuple[_InteractionAdapter, JumpediaAdapter]:
+    from adapters.interaction import _InteractionAdapter
 
-    if isinstance(data, InteractionAdapter):
+    if isinstance(data, _InteractionAdapter):
         return data, data.jumpedia
 
     return data.interaction, data
@@ -30,12 +30,12 @@ def get_current_community(jumpedia: JumpediaAdapter, /) -> CommunityAdapter:
 
 
 @t.overload
-def get_current_community(interaction: InteractionAdapter, /) -> CommunityAdapter:
+def get_current_community(interaction: _InteractionAdapter, /) -> CommunityAdapter:
     pass
 
 
 def get_current_community(
-    data: JumpediaAdapter | InteractionAdapter, /
+    data: JumpediaAdapter | _InteractionAdapter, /
 ) -> CommunityAdapter:
     from adapters._community import CommunityAdapter
 
@@ -66,7 +66,7 @@ def get_or_create_specified_or_current_jumpedia_user(
 
 @t.overload
 def get_or_create_specified_or_current_jumpedia_user(
-    interaction: InteractionAdapter,
+    interaction: _InteractionAdapter,
     user: None | dc.User,
     /,
     *,
@@ -76,7 +76,7 @@ def get_or_create_specified_or_current_jumpedia_user(
 
 
 def get_or_create_specified_or_current_jumpedia_user(
-    data: JumpediaAdapter | InteractionAdapter,
+    data: JumpediaAdapter | _InteractionAdapter,
     user: None | dc.User,
     /,
     *,
@@ -141,7 +141,7 @@ def get_or_create_specified_or_current_community_user(
 
 @t.overload
 def get_or_create_specified_or_current_community_user(
-    interaction: InteractionAdapter,
+    interaction: _InteractionAdapter,
     user: dc.User | None,
     /,
     *,
@@ -152,7 +152,7 @@ def get_or_create_specified_or_current_community_user(
 
 
 def get_or_create_specified_or_current_community_user(
-    data: CommunityAdapter | JumpediaAdapter | InteractionAdapter,
+    data: CommunityAdapter | JumpediaAdapter | _InteractionAdapter,
     user: dc.User | JumpediaUserAdapter | None,
     /,
     *,
@@ -162,7 +162,7 @@ def get_or_create_specified_or_current_community_user(
     from adapters._community import CommunityAdapter
     from adapters._jumpedia import JumpediaAdapter
     from adapters._user import JumpediaUserAdapter
-    from adapters.interaction import InteractionAdapter
+    from adapters.interaction import _InteractionAdapter
 
     if isinstance(user, JumpediaUserAdapter):
         assert isinstance(data, CommunityAdapter)
@@ -171,10 +171,10 @@ def get_or_create_specified_or_current_community_user(
             user, override_community_rank=override_community_rank
         )
 
-    interaction: InteractionAdapter
+    interaction: _InteractionAdapter
     community: CommunityAdapter
 
-    if isinstance(data, InteractionAdapter | JumpediaAdapter):
+    if isinstance(data, _InteractionAdapter | JumpediaAdapter):
         interaction, _ = _get_jumpedia_and_interaction(data)
         community = get_current_community(data)
     else:
@@ -237,7 +237,7 @@ def get_specified_or_ia_user_selected_or_default_list(
 
 @t.overload
 def get_specified_or_ia_user_selected_or_default_list(
-    interaction: InteractionAdapter,
+    interaction: _InteractionAdapter,
     list: str | None,
     /,
     *,
@@ -248,7 +248,7 @@ def get_specified_or_ia_user_selected_or_default_list(
 
 @t.overload
 def get_specified_or_ia_user_selected_or_default_list(
-    interaction: InteractionAdapter,
+    interaction: _InteractionAdapter,
     list: str | None,
     /,
     *,
@@ -258,7 +258,7 @@ def get_specified_or_ia_user_selected_or_default_list(
 
 
 def get_specified_or_ia_user_selected_or_default_list(
-    data: CommunityAdapter | JumpediaAdapter | InteractionAdapter,
+    data: CommunityAdapter | JumpediaAdapter | _InteractionAdapter,
     list: str | None = None,
     /,
     *,

@@ -66,9 +66,7 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
         list = _require_list_with_name(self._c, text.RealStr(name), self._o)
         self._o.delete_list(self._c, list.id)
 
-    def rename_list(
-        self, old_name: str, new_name: str
-    ) -> tuple[List, text.RealStr]:
+    def rename_list(self, old_name: str, new_name: str) -> tuple[List, text.RealStr]:
         lst = _require_list_with_name(self._c, text.RealStr(old_name), self._o)
         old_name = lst.real_name
         new_name = text.RealStr(new_name)

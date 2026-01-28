@@ -1,9 +1,13 @@
+import typing as t
+from contextlib import contextmanager
 from dataclasses import field
 from functools import cached_property
+from threading import Lock
 
 import discord as dc
 import mariadb
 
+from adapters import _AdapterMeta
 from dc_utils import connect
 from structures import db
 from structures.jumpedia import Jumpedia
@@ -64,7 +68,41 @@ def _get_or_create_the_one_piece():
     return _THE_ONE_PIECE
 
 
-class InteractionAdapter(BaseAdapter[dc.Interaction]):
+_INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}
+_LOCK: Lock = Lock()
+
+
+@contextmanager
+def get_interaction_adapter(
+    interaction: dc.Interaction,
+) -> t.Generator[_InteractionAdapter]:
+    global _INTERACTIONS
+
+    with _LOCK:
+        tup = _INTERACTIONS.get(interaction.id)
+
+        if tup is None:
+            _INTERACTIONS[interaction.id] = tup = (1, _InteractionAdapter(interaction))
+        else:
+            _INTERACTIONS[interaction.id] = (tup[0] + 1, tup[1])
+
+    yield tup[1]
+
+    with _LOCK:
+        ref_count, ia = _INTERACTIONS[interaction.id]
+
+        assert ref_count >= 1
+
+        if ref_count == 1:
+            _INTERACTIONS.pop(interaction.id)
+        else:
+            _INTERACTIONS[interaction.id] = (ref_count - 1, ia)
+
+        ia._c._mariadb_cursor.close()
+        ia._c._mariadb_connection.close()
+
+
+class _InteractionAdapter(BaseAdapter[dc.Interaction]):
     ia_jumpedia_user: JumpediaUserAdapter = field(init=False, default=None)  # type: ignore
 
     def __post_init__(self) -> None:

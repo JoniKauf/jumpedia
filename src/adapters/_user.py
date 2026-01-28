@@ -16,7 +16,7 @@ if t.TYPE_CHECKING:
     from ._community import CommunityAdapter
     from ._jumpedia import JumpediaAdapter
     from ._list import ListAdapter
-    from .interaction import InteractionAdapter
+    from .interaction import _InteractionAdapter
 
 
 def _get_set_own_rank_error(
@@ -139,7 +139,7 @@ def get_success_msg(
 
 
 class UserAdapter(BaseAdapter[dc.User]):
-    interaction: InteractionAdapter
+    interaction: _InteractionAdapter
     _member: None | dc.Member = None
 
     @cached_property

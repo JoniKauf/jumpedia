@@ -7,18 +7,7 @@ from utils import orm, secret
 
 from . import errors
 
-__POOL: mariadb.ConnectionPool | None = None
-
-
-def _get_pool() -> mariadb.ConnectionPool:
-    global __POOL
-
-    if __POOL is None:
-        __POOL = mariadb.ConnectionPool(
-            pool_name="pool", pool_size=10, **secret.listen().DATABASE_CONNECTION_DATA
-        )
-
-    return __POOL
+__DATA: secret.DatabaseConnectionData = secret.listen().DATABASE_CONNECTION_DATA
 
 
 def _get_new_connection() -> mariadb.Connection:
@@ -29,7 +18,7 @@ def _get_new_connection() -> mariadb.Connection:
 
     for i in range(TRIES):
         try:
-            return _get_pool().get_connection()
+            return mariadb.connect(**__DATA)
         except mariadb.Error as e:
             if i < TRIES - 1:
                 time.sleep(wait)

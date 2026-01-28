@@ -3,6 +3,8 @@ import typing as t
 
 import discord as dc
 
+import adapters
+import adapters.interaction
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 from . import errors, shortcuts
@@ -54,7 +56,7 @@ def identifier_to_id(identifier: str | int) -> int:
 def validate_allowed(
     interaction: dc.Interaction, rank_required: AnyRankT, *ranks_required: AnyRankT
 ) -> None:
-    from adapters.interaction import InteractionAdapter
+    from adapters.interaction import _InteractionAdapter
 
     server_rank: ServerRank | None = None
     jumpedia_rank: JumpediaRank | None = None
@@ -62,92 +64,97 @@ def validate_allowed(
 
     jumpedia_and_user: tuple[JumpediaAdapter, JumpediaUserAdapter] | None = None
 
-    def get_jumpedia_and_jumpedia_user() -> tuple[JumpediaAdapter, JumpediaUserAdapter]:
-        nonlocal jumpedia_and_user
+    with adapters.interaction.get_interaction_adapter(interaction) as ia:
 
-        if jumpedia_and_user is not None:
+        def get_jumpedia_and_jumpedia_user() -> (
+            tuple[JumpediaAdapter, JumpediaUserAdapter]
+        ):
+            nonlocal jumpedia_and_user
+
+            if jumpedia_and_user is not None:
+                return jumpedia_and_user
+
+            jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
+                ia.jumpedia, None
+            )
+
+            jumpedia_and_user = (ia.jumpedia, jumpedia_user)
+
             return jumpedia_and_user
 
-        jumpedia = InteractionAdapter(interaction).jumpedia
-        jumpedia_user = shortcuts.get_or_create_specified_or_current_jumpedia_user(
-            jumpedia, None
-        )
+        def get_jumpedia_rank() -> JumpediaRank:
+            nonlocal jumpedia_rank
 
-        jumpedia_and_user = (jumpedia, jumpedia_user)
+            if jumpedia_rank is not None:
+                return jumpedia_rank
 
-        return jumpedia_and_user
+            jumpedia_rank = get_jumpedia_and_jumpedia_user()[1].jumpedia_rank
 
-    def get_jumpedia_rank() -> JumpediaRank:
-        nonlocal jumpedia_rank
-
-        if jumpedia_rank is not None:
             return jumpedia_rank
 
-        jumpedia_rank = get_jumpedia_and_jumpedia_user()[1].jumpedia_rank
+        def get_server_rank() -> ServerRank:
+            nonlocal server_rank
 
-        return jumpedia_rank
+            if server_rank is not None:
+                return server_rank
 
-    def get_server_rank() -> ServerRank:
-        nonlocal server_rank
+            server_rank = ia.ia_server_member.server_rank
 
-        if server_rank is not None:
             return server_rank
 
-        server_rank = InteractionAdapter(interaction).ia_server_member.server_rank
+        def get_community_rank() -> CommunityRank:
+            nonlocal community_rank
 
-        return server_rank
+            if community_rank is not None:
+                return community_rank
 
-    def get_community_rank() -> CommunityRank:
-        nonlocal community_rank
+            jumpedia, jumpedia_user = get_jumpedia_and_jumpedia_user()
 
-        if community_rank is not None:
+            community_rank = (
+                shortcuts.get_or_create_specified_or_current_community_user(
+                    shortcuts.get_current_community(jumpedia), jumpedia_user
+                ).community_rank
+            )
+
             return community_rank
 
-        jumpedia, jumpedia_user = get_jumpedia_and_jumpedia_user()
-
-        community_rank = shortcuts.get_or_create_specified_or_current_community_user(
-            shortcuts.get_current_community(jumpedia), jumpedia_user
-        ).community_rank
-
-        return community_rank
-
-    for req in (rank_required, *ranks_required):
-        # Power == 0 required
-        if not req:
-            continue
-
-        # Doesn't need database, therefore cheapest, therefore do first
-        if isinstance(req, ServerRank):
-            sr = get_server_rank()
-
-            if sr >= req:
+        for req in (rank_required, *ranks_required):
+            # Power == 0 required
+            if not req:
                 continue
 
-            if get_jumpedia_rank():
-                continue
+            # Doesn't need database, therefore cheapest, therefore do first
+            if isinstance(req, ServerRank):
+                sr = get_server_rank()
 
-            raise errors.NotPermittedError(sr, req)
+                if sr >= req:
+                    continue
 
-        if isinstance(req, JumpediaRank):
-            jr = get_jumpedia_rank()
+                if get_jumpedia_rank():
+                    continue
 
-            if jr >= req:
-                continue
+                raise errors.NotPermittedError(sr, req)
 
-            raise errors.NotPermittedError(jr, req)
+            if isinstance(req, JumpediaRank):
+                jr = get_jumpedia_rank()
 
-        if isinstance(req, CommunityRank):
-            if get_jumpedia_rank():
-                continue
+                if jr >= req:
+                    continue
 
-            cr = get_community_rank()
+                raise errors.NotPermittedError(jr, req)
 
-            if cr >= req:
-                continue
+            if isinstance(req, CommunityRank):
+                if get_jumpedia_rank():
+                    continue
 
-            raise errors.NotPermittedError(cr, req)
+                cr = get_community_rank()
 
-        t.assert_never(req)
+                if cr >= req:
+                    continue
+
+                raise errors.NotPermittedError(cr, req)
+
+            t.assert_never(req)
 
 
 def validate_allowed_for_others(

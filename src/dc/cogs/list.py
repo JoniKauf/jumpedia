@@ -5,7 +5,7 @@ from types import CoroutineType
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters.interaction import InteractionAdapter
+from adapters.interaction import _InteractionAdapter
 from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
@@ -30,7 +30,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.command(description="Show information about a list.")
     @command.adapt()
     async def info(
-        self, ia: InteractionAdapter, list: str | None = None
+        self, ia: _InteractionAdapter, list: str | None = None
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         lst = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)._o
 
@@ -55,7 +55,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
     async def create(
-        self, ia: InteractionAdapter, list: str
+        self, ia: _InteractionAdapter, list: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
 
@@ -73,7 +73,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
     async def nuke(
-        self, ia: InteractionAdapter, list: str
+        self, ia: _InteractionAdapter, list: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_o = shortcuts.get_current_community(ia).get_list(list)._o
 
@@ -86,21 +86,20 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @list_edit_group.command(name="name")
     @command.adapt()
     async def edit_name(
-        self, ia: InteractionAdapter, list: str, new_name: str
+        self, ia: _InteractionAdapter, list: str, new_name: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
 
         lst, new_name = community.rename_list(list, new_name)
 
-        return ia.dc.followup.send(
-            layouts.structure_name_edited(lst, new_name)
-        )
+        return ia.dc.followup.send(layouts.structure_name_edited(lst, new_name))
+
 
 class ListsCog(cmds.GroupCog, group_name="lists"):
     @acmds.command(description="Browse all lists of the community.")
     @command.adapt()
     async def browse(
-        self, ia: InteractionAdapter
+        self, ia: _InteractionAdapter
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
         lists = community.get_lists()
