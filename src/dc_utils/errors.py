@@ -196,7 +196,7 @@ class AttributeValueSlotCountOutOfRange(FeedbackError):
         super().__init__(
             "Attribute Value Slot Count Out Of Range",
             t"The specified value has not enough or too many slots!",
-            additional=t"The value {list(e.value):,} has {len(e.value):,} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:,} requires between {e.attribute.min_slots:,} and {e.attribute.max_slots:,} slots in a value.",
+            additional=t"The value {list(e.value):,} has {len(e.value):,} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:,} requires between {e.attribute.min_slot_count:,} and {e.attribute.max_slot_count:,} slots in a value.",
         )
 
 
@@ -238,9 +238,9 @@ class AttributeMinSlotsOrMaxSlotsOutOfRange(FeedbackError):
         super().__init__(
             "Slot Limits Out Of Range",
             t"The min or max slot count specified is invalid!",
-            additional=t"`min_slots` must be at least {e.min_min}, while `max_slots` must be at least 1, bigger than `min_slots` and below the community's limit of {e.max_max}.",
+            additional=t"`min_slot_count` must be at least {e.min_min}, while {'max_slot_count':,} must be at least 1, bigger than `min_slot_count` and below the community's limit of {e.max_max}.",
             paragraphs=(
-                t"The following statement must be valid: `max_slots ≥ 1 and {e.min_min} ≤ min_slots ≤ max_slots ≤ {e.max_max}`.\n"
+                t"The following statement must be valid: `max_slot_count ≥ 1 and {e.min_min} ≤ min_slot_count ≤ max_slot_count ≤ {e.max_max}`.\n"
                 t"The values you entered result in this statement: {e.max} ≥ 1 and {e.min_min} ≤ {e.min} ≤ {e.max} ≤ {e.max_max:,}.",
             ),
         )

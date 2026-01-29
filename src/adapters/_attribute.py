@@ -29,12 +29,12 @@ class BaseAttributeAdapter[T: BaseAttribute](BaseStructureAdapter[T]):
         return self._o.position
 
     @property
-    def min_slots(self) -> int:
-        return self._o.min_slots
+    def min_slot_count(self) -> int:
+        return self._o.min_slot_count
 
     @property
-    def max_slots(self) -> int:
-        return self._o.max_slots
+    def max_slot_count(self) -> int:
+        return self._o.max_slot_count
 
 
 type AnyAttributeAdapterT = StaticAttributeAdapter | TaskAttributeAdapter | UserAttributeAdapter

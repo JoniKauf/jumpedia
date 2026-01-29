@@ -47,8 +47,8 @@ class _StaticAttributePredefinedData(t.NamedTuple):
     norm_name: NormStr
     slot_type: type[SlotTypeT]
     position: int
-    min_slots: int
-    max_slots: int
+    min_slot_count: int
+    max_slot_count: int
     kind: Kind
 
 
@@ -61,8 +61,8 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             norm_name=NormStr(real_name),
             slot_type=int,
             position=0,
-            min_slots=1,
-            max_slots=1,
+            min_slot_count=1,
+            max_slot_count=1,
             kind=Kind.ID,
         ),
         Kind.NAME: _StaticAttributePredefinedData(
@@ -70,8 +70,8 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             norm_name=NormStr(real_name),
             slot_type=str,
             position=1,
-            min_slots=1,
-            max_slots=1,
+            min_slot_count=1,
+            max_slot_count=1,
             kind=Kind.NAME,
         ),
         Kind.ALIAS: _StaticAttributePredefinedData(
@@ -79,8 +79,8 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             norm_name=NormStr(real_name),
             slot_type=str,
             position=2,
-            min_slots=0,
-            max_slots=32,
+            min_slot_count=0,
+            max_slot_count=32,
             kind=Kind.ALIAS,
         ),
     }
@@ -211,8 +211,8 @@ class List(BaseStructure, naming=("list", "lists")):
             norm_name=text.NormStr(row.norm_name, check=False),
             slot_type=SLOT_TYPES[row.slot_type],
             position=row.position,
-            min_slots=row.min_slots,
-            max_slots=row.max_slots,
+            min_slot_count=row.min_slot_count,
+            max_slot_count=row.max_slot_count,
             kind=None if row.kind is None else Kind(row.kind),  # type: ignore
         )
 
@@ -552,17 +552,19 @@ class List(BaseStructure, naming=("list", "lists")):
 
         t.assert_never(kind.value)
 
-    def _validate_min_max_slots(self, min_slots: int, max_slots: int) -> None:
+    def _validate_min_max_slot_count(
+        self, min_slot_count: int, max_slot_count: int
+    ) -> None:
         if not (
             0
-            <= min_slots
-            <= max_slots
+            <= min_slot_count
+            <= max_slot_count
             <= self.community.limits["attribute_task_value_slot_count_max"]
-            and max_slots >= 1
+            and max_slot_count >= 1
         ):
             raise errors.AttributeMinSlotsOrMaxSlotsOutOfRangeError(
-                min_slots,
-                max_slots,
+                min_slot_count,
+                max_slot_count,
                 0,
                 self.community.limits["attribute_task_value_slot_count_max"],
             )
@@ -575,10 +577,10 @@ class List(BaseStructure, naming=("list", "lists")):
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         *,
         position: int,
-        min_slots: int,
+        min_slot_count: int,
         kind: Kind,
     ) -> T:
         pass
@@ -591,7 +593,7 @@ class List(BaseStructure, naming=("list", "lists")):
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         *,
         collection: t.Sequence[tuple[RealStr, t.Sequence[RealStr]]] = (),
     ) -> T:
@@ -604,10 +606,10 @@ class List(BaseStructure, naming=("list", "lists")):
         real_name: RealStr,
         real_aliases: t.Iterable[RealStr],
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         *,
         position: int = -1,
-        min_slots: int = 0,
+        min_slot_count: int = 0,
         kind: Kind | None = None,
         collection: t.Sequence[tuple[RealStr, t.Sequence[RealStr]]] = (),
     ) -> T:
@@ -617,7 +619,7 @@ class List(BaseStructure, naming=("list", "lists")):
             type, StaticAttribute
         ), "Typing not followed on attribute creation #1"
 
-        assert (min_slots or kind) != issubclass(
+        assert (min_slot_count or kind) != issubclass(
             type, BaseNonStaticAttribute
         ), "Typing not followed on attribute creation #2"
         assert not (
@@ -635,7 +637,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
         self._validate_attribute_syns(c, type, norm_name, frozenset(norm_aliases))
 
-        self._validate_min_max_slots(min_slots, max_slots)
+        self._validate_min_max_slot_count(min_slot_count, max_slot_count)
 
         if position == -1:
             position = max(attr.position for attr in attrs) + 1 if attrs else 0
@@ -650,8 +652,8 @@ class List(BaseStructure, naming=("list", "lists")):
                 AttributeTable.real_name.bind(real_name),
                 AttributeTable.slot_type.bind(SLOT_TYPES.index(slot_type)),
                 AttributeTable.position.bind(position),
-                AttributeTable.min_slots.bind(min_slots),
-                AttributeTable.max_slots.bind(max_slots),
+                AttributeTable.min_slot_count.bind(min_slot_count),
+                AttributeTable.max_slot_count.bind(max_slot_count),
                 AttributeTable.kind.bind(None if kind is None else kind.value),
             ),
             get_last_generated_id=True,
@@ -671,8 +673,8 @@ class List(BaseStructure, naming=("list", "lists")):
             norm_name=norm_name,
             slot_type=slot_type,
             position=position,
-            min_slots=min_slots,
-            max_slots=max_slots,
+            min_slot_count=min_slot_count,
+            max_slot_count=max_slot_count,
             kind=kind,  # type: ignore
         )
 
@@ -817,13 +819,13 @@ class List(BaseStructure, naming=("list", "lists")):
 
         return tuple(real_aliases)
 
-    def edit_attribute_min_max_slots(
+    def edit_attribute_min_max_slot_count(
         self,
         c: orm.Cursor,
         type: type[AnyAttributeT],
         id: int,
-        min_slots: int,
-        max_slots: int,
+        min_slot_count: int,
+        max_slot_count: int,
     ) -> None:
         tup = self.get_attribute_by_id(c, id, type=type)
 
@@ -836,7 +838,7 @@ class List(BaseStructure, naming=("list", "lists")):
         if isinstance(attr, StaticAttribute):
             raise errors.CannotChangeThisAboutStaticAttribute
 
-        self._validate_min_max_slots(min_slots, max_slots)
+        self._validate_min_max_slot_count(min_slot_count, max_slot_count)
 
         # User attributes are too much to check and basically impossible to handle for moderators
         # We therefore see them as soft limits for user attributes
@@ -849,18 +851,18 @@ class List(BaseStructure, naming=("list", "lists")):
                 value = avm.task_attribute_value_mapping.get(attr, ())
                 length = len(value)
 
-                if length < min_slots or length > max_slots:
+                if length < min_slot_count or length > max_slot_count:
                     out_of_bounds[avm.task] = value
 
             if out_of_bounds:
                 raise errors.NotAllTasksFitMinAndMaxSlotCountChangesError(
-                    attr, out_of_bounds, min_slots, max_slots
+                    attr, out_of_bounds, min_slot_count, max_slot_count
                 )
 
         c.execute(
             db.Attribute.update(
-                db.Attribute.min_slots.set(min_slots),
-                db.Attribute.max_slots.set(max_slots),
+                db.Attribute.min_slot_count.set(min_slot_count),
+                db.Attribute.max_slot_count.set(max_slot_count),
             ).where(
                 self._where_this_list(db.Attribute.list_id),
                 (db.Attribute.type_id, orm.Operator.EQ, type.type_id),

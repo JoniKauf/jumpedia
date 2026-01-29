@@ -137,11 +137,11 @@ class Attribute(Model, table_name=SNAKE):
         pass
 
     @column(int)
-    def min_slots(self):
+    def min_slot_count(self):
         pass
 
     @column(int)
-    def max_slots(self):
+    def max_slot_count(self):
         pass
 
     @column(int, types.NoneType)
@@ -488,8 +488,8 @@ def create_database(
                 {Attribute.real_name} VARCHAR({j.limits['attribute_syn_length_max']}) NOT NULL,
                 {Attribute.slot_type} TINYINT UNSIGNED NOT NULL,
                 {Attribute.position} TINYINT UNSIGNED NOT NULL,
-                {Attribute.min_slots} TINYINT UNSIGNED NOT NULL,
-                {Attribute.max_slots} TINYINT UNSIGNED NOT NULL,
+                {Attribute.min_slot_count} TINYINT UNSIGNED NOT NULL,
+                {Attribute.max_slot_count} TINYINT UNSIGNED NOT NULL,
 
                 FOREIGN KEY ({Attribute.list_id.unqualified})
                     REFERENCES {List}({List.id.unqualified})

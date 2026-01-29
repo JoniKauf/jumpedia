@@ -68,49 +68,6 @@ def _get_or_create_the_one_piece():
     return _THE_ONE_PIECE
 
 
-_INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}
-_LOCK: Lock = Lock()
-
-
-class InteractionAdapterContext:
-    def __init__(self, interaction: dc.Interaction):
-        self.interaction = interaction
-        self._adapter: _InteractionAdapter | None = None
-
-    def __enter__(self) -> _InteractionAdapter:
-        global _INTERACTIONS
-
-        with _LOCK:
-            tup = _INTERACTIONS.get(self.interaction.id)
-
-            if tup is None:
-                adapter = _InteractionAdapter(self.interaction)
-                _INTERACTIONS[self.interaction.id] = (1, adapter)
-                self._adapter = adapter
-            else:
-                ref_count, adapter = tup
-                _INTERACTIONS[self.interaction.id] = (ref_count + 1, adapter)
-                self._adapter = adapter
-
-        return self._adapter
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        global _INTERACTIONS
-
-        with _LOCK:
-            ref_count, ia = _INTERACTIONS[self.interaction.id]
-
-            assert ref_count >= 1
-
-            if ref_count == 1:
-                _INTERACTIONS.pop(self.interaction.id)
-            else:
-                _INTERACTIONS[self.interaction.id] = (ref_count - 1, ia)
-
-            ia._c._mariadb_cursor.close()
-            ia._c._mariadb_connection.close()
-
-
 class _InteractionAdapter(BaseAdapter[dc.Interaction]):
     ia_jumpedia_user: JumpediaUserAdapter = field(init=False, default=None)  # type: ignore
 

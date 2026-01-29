@@ -55,11 +55,11 @@ class ListCog(cmds.GroupCog, group_name="list"):
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
     async def create(
-        self, ia: _InteractionAdapter, list: str
+        self, ia: _InteractionAdapter, name: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
 
-        new_list = community.create_list(list)
+        new_list = community.create_list(name)
 
         return ia.dc.followup.send(
             message.layout(

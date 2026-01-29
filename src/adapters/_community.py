@@ -76,10 +76,8 @@ class CommunityAdapter(BaseStructureAdapter[Community]):
 
         try:
             self._o.rename_list(self._c, lst.id, new_name)
-        except StructureNotFoundError:
-            raise errors.StructureNotFoundViaSyn(new_name, List)
         except SynsAlreadyTakenError as e:
-            raise errors.SynsAlreadyTaken(e)
+            raise errors.create_feedback_from_structure_error(e)
 
         return lst, new_name
 

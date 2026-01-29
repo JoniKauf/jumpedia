@@ -97,8 +97,8 @@ class Community(BaseStructure, naming=("community", "communities")):
                 static_attr_data.real_name,
                 (),
                 static_attr_data.slot_type,
-                static_attr_data.max_slots,
-                min_slots=static_attr_data.min_slots,
+                static_attr_data.max_slot_count,
+                min_slot_count=static_attr_data.min_slot_count,
                 kind=static_attr_data.kind,
                 position=static_attr_data.position,
             )

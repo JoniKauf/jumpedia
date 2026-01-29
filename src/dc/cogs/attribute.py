@@ -34,8 +34,8 @@ class _AttrRow(t.NamedTuple):
     type: str
     slot_type: str
     position: str
-    min_slots: str
-    max_slots: str
+    min_slot_count: str
+    max_slot_count: str
     collection: tuple[str, ...]
 
 
@@ -81,8 +81,8 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                 str(type(attr)).title(),
                 message.slot_type_to_name(attr.slot_type),
                 str(attr.position),
-                str(attr.min_slots),
-                str(attr.max_slots),
+                str(attr.min_slot_count),
+                str(attr.max_slot_count),
                 tuple(map(_collection_entry_to_browse_str, attr.get_collection(ia._c))),
             ),
         )
@@ -97,14 +97,14 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
         type: NonStaticAttributeEnum,
         name: str,
         slot_type: SlotTypeEnum,
-        max_slots: int,
+        max_slot_count: int,
         aliases: str | None = None,
         collection: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
         attr = list_obj.create_attribute(
-            type.value, name, slot_type.value, max_slots, aliases, collection
+            type.value, name, slot_type.value, max_slot_count, aliases, collection
         )
 
         return ia.dc.followup.send(layouts.structure_created(attr._o))
@@ -171,21 +171,21 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             layouts.structure_aliases_edited(old_attr._o, aliases)
         )
 
-    @attribute_edit_group.command(name="min_and_max_slots")
+    @attribute_edit_group.command(name="min_and_max_slot_count")
     @command.adapt()
-    async def edit_min_and_max_slots(
+    async def edit_min_and_max_slot_count(
         self,
         ia: _InteractionAdapter,
         list: str,
         type: NonStaticAttributeEnum,
         attribute: str,
-        new_min_slots: int,
-        new_max_slots: int,
+        new_min_slot_count: int,
+        new_max_slot_count: int,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-        old_attr = list_obj.edit_attribute_min_and_max_slots(
-            type.value, attribute, new_min_slots, new_max_slots
+        old_attr = list_obj.edit_attribute_min_and_max_slot_count(
+            type.value, attribute, new_min_slot_count, new_max_slot_count
         )
 
         return ia.dc.followup.send(
@@ -193,7 +193,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
                 f"{builtins.type(old_attr._o).type_name.title()} Min And Max Slot Count Edited",
                 t"The min and max slot count of the "
                 + layouts.mention(old_attr._o)
-                + t" have been changed to {new_min_slots:,} and {new_max_slots:,} successfully!",
+                + t" have been changed to {new_min_slot_count:,} and {new_max_slot_count:,} successfully!",
             )
         )
 
@@ -239,8 +239,8 @@ class AttributesCog(cmds.GroupCog, group_name="attributes"):
                     str(builtins.type(attr)).title(),
                     message.slot_type_to_name(attr.slot_type),
                     str(attr.position),
-                    str(attr.min_slots),
-                    str(attr.max_slots),
+                    str(attr.min_slot_count),
+                    str(attr.max_slot_count),
                     tuple(
                         map(_collection_entry_to_browse_str, attr_to_coll.get(attr, ()))
                     ),

@@ -2,12 +2,14 @@ import functools
 import inspect
 import itertools
 import typing as t
+from threading import Lock
 from types import CoroutineType, EllipsisType
 
 import discord as dc
 import mariadb
 from discord.ext import commands as cmds
 
+from adapters.interaction import _InteractionAdapter
 from dc_utils import layouts, user
 from structures import BaseStructure
 from utils import gist
@@ -15,6 +17,49 @@ from utils.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
     from adapters.interaction import _InteractionAdapter
+
+
+_INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}
+_LOCK: Lock = Lock()
+
+
+class InteractionAdapterContext:
+    def __init__(self, interaction: dc.Interaction):
+        self.interaction = interaction
+        self._adapter: _InteractionAdapter | None = None
+
+    def __enter__(self) -> _InteractionAdapter:
+        global _INTERACTIONS
+
+        with _LOCK:
+            tup = _INTERACTIONS.get(self.interaction.id)
+
+            if tup is None:
+                adapter = _InteractionAdapter(self.interaction)
+                _INTERACTIONS[self.interaction.id] = (1, adapter)
+                self._adapter = adapter
+            else:
+                ref_count, adapter = tup
+                _INTERACTIONS[self.interaction.id] = (ref_count + 1, adapter)
+                self._adapter = adapter
+
+        return self._adapter
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        global _INTERACTIONS
+
+        with _LOCK:
+            ref_count, ia = _INTERACTIONS[self.interaction.id]
+
+            assert ref_count >= 1
+
+            if ref_count == 1:
+                _INTERACTIONS.pop(self.interaction.id)
+            else:
+                _INTERACTIONS[self.interaction.id] = (ref_count - 1, ia)
+
+            ia._c._mariadb_cursor.close()
+            ia._c._mariadb_connection.close()
 
 
 def adapt[T: cmds.Cog, **P](
@@ -48,7 +93,6 @@ def adapt[T: cmds.Cog, **P](
         async def decorated(
             self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
         ) -> None:
-            import adapters.interaction
             from dc_utils import errors
 
             # --- Defer; Always Use Followup ---
@@ -79,7 +123,7 @@ def adapt[T: cmds.Cog, **P](
                 )
 
             # --- Create Interaction Adapter ---
-            with adapters.interaction.InteractionAdapterContext(interaction) as ia:
+            with InteractionAdapterContext(interaction) as ia:
                 # --- Handle One And Only, Final Commit Per Interaction ---
                 try:
                     success = await func(self, ia, *args, **kwargs)

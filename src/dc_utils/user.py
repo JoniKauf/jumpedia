@@ -3,8 +3,6 @@ import typing as t
 
 import discord as dc
 
-import adapters
-import adapters.interaction
 from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 from . import errors, shortcuts
@@ -56,7 +54,7 @@ def identifier_to_id(identifier: str | int) -> int:
 def validate_allowed(
     interaction: dc.Interaction, rank_required: AnyRankT, *ranks_required: AnyRankT
 ) -> None:
-    from adapters.interaction import _InteractionAdapter
+    from dc_utils import command
 
     server_rank: ServerRank | None = None
     jumpedia_rank: JumpediaRank | None = None
@@ -64,7 +62,7 @@ def validate_allowed(
 
     jumpedia_and_user: tuple[JumpediaAdapter, JumpediaUserAdapter] | None = None
 
-    with adapters.interaction.InteractionAdapterContext(interaction) as ia:
+    with command.InteractionAdapterContext(interaction) as ia:
 
         def get_jumpedia_and_jumpedia_user() -> (
             tuple[JumpediaAdapter, JumpediaUserAdapter]

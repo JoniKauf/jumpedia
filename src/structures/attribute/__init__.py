@@ -35,8 +35,8 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
     norm_name: text.NormStr
     slot_type: type[SlotTypeT]
     position: int
-    min_slots: int
-    max_slots: int
+    min_slot_count: int
+    max_slot_count: int
     kind: Kind | None
 
     @property
@@ -45,7 +45,7 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
 
     @property
     def required(self) -> bool:
-        return self.min_slots > 0
+        return self.min_slot_count > 0
 
     @property
     def unique_slots_across_list(self) -> bool:
@@ -96,7 +96,7 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
     def real_to_slot_value(
         self, c: orm.Cursor, value: t.Sequence[text.RealStr], /
     ) -> tuple[SlotStr, ...]:
-        if not (self.min_slots <= len(value) <= self.max_slots):
+        if not (self.min_slot_count <= len(value) <= self.max_slot_count):
             raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self)
 
         return tuple(

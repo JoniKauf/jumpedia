@@ -388,7 +388,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         type: type[TaskAttribute],
         name: str,
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         aliases: str | None,
         collection: str | None,
     ) -> TaskAttributeAdapter:
@@ -400,7 +400,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         type: type[UserAttribute],
         name: str,
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         aliases: str | None,
         collection: str | None,
     ) -> UserAttributeAdapter:
@@ -411,7 +411,7 @@ class ListAdapter(BaseStructureAdapter[List]):
         type: type[TaskAttribute | UserAttribute],
         name: str,
         slot_type: type[SlotTypeT],
-        max_slots: int,
+        max_slot_count: int,
         aliases: str | None,
         collection: str | None,
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
@@ -432,7 +432,7 @@ class ListAdapter(BaseStructureAdapter[List]):
                 text.RealStr(name),
                 real_aliases,
                 slot_type,
-                max_slots,
+                max_slot_count,
                 collection=real_collection,
             )
         except (
@@ -494,13 +494,13 @@ class ListAdapter(BaseStructureAdapter[List]):
 
         return (attribute, new_aliases)
 
-    def edit_attribute_min_and_max_slots(
+    def edit_attribute_min_and_max_slot_count(
         self, type: type[TaskAttribute | UserAttribute], syn: str, min: int, max: int
     ) -> TaskAttributeAdapter | UserAttributeAdapter:
         attribute = self.get_attribute(type, syn)
 
         try:
-            self._o.edit_attribute_min_max_slots(
+            self._o.edit_attribute_min_max_slot_count(
                 self._c, type, attribute._o.id, min, max
             )
         except (

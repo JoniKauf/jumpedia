@@ -31,60 +31,60 @@ def create_attributes(
         "name": list.get_static_attribute_by_kind(c, Kind.NAME)
     }
 
-    diff_collection: builtins.list[tuple[RealStr, t.Iterable[RealStr]]] = []
-
-    for diff in [
-        "0/10",
-        "0.5/10",
-        "1/10",
-        "1.5/10",
-        "2/10",
-        "2.5/10",
-        "3/10",
-        "3.5/10",
-        "4/10",
-        "4.5/10",
-        "5/10",
-        "5.5/10",
-        "6/10",
-        "6.5/10",
-        "7/10",
-        "7.5/10",
-        "8/10",
-        "8.5/10",
-        "9/10",
-        "9.5/10",
-        "10/10",
-        "Low Elite",
-        "Mid Elite",
-        "High Elite",
-        "Insanity Elite",
-        "God Tier",
-        "Hell Tier",
-    ]:
-        aliases: builtins.list[str] = []
-        n, non_elite, _ = diff.partition("/")
-
-        if non_elite:
-            aliases.append(n)
-
-            if n == "0.5":
-                aliases.append(".5")
-                aliases.append(".5/10")
-
-            for syn in (diff, *aliases):
-                if "." in syn:
-                    aliases.append(syn.replace(".", ","))
-        else:
-            aliases.append(diff.partition(" ")[0])
-
-            if diff == "Insanity Elite":
-                aliases.append("Ins")
-
-        diff_collection.append((RealStr(diff), map(RealStr, aliases)))
-
     if not unproven:
-        old_to_new["diff"] = list.create_attribute(
+        diff_collection: builtins.list[tuple[RealStr, t.Sequence[RealStr]]] = []
+
+        for diff in [
+            "0/10",
+            "0.5/10",
+            "1/10",
+            "1.5/10",
+            "2/10",
+            "2.5/10",
+            "3/10",
+            "3.5/10",
+            "4/10",
+            "4.5/10",
+            "5/10",
+            "5.5/10",
+            "6/10",
+            "6.5/10",
+            "7/10",
+            "7.5/10",
+            "8/10",
+            "8.5/10",
+            "9/10",
+            "9.5/10",
+            "10/10",
+            "Low Elite",
+            "Mid Elite",
+            "High Elite",
+            "Insanity Elite",
+            "God Tier",
+            "Hell Tier",
+        ]:
+            aliases: builtins.list[str] = []
+            n, non_elite, _ = diff.partition("/")
+
+            if non_elite:
+                aliases.append(n)
+
+                if n == "0.5":
+                    aliases.append(".5")
+                    aliases.append(".5/10")
+
+                for syn in (diff, *aliases):
+                    if "." in syn:
+                        aliases.append(syn.replace(".", ","))
+            else:
+                aliases.append(diff.partition(" ")[0])
+
+                if diff == "Insanity Elite":
+                    aliases.append("Ins")
+
+            diff_collection.append((RealStr(diff), tuple(map(RealStr, aliases))))
+
+        attr = list.create_attribute(
             c,
             TaskAttribute,
             RealStr("Difficulty"),
@@ -93,10 +93,12 @@ def create_attributes(
             1,
             collection=diff_collection,
         )
+        list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 1)
+        old_to_new["diff"] = attr
 
-    del diff_collection
+        del diff_collection
 
-    old_to_new["type"] = list.create_attribute(
+    attr = list.create_attribute(
         c,
         TaskAttribute,
         RealStr("Type"),
@@ -104,8 +106,10 @@ def create_attributes(
         str,
         32,
     )
+    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    old_to_new["type"] = attr
 
-    loc_collection: builtins.list[tuple[RealStr, t.Iterable[RealStr]]] = []
+    loc_collection: builtins.list[tuple[RealStr, t.Sequence[RealStr]]] = []
 
     for loc in [
         "Mushroom Kingdom",
@@ -139,9 +143,9 @@ def create_attributes(
                 aliases.append(syn.replace("'s", "s"))
                 aliases.append(syn.replace("'s", ""))
 
-        loc_collection.append((RealStr(loc), map(RealStr, aliases)))
+        loc_collection.append((RealStr(loc), tuple(map(RealStr, aliases))))
 
-    old_to_new["location"] = list.create_attribute(
+    attr = list.create_attribute(
         c,
         TaskAttribute,
         RealStr("Location"),
@@ -150,6 +154,8 @@ def create_attributes(
         2,
         collection=loc_collection,
     )
+    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    old_to_new["location"] = attr
 
     del loc_collection
 
@@ -169,7 +175,7 @@ def create_attributes(
             32,
         )
 
-    old_to_new["server"] = list.create_attribute(
+    attr = list.create_attribute(
         c,
         TaskAttribute,
         RealStr("Server"),
@@ -177,7 +183,7 @@ def create_attributes(
         str,
         1,
         collection=tuple(
-            (RealStr(k), map(RealStr, v))
+            (RealStr(k), tuple(map(RealStr, v)))
             for k, v in {
                 "SMO Trickjumping Server": [
                     "Main",
@@ -191,10 +197,14 @@ def create_attributes(
             }.items()
         ),
     )
+    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 1)
+    old_to_new["server"] = attr
 
-    old_to_new["links"] = list.create_attribute(
+    attr = list.create_attribute(
         c, TaskAttribute, RealStr("Link"), map(RealStr, ["Links"]), str, 32
     )
+    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    old_to_new["links"] = attr
 
     old_to_new["extra"] = list.create_attribute(
         c,
@@ -435,6 +445,10 @@ def main():
     )
     print("Gave users tasks!")
 
+    main_list.edit_attribute_min_max_slot_count(
+        C, type(proof_attr), proof_attr.id, 1, 1
+    )
+
     C.commit()
 
     # print("Giving users tasks...")
@@ -445,6 +459,6 @@ def main():
 
 
 # if __name__ == "__main__":
-# main()
+main()
 
 exit()
