@@ -83,7 +83,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
     @command.adapt()
     async def connect(
-        self, ia: _InteractionAdapter, community_name: str
+        self, ia: _InteractionAdapter, community: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = ia.jumpedia.add_community_to_current_server(community_name)
 
