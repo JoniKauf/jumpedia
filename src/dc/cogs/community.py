@@ -52,8 +52,8 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     async def create(
         self,
         ia: _InteractionAdapter,
-        community_name: str,
-        initial_list_name: str | None = None,
+        name: str,
+        default_selected_list_name: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia = ia.jumpedia
 
