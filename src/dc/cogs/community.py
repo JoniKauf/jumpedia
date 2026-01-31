@@ -8,7 +8,7 @@ import discord.ext.commands as cmds
 
 from adapters._community import CommunityAdapter
 from adapters.interaction import _InteractionAdapter
-from dc_utils import command, confirm, message, predicate, shortcuts
+from dc_utils import command, confirm, group, message, predicate, shortcuts
 from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
@@ -39,14 +39,14 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    @acmds.command(description="Show information about the community.")
+    @acmds.command()
     @command.adapt()
     async def info(self, ia: _InteractionAdapter) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
 
         return await command.info(ia, community._o, _comm_to_row(community))
 
-    @acmds.command(description="Create a community.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
     @command.adapt()
     async def create(
@@ -57,7 +57,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia = ia.jumpedia
 
-        community = jumpedia.create_community(community_name, initial_list_name)
+        community = jumpedia.create_community(name, default_selected_list_name)
 
         return ia.dc.followup.send(
             message.layout(
@@ -67,7 +67,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             )
         )
 
-    @acmds.command(description="Delete a community.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(JumpediaRank.META_ADMINISTRATOR))
     @command.adapt()
     async def nuke(self, ia: _InteractionAdapter) -> CoroutineType[t.Any, t.Any, t.Any]:
@@ -79,23 +79,23 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
             lambda: community.jumpedia.delete_community(community.name),
         )
 
-    @acmds.command(description="Connect a community to this server.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
     @command.adapt()
     async def connect(
         self, ia: _InteractionAdapter, community: str
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
-        community = ia.jumpedia.add_community_to_current_server(community_name)
+        community_obj = ia.jumpedia.add_community_to_current_server(community)
 
         return ia.dc.followup.send(
             message.layout(
                 "Community Connected",
-                t"This server has successfully been connected to the community {community.name:,}!",
+                t"This server has successfully been connected to the community {community_obj.name:,}!",
                 message.MessageStatus.SUCCESS,
             )
         )
 
-    @acmds.command(description="Disconnect a community from this server.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(ServerRank.OWNER))
     @command.adapt()
     async def disconnect(
@@ -155,10 +155,11 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
     #         )
     #     )
 
-    @acmds.command(description="Set the default selected list of the community.")
-    @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
+    community_edit_group = group.create_edit_group(CommunityRank.ADMINISTRATOR)
+
+    @community_edit_group.command(name="default_selected_list")
     @command.adapt()
-    async def set_default_selected_list(
+    async def edit_default_selected_list(
         self, ia: _InteractionAdapter, list: str | None = None
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community = shortcuts.get_current_community(ia)
@@ -179,7 +180,7 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
 
 
 class CommunitiesCog(cmds.GroupCog, group_name="communities"):
-    @acmds.command(description="Browse all communities.")
+    @acmds.command()
     @command.adapt()
     async def browse(
         self, ia: _InteractionAdapter

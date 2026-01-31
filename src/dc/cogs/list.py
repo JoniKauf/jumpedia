@@ -27,7 +27,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    @acmds.command(description="Show information about a list.")
+    @acmds.command()
     @command.adapt()
     async def info(
         self, ia: _InteractionAdapter, list: str | None = None
@@ -51,7 +51,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             ),
         )
 
-    @acmds.command(description="Create a new list.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
     async def create(
@@ -69,7 +69,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
             )
         )
 
-    @acmds.command(description="Delete an existing list.")
+    @acmds.command()
     @acmds.check(predicate.rank_required(CommunityRank.ADMINISTRATOR))
     @command.adapt()
     async def nuke(
@@ -96,7 +96,7 @@ class ListCog(cmds.GroupCog, group_name="list"):
 
 
 class ListsCog(cmds.GroupCog, group_name="lists"):
-    @acmds.command(description="Browse all lists of the community.")
+    @acmds.command()
     @command.adapt()
     async def browse(
         self, ia: _InteractionAdapter

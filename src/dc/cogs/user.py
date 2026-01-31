@@ -8,7 +8,7 @@ import discord.ext.commands as cmds
 from adapters._community import CommunityAdapter
 from adapters._user import UserAdapter
 from adapters.interaction import _InteractionAdapter
-from dc_utils import command, message, shortcuts
+from dc_utils import command, group, message, shortcuts
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
 
@@ -24,7 +24,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
     def __init__(self, bot: cmds.Bot) -> None:
         self.bot = bot
 
-    @acmds.command(description="Get information about a user.")
+    @acmds.command()
     @command.adapt(rank_to_specify_user=None)
     async def info(
         self, ia: _InteractionAdapter, user: dc.User | None = None
@@ -75,9 +75,11 @@ class UserCog(cmds.GroupCog, group_name="user"):
             ),
         )
 
-    @acmds.command()
+    user_edit_group = group.create_edit_group(CommunityRank.USER)
+    
+    @user_edit_group.command(name="selected_list")
     @command.adapt()
-    async def set_selected_list(
+    async def edit_selected_list(
         self,
         ia: _InteractionAdapter,
         list: str | None = None,
@@ -97,9 +99,9 @@ class UserCog(cmds.GroupCog, group_name="user"):
             )
         )
 
-    @acmds.command(description="Set the community rank of a user.")
+    @user_edit_group.command(name="community_rank")
     @command.adapt()
-    async def set_community_rank(
+    async def edit_community_rank(
         self, ia: _InteractionAdapter, user: dc.User, community_rank: CommunityRank
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         community_user = shortcuts.get_or_create_specified_or_current_community_user(
@@ -115,9 +117,9 @@ class UserCog(cmds.GroupCog, group_name="user"):
             )
         )
 
-    @acmds.command(description="Set the jumpedia rank of a user.")
+    @user_edit_group.command(name="jumpedia_rank")
     @command.adapt(rank_to_specify_user=None)
-    async def set_jumpedia_rank(
+    async def edit_jumpedia_rank(
         self, ia: _InteractionAdapter, user: dc.User, rank: JumpediaRank
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia = ia.jumpedia
