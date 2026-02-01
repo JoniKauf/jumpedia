@@ -110,7 +110,7 @@ def _get_set_rank_error(
     ):
         return errors.FeedbackError(
             "User Already Has Specified Rank",
-            t"The user {set_user:,} already has the {rank.mention()}, therefore nothing changed!",
+            t"The user {set_user:,} already has the " + rank.mention() + t", therefore nothing changed!",
             explicit_message_status=message.MessageStatus.WARNING,
         )
 

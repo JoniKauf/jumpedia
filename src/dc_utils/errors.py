@@ -171,7 +171,7 @@ class NotEnoughPowerToAffectOtherUsers(FeedbackError):
             "Not Enough Power To Affect Other Users",
             t"You must at least have the "
             + required_rank.mention()
-            + t" to execute this command for other users, but you only have the {executing_rank.mention()}!",
+            + t" to execute this command for other users, but you only have the " + executing_rank.mention() + t"!",
         )
 
 
@@ -261,7 +261,7 @@ class NotPermittedError(FeedbackError):
 
         super().__init__(
             "Not Permitted",
-            t"You must at least have the {rank_required.mention()}, but your rank is only {my_rank:,}!",
+            t"You must at least have the " + rank_required.mention() + t", but your rank is only {my_rank:,}!",
         )
 
 
