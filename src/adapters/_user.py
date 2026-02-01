@@ -80,12 +80,12 @@ def _get_set_rank_error(
 
     if ia_best_rank <= set_best_rank:
         return errors.FeedbackError(
-            "Cannot Set Rank Of More Powerful User",
-            t"You cannot set the rank of a user more powerful than you!",
+            "Cannot Set Rank Of More Powerful Or Equal User",
+            t"You cannot set the rank of a user with more or equal power to you!",
             additional=(
                 t"The user {set_user:,} has the "
                 + set_best_rank.mention()
-                + t", but you have the less powerful "
+                + t", but you have the less or equally as powerful "
                 + ia_best_rank.mention()
                 + t"."
             ),
