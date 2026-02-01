@@ -13,7 +13,7 @@ from discord.ext import commands as cmds
 from utils import secret, text
 
 BOT = cmds.Bot(command_prefix="awjkefejjefejffsn", intents=dc.Intents.default())
-DEV_MODE: bool = True
+DEV_MODE: bool = False
 
 
 def _get_all_modules_of_cogs(pkg_path: str) -> t.Generator[types.ModuleType]:
