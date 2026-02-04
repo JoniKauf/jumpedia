@@ -123,7 +123,7 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
 
         attr: AnyAttributeAdapterT = list_obj.get_attribute(type.value, attribute)
 
-        return confirm.confirm_nuke(
+        return await confirm.confirm_nuke(
             ia,
             attr._o,
             lambda: list_obj.delete_attribute(type.value, attr.name),

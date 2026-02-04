@@ -171,7 +171,9 @@ class NotEnoughPowerToAffectOtherUsers(FeedbackError):
             "Not Enough Power To Affect Other Users",
             t"You must at least have the "
             + required_rank.mention()
-            + t" to execute this command for other users, but you only have the " + executing_rank.mention() + t"!",
+            + t" to execute this command for other users, but you only have the "
+            + executing_rank.mention()
+            + t"!",
         )
 
 
@@ -196,7 +198,7 @@ class AttributeValueSlotCountOutOfRange(FeedbackError):
         super().__init__(
             "Attribute Value Slot Count Out Of Range",
             t"The specified value has not enough or too many slots!",
-            additional=t"The value {list(e.value):,} has {len(e.value):,} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:,} requires between {e.attribute.min_slot_count:,} and {e.attribute.max_slot_count:,} slots in a value.",
+            additional=t"The value {e.value:,} has {len(e.value):,} slots, but the {e.attribute.__class__.type_name.lower()} {e.attribute.name:,} requires between {e.attribute.min_slot_count:,} and {e.attribute.max_slot_count:,} slots in a value.",
         )
 
 
@@ -261,7 +263,9 @@ class NotPermittedError(FeedbackError):
 
         super().__init__(
             "Not Permitted",
-            t"You must at least have the " + rank_required.mention() + t", but your rank is only {my_rank:,}!",
+            t"You must at least have the "
+            + rank_required.mention()
+            + t", but your rank is only {my_rank:,}!",
         )
 
 

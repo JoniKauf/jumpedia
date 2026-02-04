@@ -35,13 +35,14 @@ def discord_message_too_long(s: str) -> bool:
     return utf16_code_units(s) > MAX_DISCORD_CODE_UNITS
 
 
-def embed_join(elem: str, *elems: str) -> str:
-    return f"``{"``, ``".join((elem, *elems))}``"
+def embed_join(*elems: str) -> str:
+    if not elems:
+        return "`` ``"
+
+    return f"``{"``, ``".join(elems)}``"
 
 
-def embed_human_join(elem: str, *elems: str, human_sep: str = "and") -> str:
-    elems = (elem, *elems)
-
+def embed_human_join(*elems: str, human_sep: str = "and") -> str:
     if len(elems) < 2:
         return embed_join(*elems)
 
@@ -86,7 +87,7 @@ def layout(
             interp_to_data[id(interp)] = _InterpolationData(str(interp.value), False)
 
         elif interp.format_spec in (",", "&", "|"):
-            format_func: t.Callable[[str, *tuple[str, ...]], str]
+            format_func: t.Callable[[*tuple[str, ...]], str]
 
             if interp.format_spec == ",":
                 format_func = embed_join

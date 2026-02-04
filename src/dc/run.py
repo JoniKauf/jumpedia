@@ -2,11 +2,14 @@ import importlib
 import inspect
 import os
 import pkgutil
+import traceback
 import types
 import typing as t
 from pathlib import Path
+from traceback import print_exc
 
 import discord as dc
+from discord import HTTPException, InteractionResponded
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
 
@@ -87,6 +90,7 @@ async def on_app_command_error(
         e = DoubleBacktick()
 
     msg_kwargs: dict[str, t.Any]
+    e_old = e
 
     if isinstance(e, BaseUserReturnableError):
         msg_kwargs = e.msg_kwargs
@@ -98,6 +102,13 @@ async def on_app_command_error(
 
         e = Unhandled()
         msg_kwargs = {}
+
+        traceback.print_exception(type(e_old), e_old, e_old.__traceback__)
+
+    try:
+        await interaction.response.defer()
+    except (HTTPException, InteractionResponded):
+        pass
 
     await interaction.followup.send(str(e), **msg_kwargs)
 

@@ -53,8 +53,8 @@ async def emoji_confirm(
         )
     except asyncio.TimeoutError:
         return False
-    finally:
-        await msg.clear_reactions()
+    # finally:
+    # await msg.clear_reactions()  # TODO not working for some reason
 
     # Check exactly for yes because if the emoji checks somehow fails it should rather not delete
     if str(reaction.emoji) == config.yes:

@@ -76,7 +76,7 @@ class UserCog(cmds.GroupCog, group_name="user"):
         )
 
     user_edit_group = group.create_edit_group(CommunityRank.USER)
-    
+
     @user_edit_group.command(name="selected_list")
     @command.adapt()
     async def edit_selected_list(

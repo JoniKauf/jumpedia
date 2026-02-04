@@ -50,9 +50,9 @@ def _token_from_buf(buf: str) -> factory.Token | None:
 
 
 def _token_from_c(c: str) -> factory.Token | None:
-    if c == '_':
+    if c == "_":
         return factory.Token(TokenTypes.UNDERSCORE, c)
-    
+
     if c == "(":
         return factory.Token(TokenTypes.LPAREN, c)
 

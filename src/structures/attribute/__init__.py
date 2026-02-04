@@ -301,22 +301,23 @@ class BaseNonStaticAttribute(
             combined_aliases_count += aliases_count
             entry_ids.extend(itertools.repeat(entry_id, aliases_count))
 
-        c.execute(
-            AttributeCollectionEntryAliasTable.insert(
-                AttributeCollectionEntryAliasTable.attribute_id.bind(
-                    *itertools.repeat(self.id, combined_aliases_count)
-                ),
-                AttributeCollectionEntryAliasTable.attribute_collection_entry_id.bind(
-                    *entry_ids
-                ),
-                AttributeCollectionEntryAliasTable.norm_alias.bind(
-                    *itertools.chain(*combined_norm_aliases)
-                ),
-                AttributeCollectionEntryAliasTable.slot_alias.bind(
-                    *itertools.chain(*combined_real_aliases)
-                ),
+        if combined_aliases_count:
+            c.execute(
+                AttributeCollectionEntryAliasTable.insert(
+                    AttributeCollectionEntryAliasTable.attribute_id.bind(
+                        *itertools.repeat(self.id, combined_aliases_count)
+                    ),
+                    AttributeCollectionEntryAliasTable.attribute_collection_entry_id.bind(
+                        *entry_ids
+                    ),
+                    AttributeCollectionEntryAliasTable.norm_alias.bind(
+                        *itertools.chain(*combined_norm_aliases)
+                    ),
+                    AttributeCollectionEntryAliasTable.slot_alias.bind(
+                        *itertools.chain(*combined_real_aliases)
+                    ),
+                )
             )
-        )
 
         entries: tuple[CollectionEntry, ...] = tuple(
             CollectionEntry(
