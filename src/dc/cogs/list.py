@@ -122,7 +122,7 @@ class ListsCog(cmds.GroupCog, group_name="lists"):
                 _ListRow(
                     lst.name,
                     *list_to_attr_strings[lst.id],
-                    str(len(lst_to_task[lst._o])),
+                    str(len(lst_to_task.get(lst._o, []))),
                     "Yes" if dsl == lst else "No",
                 )
                 for lst in lists
