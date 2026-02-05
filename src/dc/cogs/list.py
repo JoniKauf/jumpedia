@@ -110,7 +110,7 @@ class ListsCog(cmds.GroupCog, group_name="lists"):
             )
             for lst in lists
         }
-        dsl = community.get_default_selected_list()
+        dsl = community.get_default_selected_list(None)
         lst_to_task = community._o.get_tasks_by_list(ia._c)
 
         list_to_attr_strings: dict[int, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {lst.id: tuple(tuple(attr.name for attr in attr_type_to_attrs[lst.id][attr_type.type_id]) for attr_type in ALL_ATTRIBUTE_TYPES) for lst in lists}  # type: ignore

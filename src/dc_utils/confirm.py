@@ -35,17 +35,23 @@ async def wait_for_emoji_of_executer(
 async def emoji_confirm(
     ia: _InteractionAdapter, msg: dc.WebhookMessage, *, config: ConfirmConfig
 ) -> bool:
-    await msg.add_reaction(config.no)
+    can_add_reactions: bool = True
 
-    if config.wait_until_yes > 0:
-        await msg.add_reaction(config.wait)
-        await asyncio.sleep(config.wait_until_yes)
+    try:
+        await msg.add_reaction(config.no)
+    except Exception:
+        can_add_reactions = False
+    
+    if can_add_reactions:
+        if config.wait_until_yes > 0:
+            await msg.add_reaction(config.wait)
+            await asyncio.sleep(config.wait_until_yes)
 
-        assert ia.dc.client.user is not None
+            assert ia.dc.client.user is not None
 
-        await msg.remove_reaction(config.wait, ia.dc.client.user)
+            await msg.remove_reaction(config.wait, ia.dc.client.user)
 
-    await msg.add_reaction(config.yes)
+        await msg.add_reaction(config.yes)
 
     try:
         reaction, _ = await wait_for_emoji_of_executer(
