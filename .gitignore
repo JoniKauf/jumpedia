@@ -2,3 +2,4 @@
 .venv/
 secret.json
 **/__pycache__/
+src/scripts/one_to_two/data/
