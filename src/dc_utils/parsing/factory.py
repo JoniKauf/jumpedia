@@ -1,5 +1,6 @@
 import functools
 import typing as t
+from collections import deque
 from string.templatelib import Template
 
 from dc_utils.errors import FeedbackError
@@ -151,27 +152,29 @@ def tokenize_factory(
 
 INVALID_TOKEN = Token(TokenTypes.INVALID, "")
 
+
 class TokenStream:
-    def __init__(self, gen: t.Iterable[Token]):
-        self._it = iter(gen)
-        self._peeked: Token | None = None
+    def __init__(self, iterable: t.Iterable[Token]):
+        self._it = iter(iterable)
+        self._buf: deque[Token] = deque()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self._peeked is None:
-            return next(self._it, INVALID_TOKEN)
+        if self._buf:
+            return self._buf.popleft()
 
-        tok = self._peeked
-        self._peeked = None
-        return tok
+        return next(self._it, INVALID_TOKEN)
 
     def peek(self) -> Token:
-        if self._peeked is None:
-            self._peeked = next(self._it, INVALID_TOKEN)
+        if not self._buf:
+            self._buf.append(next(self._it, INVALID_TOKEN))
 
-        return self._peeked
+        return self._buf[0]
+
+    def push(self, token: Token) -> None:
+        self._buf.appendleft(token)
 
 
 class Node:

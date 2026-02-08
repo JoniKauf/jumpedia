@@ -20,6 +20,7 @@ from structures.attribute.slot_str import SLOT_TYPES
 from utils import itertools2
 from utils.rank import CommunityRank
 
+
 def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:
     if not entry.aliases:
         return f"({entry.value!r})"

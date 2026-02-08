@@ -68,17 +68,24 @@ class MappingCollection(factory.Node):
         self.others = others
 
 
-def _transform_value_collection(ts: factory.TokenStream) -> ValueCollection:
+def _transform_value_collection(
+    ts: factory.TokenStream, lparen: bool
+) -> ValueCollection:
     values: list[Value] = []
 
-    while (tok := next(ts)).type is TokenTypes.STR:
-        values.append(Value(tok.string))
+    if lparen:
+        while (tok := next(ts)).type is TokenTypes.STR:
+            values.append(Value(tok.string))
 
-    if tok.type is not TokenTypes.RPAREN:
-        raise expected_but_received(
-            t"either more strings representing values or a closing parenthesis ({')':,})",
-            tok,
-        )
+        if tok.type is not TokenTypes.RPAREN:
+            raise expected_but_received(t"a closing parenthesis {')':,}", tok)
+    else:
+        while (tok := next(ts)).type is TokenTypes.STR:
+            if ts.peek().type is TokenTypes.COLON:
+                ts.push(tok)
+                break
+
+            values.append(Value(tok.string))
 
     return ValueCollection(*values)
 
@@ -86,40 +93,43 @@ def _transform_value_collection(ts: factory.TokenStream) -> ValueCollection:
 def _transform_mapping(ts: factory.TokenStream) -> Mapping:
     first = next(ts)
 
-    paren: bool
+    lparen: bool
     key: factory.Token
 
     if first.type is TokenTypes.LPAREN:
-        paren = True
-        key = ts.peek()
+        lparen = True
+        key = next(ts)
 
         if key.type is not TokenTypes.STR:
             raise expected_but_received(t"a string representing the key", key)
-        
-        next(ts)
 
     elif first.type is TokenTypes.STR:
-        paren = False
+        lparen = False
         key = first
 
     else:
-        raise expected_but_received(t"either an opening parenthesis {'(':,} or a string representing the key", first)
-    
-    colon_or_rparen = ts.peek()
-
-    if colon_or_rparen.type not in (TokenTypes.COLON, TokenTypes.RPAREN):
         raise expected_but_received(
-            t"either a colon ({':':,}) to reference values or a closing parenthesis to have no values",
-            colon_or_rparen,
+            t"either an opening parenthesis {'(':,} or a string representing the key",
+            first,
         )
 
-    return Mapping(Key(key.string), _transform_value_collection(ts))
+    colon = next(ts)
+
+    if colon.type not in TokenTypes.COLON:
+        raise expected_but_received(
+            t"a colon ({':':,}) after the key {key:,}",
+            colon,
+        )
+
+    return Mapping(Key(key.string), _transform_value_collection(ts, lparen))
 
 
 def _transform_mapping_collection(ts: factory.TokenStream, _: int) -> MappingCollection:
     mapping_collection: list[Mapping] = []
 
-    while ts.peek().type not in (TokenTypes.END, TokenTypes.INVALID):
+    while (tok := ts.peek()).type not in TokenTypes.END:
+        assert tok.type is not TokenTypes.INVALID
+
         mapping_collection.append(_transform_mapping(ts))
 
     if not mapping_collection:

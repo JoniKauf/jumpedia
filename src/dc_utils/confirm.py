@@ -41,7 +41,7 @@ async def emoji_confirm(
         await msg.add_reaction(config.no)
     except Exception:
         can_add_reactions = False
-    
+
     if can_add_reactions:
         if config.wait_until_yes > 0:
             await msg.add_reaction(config.wait)

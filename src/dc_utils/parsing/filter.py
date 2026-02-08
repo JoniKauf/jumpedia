@@ -369,7 +369,11 @@ def _handle_comparison(
 
     # Throws appropriate error in __new__ if invalid
     value_typed = attr.slot_type(
-        SlotStr(RealStr(value_norm, check=False), attr.slot_type, attr.list.community.jumpedia.limits)
+        SlotStr(
+            RealStr(value_norm, check=False),
+            attr.slot_type,
+            attr.list.community.jumpedia.limits,
+        )
     )
 
     seen_attrs.add(attr)

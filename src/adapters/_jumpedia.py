@@ -1,5 +1,6 @@
 import typing as t
 from functools import cached_property
+
 import discord as dc
 
 from dc_utils import errors, shortcuts
@@ -57,7 +58,9 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
                 self._c,
                 name=text.RealStr(name),
                 server_id=self.interaction.ia_server.id,
-                owner=shortcuts.get_or_create_specified_or_current_jumpedia_user(self, owner)._o,
+                owner=shortcuts.get_or_create_specified_or_current_jumpedia_user(
+                    self, owner
+                )._o,
                 limits=DEFAULT_COMMUNITY_LIMITS,
             )
         except ServerAlreadyConnectedToCommunityError as e:

@@ -23,24 +23,35 @@ class _StructureMeta(ABCMeta):
     type_name: str
     type_name_plural: str
 
-    def __new__(
-        mcls: type[_StructureMeta],
-        name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, t.Any],
-        *,
-        naming: tuple[str, str] = None,  # type: ignore
-    ) -> _StructureMeta:
-        cls = super().__new__(mcls, name, bases, namespace)
+    if t.TYPE_CHECKING:
+        def __new__(
+            mcls: type[_StructureMeta],
+            name: str,
+            bases: tuple[type, ...],
+            namespace: dict[str, t.Any],
+            *,
+            naming: tuple[str, str],
+        ) -> _StructureMeta:
+            ...
+    else:
+        def __new__(
+            mcls: type[_StructureMeta],
+            name: str,
+            bases: tuple[type, ...],
+            namespace: dict[str, t.Any],
+            *,
+            naming: tuple[str, str] = None,  # type: ignore
+        ) -> _StructureMeta:
+            cls = super().__new__(mcls, name, bases, namespace)
 
-        # First we go in here, then dataclass calls this function again without naming, so we pass by here the second time
-        if namespace.get("__dataclass_fields__") is None:
-            _cls_to_naming[cls.__qualname__] = naming
-            return dataclass(frozen=True, slots=True, kw_only=True, eq=False)(cls)  # type: ignore
+            # First we go in here, then dataclass calls this function again without naming, so we pass by here the second time
+            if namespace.get("__dataclass_fields__") is None:
+                _cls_to_naming[cls.__qualname__] = naming
+                return dataclass(frozen=True, slots=True, kw_only=True, eq=False)(cls)  # type: ignore
 
-        cls.type_name, cls.type_name_plural = _cls_to_naming[cls.__qualname__]
+            cls.type_name, cls.type_name_plural = _cls_to_naming[cls.__qualname__]
 
-        return cls  # type: ignore
+            return cls  # type: ignore
 
     def __str__(self) -> str:
         return self.type_name

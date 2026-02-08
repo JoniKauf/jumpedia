@@ -21,12 +21,6 @@ def main():
     subprocess.run(["isort", "."])
     subprocess.run(["black", "."])
 
-    # task("Build Docs")
-    # subprocess.run([r".\docs\make.bat", "clean"])
-    # subprocess.run([r".\docs\make.bat", "html"])
-
-    # input("Press [ENTER] to run src!")
-
     subprocess.run([sys.executable, "src", "from_main"])
 
 
