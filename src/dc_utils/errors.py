@@ -523,7 +523,6 @@ def create_feedback_from_structure_error(
 ) -> FeedbackError:
     pass
 
-
 def create_feedback_from_structure_error[T: errors.BaseStructureError](
     e: T,
     *,

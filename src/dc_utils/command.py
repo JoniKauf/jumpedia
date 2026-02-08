@@ -97,7 +97,7 @@ def adapt[T: cmds.Cog, **P](
 
             # --- Defer; Always Use Followup ---
             await interaction.response.defer()
-
+            
             # --- Apply Required Rank When 'user' Is Specified ---
             sig = inspect.signature(func)
             bound = sig.bind_partial(self, interaction, *args, **kwargs)
