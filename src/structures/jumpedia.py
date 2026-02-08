@@ -46,7 +46,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         c: orm.Cursor,
         name: text.RealStr,
         server_id: int,
-        creator: JumpediaUser,
+        owner: JumpediaUser,
         limits: CommunityLimits,
     ) -> Community:
         norm_name = text.NormStr(name)
@@ -95,7 +95,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         )
 
         comm.get_or_create_community_user(
-            c, creator, CommunityRank.OWNER, None, True, True
+            c, owner, CommunityRank.OWNER, None, True, True
         )
 
         return comm

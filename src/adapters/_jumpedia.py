@@ -1,8 +1,9 @@
 import typing as t
 from functools import cached_property
+import discord as dc
 
-from dc_utils import errors
-from structures.community import DEFAULT_COMMUNITY_LIMITS, Community, CommunityLimits
+from dc_utils import errors, shortcuts
+from structures.community import DEFAULT_COMMUNITY_LIMITS, Community
 from structures.errors import (
     ServerAlreadyConnectedToCommunityError,
     ServerNotConnectedToACommunityError,
@@ -49,16 +50,14 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
         )
 
     def create_community(
-        self, name: str, initial_list_name: str | None
+        self, name: str, owner: dc.User, initial_list_name: str | None
     ) -> CommunityAdapter:
-        jumpedia_user = self.get_or_create_jumpedia_user(self.interaction.ia_user)
-
         try:
             comm = self._o.create_community(
                 self._c,
                 name=text.RealStr(name),
                 server_id=self.interaction.ia_server.id,
-                creator=jumpedia_user._o,
+                owner=shortcuts.get_or_create_specified_or_current_jumpedia_user(self, owner)._o,
                 limits=DEFAULT_COMMUNITY_LIMITS,
             )
         except ServerAlreadyConnectedToCommunityError as e:

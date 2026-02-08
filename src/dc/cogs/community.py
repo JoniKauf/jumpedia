@@ -53,11 +53,12 @@ class CommunityCog(cmds.GroupCog, group_name="community"):
         self,
         ia: _InteractionAdapter,
         name: str,
+        owner: dc.User,
         default_selected_list_name: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         jumpedia = ia.jumpedia
 
-        community = jumpedia.create_community(name, default_selected_list_name)
+        community = jumpedia.create_community(name, owner, default_selected_list_name)
 
         return ia.dc.followup.send(
             message.layout(

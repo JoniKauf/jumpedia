@@ -84,17 +84,28 @@ def _transform_value_collection(ts: factory.TokenStream) -> ValueCollection:
 
 
 def _transform_mapping(ts: factory.TokenStream) -> Mapping:
-    lparen = next(ts)
+    first = next(ts)
 
-    if lparen.type is not TokenTypes.LPAREN:
-        raise expected_but_received(t"a mapping expression start with {'(':,}", lparen)
+    paren: bool
+    key: factory.Token
 
-    key = next(ts)
+    if first.type is TokenTypes.LPAREN:
+        paren = True
+        key = ts.peek()
 
-    if key.type is not TokenTypes.STR:
-        raise expected_but_received(t"a string representing the key", key)
+        if key.type is not TokenTypes.STR:
+            raise expected_but_received(t"a string representing the key", key)
+        
+        next(ts)
 
-    colon_or_rparen = next(ts)
+    elif first.type is TokenTypes.STR:
+        paren = False
+        key = first
+
+    else:
+        raise expected_but_received(t"either an opening parenthesis {'(':,} or a string representing the key", first)
+    
+    colon_or_rparen = ts.peek()
 
     if colon_or_rparen.type not in (TokenTypes.COLON, TokenTypes.RPAREN):
         raise expected_but_received(

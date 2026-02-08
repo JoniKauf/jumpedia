@@ -149,6 +149,8 @@ def tokenize_factory(
     return tokenize
 
 
+INVALID_TOKEN = Token(TokenTypes.INVALID, "")
+
 class TokenStream:
     def __init__(self, gen: t.Iterable[Token]):
         self._it = iter(gen)
@@ -159,7 +161,7 @@ class TokenStream:
 
     def __next__(self):
         if self._peeked is None:
-            return next(self._it)
+            return next(self._it, INVALID_TOKEN)
 
         tok = self._peeked
         self._peeked = None
@@ -167,7 +169,7 @@ class TokenStream:
 
     def peek(self) -> Token:
         if self._peeked is None:
-            self._peeked = next(self._it, Token(TokenTypes.INVALID, ""))
+            self._peeked = next(self._it, INVALID_TOKEN)
 
         return self._peeked
 
