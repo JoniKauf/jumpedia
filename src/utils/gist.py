@@ -37,7 +37,7 @@ def create_gist(
     }
 
     RETRIES = 5
-    FIRST_SLEEP = .2
+    FIRST_SLEEP = 0.2
 
     for i in range(1, RETRIES + 1):
         response = requests.post(API_URL, json=payload, headers=headers)
@@ -45,13 +45,11 @@ def create_gist(
         if response.status_code == 201:
             gist_url: str = response.json().get("html_url")
             return gist_url
-        
-        if i < RETRIES:
-            time.sleep(FIRST_SLEEP ** i)
 
-    raise Exception(
-        f"Failed to create gist: {response.status_code}\n{response.text}"
-    )
+        if i < RETRIES:
+            time.sleep(FIRST_SLEEP**i)
+
+    raise Exception(f"Failed to create gist: {response.status_code}\n{response.text}")
 
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(

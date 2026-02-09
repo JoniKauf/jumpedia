@@ -113,9 +113,5 @@ async def on_app_command_error(
     await interaction.followup.send(str(e), **msg_kwargs)
 
 
-from adapters import interaction
-
-interaction._get_or_create_the_one_piece()
-
 TOKEN = secret.listen().DISCORD_TOKEN
 BOT.run(TOKEN)

@@ -1,27 +1,27 @@
 import typing as t
 
-from structures.jumpedia import Jumpedia, JumpediaLimits
-from structures import db
+import mariadb
 
-from utils import orm
+from adapters import interaction
+from structures import db
+from structures.jumpedia import Jumpedia
+from utils import orm, secret
+
 
 def create_database(
     j: Jumpedia,
-    database_name: str,
-    get_meta_c: t.Callable[[], orm.Cursor],
+    conn_data: secret.DatabaseConnectionData,
     get_root_meta_c: t.Callable[[], orm.Cursor],
-    get_c: t.Callable[[], orm.Cursor],
 ) -> None:
     import time
 
-    meta_c = get_meta_c()
-    meta_c.raw_execute("SHOW SCHEMAS")
+    c = get_root_meta_c()
+    c.raw_execute("SHOW SCHEMAS")
 
-    rows = meta_c.raw_fetchall()
-    meta_c._close_connection()
+    rows = c.raw_fetchall()
 
     for row in rows:
-        if database_name.lower() in map(str.lower, row.values()):
+        if conn_data["db"] in row.values():
             print("Database exists!")
             return
 
@@ -33,35 +33,31 @@ def create_database(
         exit()
         return
 
-    meta_c = get_root_meta_c()
-
-    meta_c.raw_execute(
+    c.raw_execute(
         f"""
-        CREATE DATABASE {database_name}
+        CREATE DATABASE {conn_data["db"]}
         CHARACTER SET utf8mb4 
         COLLATE utf8mb4_bin
     """
     )
 
-    meta_c.raw_execute(
+    c.raw_execute(
         f"""
-        GRANT CREATE ON *.* TO 'jonikauf'@'localhost'
+        CREATE USER '{conn_data['user']}'@'%' IDENTIFIED BY '{conn_data['password'].replace("'", "''")}';
         """
     )
 
-    meta_c.raw_execute(
+    c.raw_execute(
         f"""
-        GRANT ALL PRIVILEGES ON `{database_name}`.* TO 'jonikauf'@'localhost'
+        GRANT SELECT, INSERT, UPDATE, DELETE ON `{conn_data['db']}`.* TO '{conn_data['user']}'@'%'
         """
     )
-
-    meta_c.commit()
 
     from structures import attribute
     from structures.attribute.slot_str import SLOT_TYPES
     from structures.list import Kind
 
-    c = get_c()
+    c.raw_execute(f"""USE {conn_data['db']}""")
 
     try:
         c.raw_execute(
@@ -395,15 +391,31 @@ def create_database(
         print("Error! Dropping database in 5 seconds...")
         time.sleep(5)
 
-        meta_c.raw_execute(f"DROP DATABASE {database_name}")
-        meta_c.commit()
+        c.raw_execute(f"DROP DATABASE {conn_data["db"]}")
+        c.commit()
         raise
 
     print("Jumpedia database successfully created!")
 
     c.commit()
     c._close_connection()
-    meta_c._close_connection()
 
-if __name__ == '__main__':
-    create_database(Jumpedia(id=1, JumpediaLimits()))
+
+if __name__ == "__main__":
+    conn_data = secret.listen().DATABASE_CONNECTION_DATA
+
+    create_database(
+        interaction.THE_ONE_PIECE,
+        conn_data,
+        lambda: orm.Cursor(
+            conn := mariadb.connect(
+                **conn_data
+                | {
+                    "db": None,
+                    "user": "root",
+                    "password": input("Enter mariadb root password: "),
+                }
+            ),
+            conn.cursor(dictionary=True),
+        ),
+    )

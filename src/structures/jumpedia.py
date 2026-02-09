@@ -50,8 +50,10 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         limits: CommunityLimits,
     ) -> Community:
         if len(name) > self.limits["community_name_length_max"]:
-            raise errors.TooLongSynError(name, True, self.limits["community_name_length_max"], Community)
-        
+            raise errors.TooLongSynError(
+                name, True, self.limits["community_name_length_max"], Community
+            )
+
         norm_name = text.NormStr(name)
 
         tup = self.get_community_by_server_id(c, server_id)

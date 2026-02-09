@@ -261,12 +261,14 @@ class ListAdapter(BaseStructureAdapter[List]):
             TaskAttribute, task_attribute_value_mapping
         )[0]
 
-        # Yes really, no exception should be raised by this (I can't believe it either)
-        _ = self._o.edit_task_attribute_value_mapping(
-            self._c,
-            task._o.id,
-            tavm,
-        )
+        try:
+            _ = self._o.edit_task_attribute_value_mapping(
+                self._c,
+                task._o.id,
+                tavm,
+            )
+        except AttributeValueSlotCountOutOfRangeError as e:
+            raise errors.create_feedback_from_structure_error(e)
 
         return task  # we dont return the mapping bec of issues with hashing attribute adapter
 
