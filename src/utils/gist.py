@@ -1,4 +1,5 @@
 import enum
+import time
 import typing as t
 from collections import deque
 
@@ -35,15 +36,22 @@ def create_gist(
         file_name: {"content": content} for file_name, content in files.items()
     }
 
-    response = requests.post(API_URL, json=payload, headers=headers)
+    RETRIES = 5
+    FIRST_SLEEP = .2
 
-    if response.status_code == 201:
-        gist_url: str = response.json().get("html_url")
-        return gist_url
-    else:
-        raise Exception(
-            f"Failed to create gist: {response.status_code}\n{response.text}"
-        )
+    for i in range(1, RETRIES + 1):
+        response = requests.post(API_URL, json=payload, headers=headers)
+
+        if response.status_code == 201:
+            gist_url: str = response.json().get("html_url")
+            return gist_url
+        
+        if i < RETRIES:
+            time.sleep(FIRST_SLEEP ** i)
+
+    raise Exception(
+        f"Failed to create gist: {response.status_code}\n{response.text}"
+    )
 
 
 _ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
