@@ -84,6 +84,7 @@ def _transform_value_collection(
             next(ts)
 
             if ts.peek().type is TokenTypes.COLON:
+                # the next() before was actually the key of the next one, push it back
                 ts.push(tok)
                 break
 
