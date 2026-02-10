@@ -80,7 +80,9 @@ def _transform_value_collection(
         if tok.type is not TokenTypes.RPAREN:
             raise expected_but_received(t"a closing parenthesis {')':,}", tok)
     else:
-        while (tok := next(ts)).type is TokenTypes.STR:
+        while (tok := ts.peek()).type is TokenTypes.STR:
+            next(ts)
+
             if ts.peek().type is TokenTypes.COLON:
                 ts.push(tok)
                 break
@@ -115,9 +117,9 @@ def _transform_mapping(ts: factory.TokenStream) -> Mapping:
 
     colon = next(ts)
 
-    if colon.type not in TokenTypes.COLON:
+    if colon.type is not TokenTypes.COLON:
         raise expected_but_received(
-            t"a colon ({':':,}) after the key {key:,}",
+            t"a colon ({':':,}) after the key {key.string:,}",
             colon,
         )
 
@@ -127,7 +129,7 @@ def _transform_mapping(ts: factory.TokenStream) -> Mapping:
 def _transform_mapping_collection(ts: factory.TokenStream, _: int) -> MappingCollection:
     mapping_collection: list[Mapping] = []
 
-    while (tok := ts.peek()).type not in TokenTypes.END:
+    while (tok := ts.peek()).type is not TokenTypes.END:
         assert tok.type is not TokenTypes.INVALID
 
         mapping_collection.append(_transform_mapping(ts))
