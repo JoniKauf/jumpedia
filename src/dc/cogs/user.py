@@ -11,13 +11,19 @@ from adapters.interaction import _InteractionAdapter
 from dc_utils import command, group, message, shortcuts
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
-
-class _UserRow(t.NamedTuple):
-    name: str
-    selected_list: str
-    server_rank: str
-    community_rank: str
-    jumpedia_rank: str
+_UserRow = command.row_type_factory[
+    str,
+    str,
+    str,
+    str,
+    str,
+](
+    "Name",
+    "Selected List",
+    "Server Rank",
+    "Community Rank",
+    "Jumpedia Rank",
+)
 
 
 class UserCog(cmds.GroupCog, group_name="user"):

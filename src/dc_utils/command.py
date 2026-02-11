@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import inspect
 import itertools
@@ -146,11 +147,47 @@ def adapt[T: cmds.Cog, **P](
     return adapt_inner
 
 
-def row_type_to_headers(type: type[t.NamedTuple]) -> tuple[str, ...]:
-    return tuple(field.replace("_", " ").title() for field in type._fields)
+class _BaseRowMeta(type):
+    _headers: tuple[str, ...]
+
+    @property
+    def headers(self) -> tuple[str, ...]:
+        return self._headers
 
 
-async def info(ia: _InteractionAdapter, structure: BaseStructure, row: t.NamedTuple):
+class _BaseRow[*Ts](metaclass=_BaseRowMeta):
+    def __init_subclass__(cls, headers: tuple[str, ...]) -> None:
+        super().__init_subclass__()
+        cls._headers = headers
+
+    def __init__(self, /, *values: *Ts) -> None:
+        if len(values) != len(type(self)._headers):
+            raise ValueError(len(values), len(type(self)._headers))
+
+        self._values = values
+
+    @property
+    def as_dict(self) -> dict[str, str | tuple[str, ...]]:
+        return {k: v for k, v in zip(type(self)._headers, self._values)}  # type: ignore
+
+    @property
+    def as_tuple(self) -> tuple[str | tuple[str, ...], ...]:
+        return self._values  # type: ignore
+
+    def __iter__(self) -> t.Iterator[str | tuple[str, ...]]:
+        return iter(self.as_tuple)
+
+
+# This is just like a function but with support for calling with generics (ex: row_type_factory[str, str]("Name", "Difficulty"))
+class row_type_factory[*Ts]:
+    def __new__(cls, *headers: str) -> type[_BaseRow[*Ts]]:
+        class RowType(_BaseRow[*Ts], headers=headers):
+            pass
+
+        return RowType
+
+
+async def info(ia: _InteractionAdapter, structure: BaseStructure, row: _BaseRow):
     row_raw: list[tuple[str, ...]] = []
 
     for v in row:
@@ -161,7 +198,7 @@ async def info(ia: _InteractionAdapter, structure: BaseStructure, row: t.NamedTu
 
     strings = gist.table_to_gist_strings(
         itertools.zip_longest(*row_raw, fillvalue=""),
-        row_type_to_headers(type(row)),
+        type(row).headers,
     )
 
     assert strings
@@ -181,7 +218,7 @@ async def info(ia: _InteractionAdapter, structure: BaseStructure, row: t.NamedTu
 async def browse(
     ia: _InteractionAdapter,
     structure_type: type[BaseStructure],
-    rows: t.Sequence[t.NamedTuple],
+    rows: t.Sequence[_BaseRow],
     before_send: (
         t.Callable[[list[str]], CoroutineType[t.Any, t.Any, t.Any]] | None
     ) = None,
@@ -196,7 +233,7 @@ async def browse(
     if not rows:
         return success_func(layouts.structure_browsed(structure_type, 0))
 
-    strings = gist.table_to_gist_strings(rows, row_type_to_headers(type(rows[0])))
+    strings = gist.table_to_gist_strings(rows, type(rows[0]).headers)
 
     assert strings
 

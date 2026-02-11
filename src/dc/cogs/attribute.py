@@ -28,15 +28,18 @@ def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:
     return f"({entry.value!r}: {' '.join(repr(alias) for alias in entry.aliases)})"
 
 
-class _AttrRow(t.NamedTuple):
-    name: str
-    alias: tuple[str, ...]
-    type: str
-    slot_type: str
-    position: str
-    min_slot_count: str
-    max_slot_count: str
-    collection: tuple[str, ...]
+_AttrRow = command.row_type_factory[
+    str, tuple[str, ...], str, str, str, str, str, tuple[str, ...]
+](
+    "Name",
+    "Alias",
+    "Type",
+    "Slot Type",
+    "Position",
+    "Min Slot Count",
+    "Max Slot Count",
+    "Collection",
+)
 
 
 SlotTypeEnum = enum.Enum(

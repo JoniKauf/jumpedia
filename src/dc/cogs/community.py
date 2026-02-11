@@ -13,13 +13,24 @@ from structures.community import Community
 from utils import text
 from utils.rank import CommunityRank, JumpediaRank, ServerRank
 
+_CommunityRowTs = tuple[
+    str,
+    tuple[str, ...],
+    str,
+    str,
+    tuple[str, ...],
+]
 
-class _CommunityRow(t.NamedTuple):
-    name: str
-    lists: tuple[str, ...]
-    default_selected_list: str
-    server_count: str
-    limits: tuple[str, ...]
+if t.TYPE_CHECKING:
+    _CommunityRow = command._BaseRow[*_CommunityRowTs]
+else:
+    _CommunityRow = command.row_type_factory[*_CommunityRowTs](
+        "Name",
+        "Lists",
+        "Default Selected List",
+        "Server Count",
+        "Limits",
+    )
 
 
 def _comm_to_row(community: CommunityAdapter) -> _CommunityRow:

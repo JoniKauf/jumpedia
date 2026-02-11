@@ -41,7 +41,7 @@ async def _info(
     return await command.info(
         ia,
         task_obj._o,
-        namedtuple("_TaskRow", [attr.name for attr in avm.combined])(
+        command.row_type_factory(*(attr.name for attr in avm.combined))(
             *avm.combined.values()
         ),
     )
@@ -205,7 +205,7 @@ async def _browse(
         attr for attr in ATTRS_SORTED if attr in attribute_yield
     )
 
-    _TaskRow = namedtuple("_TaskRow", [attr.norm_name for attr in ATTRS_SORTED_YIELDED])
+    _TaskRow = command.row_type_factory(*(attr.name for attr in ATTRS_SORTED_YIELDED))
 
     return await command.browse(
         ia,

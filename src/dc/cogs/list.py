@@ -13,14 +13,21 @@ from structures.task import Task
 from utils import itertools2
 from utils.rank import CommunityRank
 
-
-class _ListRow(t.NamedTuple):
-    name: str
-    static_attribute: tuple[str, ...]
-    task_attribute: tuple[str, ...]
-    user_attribute: tuple[str, ...]
-    task_count: str
-    is_default_selected_list: str
+_ListRow = command.row_type_factory[
+    str,
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[str, ...],
+    str,
+    str,
+](
+    "Name",
+    "Static Attribute",
+    "Task Attribute",
+    "User Attribute",
+    "Task Count",
+    "Is Default Selected List",
+)
 
 
 class ListCog(cmds.GroupCog, group_name="list"):
