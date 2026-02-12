@@ -134,7 +134,7 @@ def _parse_aliases(aliases_raw: str | None) -> tuple[text.RealStr, ...]:
     if not aliases_raw:
         return ()
 
-    aliases = parsing.aliases.parse(text.RealStr(aliases_raw))
+    aliases = parsing.values.parse(text.RealStr(aliases_raw))
 
     return tuple(map(text.RealStr, aliases))
 
@@ -241,7 +241,7 @@ class ListAdapter(BaseStructureAdapter[List]):
             slot_aliases = self._o.edit_task_aliases(
                 self._c,
                 task._o.id,
-                tuple(map(text.RealStr, parsing.aliases.parse(text.RealStr(aliases)))),
+                tuple(map(text.RealStr, parsing.values.parse(text.RealStr(aliases)))),
             )
         except (
             SynsAlreadyTakenError,
@@ -480,7 +480,7 @@ class ListAdapter(BaseStructureAdapter[List]):
     ) -> tuple[AnyAttributeAdapterT, tuple[text.RealStr, ...]]:
         attribute = self.get_attribute(type, syn)
 
-        new_aliases = parsing.aliases.parse(text.RealStr(aliases))
+        new_aliases = parsing.values.parse(text.RealStr(aliases))
 
         try:
             new_aliases = self._o.edit_attribute_aliases(

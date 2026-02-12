@@ -3,7 +3,7 @@ from utils.text import RealStr
 from . import factory
 
 
-class SyntaxError(factory.SyntaxFeedbackError, category="aliases"):
+class SyntaxError(factory.SyntaxFeedbackError, category="values"):
     pass
 
 
@@ -42,10 +42,10 @@ def _transform_sequence(ts: factory.TokenStream, _: int) -> Sequence:
         lst.append(factory.String(tok.string))
 
     if tok.type is not TokenTypes.END:
-        raise expected_but_received(t"either more aliases or the end", tok)
+        raise expected_but_received(t"either more values or the end", tok)
 
     if not lst:
-        raise expected_but_received(t"at least one alias", tok)
+        raise expected_but_received(t"at least one value", tok)
 
     return Sequence(*lst)
 
