@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
 import functools
 import typing as t
+from abc import ABC, abstractmethod
 from collections import deque
 from string.templatelib import Template
 
@@ -56,6 +56,7 @@ class TokenTypes:
 
     STR = TokenType(2, lambda token: t"the string {token.string!r:,}")
 
+
 class TokenTypesWithParens(TokenTypes):
     LPAREN = TokenType(
         3,
@@ -72,7 +73,9 @@ class Token(t.NamedTuple):
     string: str
 
 
-def default_quoted_handler(c: str, it: t.Iterator[str], error_type: type[SyntaxFeedbackError]) -> Token:
+def default_quoted_handler(
+    c: str, it: t.Iterator[str], error_type: type[SyntaxFeedbackError]
+) -> Token:
     quote: str = c
     escape: bool = False
     quote_buf: list[str] = []
@@ -104,13 +107,14 @@ def default_quoted_handler(c: str, it: t.Iterator[str], error_type: type[SyntaxF
     return Token(TokenTypes.STR, "".join(quote_buf))
 
 
-
 def tokenize_factory(
     *,
     token_from_c: t.Callable[[str], Token | None],
     token_from_buf: t.Callable[[str], Token | None],
     error_type: type[SyntaxFeedbackError],
-    quoted_handler: t.Callable[[str, t.Iterator[str], type[SyntaxFeedbackError]], Token] = default_quoted_handler
+    quoted_handler: t.Callable[
+        [str, t.Iterator[str], type[SyntaxFeedbackError]], Token
+    ] = default_quoted_handler,
 ) -> t.Callable[[str], t.Generator[Token]]:
     def tokenize(s: str):
         def _yield_from_buf() -> t.Generator[Token, None, None]:
@@ -132,6 +136,7 @@ def tokenize_factory(
             if c in "\"'":
                 yield from _yield_from_buf()
                 yield quoted_handler(c, it, error_type)
+                continue
 
             if c.isspace():
                 yield from _yield_from_buf()

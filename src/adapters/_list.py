@@ -241,7 +241,12 @@ class ListAdapter(BaseStructureAdapter[List]):
             slot_aliases = self._o.edit_task_aliases(
                 self._c,
                 task._o.id,
-                tuple(map(text.RealStr, parsing.value_sequence.parse(text.RealStr(aliases)))),
+                tuple(
+                    map(
+                        text.RealStr,
+                        parsing.value_sequence.parse(text.RealStr(aliases)),
+                    )
+                ),
             )
         except (
             SynsAlreadyTakenError,
