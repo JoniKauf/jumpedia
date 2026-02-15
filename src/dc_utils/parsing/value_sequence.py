@@ -3,7 +3,7 @@ from utils.text import RealStr
 from . import factory
 
 
-class SyntaxError(factory.SyntaxFeedbackError, category="values"):
+class SyntaxError(factory.SyntaxFeedbackError, category="value sequence"):
     pass
 
 

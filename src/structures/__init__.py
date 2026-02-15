@@ -24,7 +24,6 @@ class _StructureMeta(ABCMeta):
     type_name_plural: str
 
     if t.TYPE_CHECKING:
-
         def __new__(
             mcls: type[_StructureMeta],
             name: str,
@@ -35,7 +34,6 @@ class _StructureMeta(ABCMeta):
         ) -> _StructureMeta: ...
 
     else:
-
         def __new__(
             mcls: type[_StructureMeta],
             name: str,
