@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import functools
 import typing as t
 from collections import deque
@@ -51,11 +52,9 @@ class TokenType(t.NamedTuple):
 class TokenTypes:
     START = TokenType(0, lambda _: t"the start")
     END = TokenType(1, lambda _: t"the end")
-
-    STR = TokenType(2, lambda token: t"the string {token.string!r:,}")
-
     INVALID = TokenType(255, lambda _: t"something unexpected")
 
+    STR = TokenType(2, lambda token: t"the string {token.string!r:,}")
 
 class TokenTypesWithParens(TokenTypes):
     LPAREN = TokenType(
@@ -73,11 +72,45 @@ class Token(t.NamedTuple):
     string: str
 
 
+def default_quoted_handler(c: str, it: t.Iterator[str], error_type: type[SyntaxFeedbackError]) -> Token:
+    quote: str = c
+    escape: bool = False
+    quote_buf: list[str] = []
+
+    for c in it:
+        if escape:
+            if c not in ("\\", quote):
+                raise error_type(
+                    t"The escape sequence {'\\' + c:,} is invalid!",
+                    additional=t"The only characters allowed to be escaped (= put after a `\\`) are {('\\', quote):&}.",
+                )
+
+            escape = False
+            quote_buf.append(c)
+
+        elif c == "\\":
+            escape = True
+
+        elif c == quote:
+            break
+
+        else:
+            quote_buf.append(c)
+    else:
+        raise error_type(
+            t"The quoted string {''.join(quote_buf) if quote_buf else ' ':,} was never closed!",
+        )
+
+    return Token(TokenTypes.STR, "".join(quote_buf))
+
+
+
 def tokenize_factory(
     *,
     token_from_c: t.Callable[[str], Token | None],
     token_from_buf: t.Callable[[str], Token | None],
     error_type: type[SyntaxFeedbackError],
+    quoted_handler: t.Callable[[str, t.Iterator[str], type[SyntaxFeedbackError]], Token] = default_quoted_handler
 ) -> t.Callable[[str], t.Generator[Token]]:
     def tokenize(s: str):
         def _yield_from_buf() -> t.Generator[Token, None, None]:
@@ -92,45 +125,13 @@ def tokenize_factory(
         yield Token(TokenTypes.START, "")
 
         buf: list[str] = []
-        quote_buf: list[str] = []
         it: t.Iterator[str] = iter(s)
 
         for c in it:
             # Quoted String
             if c in "\"'":
                 yield from _yield_from_buf()
-
-                quote: str = c
-                escape: bool = False
-
-                for c in it:
-                    if escape:
-                        if c not in ("\\", quote):
-                            raise error_type(
-                                t"The escape sequence {'\\' + c:,} is invalid!",
-                                additional=t"The only characters allowed to be escaped (= put after a `\\`) are {('\\', quote):&}.",
-                            )
-
-                        escape = False
-                        quote_buf.append(c)
-
-                    elif c == "\\":
-                        escape = True
-
-                    elif c == quote:
-                        break
-
-                    else:
-                        quote_buf.append(c)
-                else:
-                    raise error_type(
-                        t"The quoted string {''.join(quote_buf) if quote_buf else ' ':,} was never closed!",
-                    )
-
-                yield Token(TokenTypes.STR, "".join(quote_buf))
-                quote_buf.clear()
-
-                continue
+                yield quoted_handler(c, it, error_type)
 
             if c.isspace():
                 yield from _yield_from_buf()

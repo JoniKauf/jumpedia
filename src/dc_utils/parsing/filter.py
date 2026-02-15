@@ -43,6 +43,9 @@ def _token_from_buf(buf: str) -> factory.Token | None:
     elif buf == "and":
         return factory.Token(TokenTypes.AND, buf)
 
+    elif buf == "_":
+        return factory.Token(TokenTypes.UNDERSCORE, buf)
+    
     elif buf in _OP_FIRST_SIGHT_STR_TO_NODE_TYPE:
         return factory.Token(TokenTypes.OP, buf)
 
@@ -50,9 +53,6 @@ def _token_from_buf(buf: str) -> factory.Token | None:
 
 
 def _token_from_c(c: str) -> factory.Token | None:
-    if c == "_":
-        return factory.Token(TokenTypes.UNDERSCORE, c)
-
     if c == "(":
         return factory.Token(TokenTypes.LPAREN, c)
 
