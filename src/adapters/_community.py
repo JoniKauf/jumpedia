@@ -3,11 +3,7 @@ from functools import cached_property
 
 from dc_utils import errors, message
 from structures.community import Community
-from structures.errors import (
-    StructureCountLimitReachedError,
-    StructureNotFoundError,
-    SynsAlreadyTakenError,
-)
+from structures.errors import StructureCountLimitReachedError, SynsAlreadyTakenError
 from structures.list import List
 from utils import orm, text
 from utils.rank import CommunityRank

@@ -6,7 +6,6 @@ from structures.task import Task
 from utils import orm, text
 from utils.rank import CommunityRank
 
-
 from . import BaseStructure, db, errors, utils_
 from .attribute import StaticAttribute
 from .list import KIND_TO_PREDEFINED_DATA, Kind, List
@@ -143,7 +142,9 @@ class Community(BaseStructure, naming=("community", "communities")):
         return list(self._get_lists_inner(c))
 
     def get_list_by_id(self, c: orm.Cursor, id: int, /) -> tuple[List, int] | None:
-        return utils_.first_or_none_of_item_vk_of_mapping(self.get_lists_by_id(c, (id,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(
+            self.get_lists_by_id(c, (id,))
+        )
 
     def get_lists_by_id(
         self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /
@@ -158,7 +159,9 @@ class Community(BaseStructure, naming=("community", "communities")):
     def get_list_by_name(
         self, c: orm.Cursor, name: text.NormStr, /
     ) -> tuple[List, text.RealStr] | None:
-        return utils_.first_or_none_of_item_vk_of_mapping(self.get_lists_by_name(c, (name,)))
+        return utils_.first_or_none_of_item_vk_of_mapping(
+            self.get_lists_by_name(c, (name,))
+        )
 
     def get_lists_by_name(
         self, c: orm.Cursor, names: t.Collection[text.NormStr], /

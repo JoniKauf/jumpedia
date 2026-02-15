@@ -1800,7 +1800,7 @@ class List(BaseStructure, naming=("list", "lists")):
 
         c.execute(
             db.CommunityUserTaskAttributeValue.delete().where(
-                (db.CommunityUserTaskAttributeValue.list_id, orm.Operator.EQ, self.id),
+                self._where_this_list(db.CommunityUserTaskAttributeValue.list_id),
                 (
                     db.CommunityUserTaskAttributeValue.community_user_task_id,
                     orm.Operator.EQ,
@@ -1815,4 +1815,42 @@ class List(BaseStructure, naming=("list", "lists")):
             list_task_community_user_id=row.id,
             task_id=task_id,
             community_user_id=community_user_id,
+        )
+
+    def edit_attribute_position_via_swap(
+        self, c: orm.Cursor, attribute_id: int, other_attribute_id: int
+    ) -> None:
+        tup = self.get_attribute_by_id(c, attribute_id)
+
+        if tup is None:
+            raise errors.StructureNotFoundError(attribute_id, BaseAttribute)
+
+        attr_a, _ = tup
+
+        tup = self.get_attribute_by_id(c, other_attribute_id)
+
+        if tup is None:
+            raise errors.StructureNotFoundError(other_attribute_id, BaseAttribute)
+
+        attr_b, _ = tup
+
+        c.execute(
+            db.Attribute.update(db.Attribute.position.set(0)).where(
+                self._where_this_list(db.Attribute.list_id),
+                (db.Attribute.position, orm.Operator.EQ, attr_a.id),
+            )
+        )
+
+        c.execute(
+            db.Attribute.update(db.Attribute.position.set(attr_a.position)).where(
+                self._where_this_list(db.Attribute.list_id),
+                (db.Attribute.position, orm.Operator.EQ, attr_b.id),
+            )
+        )
+
+        c.execute(
+            db.Attribute.update(db.Attribute.position.set(attr_b.position)).where(
+                self._where_this_list(db.Attribute.list_id),
+                (db.Attribute.id, orm.Operator.EQ, attr_a),
+            )
         )

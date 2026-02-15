@@ -200,6 +200,32 @@ class AttributeCog(cmds.GroupCog, group_name="attribute"):
             )
         )
 
+    @attribute_edit_group.command(name="position")
+    @command.adapt()
+    async def edit_position(
+        self,
+        ia: _InteractionAdapter,
+        list: str,
+        attribute_to_swap: str,
+        attribute_to_swap_with: str,
+    ) -> CoroutineType[t.Any, t.Any, t.Any]:
+        list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
+
+        attr_a, attr_b = list_obj.edit_attribute_position(
+            attribute_to_swap, attribute_to_swap_with
+        )
+
+        return ia.dc.followup.send(
+            layouts.success(
+                f"{str(type(attr_a)).title()} Position Edited",
+                t"The position of the "
+                + attr_a.mention()
+                + t" ({attr_a.position}) has been swapped with the position of the "
+                + attr_b.mention()
+                + t" ({attr_b.position}) successfully!",
+            )
+        )
+
 
 class AttributesCog(cmds.GroupCog, group_name="attributes"):
     def __init__(self, bot: cmds.Bot) -> None:

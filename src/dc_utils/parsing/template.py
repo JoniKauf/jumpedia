@@ -19,7 +19,9 @@ class TokenTypes(factory.TokenTypesWithParens):
     THEN = factory.TokenType(11, lambda _: t"the keyword {'then':,}")
     ELSE = factory.TokenType(12, lambda _: t"the keyword {'else':,}")
     PLUS = factory.TokenType(13, lambda _: t"the plus operator {'+':,}")
-    INTERP = factory.TokenType(14, lambda token: t"an interpolation {{{token.string:,}}}")
+    INTERP = factory.TokenType(
+        14, lambda token: t"an interpolation {{{token.string:,}}}"
+    )
 
 
 def _token_from_buf(buf: str) -> factory.Token | None:
@@ -31,7 +33,9 @@ def _token_from_buf(buf: str) -> factory.Token | None:
         return factory.Token(TokenTypes.ELSE, buf)
 
     # delegate to filter tokenizer for filter keywords/operators (and, or, _, is, etc.)
-    tkn = getattr(filter_syntax, "_token_from_buf")(buf)  # reuse filter tokenization rules
+    tkn = getattr(filter_syntax, "_token_from_buf")(
+        buf
+    )  # reuse filter tokenization rules
     if tkn is not None:
         return tkn
 
@@ -50,7 +54,9 @@ def _token_from_c(c: str) -> factory.Token | None:
     return getattr(filter_syntax, "_token_from_c")(c)
 
 
-def _interp_handler(it: t.Iterator[str], error_type: type[SyntaxError]) -> factory.Token:
+def _interp_handler(
+    it: t.Iterator[str], error_type: type[SyntaxError]
+) -> factory.Token:
     buf: list[str] = []
     depth = 1
     for c in it:
@@ -140,7 +146,9 @@ class Concat(Expr):
 
 
 class IfExpr(Expr):
-    def __init__(self, condition: factory.Node, then_branch: Expr, else_branch: Expr) -> None:
+    def __init__(
+        self, condition: factory.Node, then_branch: Expr, else_branch: Expr
+    ) -> None:
         self.condition = condition
         self.then_branch = then_branch
         self.else_branch = else_branch
@@ -251,10 +259,16 @@ def _transform_if(ts: factory.TokenStream, depth: int) -> Expr:
     return IfExpr(condition_node, then_branch, else_branch)
 
 
-transform = factory.transform_factory(transform=_transform_if, expected_but_received=expected_but_received)
+transform = factory.transform_factory(
+    transform=_transform_if, expected_but_received=expected_but_received
+)
 
 
-def render(node: Expr, context: dict[str, t.Any], eval_filter: t.Callable[[factory.Node, dict[str, t.Any]], bool]) -> str:
+def render(
+    node: Expr,
+    context: dict[str, t.Any],
+    eval_filter: t.Callable[[factory.Node, dict[str, t.Any]], bool],
+) -> str:
     if isinstance(node, Literal):
         return node.value
 
@@ -271,5 +285,5 @@ def render(node: Expr, context: dict[str, t.Any], eval_filter: t.Callable[[facto
         if eval_filter(node.condition, context):
             return render(node.then_branch, context, eval_filter)
         return render(node.else_branch, context, eval_filter)
-    
+
     assert False
