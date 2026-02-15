@@ -45,7 +45,7 @@ def _token_from_buf(buf: str) -> factory.Token | None:
 
     elif buf == "_":
         return factory.Token(TokenTypes.UNDERSCORE, buf)
-    
+
     elif buf in _OP_FIRST_SIGHT_STR_TO_NODE_TYPE:
         return factory.Token(TokenTypes.OP, buf)
 
