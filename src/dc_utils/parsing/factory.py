@@ -136,6 +136,7 @@ def tokenize_factory(
             if c in "\"'":
                 yield from _yield_from_buf()
                 yield quoted_handler(c, it, error_type)
+                continue
 
             if c.isspace():
                 yield from _yield_from_buf()
