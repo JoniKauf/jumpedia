@@ -60,7 +60,7 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             real_name=RealStr(real_name := "Id"),
             norm_name=NormStr(real_name),
             slot_type=int,
-            position=0,
+            position=1,
             min_slot_count=1,
             max_slot_count=1,
             kind=Kind.ID,
@@ -69,7 +69,7 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             real_name=RealStr(real_name := "Name"),
             norm_name=NormStr(real_name),
             slot_type=str,
-            position=1,
+            position=2,
             min_slot_count=1,
             max_slot_count=1,
             kind=Kind.NAME,
@@ -78,7 +78,7 @@ KIND_TO_PREDEFINED_DATA: t.Final[
             real_name=RealStr(real_name := "Alias"),
             norm_name=NormStr(real_name),
             slot_type=str,
-            position=2,
+            position=3,
             min_slot_count=0,
             max_slot_count=32,
             kind=Kind.ALIAS,
@@ -613,7 +613,7 @@ class List(BaseStructure, naming=("list", "lists")):
         kind: Kind | None = None,
         collection: t.Sequence[tuple[RealStr, t.Sequence[RealStr]]] = (),
     ) -> T:
-        assert position >= -1
+        assert position >= -1 and position != 0
 
         assert (position >= 0) == issubclass(
             type, StaticAttribute
@@ -640,7 +640,7 @@ class List(BaseStructure, naming=("list", "lists")):
         self._validate_min_max_slot_count(min_slot_count, max_slot_count)
 
         if position == -1:
-            position = max(attr.position for attr in attrs) + 1 if attrs else 0
+            position = max(attr.position for attr in attrs) + 1 if attrs else 1
 
         AttributeTable = db.Attribute
 
