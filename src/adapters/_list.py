@@ -90,8 +90,8 @@ def _get_attribute_adapter(
     t.assert_never(attribute)
 
 
-def _require_task_with_syn(c: orm.Cursor, norm_syn: text.NormStr, list: List) -> Task:
-    tup = list.get_task_by_syn(c, norm_syn)
+def _require_task_with_syn(session: Session, norm_syn: text.NormStr, list: List) -> Task:
+    tup = list.get_task_by_syn(session, norm_syn)
 
     if tup is None:
         raise errors.StructureNotFoundViaSyn(norm_syn, Task)
@@ -101,14 +101,14 @@ def _require_task_with_syn(c: orm.Cursor, norm_syn: text.NormStr, list: List) ->
 
 @t.overload
 def _require_attribute_with_syn(
-    c: orm.Cursor, norm_syn: text.NormStr, attribute_type: EllipsisType, list: List
+    session: Session, norm_syn: text.NormStr, attribute_type: EllipsisType, list: List
 ) -> AnyAttributeT:
     pass
 
 
 @t.overload
 def _require_attribute_with_syn[T: AnyAttributeT](
-    c: orm.Cursor,
+    session: Session,
     norm_syn: text.NormStr,
     attribute_type: type[T] | EllipsisType,
     list: List,
@@ -117,12 +117,12 @@ def _require_attribute_with_syn[T: AnyAttributeT](
 
 
 def _require_attribute_with_syn(
-    c: orm.Cursor,
+    session: Session,
     norm_syn: text.NormStr,
     attribute_type: type[AnyAttributeT] | EllipsisType,
     list: List,
 ) -> AnyAttributeT:
-    tup = list.get_attribute_by_syn(c, norm_syn, type=attribute_type)
+    tup = list.get_attribute_by_syn(session, norm_syn, type=attribute_type)
 
     if tup is None:
         raise errors.StructureNotFoundViaSyn(norm_syn, TaskAttribute)

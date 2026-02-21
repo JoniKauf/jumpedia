@@ -12,58 +12,19 @@ from discord.ext import commands as cmds
 from adapters.interaction import _InteractionAdapter
 from dc_utils import layouts, user
 from structures import BaseStructure
-from utils import gist
+import structures
+import structures.db
+from utils import gist, secret
 from utils.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
     from adapters.interaction import _InteractionAdapter
 
 
-_INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}
-_LOCK: Lock = Lock()
-
-
-class InteractionAdapterContext:
-    def __init__(self, interaction: dc.Interaction):
-        self.interaction = interaction
-        self._adapter: _InteractionAdapter | None = None
-
-    def __enter__(self) -> _InteractionAdapter:
-        global _INTERACTIONS
-
-        with _LOCK:
-            tup = _INTERACTIONS.get(self.interaction.id)
-
-            if tup is None:
-                adapter = _InteractionAdapter(self.interaction)
-                _INTERACTIONS[self.interaction.id] = (1, adapter)
-                self._adapter = adapter
-            else:
-                ref_count, adapter = tup
-                _INTERACTIONS[self.interaction.id] = (ref_count + 1, adapter)
-                self._adapter = adapter
-
-        return self._adapter
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        global _INTERACTIONS
-
-        with _LOCK:
-            ref_count, ia = _INTERACTIONS[self.interaction.id]
-
-            assert ref_count >= 1
-
-            if ref_count == 1:
-                _INTERACTIONS.pop(self.interaction.id)
-            else:
-                _INTERACTIONS[self.interaction.id] = (ref_count - 1, ia)
-
-            ia._c._mariadb_cursor.close()
-            ia._c._mariadb_connection.close()
-
+ENGINE, SESSION_MAKER = structures.db.create_engine_and_session_maker(secret.listen().SQLALCHEMY_URL)
 
 def adapt[T: cmds.Cog, **P](
-    rank_to_specify_user: AnyRankT | None | EllipsisType = ...,
+    rank_required_to_specify_user: AnyRankT | None | EllipsisType = ...,
 ) -> t.Callable[
     [
         t.Callable[
@@ -105,41 +66,42 @@ def adapt[T: cmds.Cog, **P](
 
             other_user: dc.User | None | EllipsisType = bound.arguments.get("user", ...)
 
-            nonlocal rank_to_specify_user
+            nonlocal rank_required_to_specify_user
 
             if other_user is ...:  # No user parameter found
-                if rank_to_specify_user is not ...:  # No rank must be given then
+                if rank_required_to_specify_user is not ...:  # No rank must be given then
                     raise KeyError("Could not find parameter 'user'")
             elif (
-                rank_to_specify_user is not None
+                rank_required_to_specify_user is not None
             ):  # If a user parameter is found and a rank is required
                 if (
-                    rank_to_specify_user is ...
+                    rank_required_to_specify_user is ...
                 ):  # Set default rank required if user is found
-                    rank_to_specify_user = CommunityRank.MODERATOR
+                    rank_required_to_specify_user = CommunityRank.MODERATOR
 
                 user.validate_allowed_for_others(
-                    interaction, other_user, rank_to_specify_user
+                    interaction, other_user, rank_required_to_specify_user
                 )
 
             # --- Create Interaction Adapter ---
-            with InteractionAdapterContext(interaction) as ia:
-                # --- Handle One And Only, Final Commit Per Interaction ---
+            
+            ia = _InteractionAdapter(interaction)
+            
+            try:
+                success = await func(self, ia, *args, **kwargs)
+
                 try:
-                    success = await func(self, ia, *args, **kwargs)
+                    if not ia._c._mariadb_connection.autocommit:
+                        ia._c.commit()
+                except mariadb.Error:
+                    raise errors.DatabaseError()
 
-                    try:
-                        if not ia._c._mariadb_connection.autocommit:
-                            ia._c.commit()
-                    except mariadb.Error:
-                        raise errors.DatabaseError()
+            except Exception:
+                ia._c._mariadb_connection.rollback()
+                raise
 
-                except Exception:
-                    ia._c._mariadb_connection.rollback()
-                    raise
-
-                # --- Show Success Message ---
-                await success
+            # --- Show Success Message ---
+            await success
 
         return decorated
 

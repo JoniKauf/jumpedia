@@ -101,7 +101,7 @@ def tokenize(s: str) -> t.Generator[factory.Token, None, None]:
         if c in "\"'":
             # consume quoted string (use factory's default handler)
             yield from _flush_buf()
-            yield factory.default_quoted_handler(c, it, SyntaxError)
+            yield factory.default_quoted_handler(session, it, SyntaxError)
             continue
 
         # interpolation

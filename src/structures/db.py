@@ -1,13 +1,16 @@
 import typing as t
 
 from sqlalchemy import (
+    Engine,
     ForeignKey,
+    ForeignKeyConstraint,
     UniqueConstraint,
     CheckConstraint,
+    Index,
     JSON,
     create_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from sqlalchemy.dialects.mysql import (
     INTEGER,
@@ -15,6 +18,8 @@ from sqlalchemy.dialects.mysql import (
     TINYINT,
     VARCHAR,
 )
+
+from utils import secret
 
 
 # ============================================================
@@ -42,27 +47,22 @@ class Community(Base):
         autoincrement=True,
     )
 
-    norm_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-        unique=True,
-    )
-
-    real_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-        unique=True,
-    )
+    norm_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, unique=True)
+    real_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False, unique=True)
 
     default_selected_list_id: Mapped[int | None] = mapped_column(
         INTEGER(unsigned=True),
-        ForeignKey("list.id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    limits: Mapped[str] = mapped_column(
-        JSON,
-        nullable=False,
+    limits: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["id", "default_selected_list_id"],
+            ["list.community_id", "list.id"],
+            ondelete="SET NULL",
+        ),
     )
 
 
@@ -84,6 +84,10 @@ class Server(Base):
         nullable=False,
     )
 
+    __table_args__ = (
+        Index("ix_server_community_id", "community_id"),
+    )
+
 
 # ============================================================
 # List
@@ -91,10 +95,6 @@ class Server(Base):
 
 class List(Base):
     __tablename__ = "list"
-
-    __table_args__ = (
-        UniqueConstraint("community_id", "norm_name"),
-    )
 
     id: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
@@ -108,14 +108,13 @@ class List(Base):
         nullable=False,
     )
 
-    norm_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
+    norm_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
+    real_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
 
-    real_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
+    __table_args__ = (
+        UniqueConstraint("community_id", "norm_name"),
+        UniqueConstraint("id", "community_id"),
+        Index("ix_list_community_id", "community_id"),
     )
 
 
@@ -131,15 +130,8 @@ class JumpediaUser(Base):
         primary_key=True,
     )
 
-    norm_name: Mapped[str] = mapped_column(
-        VARCHAR(32),
-        nullable=False,
-    )
-
-    raw_name: Mapped[str] = mapped_column(
-        VARCHAR(32),
-        nullable=False,
-    )
+    norm_name: Mapped[str] = mapped_column(VARCHAR(32), nullable=False)
+    raw_name: Mapped[str] = mapped_column(VARCHAR(32), nullable=False)
 
     power: Mapped[int] = mapped_column(nullable=False)
 
@@ -173,7 +165,17 @@ class CommunityUser(Base):
 
     selected_list_id: Mapped[int | None] = mapped_column(
         INTEGER(unsigned=True),
-        ForeignKey("list.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["community_id", "selected_list_id"],
+            ["list.community_id", "list.id"],
+            ondelete="SET NULL",
+        ),
+        Index("ix_community_user_community_id", "community_id"),
+        Index("ix_community_user_jumpedia_user_id", "jumpedia_user_id"),
     )
 
 
@@ -184,16 +186,6 @@ class CommunityUser(Base):
 class Attribute(Base):
     __tablename__ = "attribute"
 
-    __table_args__ = (
-        UniqueConstraint("list_id", "kind"),
-        UniqueConstraint("list_id", "norm_name"),
-        UniqueConstraint("list_id", "position"),
-
-        CheckConstraint("type_id < 256"),
-        CheckConstraint("kind IS NULL OR kind <= 255"),
-        CheckConstraint("slot_type < 256"),
-    )
-
     id: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
         primary_key=True,
@@ -202,7 +194,6 @@ class Attribute(Base):
 
     list_id: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
-        ForeignKey("list.id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -211,83 +202,26 @@ class Attribute(Base):
         nullable=False,
     )
 
-    kind: Mapped[int | None] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=True,
-    )
+    kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
+    norm_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
+    real_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
 
-    norm_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-    real_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-    slot_type: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-    position: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-    min_slot_count: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-    max_slot_count: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-
-# ============================================================
-# AttributeAlias
-# ============================================================
-
-class AttributeAlias(Base):
-    __tablename__ = "attribute_alias"
+    slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
+    position: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
+    min_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
+    max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("list_id", "norm_alias"),
-        CheckConstraint("attribute_type_id < 256"),
-    )
-
-    id: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    attribute_id: Mapped[int] = mapped_column(
-        ForeignKey("attribute.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    attribute_type_id: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-    norm_alias: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-    real_alias: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
+        ForeignKeyConstraint(
+            ["list_id"],
+            ["list.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("list_id", "norm_name"),
+        UniqueConstraint("list_id", "position"),
+        UniqueConstraint("id", "list_id"),
+        CheckConstraint("type_id BETWEEN 1 AND 3"),
+        Index("ix_attribute_list_id", "list_id"),
     )
 
 
@@ -298,201 +232,53 @@ class AttributeAlias(Base):
 class Task(Base):
     __tablename__ = "task"
 
+    id: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True),
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    list_id: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True),
+        nullable=False,
+    )
+
+    norm_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
+    slot_name: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
+
     __table_args__ = (
+        ForeignKeyConstraint(["list_id"], ["list.id"], ondelete="CASCADE"),
         UniqueConstraint("list_id", "norm_name"),
-    )
-
-    id: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    norm_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-    slot_name: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
+        UniqueConstraint("id", "list_id"),
+        Index("ix_task_list_id", "list_id"),
     )
 
 
 # ============================================================
-# TaskAlias
-# ============================================================
-
-class TaskAlias(Base):
-    __tablename__ = "task_alias"
-
-    __table_args__ = (
-        UniqueConstraint("list_id", "norm_alias"),
-    )
-
-    id: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    norm_alias: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-    slot_alias: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-
-# ============================================================
-# TaskAttributeValue (composite PK)
+# TaskAttributeValue (strict relational)
 # ============================================================
 
 class TaskAttributeValue(Base):
     __tablename__ = "task_attribute_value"
 
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
+    list_id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True)
+    task_id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True)
+    attribute_id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True)
+    index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)
 
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-
-    attribute_id: Mapped[int] = mapped_column(
-        ForeignKey("attribute.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-
-    index: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        primary_key=True,
-    )
-
-    slot_slot: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
-    )
-
-
-# ============================================================
-# CommunityUserTask
-# ============================================================
-
-class CommunityUserTask(Base):
-    __tablename__ = "community_user_task"
+    slot_value: Mapped[str] = mapped_column(VARCHAR(255), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint(
-            "list_id",
-            "task_id",
-            "community_user_id",
+        ForeignKeyConstraint(
+            ["task_id", "list_id"],
+            ["task.id", "task.list_id"],
+            ondelete="CASCADE",
         ),
-    )
-
-    id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True),
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    community_user_id: Mapped[int] = mapped_column(
-        ForeignKey("community_user.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-
-# ============================================================
-# CommunityUserTaskAttributeValue
-# ============================================================
-
-class CommunityUserTaskAttributeValue(Base):
-    __tablename__ = "community_user_task_attribute_value"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "community_user_task_id",
-            "attribute_id",
-            "index",
+        ForeignKeyConstraint(
+            ["attribute_id", "list_id"],
+            ["attribute.id", "attribute.list_id"],
+            ondelete="CASCADE",
         ),
-        UniqueConstraint(
-            "list_id",
-            "community_user_id",
-            "task_id",
-            "attribute_id",
-            "index",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True),
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    community_user_id: Mapped[int] = mapped_column(
-        ForeignKey("community_user.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    community_user_task_id: Mapped[int] = mapped_column(
-        ForeignKey("community_user_task.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    attribute_id: Mapped[int] = mapped_column(
-        ForeignKey("attribute.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    index: Mapped[int] = mapped_column(
-        TINYINT(unsigned=True),
-        nullable=False,
-    )
-
-    slot_slot: Mapped[str] = mapped_column(
-        VARCHAR(255),
-        nullable=False,
     )
 
 
@@ -500,7 +286,7 @@ class CommunityUserTaskAttributeValue(Base):
 # Engine / Session
 # ============================================================
 
-def create_engine_and_session(url: str):
+def create_engine_and_session_maker(url: str) -> tuple[Engine, sessionmaker[Session]]:
     engine = create_engine(
         url,
         pool_recycle=3600,
@@ -512,15 +298,9 @@ def create_engine_and_session(url: str):
         }
     )
 
-
-    Session = sessionmaker(engine)
-
-    return engine, Session
+    session_maker = sessionmaker(engine)
+    return engine, session_maker
 
 
-# ============================================================
-# Create schema
-# ============================================================
-
-def create_schema(engine):
+def create_schema(engine: Engine):
     Base.metadata.create_all(engine)

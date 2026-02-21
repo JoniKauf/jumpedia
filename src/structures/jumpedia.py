@@ -1,9 +1,11 @@
 import json
 import typing as t
-from dataclasses import InitVar
+
+from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 from structures import utils_
-from utils import orm, text
+from utils import text
 from utils.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
@@ -43,7 +45,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
     def create_community(
         self,
-        c: orm.Cursor,
+        session: Session,
         name: text.RealStr,
         server_id: int,
         owner: JumpediaUser,
@@ -53,17 +55,17 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
             raise errors.TooLongSynError(
                 name, True, self.limits["community_name_length_max"], Community
             )
-
+        
         norm_name = text.NormStr(name)
 
-        tup = self.get_community_by_server_id(c, server_id)
+        tup = self.get_community_by_server_id(session, server_id)
 
         if tup is not None:
             comm, server_id = tup
 
             raise errors.ServerAlreadyConnectedToCommunityError(server_id, comm)
 
-        tup = self.get_community_by_name(c, norm_name)
+        tup = self.get_community_by_name(session, norm_name)
 
         if tup is not None:
             comm, real_name = tup
@@ -71,7 +73,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
         del tup
 
-        execute_data = c.execute(
+        execute_data = session.execute(
             db.Community.insert(
                 db.Community.norm_name.bind(norm_name),
                 db.Community.real_name.bind(name),
@@ -84,7 +86,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
         assert community_id is not None
 
-        c.execute(
+        session.execute(
             db.Server.insert(
                 db.Server.id.bind(server_id),
                 db.Server.community_id.bind(community_id),
@@ -105,24 +107,21 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
         return comm
 
-    def delete_community(self, c: orm.Cursor, id: int) -> None:
-        execute_data = c.execute(
-            (db.Community.delete().where((db.Community.id, orm.Operator.EQ, id))),
-            get_affected_row_count=True,
-        )
-
-        if execute_data.affected_row_count < 1:
+    def delete_community(self, session: Session, id: int) -> None:
+        result = session.execute(delete(Community).where(db.Community.id == id))
+        
+        if result.rowcount < 1:
             raise StructureNotFoundError(id, Community)
 
     def _get_communities_inner(
-        self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]
+        self, session: Session, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> map[Community]:
         query = db.Community.select("*")
 
         if where:
             query = query.where(*where)
 
-        return map(self._community_row_to_obj, c.fetch_all(query))
+        return map(self._community_row_to_obj, session.fetch_all(query))
 
     def _community_row_to_obj(self, row: db.Community) -> Community:
         return Community(
@@ -133,18 +132,18 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
             limits=CommunityLimits(**json.loads(row.limits)),
         )
 
-    def get_communities(self, c: orm.Cursor) -> list[Community]:
+    def get_communities(self, session: Session) -> list[Community]:
         return list(self._get_communities_inner(c))
 
     def get_community_by_id(
-        self, c: orm.Cursor, id: int, /
+        self, session: Session, id: int, /
     ) -> tuple[Community, int] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
-            self.get_communities_by_id(c, (id,))
+            self.get_communities_by_id(session, (id,))
         )
 
     def get_communities_by_id(
-        self, c: orm.Cursor, ids: t.Collection[int], /
+        self, session: Session, ids: t.Collection[int], /
     ) -> dict[int, Community]:
         return {
             comm.id: comm
@@ -154,14 +153,14 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         }
 
     def get_community_by_name(
-        self, c: orm.Cursor, name: text.NormStr, /
+        self, session: Session, name: text.NormStr, /
     ) -> tuple[Community, text.RealStr] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
-            self.get_communities_by_name(c, (name,))
+            self.get_communities_by_name(session, (name,))
         )
 
     def get_communities_by_name(
-        self, c: orm.Cursor, names: t.Collection[text.NormStr], /
+        self, session: Session, names: t.Collection[text.NormStr], /
     ) -> dict[text.RealStr, Community]:
         return {
             comm.real_name: comm
@@ -171,19 +170,20 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         }
 
     def get_community_by_server_id(
-        self, c: orm.Cursor, server_id: int, /
+        self, session: Session, server_id: int, /
     ) -> tuple[Community, int] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
-            self.get_communities_by_server_id(c, (server_id,))
+            self.get_communities_by_server_id(session, (server_id,))
         )
 
     def get_communities_by_server_id(
-        self, c: orm.Cursor, server_ids: t.Collection[int], /
+        self, session: Session, server_ids: t.Collection[int], /
     ) -> dict[int, Community]:
-        rows = c.fetch_all(
-            db.Server.select(db.Server.id, db.Server.community_id).where(
-                (db.Server.id, orm.Operator.IN, server_ids)
-            )
+        rows = db.create_engine
+
+        rows = session.fetch_all(
+            select(db.Server.id, db.Server.community_id)
+            .where(db.Server.id.in_(server_ids))
         )
 
         if not rows:
@@ -202,7 +202,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
     def get_or_create_jumpedia_user(
         self,
-        c: orm.Cursor,
+        session: Session,
         id: int,
         name: str,
         jumpedia_rank: JumpediaRank,
@@ -211,10 +211,10 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
     ) -> JumpediaUser:
         norm_name = text.NormStr(name)
 
-        user = self.get_jumpedia_user_by_id(c, id)
+        user = self.get_jumpedia_user_by_id(session, id)
 
         if user is None:
-            c.execute(
+            session.execute(
                 db.JumpediaUser.insert(
                     db.JumpediaUser.id.bind(id),
                     db.JumpediaUser.power.bind(jumpedia_rank.value),
@@ -232,7 +232,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
             name = name if override_name_if_user_exists else user.user_name
 
             if name != user.user_name or jumpedia_rank is not user.jumpedia_rank:
-                c.execute(
+                session.execute(
                     db.JumpediaUser.update(
                         db.JumpediaUser.norm_name.set(norm_name),
                         db.JumpediaUser.raw_name.set(name),
@@ -245,14 +245,14 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         )
 
     def _get_jumpedia_users_inner(
-        self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]
+        self, session: Session, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> list[JumpediaUser]:
         query = db.JumpediaUser.select("*")
 
         if where:
             query = query.where(*where)
 
-        return list(map(self._jumpedia_user_row_to_obj, c.fetch_all(query)))
+        return list(map(self._jumpedia_user_row_to_obj, session.fetch_all(query)))
 
     def _jumpedia_user_row_to_obj(self, row: db.JumpediaUser) -> JumpediaUser:
         return JumpediaUser(
@@ -262,19 +262,19 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
             jumpedia_rank=JumpediaRank.get(row.power),
         )
 
-    def get_jumpedia_users(self, c: orm.Cursor) -> list[JumpediaUser]:
+    def get_jumpedia_users(self, session: Session) -> list[JumpediaUser]:
         return self._get_jumpedia_users_inner(c)
 
-    def get_jumpedia_user_by_id(self, c: orm.Cursor, id: int, /) -> JumpediaUser | None:
+    def get_jumpedia_user_by_id(self, session: Session, id: int, /) -> JumpediaUser | None:
         users = self._get_jumpedia_users_inner(
             c, (db.JumpediaUser.id, orm.Operator.EQ, id)
         )
         return users[0] if users else None
 
     def add_community_to_server(
-        self, c: orm.Cursor, community_id: int, server_id: int, /
+        self, session: Session, community_id: int, server_id: int, /
     ) -> Community:
-        tup = self.get_community_by_server_id(c, server_id)
+        tup = self.get_community_by_server_id(session, server_id)
 
         if tup is not None:
             existing_community, server_id = tup
@@ -285,7 +285,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
 
         del tup
 
-        c.execute(
+        session.execute(
             db.Server.insert(
                 db.Server.id.bind(server_id),
                 db.Server.community_id.bind(community_id),
@@ -293,15 +293,15 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         )
 
         # Community must now be connected
-        community = self.get_community_by_server_id(c, server_id)
+        community = self.get_community_by_server_id(session, server_id)
         assert community is not None
 
         return community[0]
 
     def remove_community_from_server(
-        self, c: orm.Cursor, server_id: int, /
+        self, session: Session, server_id: int, /
     ) -> Community:
-        row = c.fetch_one(
+        row = session.fetch_one(
             db.Server.delete()
             .where((db.Server.id, orm.Operator.EQ, server_id))
             .returning(db.Server.community_id)
@@ -310,7 +310,7 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         if row is None:
             raise errors.ServerNotConnectedToACommunityError(server_id)
 
-        community = self.get_community_by_id(c, row.community_id)
+        community = self.get_community_by_id(session, row.community_id)
         assert community is not None
 
         return community[0]

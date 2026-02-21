@@ -108,7 +108,7 @@ transform = factory.transform_factory(
 
 
 def sort[T: AttributeValueMapping](
-    c: orm.Cursor, avms: t.Iterable[T], sorts: t.Iterable[tuple[AnyAttributeT, bool]]
+    session: Session, avms: t.Iterable[T], sorts: t.Iterable[tuple[AnyAttributeT, bool]]
 ) -> list[T]:
     # Remove data unchanged for 0 or 1 elements
     first_two_avms: list[T] = []
@@ -185,7 +185,7 @@ def sort[T: AttributeValueMapping](
 
 
 def parse[T: AttributeValueMapping](
-    c: orm.Cursor,
+    session: Session,
     s: RealStr,
     avms: t.Iterable[T],
     syn_to_attr: dict[NormStr, AnyAttributeT],
@@ -207,4 +207,4 @@ def parse[T: AttributeValueMapping](
         sorts_extracted.append((attr, asc))
         used_attributes.add(attr)
 
-    return sort(c, avms, sorts_extracted), used_attributes
+    return sort(session, avms, sorts_extracted), used_attributes

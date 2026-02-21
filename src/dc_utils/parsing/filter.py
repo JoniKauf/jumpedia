@@ -284,7 +284,7 @@ class _Cache:
             self._slot_type_cache[key] = v
             return v
 
-    def attribute_to_collection(self, c: orm.Cursor, attr: AnyAttributeT) -> Collection:
+    def attribute_to_collection(self, session: Session, attr: AnyAttributeT) -> Collection:
         try:
             return self._collection_cache[attr]
         except KeyError:
@@ -334,7 +334,7 @@ type _FastAvmT = dict[int, dict[NormStr, frozenset[SlotTypeT]]]
 
 
 def _handle_comparison(
-    c: orm.Cursor,
+    session: Session,
     node: Comparison,
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
@@ -377,7 +377,7 @@ def _handle_comparison(
     )
 
     seen_attrs.add(attr)
-    collection = cache.attribute_to_collection(c, attr)
+    collection = cache.attribute_to_collection(session, attr)
 
     if not collection:
         return {
@@ -409,7 +409,7 @@ def _handle_comparison(
 
 
 def _handle_bool_expr(
-    c: orm.Cursor,
+    session: Session,
     node: BoolExpr,
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
@@ -455,7 +455,7 @@ def _handle_bool_expr(
 
 
 def _handle_node(
-    c: orm.Cursor,
+    session: Session,
     node: Comparison | BoolExpr,
     fast_avms: _FastAvmT,
     syn_to_attr: dict[NormStr, AnyAttributeT],
@@ -463,16 +463,16 @@ def _handle_node(
     cache: _Cache,
 ) -> _FastAvmT:
     if isinstance(node, BoolExpr):
-        return _handle_bool_expr(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
+        return _handle_bool_expr(session, node, fast_avms, syn_to_attr, seen_attrs, cache)
 
     if isinstance(node, Comparison):
-        return _handle_comparison(c, node, fast_avms, syn_to_attr, seen_attrs, cache)
+        return _handle_comparison(session, node, fast_avms, syn_to_attr, seen_attrs, cache)
 
     t.assert_never(node)
 
 
 def parse[T: AttributeValueMapping](
-    c: orm.Cursor,
+    session: Session,
     s: RealStr,
     avms: t.Iterable[T],
     syn_to_attr: dict[NormStr, AnyAttributeT],

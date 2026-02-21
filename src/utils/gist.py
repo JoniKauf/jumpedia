@@ -63,7 +63,7 @@ def _escape_cell(c: str | t.Sequence[str], /) -> str:
     if not c:
         return ""
 
-    if isinstance(c, str):
+    if isinstance(session, str):
         c = (c,)
 
     if "`" in c:

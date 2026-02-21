@@ -9,7 +9,7 @@ from . import mapping
 
 
 def parse[T: AnyAttributeT](
-    c: orm.Cursor, s: RealStr, syn_to_attr: t.Mapping[NormStr, T]
+    session: Session, s: RealStr, syn_to_attr: t.Mapping[NormStr, T]
 ) -> dict[T, tuple[RealStr, ...]]:
 
     raw_avm = mapping.parse(s)

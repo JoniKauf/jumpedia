@@ -51,7 +51,7 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
     def unique_slots_across_list(self) -> bool:
         return False
 
-    def get_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
+    def get_aliases(self, session: Session, /) -> frozenset[text.RealStr]:
         return self.get_real_aliases(c)
 
     # --- Methods ---
@@ -62,10 +62,10 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
 
     def _get_aliases_rows(
         self,
-        c: orm.Cursor,
+        session: Session,
         column: orm.Column[db.AttributeAlias, t.Any],
     ) -> list[db.AttributeAlias]:
-        return c.fetch_all(
+        return session.fetch_all(
             db.AttributeAlias.select(column).where(
                 (db.AttributeAlias.list_id, orm.Operator.EQ, self.list.id),
                 (
@@ -77,24 +77,24 @@ class BaseAttribute(BaseStructureWithAliases, naming=("attribute", "attributes")
             )
         )
 
-    def get_real_aliases(self, c: orm.Cursor, /) -> frozenset[text.RealStr]:
+    def get_real_aliases(self, session: Session, /) -> frozenset[text.RealStr]:
         return frozenset(
             text.RealStr(row.real_alias, check=False)
-            for row in self._get_aliases_rows(c, db.AttributeAlias.real_alias)
+            for row in self._get_aliases_rows(session, db.AttributeAlias.real_alias)
         )
 
-    def get_norm_aliases(self, c: orm.Cursor, /) -> frozenset[text.NormStr]:
+    def get_norm_aliases(self, session: Session, /) -> frozenset[text.NormStr]:
         return frozenset(
             text.NormStr(row.norm_alias, check=False)
-            for row in self._get_aliases_rows(c, db.AttributeAlias.norm_alias)
+            for row in self._get_aliases_rows(session, db.AttributeAlias.norm_alias)
         )
 
     @functools.lru_cache(16)
-    def get_collection(self, c: orm.Cursor, /) -> Collection:
+    def get_collection(self, session: Session, /) -> Collection:
         return Collection(attribute=self, entries=())
 
     def real_to_slot_value(
-        self, c: orm.Cursor, value: t.Sequence[text.RealStr], /
+        self, session: Session, value: t.Sequence[text.RealStr], /
     ) -> tuple[SlotStr, ...]:
         if not (self.min_slot_count <= len(value) <= self.max_slot_count):
             raise errors.AttributeValueSlotCountOutOfRangeError(tuple(value), self)
@@ -126,9 +126,9 @@ class BaseNonStaticAttribute(
             raise RuntimeError
 
     def real_to_slot_value(
-        self, c: orm.Cursor, value: t.Sequence[text.RealStr]
+        self, session: Session, value: t.Sequence[text.RealStr]
     ) -> tuple[SlotStr, ...]:
-        converted = super().real_to_slot_value(c, value)
+        converted = super().real_to_slot_value(session, value)
         collection = self.get_collection(c)
 
         if not collection:
@@ -148,11 +148,11 @@ class BaseNonStaticAttribute(
         return tuple(result)
 
     @functools.lru_cache(16)
-    def get_collection(self, c: orm.Cursor, /) -> Collection:
+    def get_collection(self, session: Session, /) -> Collection:
         AttributeCollectionEntryTable = db.AttributeCollectionEntry
         AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias
 
-        entry_rows = c.fetch_all(
+        entry_rows = session.fetch_all(
             AttributeCollectionEntryTable.select("*")
             .where(
                 (
@@ -167,7 +167,7 @@ class BaseNonStaticAttribute(
         if not entry_rows:
             return Collection(attribute=self, entries=())
 
-        alias_rows = c.fetch_all(
+        alias_rows = session.fetch_all(
             AttributeCollectionEntryAliasTable.select(
                 AttributeCollectionEntryAliasTable.attribute_collection_entry_id,
                 AttributeCollectionEntryAliasTable.slot_alias,
@@ -204,7 +204,7 @@ class BaseNonStaticAttribute(
 
     def set_collection(
         self,
-        c: orm.Cursor,
+        session: Session,
         collection: t.Sequence[tuple[text.RealStr, t.Sequence[text.RealStr]]],
     ) -> Collection:
         count = len(collection)
@@ -262,7 +262,7 @@ class BaseNonStaticAttribute(
         AttributeCollectionEntryTable = db.AttributeCollectionEntry
         AttributeCollectionEntryAliasTable = db.AttributeCollectionEntryAlias
 
-        c.execute(
+        session.execute(
             AttributeCollectionEntryTable.delete().where(
                 (
                     AttributeCollectionEntryTable.attribute_id,
@@ -272,7 +272,7 @@ class BaseNonStaticAttribute(
             )
         )
 
-        rows = c.fetch_all(
+        rows = session.fetch_all(
             AttributeCollectionEntryTable.insert(
                 AttributeCollectionEntryTable.attribute_id.bind(
                     *itertools.repeat(self.id, count)
@@ -302,7 +302,7 @@ class BaseNonStaticAttribute(
             entry_ids.extend(itertools.repeat(entry_id, aliases_count))
 
         if combined_aliases_count:
-            c.execute(
+            session.execute(
                 AttributeCollectionEntryAliasTable.insert(
                     AttributeCollectionEntryAliasTable.attribute_id.bind(
                         *itertools.repeat(self.id, combined_aliases_count)

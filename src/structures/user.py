@@ -35,11 +35,11 @@ class CommunityUser(BaseStructure, naming=("user", "users")):
     def name(self) -> str:
         return self.jumpedia_user.name
 
-    def get_selected_list(self, c: orm.Cursor, /) -> List | None:
+    def get_selected_list(self, session: Session, /) -> List | None:
         if self.selected_list_id is None:
             return None
 
-        row = c.fetch_one(
+        row = session.fetch_one(
             db.List.select("*").where(
                 (db.List.community_id, orm.Operator.EQ, self.community.id),
                 (db.List.id, orm.Operator.EQ, self.selected_list_id),
@@ -51,8 +51,8 @@ class CommunityUser(BaseStructure, naming=("user", "users")):
 
         return self.community._list_row_to_obj(row)
 
-    def set_selected_list(self, c: orm.Cursor, id: int | None, /) -> None:
-        execute_data = c.execute(
+    def set_selected_list(self, session: Session, id: int | None, /) -> None:
+        execute_data = session.execute(
             db.CommunityUser.update(db.CommunityUser.selected_list_id.set(id)).where(
                 (db.CommunityUser.community_id, orm.Operator.EQ, self.community.id),
                 (db.CommunityUser.id, orm.Operator.EQ, self.id),

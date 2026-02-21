@@ -1,9 +1,7 @@
 # uv pip compile ../pyproject.toml --output-file ../requirements.txt --no-deps
-black==25.11.0
-discord==2.3.2
-isort==7.0.0
-mariadb==1.1.14
-requests==2.32.5
-typing-extensions==4.15.0
 colorama
+black
+isort
+discord
+requests
 sqlalchemy

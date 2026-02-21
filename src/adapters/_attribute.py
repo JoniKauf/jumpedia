@@ -5,7 +5,7 @@ from structures.attribute import BaseAttribute
 from structures.attribute.slot_str import SlotTypeT
 from structures.community import StaticAttribute
 from structures.list import TaskAttribute, UserAttribute
-from utils import orm, text
+from utils import text
 
 from . import BaseStructureAdapter
 

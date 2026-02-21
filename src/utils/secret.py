@@ -7,16 +7,8 @@ __LOCATION = os.path.join(
     str(Path(__file__).resolve().parent.parent.parent), "secret.json"
 )
 
-
-class DatabaseConnectionData(t.TypedDict):
-    db: str
-    host: str
-    user: str
-    password: str
-
-
 class SecretContentT(t.NamedTuple):
-    DATABASE_CONNECTION_DATA: DatabaseConnectionData
+    SQLALCHEMY_URL: str
     DISCORD_TOKEN: str
     GITHUB_GIST_TOKEN: str
 

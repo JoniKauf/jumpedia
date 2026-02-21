@@ -23,9 +23,9 @@ if t.TYPE_CHECKING:
 
 
 def _require_community_with_name(
-    c: orm.Cursor, name: text.NormStr, jumpedia_s: Jumpedia
+    session: Session, name: text.NormStr, jumpedia_s: Jumpedia
 ) -> Community:
-    tup = jumpedia_s.get_community_by_name(c, name)
+    tup = jumpedia_s.get_community_by_name(session, name)
 
     if tup is None:
         raise errors.StructureNotFoundViaSyn(name, Community)
@@ -43,7 +43,7 @@ class JumpediaAdapter(BaseStructureAdapter[Jumpedia]):
     # --- Community ---
 
     def get_communities(self) -> list[CommunityAdapter]:
-        return [CommunityAdapter(c, self) for c in self._o.get_communities(self._c)]
+        return [CommunityAdapter(session, self) for c in self._o.get_communities(self._c)]
 
     def get_community(self, name: str) -> CommunityAdapter:
         return CommunityAdapter(

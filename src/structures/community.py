@@ -49,8 +49,8 @@ class Community(BaseStructure, naming=("community", "communities")):
     def name(self) -> str:
         return self.real_name
 
-    def get_server_ids(self, c: orm.Cursor, /) -> frozenset[int]:
-        rows = c.fetch_all(
+    def get_server_ids(self, session: Session, /) -> frozenset[int]:
+        rows = session.fetch_all(
             db.Server.select(db.Server.id).where(
                 (db.Server.community_id, orm.Operator.EQ, self.id)
             )
@@ -58,10 +58,10 @@ class Community(BaseStructure, naming=("community", "communities")):
 
         return frozenset(row.id for row in rows)
 
-    def create_list(self, c: orm.Cursor, name: text.RealStr, /) -> List:
+    def create_list(self, session: Session, name: text.RealStr, /) -> List:
         norm_name = text.NormStr(name)
 
-        tup = self.get_list_by_name(c, norm_name)
+        tup = self.get_list_by_name(session, norm_name)
 
         if tup is not None:
             raise errors.SynsAlreadyTakenError({tup[1]: tup[0]})
@@ -73,7 +73,7 @@ class Community(BaseStructure, naming=("community", "communities")):
                 self.limits["community_list_count_max"], List
             )
 
-        execute_data = c.execute(
+        execute_data = session.execute(
             db.List.insert(
                 db.List.community_id.bind(self.id),
                 db.List.norm_name.bind(norm_name),
@@ -104,8 +104,8 @@ class Community(BaseStructure, naming=("community", "communities")):
 
         return tup
 
-    def delete_list(self, c: orm.Cursor, id: int, /) -> None:
-        execute_data = c.execute(
+    def delete_list(self, session: Session, id: int, /) -> None:
+        execute_data = session.execute(
             db.List.delete().where(
                 (db.List.community_id, orm.Operator.EQ, self.id),
                 (db.List.id, orm.Operator.EQ, id),
@@ -119,11 +119,11 @@ class Community(BaseStructure, naming=("community", "communities")):
         assert execute_data.affected_row_count == 1
 
     def _get_lists_inner(
-        self, c: orm.Cursor, *where: tuple[t.Any, orm.Operator, t.Any]
+        self, session: Session, *where: tuple[t.Any, orm.Operator, t.Any]
     ) -> map[List]:
         return map(
             self._list_row_to_obj,
-            c.fetch_all(
+            session.fetch_all(
                 db.List.select(
                     "*",
                 ).where((db.List.community_id, orm.Operator.EQ, self.id), *where)
@@ -138,16 +138,16 @@ class Community(BaseStructure, naming=("community", "communities")):
             norm_name=text.NormStr(row.norm_name, check=False),
         )
 
-    def get_lists(self, c: orm.Cursor, /) -> list[List]:
+    def get_lists(self, session: Session, /) -> list[List]:
         return list(self._get_lists_inner(c))
 
-    def get_list_by_id(self, c: orm.Cursor, id: int, /) -> tuple[List, int] | None:
+    def get_list_by_id(self, session: Session, id: int, /) -> tuple[List, int] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
-            self.get_lists_by_id(c, (id,))
+            self.get_lists_by_id(session, (id,))
         )
 
     def get_lists_by_id(
-        self, c: orm.Cursor, ids: t.Collection[int] | EllipsisType, /
+        self, session: Session, ids: t.Collection[int] | EllipsisType, /
     ) -> dict[int, List]:
         return {
             list.id: list
@@ -157,14 +157,14 @@ class Community(BaseStructure, naming=("community", "communities")):
         }
 
     def get_list_by_name(
-        self, c: orm.Cursor, name: text.NormStr, /
+        self, session: Session, name: text.NormStr, /
     ) -> tuple[List, text.RealStr] | None:
         return utils_.first_or_none_of_item_vk_of_mapping(
-            self.get_lists_by_name(c, (name,))
+            self.get_lists_by_name(session, (name,))
         )
 
     def get_lists_by_name(
-        self, c: orm.Cursor, names: t.Collection[text.NormStr], /
+        self, session: Session, names: t.Collection[text.NormStr], /
     ) -> dict[text.RealStr, List]:
         return {
             list.real_name: list
@@ -173,8 +173,8 @@ class Community(BaseStructure, naming=("community", "communities")):
             )
         }
 
-    def get_default_selected_list(self, c: orm.Cursor, /) -> List | None:
-        row = c.fetch_one(
+    def get_default_selected_list(self, session: Session, /) -> List | None:
+        row = session.fetch_one(
             db.Community.select(db.Community.default_selected_list_id).where(
                 (db.Community.id, orm.Operator.EQ, self.id)
             )
@@ -183,14 +183,14 @@ class Community(BaseStructure, naming=("community", "communities")):
         if row is None or row.default_selected_list_id is None:
             return None
 
-        tup = self.get_list_by_id(c, row.default_selected_list_id)
+        tup = self.get_list_by_id(session, row.default_selected_list_id)
 
         assert tup is not None
 
         return tup[0]
 
-    def set_default_selected_list(self, c: orm.Cursor, list_id: int | None, /) -> None:
-        execute_data = c.execute(
+    def set_default_selected_list(self, session: Session, list_id: int | None, /) -> None:
+        execute_data = session.execute(
             db.Community.update(
                 db.Community.default_selected_list_id.set(list_id)
             ).where((db.Community.id, orm.Operator.EQ, self.id)),
@@ -202,14 +202,14 @@ class Community(BaseStructure, naming=("community", "communities")):
 
         assert execute_data.affected_row_count == 1
 
-    def rename_list(self, c: orm.Cursor, list_id: int, name: text.RealStr) -> None:
+    def rename_list(self, session: Session, list_id: int, name: text.RealStr) -> None:
         norm_name = text.NormStr(name)
-        tup = self.get_list_by_name(c, norm_name)
+        tup = self.get_list_by_name(session, norm_name)
 
         if tup is not None and tup[0].id != list_id:
             raise errors.SynsAlreadyTakenError({tup[1]: tup[0]})
 
-        c.execute(
+        session.execute(
             db.List.update(
                 db.List.real_name.set(name), db.List.norm_name.set(norm_name)
             ).where(
@@ -220,18 +220,18 @@ class Community(BaseStructure, naming=("community", "communities")):
 
     def get_or_create_community_user(
         self,
-        c: orm.Cursor,
+        session: Session,
         jumpedia_user: JumpediaUser,
         community_rank: CommunityRank,
         selected_list_id: int | None,
         override_community_rank_if_user_exists: bool,
         override_selected_list_if_user_exists: bool,
     ) -> CommunityUser:
-        community_user = self.get_community_user_by_jumpedia_user(c, jumpedia_user)
+        community_user = self.get_community_user_by_jumpedia_user(session, jumpedia_user)
 
         # Community user doesn't exist yet
         if community_user is None:
-            execute_data = c.execute(
+            execute_data = session.execute(
                 db.CommunityUser.insert(
                     db.CommunityUser.community_id.bind(self.id),
                     db.CommunityUser.jumpedia_user_id.bind(jumpedia_user.id),
@@ -267,7 +267,7 @@ class Community(BaseStructure, naming=("community", "communities")):
             community_rank is not community_user.community_rank
             or selected_list_id != selected_list_id
         ):
-            execute_data = c.execute(
+            execute_data = session.execute(
                 db.CommunityUser.update(
                     db.CommunityUser.power.set(community_rank.value),
                     db.CommunityUser.selected_list_id.set(selected_list_id),
@@ -297,9 +297,9 @@ class Community(BaseStructure, naming=("community", "communities")):
         )
 
     def get_community_user_by_jumpedia_user(
-        self, c: orm.Cursor, jumpedia_user: JumpediaUser, /
+        self, session: Session, jumpedia_user: JumpediaUser, /
     ) -> CommunityUser | None:
-        row = c.fetch_one(
+        row = session.fetch_one(
             db.CommunityUser.select(
                 "*",
             ).where(
@@ -324,9 +324,9 @@ class Community(BaseStructure, naming=("community", "communities")):
         )
 
     def get_community_user_by_id(
-        self, c: orm.Cursor, id: int, /
+        self, session: Session, id: int, /
     ) -> CommunityUser | None:
-        community_user_row = c.fetch_one(
+        community_user_row = session.fetch_one(
             db.CommunityUser.select("*").where(
                 (db.CommunityUser.id, orm.Operator.EQ, id)
             )
@@ -350,10 +350,10 @@ class Community(BaseStructure, naming=("community", "communities")):
             selected_list_id=community_user_row.selected_list_id,
         )
 
-    def get_tasks_by_list(self, c: orm.Cursor) -> dict[List, tuple[Task, ...]]:
-        id_to_list = self.get_lists_by_id(c, ...)
+    def get_tasks_by_list(self, session: Session) -> dict[List, tuple[Task, ...]]:
+        id_to_list = self.get_lists_by_id(session, ...)
 
-        rows = c.fetch_all(
+        rows = session.fetch_all(
             db.Task.select("*")
             .where((db.Task.list_id, orm.Operator.IN, id_to_list))
             .order_by(db.Task.list_id)

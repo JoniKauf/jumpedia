@@ -27,11 +27,11 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
     def name(self) -> str:
         return self.slot_name
 
-    def get_aliases(self, c: orm.Cursor, /) -> frozenset[SlotStr]:
+    def get_aliases(self, session: Session, /) -> frozenset[SlotStr]:
         return self.get_slot_aliases(c)
 
-    def get_slot_aliases(self, c: orm.Cursor, /) -> frozenset[SlotStr]:
-        rows = c.fetch_all(
+    def get_slot_aliases(self, session: Session, /) -> frozenset[SlotStr]:
+        rows = session.fetch_all(
             db.TaskAlias.select(db.TaskAlias.slot_alias).where(
                 (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
                 (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
@@ -40,8 +40,8 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
 
         return frozenset(row.slot_alias for row in rows)
 
-    def get_norm_aliases(self, c: orm.Cursor, /) -> frozenset[text.NormStr]:
-        rows = c.fetch_all(
+    def get_norm_aliases(self, session: Session, /) -> frozenset[text.NormStr]:
+        rows = session.fetch_all(
             db.TaskAlias.select(db.TaskAlias.norm_alias).where(
                 (db.TaskAlias.list_id, orm.Operator.EQ, self.list.id),
                 (db.TaskAlias.task_id, orm.Operator.EQ, self.id),
@@ -52,18 +52,18 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
 
     @t.overload
     def get_attribute_value_mapping(
-        self, c: orm.Cursor, community_user_id: None = ..., /
+        self, session: Session, community_user_id: None = ..., /
     ) -> AttributeValueMapping:
         pass
 
     @t.overload
     def get_attribute_value_mapping(
-        self, c: orm.Cursor, community_user_id: int, /
+        self, session: Session, community_user_id: int, /
     ) -> UserAttributeValueMapping:
         pass
 
     def get_attribute_value_mapping(
-        self, c: orm.Cursor, community_user_id: int | None = None, /
+        self, session: Session, community_user_id: int | None = None, /
     ) -> AttributeValueMapping | UserAttributeValueMapping:
         community_user: CommunityUser | None = None
 
@@ -76,7 +76,7 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
         name = self.slot_name
         aliases = self.get_slot_aliases(c)
 
-        static_attrs = self.list.get_attributes(c, type=StaticAttribute)
+        static_attrs = self.list.get_attributes(session, type=StaticAttribute)
         static_attrs.sort(key=lambda attr: attr.kind)
 
         id_attr, name_attr, alias_attr = static_attrs
@@ -93,9 +93,9 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
             )
         )
 
-        task_attrs = self.list.get_attributes(c, type=TaskAttribute)
+        task_attrs = self.list.get_attributes(session, type=TaskAttribute)
 
-        rows = c.fetch_all(
+        rows = session.fetch_all(
             db.TaskAttributeValue.select(
                 db.TaskAttributeValue.slot_slot,
                 db.TaskAttributeValue.index,
@@ -125,9 +125,9 @@ class Task(BaseStructureWithAliases, naming=("task", "tasks")):
                 self, static_mapping, MappingProxyType(task_mapping)
             )
 
-        id_to_user_attr = self.list.get_attributes_by_id(c, ..., type=UserAttribute)
+        id_to_user_attr = self.list.get_attributes_by_id(session, ..., type=UserAttribute)
 
-        rows = c.fetch_all(
+        rows = session.fetch_all(
             db.CommunityUserTaskAttributeValue.select(
                 db.CommunityUserTaskAttributeValue.slot_slot,
                 db.CommunityUserTaskAttributeValue.index,

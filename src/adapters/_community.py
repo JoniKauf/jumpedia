@@ -21,9 +21,9 @@ if t.TYPE_CHECKING:
 
 
 def _require_list_with_name(
-    c: orm.Cursor, name: text.RealStr, community: Community
+    session: Session, name: text.RealStr, community: Community
 ) -> List:
-    tup = community.get_list_by_name(c, text.NormStr(name))
+    tup = community.get_list_by_name(session, text.NormStr(name))
 
     if tup is None:
         raise errors.StructureNotFoundViaSyn(name, List)

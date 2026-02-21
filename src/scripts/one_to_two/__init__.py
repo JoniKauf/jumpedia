@@ -25,10 +25,10 @@ USER_JUMPS = os.path.join(DATA_PATH, "user_jumps")
 
 
 def create_attributes(
-    c: orm.Cursor, list: List, unproven: bool
+    session: Session, list: List, unproven: bool
 ) -> dict[str, AnyAttributeT]:
     old_to_new: dict[str, AnyAttributeT] = {
-        "name": list.get_static_attribute_by_kind(c, Kind.NAME)
+        "name": list.get_static_attribute_by_kind(session, Kind.NAME)
     }
 
     if not unproven:
@@ -93,7 +93,7 @@ def create_attributes(
             1,
             collection=diff_collection,
         )
-        list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 1)
+        list.edit_attribute_min_max_slot_count(session, type(attr), attr.id, 1, 1)
         old_to_new["diff"] = attr
 
         del diff_collection
@@ -106,7 +106,7 @@ def create_attributes(
         str,
         32,
     )
-    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    list.edit_attribute_min_max_slot_count(session, type(attr), attr.id, 1, 32)
     old_to_new["type"] = attr
 
     loc_collection: builtins.list[tuple[RealStr, t.Sequence[RealStr]]] = []
@@ -154,7 +154,7 @@ def create_attributes(
         2,
         collection=loc_collection,
     )
-    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    list.edit_attribute_min_max_slot_count(session, type(attr), attr.id, 1, 32)
     old_to_new["location"] = attr
 
     del loc_collection
@@ -197,13 +197,13 @@ def create_attributes(
             }.items()
         ),
     )
-    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 1)
+    list.edit_attribute_min_max_slot_count(session, type(attr), attr.id, 1, 1)
     old_to_new["server"] = attr
 
     attr = list.create_attribute(
         c, TaskAttribute, RealStr("Link"), map(RealStr, ["Links"]), str, 32
     )
-    list.edit_attribute_min_max_slot_count(c, type(attr), attr.id, 1, 32)
+    list.edit_attribute_min_max_slot_count(session, type(attr), attr.id, 1, 32)
     old_to_new["links"] = attr
 
     old_to_new["extra"] = list.create_attribute(
@@ -252,7 +252,7 @@ def _split_up(v: list[str], c: str) -> list[str]:
 
 
 def create_tasks(
-    c: orm.Cursor,
+    session: Session,
     list: List,
     old_to_new_attributes: dict[str, AnyAttributeT],
     unproven: bool,
@@ -293,7 +293,7 @@ def create_tasks(
 
         assert name
 
-        tasks.append(list.create_task(c, name, (), tavm))
+        tasks.append(list.create_task(session, name, (), tavm))
 
         if i % 10 == 0:
             print(f"{i}/{len(jump_data)} tasks inserted!")
@@ -305,7 +305,7 @@ def create_tasks(
 
 
 def give_jumps_to_users(
-    c: orm.Cursor, list: List, proof_attr: UserAttribute, tasks: dict[NormStr, Task]
+    session: Session, list: List, proof_attr: UserAttribute, tasks: dict[NormStr, Task]
 ) -> None:
     all_file_names = os.listdir(USER_JUMPS)
 
@@ -410,20 +410,20 @@ def main():
         },
     )
 
-    main_list = community.create_list(C, RealStr("Main"))
+    main_list = community.create_list(session, RealStr("Main"))
 
-    community.set_default_selected_list(C, main_list.id)
+    community.set_default_selected_list(session, main_list.id)
 
-    unproven_list = community.create_list(C, RealStr("Unproven"))
+    unproven_list = community.create_list(session, RealStr("Unproven"))
 
     print("Creating attributes...")
-    OLD_TO_NEW_ATTRS = create_attributes(C, main_list, False)
-    OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(C, unproven_list, True)
+    OLD_TO_NEW_ATTRS = create_attributes(session, main_list, False)
+    OLD_TO_NEW_ATTRS_UNPROVEN = create_attributes(session, unproven_list, True)
     print("Created attributes!")
 
     print("Creating tasks...")
-    TASKS = create_tasks(C, main_list, OLD_TO_NEW_ATTRS, False)
-    _ = create_tasks(C, unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
+    TASKS = create_tasks(session, main_list, OLD_TO_NEW_ATTRS, False)
+    _ = create_tasks(session, unproven_list, OLD_TO_NEW_ATTRS_UNPROVEN, True)
     print("Created tasks!")
 
     proof_attr: UserAttribute = OLD_TO_NEW_ATTRS["proof"]  # type: ignore
