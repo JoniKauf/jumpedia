@@ -1,4 +1,3 @@
-import enum
 import typing as t
 
 from utils import text

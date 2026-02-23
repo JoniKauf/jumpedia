@@ -1,7 +1,7 @@
 import json
 import typing as t
 
-from sqlalchemy import delete
+from sqlalchemy import CursorResult, Insert, delete
 from sqlalchemy.orm import Session
 
 from structures import utils_
@@ -61,55 +61,52 @@ class Jumpedia(BaseStructure, naming=("jumpedia", "jumpedias")):
         tup = self.get_community_by_server_id(session, server_id)
 
         if tup is not None:
-            comm, server_id = tup
+            community, server_id = tup
 
-            raise errors.ServerAlreadyConnectedToCommunityError(server_id, comm)
+            raise errors.ServerAlreadyConnectedToCommunityError(server_id, community)
 
         tup = self.get_community_by_name(session, norm_name)
 
         if tup is not None:
-            comm, real_name = tup
-            raise SynsAlreadyTakenError({real_name: comm})
+            community, real_name = tup
+            raise SynsAlreadyTakenError({real_name: community})
 
         del tup
 
-        execute_data = session.execute(
-            db.Community.insert(
-                db.Community.norm_name.bind(norm_name),
-                db.Community.real_name.bind(name),
-                db.Community.limits.bind(json.dumps(limits)),
-            ),
-            get_last_generated_id=True,
+        community_row = db.Community(
+            norm_name=norm_name,
+            real_name=name,
+            limits=json.dumps(limits),
         )
 
-        community_id = execute_data.last_generated_id
+        session.add(community_row)
+        session.flush()
 
-        assert community_id is not None
-
-        session.execute(
-            db.Server.insert(
-                db.Server.id.bind(server_id),
-                db.Server.community_id.bind(community_id),
-            )
+        server_row = db.Server(
+            id=server_id,
+            community_id=community_row.id
         )
 
-        comm = Community(
+        session.add(server_row)
+
+        community = Community(
             jumpedia=self,
-            id=community_id,
+            id=community_row.id,
             real_name=name,
             norm_name=norm_name,
             limits=limits,
         )
 
-        comm.get_or_create_community_user(
-            c, owner, CommunityRank.OWNER, None, True, True
+        community.get_or_create_community_user(
+            session, owner, CommunityRank.OWNER, None, True, True
         )
 
-        return comm
+        return community
 
     def delete_community(self, session: Session, id: int) -> None:
-        result = session.execute(delete(Community).where(db.Community.id == id))
-        
+        stmt = delete(Community).where(db.Community.id == id)
+        result = t.cast(CursorResult[t.Any], session.execute(stmt))
+
         if result.rowcount < 1:
             raise StructureNotFoundError(id, Community)
 
