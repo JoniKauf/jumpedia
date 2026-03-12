@@ -528,6 +528,6 @@ class ListAdapter(BaseStructureAdapter[List]):
         attr_a = self.get_attribute(..., syn_a)
         attr_b = self.get_attribute(..., syn_b)
 
-        self._o.edit_attribute_position_via_swap(self._c, attr_a.id, attr_b.id)
+        self._o.edit_attribute_position(self._c, attr_a.id, attr_b.id)
 
         return attr_a, attr_b

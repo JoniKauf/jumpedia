@@ -1817,40 +1817,29 @@ class List(BaseStructure, naming=("list", "lists")):
             community_user_id=community_user_id,
         )
 
-    def edit_attribute_position_via_swap(
-        self, c: orm.Cursor, attribute_id: int, other_attribute_id: int
+    def edit_attribute_position(
+        self, c: orm.Cursor, attribute_id: int, position: int
     ) -> None:
+        """
+        This func is very bad. It can perform up to 1 query for each attribute.
+        My orm is bad. Idk why it was a good idea to make a custom one.
+        There are up to 32 attributes per list currently, so not too bad, but still.
+        Change this asap when we switch orms!!!
+        """
         tup = self.get_attribute_by_id(c, attribute_id)
 
         if tup is None:
             raise errors.StructureNotFoundError(attribute_id, BaseAttribute)
+        
+        attr, _ = tup
+        del tup
 
-        attr_a, _ = tup
+        lower, upper = min(position, attr.position), max(position, attr.position)
 
-        tup = self.get_attribute_by_id(c, other_attribute_id)
+        if lower == upper
+        attrs = self.get_attributes(c, type=...)
+        attrs.sort(key=lambda attr: attr.position)
 
-        if tup is None:
-            raise errors.StructureNotFoundError(other_attribute_id, BaseAttribute)
-
-        attr_b, _ = tup
-
-        c.execute(
-            db.Attribute.update(db.Attribute.position.set(0)).where(
-                self._where_this_list(db.Attribute.list_id),
-                (db.Attribute.position, orm.Operator.EQ, attr_a.id),
-            )
-        )
-
-        c.execute(
-            db.Attribute.update(db.Attribute.position.set(attr_a.position)).where(
-                self._where_this_list(db.Attribute.list_id),
-                (db.Attribute.position, orm.Operator.EQ, attr_b.id),
-            )
-        )
-
-        c.execute(
-            db.Attribute.update(db.Attribute.position.set(attr_b.position)).where(
-                self._where_this_list(db.Attribute.list_id),
-                (db.Attribute.id, orm.Operator.EQ, attr_a),
-            )
-        )
+        for possibly_move_attr in attrs:
+            if possibly_move_attr.position < 
+        
