@@ -57,7 +57,7 @@ def table_to_pastee_strings(
     headers: t.Sequence[str],
     rows: t.Iterable[t.Iterable[str | t.Sequence[str]]],
     *,
-    approx_split_limit: int = 1_000_000,
+    approx_split_limit: int = 1_500_000,
 ) -> list[str]:
     assert headers
 
