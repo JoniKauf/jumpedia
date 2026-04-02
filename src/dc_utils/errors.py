@@ -366,19 +366,19 @@ class CollectionEntryAliasLimitReached(FeedbackError):
 
 class NotAllTasksFitMinAndMaxSlotCountChanges(FeedbackError):
     def __init__(self, e: errors.NotAllTasksFitMinAndMaxSlotCountChangesError) -> None:
-        strings = gist.table_to_gist_strings(
-            tuple((task.name, v, str(len(v))) for task, v in e.wrong.items()),
+        strings = gist.table_to_pastee_strings(
             (
                 "Task Name",
                 f"Its Unfitting Value For {e.attribute.name!r}",
                 "Value Slot Count",
             ),
+            tuple((task.name, v, str(len(v))) for task, v in e.wrong.items()),
         )
 
         assert strings
 
         urls = tuple(
-            gist.create_gist(
+            gist.create_pastee(
                 {f"Invalid Data #{str(i).zfill(len(str(len(strings))))}.md": file}
             )
             for i, file in enumerate(strings, 1)

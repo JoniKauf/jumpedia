@@ -1,4 +1,5 @@
 import enum
+import itertools
 import time
 import typing as t
 from collections import deque
@@ -7,132 +8,125 @@ import requests
 
 from . import secret
 
-__TOKEN = secret.listen().GITHUB_GIST_TOKEN
-API_URL: str = "https://api.github.com/gists"
+__TOKEN = secret.listen().PASTEE_TOKEN
 
 
-class _FileContentT(t.TypedDict):
-    content: str
-
-
-def create_gist(
+def create_pastee(
     files: dict[str, str],
     /,
     description: str | None = None,
-    public: bool = False,
 ) -> str:
-
-    headers: dict[str, str] = {
-        "Authorization": f"token {__TOKEN}",
-        "Accept": "application/vnd.github+json",
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Token": __TOKEN,
     }
 
-    payload: dict[str, t.Any] = {"public": public}
+    payload: dict[str, t.Any] = {
+        "sections": [
+            {
+                "name": file_name,
+                "contents": content,
+            }
+            for file_name, content in files.items()
+        ]
+    }
 
     if description is not None:
         payload["description"] = description
-
-    payload["files"] = {
-        file_name: {"content": content} for file_name, content in files.items()
-    }
 
     RETRIES = 5
     FIRST_SLEEP = 0.2
 
     for i in range(1, RETRIES + 1):
-        response = requests.post(API_URL, json=payload, headers=headers)
+        response = requests.post(
+            "https://api.pastee.dev/v1/pastes",
+            json=payload,
+            headers=headers,
+        )
 
         if response.status_code == 201:
-            gist_url: str = response.json().get("html_url")
-            return gist_url
+            return response.json()["link"]
 
         if i < RETRIES:
             time.sleep(FIRST_SLEEP**i)
 
-    raise Exception(f"Failed to create gist: {response.status_code}\n{response.text}")
+    raise Exception(f"Failed to create paste: {response.status_code}\n{response.text}")
 
 
-_ESCAPE_TABLE: t.Final[dict[t.Any, str]] = str.maketrans(
-    {char: rf"\{char}" for char in r"$&\`*_~#+-.!|()[]{}<>"}
-)
-_DELIM: t.Final[str] = "|"
-_DIV: t.Final[str] = ":---"
-
-
-def _escape_cell(c: str | t.Sequence[str], /) -> str:
-    if not c:
-        return ""
-
-    if isinstance(c, str):
-        c = (c,)
-
-    if "`" in c:
-        return "<br/>".join(f"<code>{s.translate(_ESCAPE_TABLE)}</code>" for s in c)
-
-    return "<br/>".join(f"`{s}`".replace("|", r"\|") for s in c)
-
-
-class RowToStrMode(enum.Enum):
-    HEADER = enum.auto()
-    DIVIDER = enum.auto()
-    BODY = enum.auto()
-
-
-def _row_to_str(
-    row: t.Iterable[str | t.Sequence[str]],
-    mode: RowToStrMode = RowToStrMode.BODY,
-    # pos: int = 0,
-) -> str:
-    if mode is not RowToStrMode.DIVIDER:
-        # {_DELIM}**{pos}**
-        return f"{_DELIM}{_DELIM.join(map(_escape_cell, row))}"
-
-    if mode is RowToStrMode.DIVIDER:
-        # {_DELIM}{_DIV}
-        return f"{_DELIM}{_DELIM.join(map('<br/>'.join, row))}"
-
-    t.assert_never(mode)
-
-
-def table_to_gist_strings(
+def table_to_pastee_strings(
+    headers: t.Sequence[str],
     rows: t.Iterable[t.Iterable[str | t.Sequence[str]]],
-    headers: t.Sequence[str] | None = None,
     *,
-    soft_split_limit: int = 1_000_000,
+    approx_split_limit: int = 1_500_000,
 ) -> list[str]:
-    result: list[str] = []
+    assert headers
 
-    curr_rows: deque[str] = deque()
-    char_count: int = 0
-
-    headers_str_rev: tuple[str, str] | tuple[()] = ()
-
-    if headers is not None:
-        headers_str_rev = (
-            _row_to_str(((_DIV,) for _ in range(len(headers))), RowToStrMode.DIVIDER),
-            _row_to_str(((h,) for h in headers), RowToStrMode.HEADER),
-        )
-
-    del headers
+    col_count = len(headers)
+    max_len_per_col = [len(h) for h in headers]
+    final_rows: list[list[str]] = []
 
     for row in rows:
-        row_str = _row_to_str(row)
+        final_row: list[str] = []
 
-        del row
+        it = iter(row)
 
-        char_count += len(row_str)
+        for i in range(col_count):
+            cell = next(it, "")
 
-        curr_rows.append(row_str)
+            if isinstance(cell, str):
+                s = cell
+            else:
+                s = "   ".join(cell)
 
-        if char_count >= soft_split_limit:
-            curr_rows.extendleft(headers_str_rev)
-            result.append("\n".join(curr_rows))
+            final_row.append(s)
+            max_len_per_col[i] = max(max_len_per_col[i], len(s))
 
-            curr_rows.clear()
-            char_count = 0
+        final_rows.append(final_row)
 
-    if curr_rows:
-        curr_rows.extendleft(headers_str_rev)
-        result.append("\n".join(curr_rows))
+    SPLIT = " | "
+    SPLIT_DIVIDOR = "-+-"
 
-    return result
+    header_list = [
+        (
+            headers[i].upper().ljust(max_len_per_col[i])
+            if i < col_count - 1
+            else headers[i].upper()
+        )
+        for i in range(col_count)
+    ]
+
+    divider_list = ["-" * max_len_per_col[i] for i in range(col_count)]
+
+    headers_str = SPLIT.join(header_list) + "\n" + SPLIT_DIVIDOR.join(divider_list)
+
+    res: list[str] = []
+    cur: list[str] = []
+    cur_length = 0
+
+    def push():
+        nonlocal cur, cur_length
+        if cur:
+            res.append("\n".join(cur))
+            cur = []
+            cur_length = 0
+
+    for row in final_rows:
+        row_str = SPLIT.join(
+            row[i].ljust(max_len_per_col[i]) if i < col_count - 1 else row[i]
+            for i in range(col_count)
+        )
+
+        needed = len(row_str) + (1 if cur else len(headers_str) + 1)
+
+        if cur_length + needed > approx_split_limit:
+            push()
+
+        if not cur:
+            cur.append(headers_str)
+            cur_length += len(headers_str) + 1  # newline
+
+        cur.append(row_str)
+        cur_length += len(row_str) + 1
+
+    push()
+    return res

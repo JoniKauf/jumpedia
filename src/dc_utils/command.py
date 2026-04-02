@@ -188,22 +188,21 @@ class row_type_factory[*Ts]:
 
 async def info(ia: _InteractionAdapter, structure: BaseStructure, row: _BaseRow):
     row_raw: list[tuple[str, ...]] = []
-
     for v in row:
         if isinstance(v, str):
             row_raw.append((v,))
         else:
             row_raw.append(t.cast(tuple[str, ...], v))
 
-    strings = gist.table_to_gist_strings(
-        itertools.zip_longest(*row_raw, fillvalue=""),
+    strings = gist.table_to_pastee_strings(
         type(row).headers,
+        itertools.zip_longest(*row_raw, fillvalue=""),
     )
 
     assert strings
 
     urls = tuple(
-        gist.create_gist(
+        gist.create_pastee(
             {f"Info Data #{str(i).zfill(len(str(len(strings))))}.md": file}
         )
         for i, file in enumerate(strings, 1)
@@ -232,7 +231,7 @@ async def browse(
     if not rows:
         return success_func(layouts.structure_browsed(structure_type, 0))
 
-    strings = gist.table_to_gist_strings(rows, type(rows[0]).headers)
+    strings = gist.table_to_pastee_strings(type(rows[0]).headers, rows)
 
     assert strings
 
@@ -242,7 +241,7 @@ async def browse(
         await before_send(strings)
 
     urls = tuple(
-        gist.create_gist(
+        gist.create_pastee(
             {f"Browse Data #{str(i).zfill(len(str(len(strings))))}.md": file}
         )
         for i, file in enumerate(strings, 1)
