@@ -18,7 +18,7 @@ class DatabaseConnectionData(t.TypedDict):
 class SecretContentT(t.NamedTuple):
     DATABASE_CONNECTION_DATA: DatabaseConnectionData
     DISCORD_TOKEN: str
-    GITHUB_GIST_TOKEN: str
+    PASTEE_TOKEN: str
 
 
 def listen() -> SecretContentT:
