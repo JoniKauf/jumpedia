@@ -4,11 +4,11 @@ from functools import cached_property
 import discord as dc
 
 import dc_utils
-from adapters._server import ServerAdapter
+from _adapters._server import ServerAdapter
 from dc_utils import errors, message
 from structures.community import CommunityUser, JumpediaUser
 from utils import orm, text
-from utils.rank import CommunityRank, JumpediaRank, ServerRank
+from domain.rank import CommunityRank, JumpediaRank, ServerRank
 
 from . import BaseAdapter, BaseStructureAdapter
 

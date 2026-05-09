@@ -2,7 +2,7 @@ import re
 import typing as t
 
 from utils import orm
-from utils.rank import CommunityRank, JumpediaRank
+from domain.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 

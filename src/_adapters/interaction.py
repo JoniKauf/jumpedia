@@ -7,12 +7,12 @@ from threading import Lock
 import discord as dc
 import mariadb
 
-from adapters import _AdapterMeta
+from _adapters import _AdapterMeta
 from dc_utils import connect
 from structures import db
 from structures.jumpedia import Jumpedia
 from utils import orm, secret
-from utils.rank import JumpediaRank
+from domain.rank import JumpediaRank
 
 from . import BaseAdapter
 from ._jumpedia import JumpediaAdapter

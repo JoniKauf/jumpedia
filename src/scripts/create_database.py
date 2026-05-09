@@ -2,7 +2,7 @@ import typing as t
 
 import mariadb
 
-from adapters import interaction
+from _adapters import interaction
 from structures import db
 from structures.jumpedia import Jumpedia
 from utils import orm, secret

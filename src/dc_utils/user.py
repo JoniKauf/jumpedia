@@ -3,13 +3,13 @@ import typing as t
 
 import discord as dc
 
-from utils.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
+from domain.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 from . import errors, shortcuts
 
 if t.TYPE_CHECKING:
-    from adapters._jumpedia import JumpediaAdapter
-    from adapters._user import JumpediaUserAdapter
+    from _adapters._jumpedia import JumpediaAdapter
+    from _adapters._user import JumpediaUserAdapter
 
 MAX_NAME_LENGTH: t.Final[int] = 32
 

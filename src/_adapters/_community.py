@@ -10,7 +10,7 @@ from structures.errors import (
 )
 from structures.list import List
 from utils import orm, text
-from utils.rank import CommunityRank
+from domain.rank import CommunityRank
 
 from . import BaseStructureAdapter
 from ._list import ListAdapter

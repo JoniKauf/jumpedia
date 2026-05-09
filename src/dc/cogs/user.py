@@ -5,11 +5,11 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters._community import CommunityAdapter
-from adapters._user import UserAdapter
-from adapters.interaction import _InteractionAdapter
+from _adapters._community import CommunityAdapter
+from _adapters._user import UserAdapter
+from _adapters.interaction import _InteractionAdapter
 from dc_utils import command, group, message, shortcuts
-from utils.rank import CommunityRank, JumpediaRank, ServerRank
+from domain.rank import CommunityRank, JumpediaRank, ServerRank
 
 _UserRow = command.row_type_factory[
     str,

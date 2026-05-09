@@ -1,7 +1,7 @@
 from discord import app_commands as acmds
 
 from dc_utils import predicate
-from utils.rank import AnyRankT
+from domain.rank import AnyRankT
 
 
 def create_edit_group(min_required_rank: AnyRankT) -> acmds.Group:

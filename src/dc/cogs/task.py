@@ -7,8 +7,8 @@ import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
 
-from adapters import BaseStructureAdapter
-from adapters.interaction import _InteractionAdapter
+from _adapters import BaseStructureAdapter
+from _adapters.interaction import _InteractionAdapter
 from dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute, UserAttribute
 from structures.list import Kind
@@ -17,7 +17,7 @@ from structures.task.attribute_value_mapping import (
     AttributeValueMapping,
     UserAttributeValueMapping,
 )
-from utils.rank import CommunityRank
+from domain.rank import CommunityRank
 from utils.text import NormStr, RealStr
 
 

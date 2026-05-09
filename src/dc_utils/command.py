@@ -9,14 +9,14 @@ import discord as dc
 import mariadb
 from discord.ext import commands as cmds
 
-from adapters.interaction import _InteractionAdapter
+from _adapters.interaction import _InteractionAdapter
 from dc_utils import layouts, user
 from structures import BaseStructure
 from utils import gist
-from utils.rank import AnyRankT, CommunityRank
+from domain.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
-    from adapters.interaction import _InteractionAdapter
+    from _adapters.interaction import _InteractionAdapter
 
 
 _INTERACTIONS: t.Final[dict[int, tuple[int, _InteractionAdapter]]] = {}

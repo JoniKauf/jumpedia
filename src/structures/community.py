@@ -4,7 +4,7 @@ from types import EllipsisType
 
 from structures.task import Task
 from utils import orm, text
-from utils.rank import CommunityRank
+from domain.rank import CommunityRank
 
 from . import BaseStructure, db, errors, utils_
 from .attribute import StaticAttribute

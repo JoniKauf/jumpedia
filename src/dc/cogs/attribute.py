@@ -6,8 +6,8 @@ from types import CoroutineType
 import discord.ext.commands as cmds
 from discord import app_commands as acmds
 
-from adapters._attribute import AnyAttributeAdapterT
-from adapters.interaction import _InteractionAdapter
+from _adapters._attribute import AnyAttributeAdapterT
+from _adapters.interaction import _InteractionAdapter
 from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
@@ -18,7 +18,7 @@ from structures.attribute import (
 from structures.attribute.collection import CollectionEntry
 from structures.attribute.slot_str import SLOT_TYPES
 from utils import itertools2
-from utils.rank import CommunityRank
+from domain.rank import CommunityRank
 
 
 def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:

@@ -5,7 +5,7 @@ from types import CoroutineType
 
 import discord as dc
 
-from adapters.interaction import _InteractionAdapter
+from _adapters.interaction import _InteractionAdapter
 from dc_utils import errors, layouts, message, shortcuts
 from dc_utils.errors import FeedbackError
 from structures import BaseStructure

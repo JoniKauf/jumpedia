@@ -11,7 +11,7 @@ from structures import BaseStructure, BaseStructureWithAliases, errors
 from structures.task import Task
 from structures.user import CommunityUser
 from utils import gist, text
-from utils.rank import AnyRankT
+from domain.rank import AnyRankT
 
 from . import message
 
