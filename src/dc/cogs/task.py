@@ -17,7 +17,7 @@ from structures.task.attribute_value_mapping import (
     AttributeValueMapping,
     UserAttributeValueMapping,
 )
-from domain.rank import CommunityRank
+from domain.enum.rank import CommunityRank
 from utils.text import NormStr, RealStr
 
 

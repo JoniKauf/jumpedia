@@ -4,7 +4,7 @@ from dataclasses import InitVar
 
 from structures import utils_
 from utils import orm, text
-from domain.rank import CommunityRank, JumpediaRank
+from domain.enum.rank import CommunityRank, JumpediaRank
 
 from . import BaseStructure, db, errors
 from .community import Community, CommunityLimits

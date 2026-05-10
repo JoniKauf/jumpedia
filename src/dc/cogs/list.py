@@ -11,7 +11,7 @@ from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
 from utils import itertools2
-from domain.rank import CommunityRank
+from domain.enum.rank import CommunityRank
 
 _ListRow = command.row_type_factory[
     str,

@@ -18,7 +18,7 @@ from structures.attribute import (
 from structures.attribute.collection import CollectionEntry
 from structures.attribute.slot_str import SLOT_TYPES
 from utils import itertools2
-from domain.rank import CommunityRank
+from domain.enum.rank import CommunityRank
 
 
 def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:

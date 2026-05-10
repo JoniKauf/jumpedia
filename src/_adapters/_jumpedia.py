@@ -12,7 +12,7 @@ from structures.errors import (
 )
 from structures.jumpedia import Jumpedia
 from utils import orm, text
-from domain.rank import JumpediaRank
+from domain.enum.rank import JumpediaRank
 
 from . import BaseStructureAdapter
 from ._community import CommunityAdapter

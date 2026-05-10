@@ -1,11 +1,11 @@
+from domain.value_objects import s
 from repositories.list import ListRepository
 from repositories.community import CommunityRepository
-from domain.limits import Limits
 from sqlalchemy.orm import Session
 
-from utils import text
+from .base import BaseService
 
-class ListService:
+class ListService(BaseService):
     def __init__(self, session: Session) -> None:
         self.session = session
         self.list_repo = ListRepository(session)
@@ -15,8 +15,7 @@ class ListService:
     # CREATE LIST
     # -------------------------
     def create_list(self, community_id: int, name: str):
-        real_name = text.RealStr(name)
-        norm_name = text.NormStr(real_name)
+        canon_name = s.StrStore(name)
 
         del name
 
@@ -27,16 +26,15 @@ class ListService:
 
         existing_lists = self.list_repo.get_by_community(community_id)
 
-        if len(existing_lists) >= community.limits:
+        if len(existing_lists) >= community.community_list_count_max:
             raise ValueError("list limit reached")
 
-        if self.list_repo.get_by_name(community_id, norm_name):
+        if self.list_repo.get_by_name(community_id, canon_name):
             raise ValueError("list already exists")
 
         return self.list_repo.create(
             community_id=community_id,
-            norm_name=norm_name,
-            real_name=name,
+            name=canon_name
         )
 
     # -------------------------
@@ -54,13 +52,14 @@ class ListService:
     # -------------------------
     def rename_list(self, community_id: int, list_id: int, new_name: str):
         lst = self.list_repo.get_by_id(list_id)
+
         if not lst or lst.community_id != community_id:
             raise ValueError("list not found")
+        
+        canon_name = s.StrStore(new_name)
 
-        norm_name = new_name.lower().strip()
-
-        if self.list_repo.get_by_name(community_id, norm_name):
+        if self.list_repo.get_by_name(community_id, canon_name):
             raise ValueError("name already taken")
 
-        lst.norm_name = norm_name
-        lst.real_name = new_name
+        lst.norm_name = canon_name.norm
+        lst.real_name = canon_name.real

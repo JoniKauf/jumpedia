@@ -1,7 +1,8 @@
 from dataclasses import asdict
 
 from db.models import Community as CommunityORM, Server as ServerORM
-from domain.limits import Limits
+from domain.value_objects import s
+from domain.value_objects.limits import Limits
 
 from .base import BaseRepository
 from utils import text
@@ -10,7 +11,7 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, norm_name: text.NormStr, real_name: text.RealStr, limits: Limits) -> CommunityORM:
+    def create(self, norm_name: s.NormStr, real_name: s.RealStr, limits: Limits) -> CommunityORM:
         obj = CommunityORM(
             norm_name=norm_name,
             real_name=real_name,
@@ -28,7 +29,7 @@ class CommunityRepository(BaseRepository):
     def get_by_id(self, community_id: int) -> CommunityORM | None:
         return self.session.get(CommunityORM, community_id)
 
-    def get_by_name(self, norm_name: text.NormStr) -> CommunityORM | None:
+    def get_by_name(self, norm_name: s.NormStr) -> CommunityORM | None:
         return (
             self.session.query(CommunityORM)
             .filter(CommunityORM.norm_name == norm_name)
@@ -43,7 +44,8 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     def delete(self, community_id: int) -> None:
         obj = self.get_by_id(community_id)
-        if obj:
+
+        if obj is not None:
             self.session.delete(obj)
 
     # -------------------------

@@ -1,10 +1,10 @@
 import json
 from db.models import Community
-from domain.rank import CommunityRank
+from domain.enums.rank import CommunityRank
+from domain.value_objects import s
 from repositories.community import CommunityRepository
 from repositories.user import UserRepository
-from domain.limits import Limits
-from utils import text
+from domain.value_objects.limits import Limits
 from .base import BaseService
 from sqlalchemy.orm import Session
 
@@ -25,8 +25,8 @@ class CommunityService(BaseService):
         owner_name: str,
         limits: Limits
     ) -> Community:
-        real_name = text.RealStr(name)
-        norm_name = text.NormStr(real_name)
+        real_name = s.RealStr(name)
+        norm_name = s.NormStr(real_name)
         
         del name
 
@@ -48,10 +48,9 @@ class CommunityService(BaseService):
         self.repo.link_server(community.community_id, server_id)
 
         # --- ensure owner exists in community system ---
-        self.user_repo.create_user_and_community_user(
+        self.user_repo.ensure_user_and_community_user(
             user_id=owner_id,
-            norm_name=text.NormStr(owner_name),
-            raw_name=owner_name,
+            name=s.StrStore(owner_name),
             community_id=community.community_id,
             community_rank=CommunityRank.OWNER,
         )

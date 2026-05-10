@@ -12,7 +12,7 @@ from dc_utils import connect
 from structures import db
 from structures.jumpedia import Jumpedia
 from utils import orm, secret
-from domain.rank import JumpediaRank
+from domain.enum.rank import JumpediaRank
 
 from . import BaseAdapter
 from ._jumpedia import JumpediaAdapter

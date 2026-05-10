@@ -11,7 +11,7 @@ from _adapters.interaction import _InteractionAdapter
 from dc_utils import command, confirm, group, message, predicate, shortcuts
 from structures.community import Community
 from utils import text
-from domain.rank import CommunityRank, JumpediaRank, ServerRank
+from domain.enum.rank import CommunityRank, JumpediaRank, ServerRank
 
 _CommunityRowTs = tuple[
     str,

@@ -12,8 +12,7 @@ from discord.ext import commands as cmds
 from _adapters.interaction import _InteractionAdapter
 from dc_utils import layouts, user
 from structures import BaseStructure
-from utils import gist
-from domain.rank import AnyRankT, CommunityRank
+from domain.enum.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:
     from _adapters.interaction import _InteractionAdapter

@@ -1,18 +1,18 @@
 # db/models.py
 from sqlalchemy import (
-    CheckConstraint, ForeignKey, String, Integer, BigInteger, JSON,
-    UniqueConstraint
+    ForeignKey, Integer, BigInteger, String, UniqueConstraint
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
-import domain
-from domain import rank
-from domain.limits import Limits
+from db.types import RealStrType, NormStrType
+from domain.value_objects.s import RealStr, NormStr
+from domain.value_objects.limits import Limits
 import typing as t
 
 
 _DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
+
 
 # --- Community ---
 
@@ -21,8 +21,8 @@ class Community(Base):
 
     community_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    norm_name: Mapped[str] = mapped_column(String(255), unique=True)
-    real_name: Mapped[str] = mapped_column(String(255), unique=True)
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True)
+    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True)
 
     default_selected_list_id: Mapped[int | None] = mapped_column(
         ForeignKey("list.list_id", ondelete="SET NULL")
@@ -58,8 +58,8 @@ class List(Base):
         ForeignKey("community.community_id", ondelete="CASCADE")
     )
 
-    norm_name: Mapped[str] = mapped_column(String(255))
-    real_name: Mapped[str] = mapped_column(String(255))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.LIST_NAME_LENGTH_MAX))
+    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.LIST_NAME_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("community_id", "norm_name"),
@@ -74,8 +74,8 @@ class User(Base):
 
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
-    norm_name: Mapped[str] = mapped_column(String(32))
-    raw_name: Mapped[str] = mapped_column(String(32))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.USER_NAME_LENGTH_MAX))
+    raw_name: Mapped[str] = mapped_column(String(Limits.USER_NAME_LENGTH_MAX))
     power: Mapped[int] = mapped_column(Integer)
 
 
@@ -89,7 +89,7 @@ class CommunityUser(Base):
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("jumpedia_user.jumpedia_user_id", ondelete="CASCADE")
+        ForeignKey("jumpedia_user.user_id", ondelete="CASCADE")
     )
 
     power: Mapped[int] = mapped_column(Integer)
@@ -113,8 +113,8 @@ class Attribute(Base):
     type_id: Mapped[int] = mapped_column(Integer)
     kind: Mapped[int | None] = mapped_column(Integer)
 
-    norm_name: Mapped[str] = mapped_column(String(255))
-    real_name: Mapped[str] = mapped_column(String(255))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
+    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
 
     slot_type: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer)
@@ -145,8 +145,8 @@ class AttributeAlias(Base):
 
     attribute_type_id: Mapped[int] = mapped_column(Integer)
 
-    norm_alias: Mapped[str] = mapped_column(String(255))
-    real_alias: Mapped[str] = mapped_column(String(255))
+    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
+    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("list_id", "norm_alias"),
@@ -167,8 +167,8 @@ class AttributeCollectionEntry(Base):
 
     index: Mapped[int] = mapped_column(Integer)
 
-    norm_slot: Mapped[str] = mapped_column(String(255))
-    slot_slot: Mapped[str] = mapped_column(String(255))
+    norm_slot: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("attribute_id", "norm_slot"),
@@ -190,8 +190,8 @@ class AttributeCollectionEntryAlias(Base):
         ForeignKey("attribute_collection_entry.attribute_collection_entry_id", ondelete="CASCADE")
     )
 
-    norm_alias: Mapped[str] = mapped_column(String(255))
-    slot_alias: Mapped[str] = mapped_column(String(255))
+    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("attribute_id", "norm_alias"),
@@ -210,8 +210,8 @@ class Task(Base):
         ForeignKey("list.list_id", ondelete="CASCADE")
     )
 
-    norm_name: Mapped[str] = mapped_column(String(255))
-    slot_name: Mapped[str] = mapped_column(String(255))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("list_id", "norm_name"),
@@ -232,8 +232,8 @@ class TaskAlias(Base):
         ForeignKey("list.list_id", ondelete="CASCADE")
     )
 
-    norm_alias: Mapped[str] = mapped_column(String(255))
-    slot_alias: Mapped[str] = mapped_column(String(255))
+    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("list_id", "norm_alias"),
@@ -263,7 +263,7 @@ class TaskAttributeValue(Base):
 
     index: Mapped[int] = mapped_column(primary_key=True)
 
-    slot_slot: Mapped[str] = mapped_column(String(255))
+    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
 
 # --- User Task ---
@@ -308,7 +308,7 @@ class CommunityUserTaskAttributeValue(Base):
 
     index: Mapped[int] = mapped_column(Integer)
 
-    slot_slot: Mapped[str] = mapped_column(String(255))
+    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
 
     __table_args__ = (
         UniqueConstraint("community_user_task_id", "attribute_id", "index"),

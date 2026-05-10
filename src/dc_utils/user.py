@@ -3,7 +3,7 @@ import typing as t
 
 import discord as dc
 
-from domain.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
+from domain.enum.rank import AnyRankT, CommunityRank, JumpediaRank, ServerRank
 
 from . import errors, shortcuts
 

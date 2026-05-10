@@ -15,7 +15,7 @@ from structures.community import CommunityLimits
 from structures.list import Kind, List
 from structures.task import Task
 from utils import numbers, orm, secret, text
-from domain.rank import CommunityRank, JumpediaRank
+from domain.enum.rank import CommunityRank, JumpediaRank
 from utils.text import NormStr, RealStr
 
 DATA_PATH = os.path.join(os.path.abspath(__file__.removesuffix("__init__.py")), "data")

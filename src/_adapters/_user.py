@@ -8,7 +8,7 @@ from _adapters._server import ServerAdapter
 from dc_utils import errors, message
 from structures.community import CommunityUser, JumpediaUser
 from utils import orm, text
-from domain.rank import CommunityRank, JumpediaRank, ServerRank
+from domain.enum.rank import CommunityRank, JumpediaRank, ServerRank
 
 from . import BaseAdapter, BaseStructureAdapter
 

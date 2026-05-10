@@ -1,34 +1,5 @@
-import ast
-import re
-import string
 import typing as t
 from string.templatelib import Interpolation, Template, convert
-
-ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
-IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
-
-BAD_CHAR_MAPPING = str.maketrans(
-    {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}
-)
-
-
-def pascal_to_snake(s: str, /, delim: str = "_"):
-    return s[0].lower() + "".join(
-        f"{delim}{c.lower()}" if c.isupper() else c for c in s[1:]
-    )
-
-
-def replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:
-    return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
-
-
-def replace_bad_chars(s: str) -> str:
-    return s.translate(BAD_CHAR_MAPPING)
-
-
-def invalid_identifier_chars(s: str) -> set[str]:
-    return set(char for char in s if char not in IDENTIFIER_CHARS)
-
 
 def human_join(
     objects: t.Sequence[t.Any], final_delimiter: str, delimiter: str = ", "
@@ -62,68 +33,6 @@ def shorten_many(
         yield shorten(elem, max_s, more_s)
 
     yield more_elems
-
-
-class EmptyStringError(ValueError):
-    pass
-
-
-class DoubleBacktickError(ValueError):
-    pass
-
-
-class RealStr(str):
-    def __new__(cls, s: str, *, check: bool = True) -> t.Self:
-        if isinstance(s, cls):
-            return s
-
-        if not check:
-            return super().__new__(cls, s)
-
-        s = replace_whitespace_groups(s, " ", True)
-        s = replace_bad_chars(s)
-        s = "".join(c for c in s if c.isprintable())
-
-        if not s:
-            raise EmptyStringError()
-
-        if "``" in s:
-            raise DoubleBacktickError()
-
-        return super().__new__(cls, s)
-
-
-class NormStr(str):
-    def __new__(cls, s: str, *, check: bool = True) -> t.Self:
-        if not check:
-            return super().__new__(cls, s)
-
-        if not isinstance(s, RealStr):
-            s = RealStr(s)
-
-        return super().__new__(cls, s.lower())
-
-    @classmethod
-    def unique_reals_and_norms(
-        cls, iterable: t.Iterable[str], /
-    ) -> tuple[tuple[RealStr, ...], tuple[t.Self, ...]]:
-        mapping: dict[t.Self, RealStr] = {}
-
-        for s in iterable:
-            real_s = RealStr(s)
-            norm = cls(real_s)
-
-            del s
-
-            existing_real = mapping.get(norm)
-
-            if existing_real is not None:
-                raise ValueError(real_s, existing_real)
-
-            mapping[norm] = real_s
-
-        # Dict order is preserved
-        return (tuple(mapping.values()), tuple(mapping))
 
 
 def apply_f_to_interpolation_value(interpolation: Interpolation):
