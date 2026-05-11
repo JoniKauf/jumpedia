@@ -2,8 +2,8 @@ import json
 from db.models import Community
 from domain.enums.rank import CommunityRank
 from domain.value_objects import s
-from repositories.community import CommunityRepository
-from repositories.user import UserRepository
+from repository.community import CommunityRepository
+from repository.user import UserRepository
 from domain.value_objects.limits import Limits
 from .base import BaseService
 from sqlalchemy.orm import Session

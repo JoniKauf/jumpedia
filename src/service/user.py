@@ -2,14 +2,14 @@ from sqlalchemy.orm import Session
 
 from domain.enums.rank import CommunityRank, JumpediaRank
 from domain.value_objects.s import StrStore
-from repositories.user import UserRepository
+from repository.user import UserRepository
 from db.models import CommunityUser
-from services.base import BaseService
+from service.base import BaseService
 
 class UserService(BaseService):
     def __init__(self, session: Session):
         self.session = session
-        self.user_repo = UserRepository(session)
+        self.repo = UserRepository(session)
 
     def get_or_create_user(
         self,
@@ -20,10 +20,10 @@ class UserService(BaseService):
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
     ):
-        user = self.user_repo.get_user(user_id=user_id)
+        user = self.repo.get_user(user_id=user_id)
 
         if user is None:
-            return self.user_repo.create_user(
+            return self.repo.create_user(
                 user_id=user_id,
                 name=name,
                 rank=rank,
@@ -58,10 +58,10 @@ class UserService(BaseService):
             name,
         )
 
-        community_user = self.user_repo.get_community_user(user_id=user_id, community_id=community_id)
+        community_user = self.repo.get_community_user(user_id=user_id, community_id=community_id)
 
         if community_user is None:
-            return self.user_repo.create_community_user(
+            return self.repo.create_community_user(
                 user_id=user_id,
                 community_id=community_id,
                 rank=rank,

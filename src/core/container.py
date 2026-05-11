@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from services.community import CommunityService
-from services.list import ListService
-from services.user import UserService
-from services.task import TaskService
+from service.community import CommunityService
+from service.list import ListService
+from service.user import UserService
+from service.task import TaskService
 
 class ServiceContainer:
     def __init__(self, session: Session):
