@@ -1,6 +1,6 @@
-# db/session.py
+
 from contextlib import contextmanager
-from typing import Any, Generator
+import typing as t
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -31,7 +31,7 @@ def init_db() -> None:
 
 
 @contextmanager
-def get_session() -> Generator[Session, Any, None]:
+def get_session() -> t.Generator[Session, None, None]:
     session = SessionLocal()
 
     try:

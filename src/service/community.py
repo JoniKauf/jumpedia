@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 class CommunityService(BaseService):
     def __init__(self, session: Session):
         self.session = session
-        self.repo = CommunityRepository(session)
+        self.community_repo = CommunityRepository(session)
         self.user_repo = UserRepository(session)
 
     # -------------------------
@@ -34,18 +34,18 @@ class CommunityService(BaseService):
         if len(norm_name) > Limits.COMMUNITY_NAME_LENGTH_MAX:
             raise ValueError("community name too long")
 
-        if self.repo.get_by_name(norm_name):
+        if self.community_repo.get_by_name(norm_name):
             raise ValueError("community already exists")
 
         # --- create community ---
-        community = self.repo.create(
+        community = self.community_repo.create(
             norm_name,
             real_name,
             limits,
         )
 
         # --- link server ---
-        self.repo.link_server(community.community_id, server_id)
+        self.community_repo.link_server(community.community_id, server_id)
 
         # --- ensure owner exists in community system ---
         self.user_repo.ensure_user_and_community_user(
@@ -61,4 +61,4 @@ class CommunityService(BaseService):
     # DELETE COMMUNITY
     # -------------------------
     def delete_community(self, community_id: int):
-        self.repo.delete(community_id)
+        self.community_repo.delete(community_id)
