@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
 from db.types import RealStrType, NormStrType
-from domain.value_objects.s import RealStr, NormStr
+from domain.value_objects.strings import RealStr, NormStr
 from domain.value_objects.limits import Limits
 import typing as t
 

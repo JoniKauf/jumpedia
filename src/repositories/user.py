@@ -2,7 +2,7 @@ from sqlalchemy.sql import select
 
 from db.models import User, CommunityUser
 from domain.enums.rank import CommunityRank, JumpediaRank
-from domain.value_objects.s import StrStore
+from domain.value_objects import strings
 from .base import BaseRepository
 
 class UserRepository(BaseRepository):
@@ -17,7 +17,7 @@ class UserRepository(BaseRepository):
 
         return self.session.execute(stmt).scalar_one_or_none()
     
-    def create_user(self, *, user_id: int, name: StrStore, rank: JumpediaRank) -> User:
+    def create_user(self, *, user_id: int, name: strings.StrStore, rank: JumpediaRank) -> User:
         obj = User(
             user_id=user_id,
             norm_name=name.norm,

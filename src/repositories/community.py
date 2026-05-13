@@ -1,7 +1,7 @@
 from dataclasses import asdict
 
-from db.models import Community as CommunityORM, Server as ServerORM
-from domain.value_objects import s
+from db.models import Community as Community, Server as ServerORM
+from domain.value_objects import strings
 from domain.value_objects.limits import Limits
 
 from .base import BaseRepository
@@ -11,8 +11,8 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, norm_name: s.NormStr, real_name: s.RealStr, limits: Limits) -> CommunityORM:
-        obj = CommunityORM(
+    def create(self, norm_name: strings.NormStr, real_name: strings.RealStr, limits: Limits) -> Community:
+        obj = Community(
             norm_name=norm_name,
             real_name=real_name,
             **asdict(limits),
@@ -26,18 +26,18 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # READ
     # -------------------------
-    def get_by_id(self, community_id: int) -> CommunityORM | None:
-        return self.session.get(CommunityORM, community_id)
+    def get_by_id(self, community_id: int) -> Community | None:
+        return self.session.get(Community, community_id)
 
-    def get_by_name(self, norm_name: s.NormStr) -> CommunityORM | None:
+    def get_by_name(self, norm_name: strings.NormStr) -> Community | None:
         return (
-            self.session.query(CommunityORM)
-            .filter(CommunityORM.norm_name == norm_name)
+            self.session.query(Community)
+            .filter(Community.norm_name == norm_name)
             .first()
         )
 
-    def get_all(self) -> list[CommunityORM]:
-        return self.session.query(CommunityORM).all()
+    def get_all(self) -> list[Community]:
+        return self.session.query(Community).all()
 
     # -------------------------
     # DELETE
@@ -59,10 +59,10 @@ class CommunityRepository(BaseRepository):
             )
         )
 
-    def get_by_server_id(self, server_id: int) -> CommunityORM | None:
+    def get_by_server_id(self, server_id: int) -> Community | None:
         return (
-            self.session.query(CommunityORM)
-            .join(ServerORM, ServerORM.community_id == CommunityORM.community_id)
+            self.session.query(Community)
+            .join(ServerORM, ServerORM.community_id == Community.community_id)
             .filter(ServerORM.server_id == server_id)
             .first()
         )

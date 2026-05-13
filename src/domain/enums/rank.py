@@ -14,8 +14,11 @@ class CommunityRank(enum.IntEnum):
     HIGHEST = OWNER
     DEFAULT = LOWEST
 
+    def __bool__(self) -> bool:
+        return bool(self.value)
+    
     def __lt__(self, other: CommunityRank | JumpediaRank):
-        if type(other) is JumpediaRank:
+        if isinstance(other, JumpediaRank):
             return other.value > 0
         
         return self.value < other.value
@@ -31,8 +34,11 @@ class JumpediaRank(enum.IntEnum):
     HIGHEST = JONIKAUF
     DEFAULT = LOWEST
 
+    def __bool__(self) -> bool:
+        return bool(self.value)
+    
     def __lt__(self, other: ServerRank | CommunityRank | JumpediaRank):
-        if type(other) is JumpediaRank:
+        if isinstance(other, JumpediaRank):
             return self.value < other.value
         
         return self.value > 0
@@ -48,8 +54,11 @@ class ServerRank(enum.IntEnum):
     HIGHEST = OWNER
     DEFAULT = LOWEST
 
+    def __bool__(self) -> bool:
+        return bool(self.value)
+    
     def __lt__(self, other: ServerRank | JumpediaRank):
-        if type(other) is JumpediaRank:
+        if isinstance(other, JumpediaRank):
             return other.value > 0
         
         return self.value < other.value

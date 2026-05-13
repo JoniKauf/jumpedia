@@ -99,24 +99,53 @@ class NormStr(BaseStr):
 
 
 class StrStore:
-    _s: str
     _validate: bool
-
+    _real: RealStr | None
+    _norm: NormStr | None
+    
+    @t.overload
     def __init__(self, s: str, *, _validate: bool = True) -> None:
-        self._s = s
-        self._validate = _validate
+        pass
+
+    @t.overload
+    def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
+        pass
+
+    def __init__(self, s: str | None = None, *, _validate: bool = True, _real: RealStr | None = None, _norm: NormStr | None = None) -> None:
+        if s is not None:
+            assert _real is None
+            assert _norm is None
+
+            self._raw = s
+            self._validate = _validate
+            self._real = None
+            self._norm = None
+        else:
+            assert _validate is True
+            assert _real is not None
+            assert _norm is not None
+
+            self._raw = _real._str
+            self._real = _real
+            self._norm = _norm
 
     @property
     def raw(self) -> str:
-        return self._s
+        return self._raw
     
-    @cached_property
+    @property
     def real(self) -> RealStr:
-        return RealStr(self._s, _validate=self._validate)
+        if self._real is None:
+            self._real = RealStr(self._raw, _validate=self._validate)
+
+        return self._real
         
-    @cached_property
+    @property
     def norm(self) -> NormStr:
-        return NormStr(self.real)
+        if self._norm is None:
+            self._norm = NormStr(self.real)
+
+        return self._norm
 
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:

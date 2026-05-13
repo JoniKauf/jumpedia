@@ -1,10 +1,10 @@
 from db.models import List as ListORM
-from domain.value_objects import s
+from domain.value_objects import strings
 from .base import BaseRepository
 from utils import text
 
 class ListRepository(BaseRepository):
-    def create(self, community_id: int, name: s.StrStore) -> ListORM:
+    def create(self, community_id: int, name: strings.StrStore) -> ListORM:
         obj = ListORM(
             community_id=community_id,
             norm_name=name.norm,
@@ -19,7 +19,7 @@ class ListRepository(BaseRepository):
     def get_by_id(self, list_id: int) -> ListORM | None:
         return self.session.get(ListORM, list_id)
 
-    def get_by_name(self, community_id: int, name: s.StrStore) -> ListORM | None:
+    def get_by_name(self, community_id: int, name: strings.StrStore) -> ListORM | None:
         return (
             self.session.query(ListORM)
             .filter(
