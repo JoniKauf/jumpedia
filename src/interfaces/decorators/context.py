@@ -94,8 +94,49 @@ type FuncOut[T, **P] = t.Callable[
     t.Concatenate[T, discord.Interaction, P], ts.CoroutineType[None, None, None]
 ]
 
+async def _handle_domain_error(interaction: discord.Interaction, e: errors.DomainError) -> None:
+    match e:
+        case errors.NotInServer():
+            await messages.error(
+                interaction,
+                t"Not In A Server",
+                t"The specified command needs to be executed in a server!",
+            )
 
-def adapt[T: BaseInterface, **P]() -> t.Callable[
+        case errors.NotInCommunity():
+            await messages.error(
+                interaction,
+                t"Not In A Community",
+                t"The specified command needs to be executed in a community!",
+            )
+
+        case errors.NotAllowed():
+            await messages.error(
+                interaction,
+                t"Not Allowed",
+                t"You have the rank {formatting.mention(e.rank)}, but you at least need the rank {formatting.mention(e.required)} to perform this action!",
+            )
+
+        case errors.EmptyString():
+            await messages.error(
+                interaction,
+                t"Empty String",
+                t'You entered an empty or whitespace-only string (`""`), which is not allowed!',
+            )
+
+        case errors.DoubleBacktick():
+            await messages.error(
+                interaction,
+                t"Double Backtick",
+                t"You entered a string that contains a double backtick (`` ` `` `` ` ``), which is not allowed!\n"
+                + t"The reason it is not allowed is because otherwise it would be impossible to correctly format Discord messages.",
+            )
+
+        case _: 
+            raise TypeError()
+
+
+def with_context[T: BaseInterface, **P]() -> t.Callable[
     [FuncIn[T, P]],
     FuncOut[T, P],
 ]:
@@ -117,46 +158,10 @@ def adapt[T: BaseInterface, **P]() -> t.Callable[
                 try:
                     if not isinstance(interaction.user, discord.Member):
                         raise errors.NotInServer()
-
                     
                     await func(self, CommandContext(session, interaction.user), *args, **kwargs)
-
-                except errors.NotInServer:
-                    await messages.error(
-                        interaction,
-                        t"Not In A Server",
-                        t"The specified command needs to be executed in a server!",
-                    )
-
-                except errors.NotInCommunity:
-                    await messages.error(
-                        interaction,
-                        t"Not In A Community",
-                        t"The specified command needs to be executed in a community!",
-                    )
-
-                except errors.NotAllowed as e:
-                    await messages.error(
-                        interaction,
-                        t"Not Allowed",
-                        t"You have the rank {formatting.mention(e.rank)}, but you at least need the rank {formatting.mention(e.required)} to perform this action!",
-                    )
-
-                except errors.EmptyString:
-                    await messages.error(
-                        interaction,
-                        t"Empty String",
-                        t'You entered an empty or whitespace-only string (`""`), which is not allowed!',
-                    )
-
-                except errors.DoubleBacktick:
-                    await messages.error(
-                        interaction,
-                        t"Double Backtick",
-                        t"You entered a string that contains a double backtick (`` ` `` `` ` ``), which is not allowed!\n"
-                        + t"The reason it is not allowed is because otherwise it would be impossible to correctly format Discord messages.",
-                    )
-
+                except errors.DomainError as e:
+                    await _handle_domain_error(interaction, e)
                 except Exception:
                     await messages.error(
                         interaction,
