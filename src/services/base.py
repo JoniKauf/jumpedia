@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 class BaseService:
     def __init__(self, session: Session) -> None:
-        self.session = session
         self.community_repo = CommunityRepository(session)
 
     def _get_community_by_server_id_or_throw(self, server_id: int) -> Community:

@@ -1,27 +1,31 @@
 from dataclasses import asdict
 
 from db.models import Community as Community, Server as ServerORM
-from domain.value_objects import strings
+from domain.entities.community import CommunityEntity
 from domain.value_objects.limits import Limits
+from domain.value_objects.strings import StrStore
 
 from .base import BaseRepository
-from utils import text
 
 class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, norm_name: strings.NormStr, real_name: strings.RealStr, limits: Limits) -> Community:
+    def create(self, name: StrStore, limits: Limits) -> CommunityEntity:
         obj = Community(
-            norm_name=norm_name,
-            real_name=real_name,
+            norm_name=name.norm,
+            real_name=name.real,
             **asdict(limits),
         )
 
         self.session.add(obj)
         self.session.flush()
 
-        return obj
+        return CommunityEntity(
+            obj.community_id,
+            StrStore(_real=name.real, _norm=name.norm),
+            limits
+        )
 
     # -------------------------
     # READ

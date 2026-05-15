@@ -8,7 +8,7 @@ from services.base import BaseService
 
 class UserService(BaseService):
     def __init__(self, session: Session):
-        self.session = session
+        super().__init__(session)
         self.user_repo = UserRepository(session)
 
     def get_or_create_user(

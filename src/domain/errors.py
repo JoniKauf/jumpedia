@@ -5,14 +5,14 @@ import typing as t
 
 
 # --- Base ---
-class JumpediaError(Exception):
+class DomainError(Exception):
     def __init__(self) -> None:
-        if type(self) in (JumpediaError, JumpediaHandledError):
+        if type(self) in (DomainError, JumpediaHandledError):
             raise RuntimeError("Instance of base exception class created")
         
         super().__init__()
 
-class JumpediaHandledError(JumpediaError):
+class JumpediaHandledError(DomainError):
     """This error is handled."""
 
 # --- Invalid String ---
@@ -36,6 +36,6 @@ class NotAllowed(JumpediaHandledError):
         self.required = required
 
 
-class NotFound(JumpediaError):
+class NotFound(DomainError):
     def __init__(self, type: type) -> None:
         self.type = type
