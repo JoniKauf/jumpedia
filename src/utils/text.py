@@ -1,72 +1,78 @@
-import typing as t
-from string.templatelib import Interpolation, Template, convert
-
-def human_join(
-    objects: t.Sequence[t.Any], final_delimiter: str, delimiter: str = ", "
-) -> str:
-    objects_str = tuple(map(str, objects))
-
-    if len(objects) <= 1:
-        return delimiter.join(objects_str)
-
-    return f"{delimiter.join(objects_str[:-1])}{final_delimiter}{objects[-1]}"
 
 
-def shorten(o: t.Any, max: int = 32, more: str = "...") -> str:
-    s = str(o)
-    return s[: max - len(more)] + more if len(s) > max else s
+def split_max(s: str, sep: str, max: int) -> list[str]:
+    """
+    Greedy bounded string splitter with separator-preferred backtracking.
 
+    Splits a string into segments constrained by a maximum length. The algorithm
+    prefers to split at occurrences of `sep` within a bounded lookahead window,
+    but falls back to hard cuts when no separator is found.
 
-def shorten_many(
-    objects: t.Sequence[t.Any],
-    *,
-    max_elems: int = 8,
-    max_s: int = 16,
-    more_elems: str = "...",
-    more_s: str = "...",
-) -> t.Generator[str, None, None]:
-    if len(objects) >= max_elems:
-        yield from map(str, objects)
-        return
+    The process is greedy, single-pass, and processes the string from left to right.
 
-    for elem in objects[:max_elems]:
-        yield shorten(elem, max_s, more_s)
+    Key properties
+    --------------
+    - Each emitted segment satisfies: len(segment) <= max (except final remainder).
+    - Separator positions are used only as split anchors and are not emitted.
+    - The algorithm is deterministic and does not perform global optimization.
 
-    yield more_elems
+    Parameters
+    ----------
+    s : str
+        Input string to split.
+    sep : str
+        Non-empty separator used to prefer split positions.
+    max : int
+        Maximum allowed segment length (> 0).
 
+    Returns
+    -------
+    list[str]
+        List of split segments following greedy bounded splitting rules.
 
-def apply_f_to_interpolation_value(interpolation: Interpolation):
-    value = convert(interpolation.value, interpolation.conversion)
-    value = format(value, interpolation.format_spec)
-    return value
+    Notes
+    -----
+    - This is not equivalent to str.split, textwrap.wrap, or regex-based splitting.
+    - The algorithm uses a bounded lookahead window (max + len(sep)) to detect
+      separators for improved split alignment.
+    """
 
+    if not sep:
+        raise ValueError("empty separator")
+        
+    if not max:
+        raise ValueError("max lower or equal to 0")
+        
+    l = len(s)
+    sl = len(sep)
+    
+    if not l:
+        return [""]
+    
+    if l <= max:
+        return [s]
 
-# From https://peps.python.org/pep-0750/#example-implementing-f-strings-with-t-strings
-def t_to_f_string(template: Template) -> str:
-    parts = []
-    for item in template:
-        match item:
-            case str() as s:
-                parts.append(s)
-            case Interpolation() as interp:
-                parts.append(apply_f_to_interpolation_value(interp))
-            case _:
-                t.assert_never(item)
+    res: list[str] = []
+    start: int = 0
 
-    return "".join(parts)
+    while True:
+        end = start + max
+        
+        if end >= l:
+            res.append(s[start:end])
 
+            return res
+            
+        pos = s[start:end + sl].rfind(sep)
 
-def join_t(delim: str | Template, iterable: t.Iterable[Template]) -> Template:
-    iterator = iter(iterable)
-    res = next(iterator, None)
+        if pos == -1:
+            res.append(s[start:end])
+            start = end
+        else:
+            pos += start
+            res.append(s[start:pos])
+            start = pos + sl
+        
+        i += 1
+               
 
-    if res is None:
-        return t""
-
-    delim = delim if isinstance(delim, Template) else Template(delim)
-
-    for elem in iterator:
-        res += delim
-        res += elem
-
-    return res
