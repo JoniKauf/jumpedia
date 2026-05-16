@@ -1,6 +1,6 @@
 from discord import app_commands
 import discord
-from domain.enums.rank import JumpediaRank
+from domain.enums.rank import MetaRank
 from domain.value_objects.strings import StrStore
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context

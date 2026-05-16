@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 from db.base import Base
 from db.types import RealStrType, NormStrType
 from domain.enums.attribute import Kind, SlotType, Type
-from domain.enums.rank import CommunityRank, JumpediaRank
+from domain.enums.rank import CommunityRank, MetaRank
 from domain.value_objects.slot import Slot
 from domain.value_objects.strings import RealStr, NormStr
 from domain.value_objects.limits import Limits
@@ -85,7 +85,7 @@ class User(Base):
     __table_args__ = (
         *Base.__table_args__,
         CheckConstraint(
-            f"power BETWEEN {min(r.value for r in JumpediaRank)} AND {max(r.value for r in JumpediaRank)}"
+            f"power BETWEEN {min(r.value for r in MetaRank)} AND {max(r.value for r in MetaRank)}"
         )
     )
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 import db.session
 from domain.entities.user import UserEntity
-from domain.enums.rank import AnyRankT, JumpediaRank, ServerRank
+from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
 from domain.value_objects.strings import StrStore
 from interfaces.message import formatting, messages
@@ -50,9 +50,9 @@ def _validate_rank(
     jumpedia_user = interface.user_service.get_or_create_user(
         member.id, StrStore(member.global_name or member.name)
     )
-    jumpedia_rank = JumpediaRank(jumpedia_user.power)
+    jumpedia_rank = MetaRank(jumpedia_user.power)
 
-    if isinstance(rank_required, JumpediaRank):
+    if isinstance(rank_required, MetaRank):
         if rank_required <= jumpedia_rank:
             return
 
@@ -173,7 +173,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                             self.user_service.get_or_create_user(
                                 member.id, StrStore(member.global_name or member.name)
                             ),
-                            _get_server_rank(interaction.user),
+                            _get_server_rank(member),
                         ),
                         *args,
                         **kwargs,

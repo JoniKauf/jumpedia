@@ -110,7 +110,7 @@ class StrStore:
     @t.overload
     def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
         pass
-
+    
     def __init__(self, s: str | None = None, *, _validate: bool = True, _real: RealStr | None = None, _norm: NormStr | None = None) -> None:
         if s is not None:
             assert _real is None
@@ -147,6 +147,9 @@ class StrStore:
 
         return self._norm
 
+    def __len__(self):
+        return len(self.real)
+    
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, RealStr] = {}

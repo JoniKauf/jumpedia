@@ -16,18 +16,12 @@ class CommunityRank(enum.IntEnum):
 
     def __bool__(self) -> bool:
         return bool(self.value)
-    
-    def __lt__(self, other: CommunityRank | JumpediaRank):
-        if isinstance(other, JumpediaRank):
-            return other.value > 0
-        
-        return self.value < other.value
 
 
 @functools.total_ordering
-class JumpediaRank(enum.IntEnum):
+class MetaRank(enum.IntEnum):
     USER = 0
-    META_ADMINISTRATOR = 1
+    ADMINISTRATOR = 1
     JONIKAUF = 2
 
     LOWEST = USER
@@ -36,12 +30,6 @@ class JumpediaRank(enum.IntEnum):
 
     def __bool__(self) -> bool:
         return bool(self.value)
-    
-    def __lt__(self, other: ServerRank | CommunityRank | JumpediaRank):
-        if isinstance(other, JumpediaRank):
-            return self.value < other.value
-        
-        return self.value > 0
 
 
 @functools.total_ordering
@@ -56,12 +44,5 @@ class ServerRank(enum.IntEnum):
 
     def __bool__(self) -> bool:
         return bool(self.value)
-    
-    def __lt__(self, other: ServerRank | JumpediaRank):
-        if isinstance(other, JumpediaRank):
-            return other.value > 0
-        
-        return self.value < other.value
 
-
-type AnyRankT = JumpediaRank | CommunityRank | ServerRank
+type AnyRankT = MetaRank | CommunityRank | ServerRank

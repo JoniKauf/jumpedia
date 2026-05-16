@@ -1,39 +1,36 @@
 import json
 from db.models import Community
-from domain.enums.rank import CommunityRank, ServerRank
+from domain.entities.community import CommunityEntity
+from domain.entities.user import UserEntity
+from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.value_objects import strings
 from interfaces.list import StrStore
 from repositories.community import CommunityRepository
 from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
+from services._permission import PermissionService
 from services.user import UserService
 from .base import BaseService
 from sqlalchemy.orm import Session
 
 class CommunityService(BaseService):
-    def __init__(self, session: Session, user_service: UserService):
-        super().__init__(session)
-        self.user_service = user_service
+    def __init__(self, session: Session):
+        self.community_repo = CommunityRepository(session)
 
     # -------------------------
     # CREATE COMMUNITY
     # -------------------------
     def create_community(
         self,
-        name: str,
+        name: StrStore,
         server_id: int,
-        owner_id: int,
-        owner_name: str,
-        owner_rank: ServerRank,
+        owner: UserEntity,
+        owner_server_rank: ServerRank,
         limits: Limits
     ) -> Community:
-        self.user_service.get_or_create_user()
-        # --- validation (business rules live HERE) ---
-        if len(norm_name) > Limits.COMMUNITY_NAME_LENGTH_MAX:
-            raise ValueError("community name too long")
+        PermissionService.ensure_meta_rank(owner.rank, MetaRank.ADMINISTRATOR)
 
-        if self.community_repo.get_by_name(norm_name):
-            raise ValueError("community already exists")
+        community = CommunityEntity(None, name, limits)
 
         # --- create community ---
         community = self.community_repo.create(
@@ -60,3 +57,11 @@ class CommunityService(BaseService):
     # -------------------------
     def delete_community(self, community_id: int):
         self.community_repo.delete(community_id)
+
+    def _get_community_by_server_id_or_throw(self, server_id: int) -> CommunityEntity:
+        community = self.community_repo.get_by_server_id(server_id)
+
+        if community is None:
+            raise errors.NotInCommunity()
+        
+        return community

@@ -5,7 +5,7 @@ from domain.value_objects.strings import StrStore
 
 from domain.enums.attribute import Kind, Type
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class AttributeEntity(BaseEntity):
     _list_id: int
     _type: Type
@@ -15,6 +15,8 @@ class AttributeEntity(BaseEntity):
     _position: int
 
     def __post_init__(self) -> None:
+        super().__post_init__()
+        
         if self._position < 1:
             raise ValueError("position < 1")
 

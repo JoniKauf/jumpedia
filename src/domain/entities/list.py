@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from domain.entities.base import BaseEntity
 from domain.value_objects.strings import StrStore
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class ListEntity(BaseEntity):
     _community_id: int
     _name: StrStore

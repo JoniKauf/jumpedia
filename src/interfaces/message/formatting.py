@@ -1,7 +1,7 @@
 from string.templatelib import Template
 import typing as t
 
-from domain.enums.rank import CommunityRank, JumpediaRank, ServerRank
+from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -28,7 +28,7 @@ def mention(
     obj: AnyRankT
 ) -> Template:
     match obj:
-        case JumpediaRank() | ServerRank() | CommunityRank():
+        case MetaRank() | ServerRank() | CommunityRank():
             return Template(f"{str(type(obj)).replace("Rank", " Rank")} ``{obj.name.replace('_', ' ').title()}``")
         
         case _:

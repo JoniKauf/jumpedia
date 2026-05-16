@@ -39,3 +39,6 @@ class NotAllowed(JumpediaHandledError):
 class NotFound(DomainError):
     def __init__(self, type: type) -> None:
         self.type = type
+
+class TooLongName(DomainError):
+    

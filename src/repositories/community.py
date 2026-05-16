@@ -31,7 +31,7 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, name: StrStore, limits: Limits) -> CommunityEntity:
+    def create(self, community: CommunityEntity) -> CommunityEntity:
         obj = Community(
             norm_name=name.norm,
             real_name=name.real,
