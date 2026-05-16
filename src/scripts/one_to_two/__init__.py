@@ -8,7 +8,7 @@ import mariadb
 
 from _adapters import interaction
 from _adapters.interaction import _get_or_create_the_one_piece
-from dc_utils import connect
+from _dc_utils import connect
 from structures import db
 from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits

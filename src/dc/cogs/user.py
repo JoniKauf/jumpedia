@@ -8,7 +8,7 @@ import discord.ext.commands as cmds
 from _adapters._community import CommunityAdapter
 from _adapters._user import UserAdapter
 from _adapters.interaction import _InteractionAdapter
-from dc_utils import command, group, message, shortcuts
+from _dc_utils import command, group, message, shortcuts
 from domain.enum.rank import CommunityRank, JumpediaRank, ServerRank
 
 _UserRow = command.row_type_factory[

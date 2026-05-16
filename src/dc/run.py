@@ -55,7 +55,7 @@ async def on_ready():
 async def on_app_command_error(
     interaction: dc.Interaction, error: acmds.AppCommandError
 ) -> None:
-    from dc_utils.errors import (
+    from _dc_utils.errors import (
         BaseUserReturnableError,
         DoubleBacktick,
         EmptyString,

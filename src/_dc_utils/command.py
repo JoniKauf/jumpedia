@@ -10,7 +10,7 @@ import mariadb
 from discord.ext import commands as cmds
 
 from _adapters.interaction import _InteractionAdapter
-from dc_utils import layouts, user
+from _dc_utils import layouts, user
 from structures import BaseStructure
 from domain.enum.rank import AnyRankT, CommunityRank
 
@@ -92,7 +92,7 @@ def adapt[T: cmds.Cog, **P](
         async def decorated(
             self: T, interaction: dc.Interaction, *args: P.args, **kwargs: P.kwargs
         ) -> None:
-            from dc_utils import errors
+            from _dc_utils import errors
 
             # --- Defer; Always Use Followup ---
             await interaction.response.defer()

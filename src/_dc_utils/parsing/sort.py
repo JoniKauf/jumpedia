@@ -2,7 +2,7 @@ import functools
 import itertools
 import typing as t
 
-from dc_utils import errors
+from _dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.task import Task

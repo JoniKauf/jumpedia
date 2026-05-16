@@ -1,6 +1,6 @@
 from discord import app_commands as acmds
 
-from dc_utils import predicate
+from _dc_utils import predicate
 from domain.enum.rank import AnyRankT
 
 

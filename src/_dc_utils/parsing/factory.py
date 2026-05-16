@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from string.templatelib import Template
 
-from dc_utils.errors import FeedbackError
+from _dc_utils.errors import FeedbackError
 
 
 class SyntaxFeedbackError(FeedbackError):

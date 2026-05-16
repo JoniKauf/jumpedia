@@ -1,22 +1,20 @@
 import json
 from db.models import Community
-from domain.enums.rank import CommunityRank
+from domain.enums.rank import CommunityRank, ServerRank
 from domain.value_objects import strings
+from interfaces.list import StrStore
 from repositories.community import CommunityRepository
 from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
+from services.user import UserService
 from .base import BaseService
 from sqlalchemy.orm import Session
 
 class CommunityService(BaseService):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_service: UserService):
         super().__init__(session)
-        
-        self.user_repo = UserRepository(session)
+        self.user_service = user_service
 
-    def get_by_server_id(self, server_id: int) -> Community | None:
-        return self.community_repo.get_by_server_id(server_id)
-    
     # -------------------------
     # CREATE COMMUNITY
     # -------------------------
@@ -26,13 +24,10 @@ class CommunityService(BaseService):
         server_id: int,
         owner_id: int,
         owner_name: str,
+        owner_rank: ServerRank,
         limits: Limits
     ) -> Community:
-        real_name = strings.RealStr(name)
-        norm_name = strings.NormStr(real_name)
-        
-        del name
-
+        self.user_service.get_or_create_user()
         # --- validation (business rules live HERE) ---
         if len(norm_name) > Limits.COMMUNITY_NAME_LENGTH_MAX:
             raise ValueError("community name too long")

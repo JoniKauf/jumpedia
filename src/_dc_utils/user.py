@@ -54,7 +54,7 @@ def identifier_to_id(identifier: str | int) -> int:
 def validate_allowed(
     interaction: dc.Interaction, rank_required: AnyRankT, *ranks_required: AnyRankT
 ) -> None:
-    from dc_utils import command
+    from _dc_utils import command
 
     server_rank: ServerRank | None = None
     jumpedia_rank: JumpediaRank | None = None

@@ -9,7 +9,7 @@ import discord.ext.commands as cmds
 
 from _adapters import BaseStructureAdapter
 from _adapters.interaction import _InteractionAdapter
-from dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
+from _dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
 from structures.attribute import AnyAttributeT, StaticAttribute, UserAttribute
 from structures.list import Kind
 from structures.task import Task

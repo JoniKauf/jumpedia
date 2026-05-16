@@ -8,7 +8,7 @@ from discord import app_commands as acmds
 
 from _adapters._attribute import AnyAttributeAdapterT
 from _adapters.interaction import _InteractionAdapter
-from dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
+from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
     BaseAttribute,

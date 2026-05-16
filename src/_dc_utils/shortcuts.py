@@ -2,7 +2,7 @@ import typing as t
 
 import discord as dc
 
-from dc_utils import errors
+from _dc_utils import errors
 from domain.enum.rank import CommunityRank, JumpediaRank
 
 if t.TYPE_CHECKING:

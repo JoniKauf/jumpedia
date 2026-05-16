@@ -9,6 +9,7 @@ import types as ts
 from sqlalchemy.orm import Session
 
 import db.session
+from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, JumpediaRank, ServerRank
 from domain import errors
 from domain.value_objects.strings import StrStore
@@ -22,7 +23,8 @@ if t.TYPE_CHECKING:
 @dataclass(frozen=True)
 class CommandContext:
     session: Session
-    member: discord.Member
+    user: UserEntity
+    server_rank: ServerRank
 
 
 def _get_server_rank(member: discord.Member) -> ServerRank:
@@ -94,7 +96,10 @@ type FuncOut[T, **P] = t.Callable[
     t.Concatenate[T, discord.Interaction, P], ts.CoroutineType[None, None, None]
 ]
 
-async def _handle_domain_error(interaction: discord.Interaction, e: errors.DomainError) -> None:
+
+async def _handle_domain_error(
+    interaction: discord.Interaction, e: errors.DomainError
+) -> None:
     match e:
         case errors.NotInServer():
             await messages.error(
@@ -132,7 +137,7 @@ async def _handle_domain_error(interaction: discord.Interaction, e: errors.Domai
                 + t"The reason it is not allowed is because otherwise it would be impossible to correctly format Discord messages.",
             )
 
-        case _: 
+        case _:
             raise TypeError()
 
 
@@ -156,10 +161,23 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
 
             with db.session.get_session() as session:
                 try:
-                    if not isinstance(interaction.user, discord.Member):
+                    member = interaction.user
+
+                    if not isinstance(member, discord.Member):
                         raise errors.NotInServer()
-                    
-                    await func(self, CommandContext(session, interaction.user), *args, **kwargs)
+
+                    await func(
+                        self,
+                        CommandContext(
+                            session,
+                            self.user_service.get_or_create_user(
+                                member.id, StrStore(member.global_name or member.name)
+                            ),
+                            _get_server_rank(interaction.user),
+                        ),
+                        *args,
+                        **kwargs,
+                    )
                 except errors.DomainError as e:
                     await _handle_domain_error(interaction, e)
                 except Exception:

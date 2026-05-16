@@ -1,7 +1,7 @@
 import typing as t
 from types import EllipsisType, MappingProxyType
 
-from dc_utils import errors
+from _dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.attribute.slot_str import SlotStr, SlotTypeT

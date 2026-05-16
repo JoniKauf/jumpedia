@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 import typing as t
 
-@dataclass(frozen=True)
+from domain.value_objects.strings import StrStore
+from repositories.attribute import AttributeEntity
+
+@dataclass(frozen=True, slots=True)
 class ListInfo:
-    name: t.Annotated[str, "Name"]
-    static_attribute: t.Annotated[tuple[str, ...], "Static Attribute"]
-    task_attribute: t.Annotated[tuple[str, ...], "Task Attribute"]
-    user_attribute: t.Annotated[tuple[str, ...], "User Attribute"]
-    task_count: t.Annotated[int, "Task Count"]
-    is_default_selected_list: t.Annotated[bool, "Is Default Selected List"]
+    name: StrStore
+    attributes: tuple[AttributeEntity, ...]
+    task_count: int
+    is_default_selected_list: bool

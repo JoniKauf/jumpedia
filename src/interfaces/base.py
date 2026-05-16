@@ -1,4 +1,3 @@
-from core.container import CommunityService
 from discord.ext import commands
 import typing as t
 from services.user import UserService
@@ -10,7 +9,6 @@ class InterfaceMeta(commands.CogMeta):
     
     
 class BaseInterface(commands.GroupCog, metaclass=InterfaceMeta, group_name="base"):
-    def __init__(self, user_service: UserService, community_service: CommunityService) -> None:
+    def __init__(self, user_service: UserService) -> None:
         super().__init__()
         self.user_service = user_service
-        self.community_service = community_service

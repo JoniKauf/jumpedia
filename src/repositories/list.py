@@ -1,11 +1,20 @@
-from db.models import List as ListORM
-from domain.value_objects import strings
+from sqlalchemy import select, func, delete
+
+from db.models import List as List, Task
+from domain.entities.list import ListEntity
+from domain.value_objects.strings import StrStore
 from .base import BaseRepository
-from utils import text
+
+def _model_to_entity(model: List) -> ListEntity:
+    return ListEntity(
+        _id=model.list_id,
+        _community_id=model.community_id,
+        _name=StrStore(_real=model.real_name, _norm=model.norm_name)
+    )
 
 class ListRepository(BaseRepository):
-    def create(self, community_id: int, name: strings.StrStore) -> ListORM:
-        obj = ListORM(
+    def create(self, community_id: int, name: StrStore) -> ListEntity:
+        obj = List(
             community_id=community_id,
             norm_name=name.norm,
             real_name=name.real,
@@ -14,29 +23,45 @@ class ListRepository(BaseRepository):
         self.session.add(obj)
         self.session.flush()
 
-        return obj
+        return _model_to_entity(obj)
 
-    def get_by_id(self, list_id: int) -> ListORM | None:
-        return self.session.get(ListORM, list_id)
+    def get_by_id(self, list_id: int) -> ListEntity | None:
+        obj = self.session.get(List, list_id)
+        return None if obj is None else _model_to_entity(obj)
 
-    def get_by_name(self, community_id: int, name: strings.StrStore) -> ListORM | None:
-        return (
-            self.session.query(ListORM)
-            .filter(
-                ListORM.community_id == community_id,
-                ListORM.norm_name == name.norm,
+    def get_by_name(self, community_id: int, name: StrStore) -> ListEntity | None:
+        stmt = (
+            select(List)
+            .where(
+                List.community_id == community_id,
+                List.norm_name == name.norm,
             )
-            .first()
         )
+        obj = self.session.scalar(stmt)
+        return None if obj is None else _model_to_entity(obj)
 
-    def get_by_community(self, community_id: int) -> list[ListORM]:
-        return (
-            self.session.query(ListORM)
-            .filter(ListORM.community_id == community_id)
-            .all()
-        )
+    def get_all(self, community_id: int) -> list[ListEntity]:
+        stmt = select(List).where(List.community_id == community_id)
+        return [_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
     
+    def count(self, community_id: int) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(List)
+            .where(List.community_id == community_id)
+        )
+        return self.session.scalar(stmt) or 0
+
     def delete(self, list_id: int) -> None:
-        obj = self.get_by_id(list_id)
+        obj = self.session.get(List, list_id)
         if obj:
             self.session.delete(obj)
+            self.session.flush()
+
+    def count_tasks(self, list_id: int) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Task)
+            .where(Task.list_id == list_id)
+        )
+        return self.session.scalar(stmt) or 0

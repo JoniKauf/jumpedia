@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, JumpediaRank
 from domain.value_objects.strings import StrStore
 from repositories.user import UserRepository
@@ -19,7 +20,7 @@ class UserService(BaseService):
         *,
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
-    ):
+    ) -> UserEntity:
         user = self.user_repo.get_user(user_id=user_id)
 
         if user is None:
@@ -39,9 +40,6 @@ class UserService(BaseService):
         if overwrite_rank:
             user.power = rank
             updated = True
-
-        if updated:
-            self.session.flush()
 
         return user
 
