@@ -1,9 +1,7 @@
 import enum
-import functools
 
 
-@functools.total_ordering
-class CommunityRank(enum.IntEnum):
+class CommunityRank(enum.Enum):
     USER = 0
     HELPER = 1
     MODERATOR = 2
@@ -18,8 +16,7 @@ class CommunityRank(enum.IntEnum):
         return bool(self.value)
 
 
-@functools.total_ordering
-class MetaRank(enum.IntEnum):
+class MetaRank(enum.Enum):
     USER = 0
     ADMINISTRATOR = 1
     JONIKAUF = 2
@@ -32,8 +29,7 @@ class MetaRank(enum.IntEnum):
         return bool(self.value)
 
 
-@functools.total_ordering
-class ServerRank(enum.IntEnum):
+class ServerRank(enum.Enum):
     USER = 0
     ADMINISTRATOR = 1
     OWNER = 2
@@ -44,5 +40,6 @@ class ServerRank(enum.IntEnum):
 
     def __bool__(self) -> bool:
         return bool(self.value)
+
 
 type AnyRankT = MetaRank | CommunityRank | ServerRank

@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 import typing as t
 
-from domain.value_objects.strings import StrStore
+from domain.value_objects.string import StrStore
 from repositories.attribute import AttributeEntity
 
+
 @dataclass(frozen=True, slots=True)
-class ListInfo:
+class ListInfoDTO:
     name: StrStore
     attributes: tuple[AttributeEntity, ...]
     task_count: int

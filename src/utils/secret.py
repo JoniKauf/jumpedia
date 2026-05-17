@@ -7,6 +7,7 @@ __LOCATION = os.path.join(
     str(Path(__file__).resolve().parent.parent.parent), "secret.json"
 )
 
+
 class SecretContentT(t.NamedTuple):
     DATABASE_URL: str
     DISCORD_TOKEN: str

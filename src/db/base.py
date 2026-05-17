@@ -1,6 +1,7 @@
 # db/base.py
 from sqlalchemy.orm import DeclarativeBase
 
+
 class Base(DeclarativeBase):
     __abstract__ = True
 
@@ -8,4 +9,3 @@ class Base(DeclarativeBase):
         "mysql_charset": "utf8mb4",
         "mysql_collate": "utf8mb4_bin",
     }
-

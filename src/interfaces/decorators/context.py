@@ -12,8 +12,8 @@ import db.session
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
-from domain.value_objects.strings import StrStore
-from interfaces.message import formatting, messages
+from domain.value_objects.string import StrStore
+from interfaces.message import format, messages
 from repositories.user import CommunityRank
 
 if t.TYPE_CHECKING:
@@ -23,68 +23,8 @@ if t.TYPE_CHECKING:
 @dataclass(frozen=True)
 class CommandContext:
     session: Session
-    user: UserEntity
-    server_rank: ServerRank
-
-
-def _get_server_rank(member: discord.Member) -> ServerRank:
-    owner = member.guild.owner
-
-    if owner is not None and member.id == owner.id:
-        return ServerRank.OWNER
-
-    if member.guild_permissions.administrator:
-        return ServerRank.ADMINISTRATOR
-
-    return ServerRank.USER
-
-
-def _validate_rank(
-    rank_required: AnyRankT,
-    member: discord.Member,
-    interface: BaseInterface,
-) -> None:
-    if not rank_required:
-        return
-
-    jumpedia_user = interface.user_service.get_or_create_user(
-        member.id, StrStore(member.global_name or member.name)
-    )
-    jumpedia_rank = MetaRank(jumpedia_user.power)
-
-    if isinstance(rank_required, MetaRank):
-        if rank_required <= jumpedia_rank:
-            return
-
-        raise errors.NotAllowed(jumpedia_rank, rank_required)
-
-    if jumpedia_rank.value > 0:
-        return
-
-    if isinstance(rank_required, ServerRank):
-        server_rank = _get_server_rank(member)
-
-        if rank_required <= server_rank:
-            return
-
-        raise errors.NotAllowed(server_rank, rank_required)
-
-    assert isinstance(rank_required, CommunityRank)
-
-    community = interface.community_service.get_by_server_id(member.guild.id)
-
-    if community is None:
-        raise errors.NotInCommunity()
-
-    community_user = interface.user_service.get_or_create_community_user(
-        member.id, community.community_id
-    )
-    community_rank = CommunityRank(community_user.power)
-
-    if rank_required <= community_rank:
-        return
-
-    raise errors.NotAllowed(community_rank, rank_required)
+    interaction: discord.Interaction
+    member: discord.Member
 
 
 type FuncIn[T, **P] = t.Callable[
@@ -119,7 +59,7 @@ async def _handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Allowed",
-                t"You have the rank {formatting.mention(e.rank)}, but you at least need the rank {formatting.mention(e.required)} to perform this action!",
+                t"You have the rank {format.mention(e.rank)}, but you at least need the rank {format.mention(e.required)} to perform this action!",
             )
 
         case errors.EmptyString():
@@ -170,10 +110,8 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         self,
                         CommandContext(
                             session,
-                            self.user_service.get_or_create_user(
-                                member.id, StrStore(member.global_name or member.name)
-                            ),
-                            _get_server_rank(member),
+                            interaction,
+                            member,
                         ),
                         *args,
                         **kwargs,

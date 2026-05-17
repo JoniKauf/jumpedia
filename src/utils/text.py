@@ -1,5 +1,3 @@
-
-
 def split_max(s: str, sep: str, max: int) -> list[str]:
     """
     Greedy bounded string splitter with separator-preferred backtracking.
@@ -39,16 +37,16 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
 
     if not sep:
         raise ValueError("empty separator")
-        
+
     if not max:
         raise ValueError("max lower or equal to 0")
-        
+
     l = len(s)
     sl = len(sep)
-    
+
     if not l:
         return [""]
-    
+
     if l <= max:
         return [s]
 
@@ -57,13 +55,13 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
 
     while True:
         end = start + max
-        
+
         if end >= l:
             res.append(s[start:end])
 
             return res
-            
-        pos = s[start:end + sl].rfind(sep)
+
+        pos = s[start : end + sl].rfind(sep)
 
         if pos == -1:
             res.append(s[start:end])
@@ -72,7 +70,5 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
             pos += start
             res.append(s[start:pos])
             start = pos + sl
-        
-        i += 1
-               
 
+        i += 1

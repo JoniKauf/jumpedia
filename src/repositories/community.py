@@ -2,20 +2,22 @@ from dataclasses import asdict
 
 from sqlalchemy import select, delete
 
-from db.models import Community as Community, Server as Server
+from db.models import Community as Community, List, Server as Server
+from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.value_objects.limits import Limits
-from domain.value_objects.strings import StrStore
-
+from domain.value_objects.string import StrStore
+from repositories.list import _list_model_to_entity
 from .base import BaseRepository
+import typing as t
 
 
-def _model_to_entity(model: Community) -> CommunityEntity:
+def _community_model_to_entity(model: Community) -> CommunityEntity:
     return CommunityEntity(
-        _id=model.community_id,
-        _name=StrStore(_real=model.real_name, _norm=model.norm_name),
-        _limits=Limits(
+        id=model.community_id,
+        name=StrStore(_real=model.real_name, _norm=model.norm_name),
+        limits=Limits(
             community_list_count_max=model.community_list_count_max,
             list_attribute_count_max=model.list_attribute_count_max,
             list_task_count_max=model.list_task_count_max,
@@ -23,7 +25,7 @@ def _model_to_entity(model: Community) -> CommunityEntity:
             attribute_task_value_slot_count_max=model.attribute_task_value_slot_count_max,
             attribute_collection_entry_count_max=model.attribute_collection_entry_count_max,
             attribute_collection_entry_alias_count_max=model.attribute_collection_entry_alias_count_max,
-        )
+        ),
     )
 
 
@@ -33,32 +35,32 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     def create(self, community: CommunityEntity) -> CommunityEntity:
         obj = Community(
-            norm_name=name.norm,
-            real_name=name.real,
-            **asdict(limits),
+            norm_name=community.name.norm,
+            real_name=community.name.real,
+            **asdict(community.limits),
         )
 
         self.session.add(obj)
         self.session.flush()
 
-        return _model_to_entity(obj)
+        return _community_model_to_entity(obj)
 
     # -------------------------
     # READ
     # -------------------------
     def get_by_id(self, community_id: int) -> CommunityEntity | None:
         obj = self.session.get(Community, community_id)
-        return None if obj is None else _model_to_entity(obj)
+        return None if obj is None else _community_model_to_entity(obj)
 
     def get_by_name(self, name: StrStore) -> CommunityEntity | None:
         stmt = select(Community).where(Community.norm_name == name.norm)
         obj = self.session.scalar(stmt)
-        return None if obj is None else _model_to_entity(obj)
+        return None if obj is None else _community_model_to_entity(obj)
 
     def get_all(self) -> list[CommunityEntity]:
         stmt = select(Community)
         objs = self.session.scalars(stmt).all()
-        return [_model_to_entity(o) for o in objs]
+        return [_community_model_to_entity(o) for o in objs]
 
     # -------------------------
     # DELETE
@@ -80,7 +82,7 @@ class CommunityRepository(BaseRepository):
             )
         )
         self.session.flush()
-
+    
     def get_by_server_id(self, server_id: int) -> CommunityEntity | None:
         stmt = (
             select(Community)
@@ -88,12 +90,22 @@ class CommunityRepository(BaseRepository):
             .where(Server.server_id == server_id)
         )
         obj = self.session.scalar(stmt)
-        return None if obj is None else _model_to_entity(obj)
+        return None if obj is None else _community_model_to_entity(obj)
 
     def unlink_server(self, server_id: int) -> None:
         stmt = delete(Server).where(Server.server_id == server_id)
         self.session.execute(stmt)
         self.session.flush()
 
-    def get_default_selected_list(self, community_id: int) -> ListEntity:
-        ...
+    def get_default_selected_list(self, community_id: int) -> ListEntity | None:
+        stmt = (
+            select(List)
+            .where(List.list_id == (
+                select(Community.default_selected_list_id)
+                .where(Community.community_id == community_id)
+                .scalar_subquery()
+            ))
+        )
+        obj = self.session.execute(stmt).scalar_one_or_none()
+
+        return None if obj is None else _list_model_to_entity(obj)

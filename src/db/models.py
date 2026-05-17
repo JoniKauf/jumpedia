@@ -1,6 +1,11 @@
 # db/models.py
 from sqlalchemy import (
-    CheckConstraint, ForeignKey, Integer, BigInteger, String, UniqueConstraint
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    BigInteger,
+    String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column, validates
@@ -10,7 +15,7 @@ from db.types import RealStrType, NormStrType
 from domain.enums.attribute import Kind, SlotType, Type
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.value_objects.slot import Slot
-from domain.value_objects.strings import RealStr, NormStr
+from domain.value_objects.string import RealStr, NormStr
 from domain.value_objects.limits import Limits
 import typing as t
 
@@ -20,25 +25,49 @@ _DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
 
 # --- Community ---
 
+
 class Community(Base):
     __tablename__ = "community"
 
-    community_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    community_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True)
-    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True)
+    norm_name: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+    )
+    real_name: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+    )
 
     default_selected_list_id: Mapped[int | None] = mapped_column(
         ForeignKey("list.list_id", ondelete="SET NULL")
     )
 
-    community_list_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.community_list_count_max)
-    list_attribute_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_attribute_count_max)
-    list_task_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_task_count_max)
-    attribute_alias_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_alias_count_max)
-    attribute_task_value_slot_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_task_value_slot_count_max)
-    attribute_collection_entry_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_collection_entry_count_max)
-    attribute_collection_entry_alias_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_collection_entry_alias_count_max)
+    community_list_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.community_list_count_max
+    )
+    list_attribute_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_attribute_count_max
+    )
+    list_task_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_task_count_max
+    )
+    attribute_alias_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_alias_count_max
+    )
+    attribute_task_value_slot_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True),
+        default=_DEFAULT_LIMITS.attribute_task_value_slot_count_max,
+    )
+    attribute_collection_entry_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True),
+        default=_DEFAULT_LIMITS.attribute_collection_entry_count_max,
+    )
+    attribute_collection_entry_alias_count_max: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True),
+        default=_DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
+    )
 
 
 class Server(Base):
@@ -52,6 +81,7 @@ class Server(Base):
 
 
 # --- List ---
+
 
 class List(Base):
     __tablename__ = "list"
@@ -73,6 +103,7 @@ class List(Base):
 
 # --- Users ---
 
+
 class User(Base):
     __tablename__ = "jumpedia_user"
 
@@ -86,14 +117,16 @@ class User(Base):
         *Base.__table_args__,
         CheckConstraint(
             f"power BETWEEN {min(r.value for r in MetaRank)} AND {max(r.value for r in MetaRank)}"
-        )
+        ),
     )
 
 
 class CommunityUser(Base):
     __tablename__ = "community_user"
 
-    community_user_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    community_user_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.community_id", ondelete="CASCADE")
@@ -113,26 +146,31 @@ class CommunityUser(Base):
         *Base.__table_args__,
         CheckConstraint(
             f"power BETWEEN {min(r.value for r in CommunityRank)} AND {max(r.value for r in CommunityRank)}"
-        )
+        ),
     )
 
 
 # --- Attribute ---
 
+
 class Attribute(Base):
     __tablename__ = "attribute"
 
-    attribute_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+    attribute_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
     )
+
+    list_id: Mapped[int] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
     type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
-    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+    )
+    real_name: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+    )
 
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -154,9 +192,7 @@ class Attribute(Base):
         CheckConstraint(
             f"slot_type BETWEEN {min(r.value for r in SlotType)} AND {max(r.value for r in SlotType)}"
         ),
-        CheckConstraint(
-            f"min_slot_count <= max_slot_count"
-        ),
+        CheckConstraint(f"min_slot_count <= max_slot_count"),
         CheckConstraint(
             f"min_slot_count BETWEEN {Limits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT} AND max_slot_count"
         ),
@@ -169,18 +205,22 @@ class Attribute(Base):
 class AttributeAlias(Base):
     __tablename__ = "attribute_alias"
 
-    attribute_alias_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    attribute_alias_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     attribute_id: Mapped[int] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
-    )
+    list_id: Mapped[int] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
-    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
-    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX))
+    norm_alias: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+    )
+    real_alias: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -190,10 +230,13 @@ class AttributeAlias(Base):
 
 # --- Attribute Collection ---
 
+
 class AttributeCollectionEntry(Base):
     __tablename__ = "attribute_collection_entry"
 
-    attribute_collection_entry_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    attribute_collection_entry_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     attribute_id: Mapped[int] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
@@ -201,8 +244,12 @@ class AttributeCollectionEntry(Base):
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
-    norm_slot: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
-    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    norm_slot: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
+    real_slot: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -214,18 +261,27 @@ class AttributeCollectionEntry(Base):
 class AttributeCollectionEntryAlias(Base):
     __tablename__ = "attribute_collection_entry_alias"
 
-    attribute_collection_entry_alias_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    attribute_collection_entry_alias_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     attribute_collection_entry_id: Mapped[int] = mapped_column(
-        ForeignKey("attribute_collection_entry.attribute_collection_entry_id", ondelete="CASCADE")
+        ForeignKey(
+            "attribute_collection_entry.attribute_collection_entry_id",
+            ondelete="CASCADE",
+        )
     )
 
     attribute_id: Mapped[int] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 
-    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
-    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    norm_alias: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
+    real_alias: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -235,17 +291,20 @@ class AttributeCollectionEntryAlias(Base):
 
 # --- Task ---
 
+
 class Task(Base):
     __tablename__ = "task"
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
-    )
+    list_id: Mapped[int] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
-    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
+    real_name: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -256,18 +315,20 @@ class Task(Base):
 class TaskAlias(Base):
     __tablename__ = "task_alias"
 
-    task_alias_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE")
+    task_alias_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
     )
 
-    list_id: Mapped[int] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
+
+    list_id: Mapped[int] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
+
+    norm_alias: Mapped[NormStr] = mapped_column(
+        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
-    
-    norm_alias: Mapped[NormStr] = mapped_column(NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
-    real_alias: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_alias: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -277,38 +338,40 @@ class TaskAlias(Base):
 
 # --- Static Task Values ---
 
+
 class TaskAttributeValue(Base):
     __tablename__ = "task_attribute_value"
 
     task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE"),
-        primary_key=True
+        ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
     )
 
     attribute_id: Mapped[int] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE"),
-        primary_key=True
+        ForeignKey("attribute.attribute_id", ondelete="CASCADE"), primary_key=True
     )
 
     index: Mapped[int] = mapped_column(primary_key=True)
 
-    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_slot: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
 
 # --- User Task ---
 
+
 class CommunityUserTask(Base):
     __tablename__ = "community_user_task"
 
-    community_user_task_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    community_user_task_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
 
     community_user_id: Mapped[int] = mapped_column(
         ForeignKey("community_user.community_user_id", ondelete="CASCADE")
     )
 
-    task_id: Mapped[int] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE")
-    )
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
 
     __table_args__ = (
         *Base.__table_args__,
@@ -333,7 +396,9 @@ class CommunityUserTaskAttributeValue(Base):
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
-    real_slot: Mapped[RealStr] = mapped_column(RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX))
+    real_slot: Mapped[RealStr] = mapped_column(
+        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,

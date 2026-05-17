@@ -1,22 +1,30 @@
-from dataclasses import dataclass
+from domain import errors
 from domain.entities.base import BaseEntity
+from domain.enums.attribute import Type, Kind
+from domain.value_objects.limits import Limits
 from domain.value_objects.slot import Slot
-from domain.value_objects.strings import StrStore
+from domain.value_objects.string import StrStore
 
-from domain.enums.attribute import Kind, Type
 
-@dataclass(slots=True)
 class AttributeEntity(BaseEntity):
-    _list_id: int
-    _type: Type
-    _kind: Kind
-    _name: StrStore
-    _slot: Slot
-    _position: int
+    def __init__(
+        self,
+        id: int,
+        list_id: int,
+        type: Type,
+        kind: Kind,
+        name: StrStore,
+        slot: Slot,
+        position: int,
+    ) -> None:
+        super().__init__(id)
+        self._list_id = list_id
+        self._type = type
+        self._kind = kind
+        self.name = name
+        self._slot = slot
+        self._position = position
 
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        
         if self._position < 1:
             raise ValueError("position < 1")
 
@@ -35,6 +43,12 @@ class AttributeEntity(BaseEntity):
     @property
     def name(self) -> StrStore:
         return self._name
+
+    @name.setter
+    def name(self, value: StrStore) -> None:
+        if len(value) > Limits.ATTRIBUTE_SYN_LENGTH_MAX:
+            raise errors.NameTooLong(value, AttributeEntity)
+        self._name = value
 
     @property
     def slot(self) -> Slot:

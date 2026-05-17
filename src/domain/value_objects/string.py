@@ -2,8 +2,6 @@ import typing as t
 import re
 import string
 
-from _adapters import cached_property
-
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
 
@@ -11,12 +9,14 @@ BAD_CHAR_MAPPING = str.maketrans(
     {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}
 )
 
+
 def _replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:
     return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
 
 
 def _replace_bad_chars(s: str) -> str:
     return s.translate(BAD_CHAR_MAPPING)
+
 
 class EmptyStringError(ValueError):
     pass
@@ -31,16 +31,16 @@ class BaseStr:
 
     def __str__(self) -> str:
         return self._str
-    
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._str!r})"
 
     def __len__(self) -> int:
         return len(self._str)
-    
+
     def __bool__(self) -> t.Literal[True]:
         return True
-    
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, BaseStr):
             return self._str == other._str
@@ -50,7 +50,7 @@ class BaseStr:
 
     def __hash__(self) -> int:
         return hash(self._str)
-    
+
     @property
     def value(self) -> str:
         return self._str
@@ -94,7 +94,7 @@ class NormStr(BaseStr):
 
         if isinstance(s, str):
             s = RealStr(s)
-        
+
         self._str = s._str.lower()
 
 
@@ -102,7 +102,7 @@ class StrStore:
     _validate: bool
     _real: RealStr | None
     _norm: NormStr | None
-    
+
     @t.overload
     def __init__(self, s: str, *, _validate: bool = True) -> None:
         pass
@@ -110,8 +110,15 @@ class StrStore:
     @t.overload
     def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
         pass
-    
-    def __init__(self, s: str | None = None, *, _validate: bool = True, _real: RealStr | None = None, _norm: NormStr | None = None) -> None:
+
+    def __init__(
+        self,
+        s: str | None = None,
+        *,
+        _validate: bool = True,
+        _real: RealStr | None = None,
+        _norm: NormStr | None = None,
+    ) -> None:
         if s is not None:
             assert _real is None
             assert _norm is None
@@ -132,14 +139,14 @@ class StrStore:
     @property
     def raw(self) -> str:
         return self._raw
-    
+
     @property
     def real(self) -> RealStr:
         if self._real is None:
             self._real = RealStr(self._raw, _validate=self._validate)
 
         return self._real
-        
+
     @property
     def norm(self) -> NormStr:
         if self._norm is None:
@@ -149,7 +156,7 @@ class StrStore:
 
     def __len__(self):
         return len(self.real)
-    
+
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, RealStr] = {}

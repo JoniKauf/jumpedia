@@ -1,19 +1,16 @@
 from discord import Interaction
 
 from db.models import List
-from domain.value_objects.strings import StrStore
+from domain.value_objects.string import StrStore
 from interfaces.decorators.context import CommandContext
 from repositories.attribute import AttributeRepository
 from repositories.list import ListRepository
 from repositories.community import CommunityRepository
 from sqlalchemy.orm import Session
 from domain import errors
-from services.dto.list import ListInfo
+from services.dto.list import ListInfoDTO
 
-from .base import BaseService
 
-class ListService(BaseService):
+class ListService:
     def __init__(self, session: Session) -> None:
-        super().__init__(session)
-
         self.attribute_repo = AttributeRepository(session)
