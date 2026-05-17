@@ -13,18 +13,13 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
 from domain.value_objects.string import StrStore
+from interfaces.context.command import CommandContext
+from interfaces.context.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
 from repositories.user import CommunityRank
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
-
-
-@dataclass(frozen=True)
-class CommandContext:
-    session: Session
-    interaction: discord.Interaction
-    member: discord.Member
 
 
 type FuncIn[T, **P] = t.Callable[
@@ -111,7 +106,12 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         CommandContext(
                             session,
                             interaction,
-                            member,
+                            InteractingUserContext(
+                                member.id,
+                                StrStore(member.name),
+                                self.get_server_rank(member),
+                                member.guild.id,
+                            )
                         ),
                         *args,
                         **kwargs,

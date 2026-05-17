@@ -47,7 +47,7 @@ class AttributeEntity(BaseEntity):
     @name.setter
     def name(self, value: StrStore) -> None:
         if len(value) > Limits.ATTRIBUTE_SYN_LENGTH_MAX:
-            raise errors.NameTooLong(value, AttributeEntity)
+            raise errors.NameTooLong(value, Limits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity)
         self._name = value
 
     @property

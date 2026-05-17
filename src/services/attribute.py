@@ -8,7 +8,7 @@ from repositories.list import ListRepository
 from repositories.community import CommunityRepository
 from sqlalchemy.orm import Session
 from domain import errors
-from services.dto.list import ListInfoDTO
+from services.dtos.list import ListInfoDTO
 
 
 class ListService:

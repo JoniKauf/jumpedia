@@ -7,7 +7,7 @@ from repositories.attribute import AttributeRepository
 from repositories.list import ListRepository
 from sqlalchemy.orm import Session
 from domain import errors
-from services.dto.list import ListInfoDTO
+from services.dtos.list import ListInfoDTO
 
 from .base import BaseService
 
@@ -43,7 +43,7 @@ class ListService(BaseService):
     # -------------------------
     # CREATE LIST
     # -------------------------
-    def create_list(self, community_id: int, name: StrStore) -> ListEntity:
+    def create(self, community_id: int, name: StrStore) -> ListEntity:
         community = self.community_repo.get_by_id(community_id)
 
         if community is None:

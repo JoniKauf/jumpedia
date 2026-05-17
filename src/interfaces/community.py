@@ -20,9 +20,8 @@ class CommunityInterface(BaseInterface, group_name="community"):
     def __init__(
         self, community_service: CommunityService, user_service: UserService
     ) -> None:
-        super().__init__()
+        super().__init__(user_service)
         self.community_service = community_service
-        self.user_service = user_service
 
     @app_commands.command()
     @with_context()
@@ -40,12 +39,10 @@ class CommunityInterface(BaseInterface, group_name="community"):
         attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
     ) -> None:
         community = self.community_service.create(
-            self.user_service.get_or_create(
-                UserEntity(ctx.member.id, StrStore(ctx.member.name))
-            ),
+            ctx.interacting_user_context,
             StrStore(name),
-            ctx.member.guild.id,
-            self.user_service.get_or_create(UserEntity(owner.id, StrStore(owner.name))),
+            owner.id,
+            StrStore(owner.name),
             Limits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
@@ -58,7 +55,6 @@ class CommunityInterface(BaseInterface, group_name="community"):
         )
 
         await messages.created(ctx.interaction, community)
-
     
     @app_commands.command()
     @with_context()
@@ -66,5 +62,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        ...
+        self.community_service.delete(
+            self.user_service.get_or_create(UserEntity)
+        )
 
