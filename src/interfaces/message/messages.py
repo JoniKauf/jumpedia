@@ -38,10 +38,20 @@ async def success(
 
 async def created(
     interaction: discord.Interaction,
-    entity: format.MentionableEntity,
+    entity: format.Mentionable,
 ) -> None:
     await success(
         interaction,
-        t"{format.get_mentionable_entity_type_name(entity).title()} Created",
+        t"{format.get_mentionable_type_name(entity).title()} Created",
         t"The {format.mention(entity)} has successfully been created!",
+    )
+
+async def nuked(
+    interaction: discord.Interaction,
+    entity: format.Mentionable
+) -> None:
+    await success(
+        interaction,
+        t"{format.get_mentionable_type_name(entity).title()} Deleted",
+        t"The {format.mention(entity)} has successfully been nuked!"
     )

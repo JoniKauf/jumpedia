@@ -62,7 +62,6 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        self.community_service.delete(
-            self.user_service.get_or_create(UserEntity)
-        )
+        self.community_service.delete(ctx.interacting_user_context)
 
+        await messages.nuked(ctx.interaction, )

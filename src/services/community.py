@@ -27,7 +27,7 @@ class CommunityService:
         obj = self.community_repo.get_by_server_id(server_id)
 
         if obj is None:
-            raise errors.NotFound(CommunityEntity)
+            raise errors.NotInCommunity
         
         return obj
     
@@ -36,7 +36,7 @@ class CommunityService:
         community_user = self.community_user_service.get_or_create(CommunityUserEntity(0, community.id, user.id))
 
         return community, community_user
-
+    
     # -------------------------
     # CREATE COMMUNITY
     # -------------------------
@@ -81,19 +81,13 @@ class CommunityService:
     # -------------------------
     # DELETE COMMUNITY
     # -------------------------
-    def delete(self, user: UserEntity, server_id: int) -> DeletedCommunityDTO:
-        community, community_user = self._get_by_server_id_or_raise_and_community_user(server_id, user)
+    def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDTO:
+        user = self.user_service.get_or_create(UserEntity(ctx.id, ctx.name))
+
+        community, community_user = self._get_by_server_id_or_raise_and_community_user(ctx.server_id, user)
 
         PermissionService.ensure_community_rank(community_user.rank, user.rank, CommunityRank.OWNER)
 
         self.community_repo.delete(community.id)
 
         return DeletedCommunityDTO(community.name, community.limits)
-
-    def _get_community_by_server_id_or_throw(self, server_id: int) -> CommunityEntity:
-        community = self.community_repo.get_by_server_id(server_id)
-
-        if community is None:
-            raise errors.NotInCommunity()
-
-        return community
