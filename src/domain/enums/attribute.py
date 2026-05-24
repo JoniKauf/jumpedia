@@ -3,19 +3,19 @@ from functools import cached_property
 import typing as t
 
 
-class Type(enum.IntEnum):
+class AttributeType(enum.IntEnum):
     STATIC = 1
     TASK = 2
     USER = 3
 
 
-class Kind(enum.IntEnum):
+class AttributeKind(enum.IntEnum):
     NAME = 1
     ALIAS = 2
     ID = 3
 
 
-class SlotType(enum.IntEnum):
+class AttributeSlotType(enum.IntEnum):
     BOOL = 1
     INT = 2
     FLOAT = 3
@@ -24,13 +24,13 @@ class SlotType(enum.IntEnum):
     @cached_property
     def type(self) -> type:
         match self:
-            case SlotType.BOOL:
+            case AttributeSlotType.BOOL:
                 return bool
-            case SlotType.INT:
+            case AttributeSlotType.INT:
                 return int
-            case SlotType.FLOAT:
+            case AttributeSlotType.FLOAT:
                 return float
-            case SlotType.STR:
+            case AttributeSlotType.STR:
                 return str
             case _:
                 t.assert_never(self)

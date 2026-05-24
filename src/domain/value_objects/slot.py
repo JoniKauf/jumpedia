@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
-from domain.enums.attribute import SlotType
+from domain.enums.attribute import AttributeSlotType
 from domain.value_objects.limits import Limits
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
-class Slot:
-    type: SlotType
+class AttributeSlot:
+    type: AttributeSlotType
     min_count: int
     max_count: int
     limits: Limits

@@ -10,7 +10,7 @@ from repositories.community import CommunityRepository
 from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
 from services._permission import PermissionService
-from services.dtos.community import DeletedCommunityDTO
+from services.dtos.community import DeletedCommunityDto
 from services.list import ListService
 from services.user import CommunityUserService, UserService
 from sqlalchemy.orm import Session
@@ -28,15 +28,19 @@ class CommunityService:
 
         if obj is None:
             raise errors.NotInCommunity
-        
+
         return obj
-    
-    def _get_by_server_id_or_raise_and_community_user(self, server_id: int, user: UserEntity) -> tuple[CommunityEntity, CommunityUserEntity]:
+
+    def _get_by_server_id_or_raise_and_community_user(
+        self, server_id: int, user: UserEntity
+    ) -> tuple[CommunityEntity, CommunityUserEntity]:
         community = self._get_by_server_id_or_raise(server_id)
-        community_user = self.community_user_service.get_or_create(CommunityUserEntity(0, community.id, user.id))
+        community_user = self.community_user_service.get_or_create(
+            CommunityUserEntity(user, 0, community.id)
+        )
 
         return community, community_user
-    
+
     # -------------------------
     # CREATE COMMUNITY
     # -------------------------
@@ -56,12 +60,12 @@ class CommunityService:
 
         if existing is not None:
             raise errors.NameAlreadyTaken(name, existing)
-        
+
         existing = self.community_repo.get_by_server_id(ctx.server_id)
 
         if existing is not None:
             raise errors.ServerAlreadyConnectedToACommunity(ctx.server_id, existing)
-        
+
         del existing
 
         community = self.community_repo.create(CommunityEntity(0, name, limits))
@@ -81,13 +85,17 @@ class CommunityService:
     # -------------------------
     # DELETE COMMUNITY
     # -------------------------
-    def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDTO:
+    def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDto:
         user = self.user_service.get_or_create(UserEntity(ctx.id, ctx.name))
 
-        community, community_user = self._get_by_server_id_or_raise_and_community_user(ctx.server_id, user)
+        community, community_user = self._get_by_server_id_or_raise_and_community_user(
+            ctx.server_id, user
+        )
 
-        PermissionService.ensure_community_rank(community_user.rank, user.rank, CommunityRank.OWNER)
+        PermissionService.ensure_community_rank(
+            community_user.rank, user.rank, CommunityRank.OWNER
+        )
 
         self.community_repo.delete(community.id)
 
-        return DeletedCommunityDTO(community.name, community.limits)
+        return DeletedCommunityDto(community.name, community.limits)

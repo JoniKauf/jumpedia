@@ -12,9 +12,9 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from db.base import Base
 from db.types import RealStrType, NormStrType
-from domain.enums.attribute import Kind, SlotType, Type
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.value_objects.slot import Slot
+from domain.value_objects.slot import AttributeSlot
 from domain.value_objects.string import RealStr, NormStr
 from domain.value_objects.limits import Limits
 import typing as t
@@ -184,13 +184,13 @@ class Attribute(Base):
         UniqueConstraint("list_id", "norm_name"),
         UniqueConstraint("list_id", "position"),
         CheckConstraint(
-            f"type BETWEEN {min(r.value for r in Type)} AND {max(r.value for r in Type)}"
+            f"type BETWEEN {min(r.value for r in AttributeType)} AND {max(r.value for r in AttributeType)}"
         ),
         CheckConstraint(
-            f"kind BETWEEN {min(r.value for r in Kind)} AND {max(r.value for r in Kind)}"
+            f"kind BETWEEN {min(r.value for r in AttributeKind)} AND {max(r.value for r in AttributeKind)}"
         ),
         CheckConstraint(
-            f"slot_type BETWEEN {min(r.value for r in SlotType)} AND {max(r.value for r in SlotType)}"
+            f"slot_type BETWEEN {min(r.value for r in AttributeSlotType)} AND {max(r.value for r in AttributeSlotType)}"
         ),
         CheckConstraint(f"min_slot_count <= max_slot_count"),
         CheckConstraint(

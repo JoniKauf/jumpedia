@@ -54,7 +54,7 @@ async def _handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Allowed",
-                t"You have the rank {format.mention(e.rank)}, but you at least need the rank {format.mention(e.required)} to perform this action!",
+                t"You have the rank {format.Mention(e.rank).mention}, but you at least need the rank {format.mention(e.required)} to perform this action!",
             )
 
         case errors.EmptyString():
@@ -111,7 +111,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                                 StrStore(member.name),
                                 self.get_server_rank(member),
                                 member.guild.id,
-                            )
+                            ),
                         ),
                         *args,
                         **kwargs,

@@ -82,7 +82,7 @@ class CommunityRepository(BaseRepository):
             )
         )
         self.session.flush()
-    
+
     def get_by_server_id(self, server_id: int) -> CommunityEntity | None:
         stmt = (
             select(Community)
@@ -98,13 +98,13 @@ class CommunityRepository(BaseRepository):
         self.session.flush()
 
     def get_default_selected_list(self, community_id: int) -> ListEntity | None:
-        stmt = (
-            select(List)
-            .where(List.list_id == (
+        stmt = select(List).where(
+            List.list_id
+            == (
                 select(Community.default_selected_list_id)
                 .where(Community.community_id == community_id)
                 .scalar_subquery()
-            ))
+            )
         )
         obj = self.session.execute(stmt).scalar_one_or_none()
 

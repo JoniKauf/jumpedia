@@ -20,14 +20,16 @@ class CommunityEntity(BaseEntity):
     @name.setter
     def name(self, value: StrStore) -> None:
         if len(self._name.real) > Limits.COMMUNITY_NAME_LENGTH_MAX:
-            raise errors.NameTooLong(value, Limits.COMMUNITY_NAME_LENGTH_MAX, type(self))
+            raise errors.NameTooLong(
+                value, Limits.COMMUNITY_NAME_LENGTH_MAX, type(self)
+            )
 
         self._name = value
 
     @property
     def limits(self) -> Limits:
         return self._limits
-    
+
     @limits.setter
     def limits(self, value: Limits) -> None:
         self._limits = value

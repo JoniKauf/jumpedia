@@ -22,7 +22,7 @@ class BaseInterface(commands.GroupCog, metaclass=InterfaceMeta, group_name="base
     def __init__(self, user_service: UserService) -> None:
         super().__init__()
         self.user_service = user_service
-        
+
     @staticmethod
     def get_server_rank(member: discord.Member) -> ServerRank:
         owner = member.guild.owner

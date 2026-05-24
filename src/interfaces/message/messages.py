@@ -6,7 +6,7 @@ import discord
 from domain.entities.base import BaseEntity
 from domain.errors import StrStore
 from interfaces.message import format, layout
-from interfaces.message.layout import Status
+from interfaces.message.layout import T, Status
 
 
 async def error(
@@ -28,30 +28,29 @@ async def error(
 
 
 async def success(
-    interaction: discord.Interaction,
-    header: Template,
-    body: Template
+    interaction: discord.Interaction, header: Template, body: Template
 ) -> None:
-    await interaction.followup.send(
-        layout.layout(header, body, Status.SUCCESS)
-    )
+    await interaction.followup.send(layout.layout(header, body, Status.SUCCESS))
+
 
 async def created(
     interaction: discord.Interaction,
-    entity: format.Mentionable,
+    entity: format.MentionableEntityT,
 ) -> None:
+    mention = format.Mention(entity)
+
     await success(
         interaction,
-        t"{format.get_mentionable_type_name(entity).title()} Created",
-        t"The {format.mention(entity)} has successfully been created!",
+        t"{mention.type_title @ T.RAW} Created",
+        t"The {mention.mention} has successfully been created!",
     )
 
-async def nuked(
-    interaction: discord.Interaction,
-    entity: format.Mentionable
-) -> None:
+
+async def nuked(interaction: discord.Interaction, dto: format.MentionableDtoT) -> None:
+    mention = format.Mention(dto)
+
     await success(
         interaction,
-        t"{format.get_mentionable_type_name(entity).title()} Deleted",
-        t"The {format.mention(entity)} has successfully been nuked!"
+        t"{mention.type_title @ T.RAW} Deleted",
+        t"The {mention.mention} has successfully been nuked!",
     )

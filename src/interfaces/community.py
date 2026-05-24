@@ -55,7 +55,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
         )
 
         await messages.created(ctx.interaction, community)
-    
+
     @app_commands.command()
     @with_context()
     async def nuke(
@@ -64,4 +64,6 @@ class CommunityInterface(BaseInterface, group_name="community"):
     ) -> None:
         self.community_service.delete(ctx.interacting_user_context)
 
-        await messages.nuked(ctx.interaction, )
+        await messages.nuked(
+            ctx.interaction,
+        )

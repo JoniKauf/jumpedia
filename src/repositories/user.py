@@ -22,7 +22,7 @@ def _community_user_model_to_entity(model: CommunityUser) -> CommunityUserEntity
         community_id=model.community_id,
         user_id=model.user_id,
         rank=CommunityRank(model.power),
-        selected_list_id=model.selected_list_id
+        selected_list_id=model.selected_list_id,
     )
 
 

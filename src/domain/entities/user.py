@@ -33,17 +33,18 @@ class UserEntity(BaseEntity):
 class CommunityUserEntity(BaseEntity):
     def __init__(
         self,
+        user: UserEntity,
         id: int,
         community_id: int,
-        user_id: int,
         rank: CommunityRank = CommunityRank.DEFAULT,
         selected_list_id: int | None = None,
     ) -> None:
         super().__init__(id)
         self._community_id = community_id
-        self._user_id = user_id
+        self._user_id = user.id
         self.rank = rank
         self.selected_list_id = selected_list_id
+        self._name = user.name
 
     @property
     def community_id(self) -> int:
@@ -68,3 +69,7 @@ class CommunityUserEntity(BaseEntity):
     @selected_list_id.setter
     def selected_list_id(self, value: int | None) -> None:
         self._selected_list_id = value
+
+    @property
+    def name(self) -> StrStore:
+        return self._name

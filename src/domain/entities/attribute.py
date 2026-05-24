@@ -1,8 +1,8 @@
 from domain import errors
 from domain.entities.base import BaseEntity
-from domain.enums.attribute import Type, Kind
+from domain.enums.attribute import AttributeType, AttributeKind
 from domain.value_objects.limits import Limits
-from domain.value_objects.slot import Slot
+from domain.value_objects.slot import AttributeSlot
 from domain.value_objects.string import StrStore
 
 
@@ -11,10 +11,10 @@ class AttributeEntity(BaseEntity):
         self,
         id: int,
         list_id: int,
-        type: Type,
-        kind: Kind,
+        type: AttributeType,
+        kind: AttributeKind,
         name: StrStore,
-        slot: Slot,
+        slot: AttributeSlot,
         position: int,
     ) -> None:
         super().__init__(id)
@@ -33,11 +33,11 @@ class AttributeEntity(BaseEntity):
         return self._list_id
 
     @property
-    def type(self) -> Type:
+    def type(self) -> AttributeType:
         return self._type
 
     @property
-    def kind(self) -> Kind:
+    def kind(self) -> AttributeKind:
         return self._kind
 
     @property
@@ -47,11 +47,13 @@ class AttributeEntity(BaseEntity):
     @name.setter
     def name(self, value: StrStore) -> None:
         if len(value) > Limits.ATTRIBUTE_SYN_LENGTH_MAX:
-            raise errors.NameTooLong(value, Limits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity)
+            raise errors.NameTooLong(
+                value, Limits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
+            )
         self._name = value
 
     @property
-    def slot(self) -> Slot:
+    def slot(self) -> AttributeSlot:
         return self._slot
 
     @property

@@ -1,5 +1,6 @@
 import typing as t
 
+
 class BaseEntity:
     _id: int
 
@@ -9,7 +10,7 @@ class BaseEntity:
 
         if id < 0:
             raise RuntimeError("ID must be 0 (not persisted) or higher (persisted)")
-        
+
         self._id = id
 
     @property

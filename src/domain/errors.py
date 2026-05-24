@@ -61,6 +61,7 @@ class NameTooLong(DomainError):
         self.limit = limit
         self.type = type
 
+
 class NameAlreadyTaken(DomainError):
     def __init__(self, name: StrStore, existing: BaseEntity) -> None:
         super().__init__()
