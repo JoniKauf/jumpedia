@@ -8,10 +8,12 @@ from repositories.user import CommunityUserRepository, UserRepository
 from db.models import CommunityUser
 import typing as t
 
+from services.services import Services
+
 
 class UserService:
-    def __init__(self, session: Session):
-        self._user_repo = UserRepository(session)
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
 
     def get_or_create(
         self,
@@ -20,10 +22,10 @@ class UserService:
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
     ) -> UserEntity:
-        existing = self._user_repo.get_by_id(user.id)
+        existing = self._repo.get_by_id(user.id)
 
         if existing is None:
-            return self._user_repo.create(user)
+            return self._repo.create(user)
 
         overwrite_any: bool = False
 
@@ -38,13 +40,13 @@ class UserService:
         if not overwrite_any:
             return existing
 
-        return self._user_repo.update(existing)
+        return self._repo.update(existing)
 
 
 class CommunityUserService:
-    def __init__(self, session: Session):
-        self._community_user_repo = CommunityUserRepository(session)
-        self._user_service = UserService(session)
+    def __init__(self, repo: CommunityUserRepository, user_service: UserService):
+        self._repo = repo
+        self._user_service = user_service
 
     def get_or_create(
         self,
@@ -55,12 +57,12 @@ class CommunityUserService:
     ) -> CommunityUserEntity:
         self._user_service.get_or_create(UserEntity(0, community_user.user.name))
 
-        existing = self._community_user_repo.get_by_user_and_community_id(
+        existing = self._repo.get_by_user_and_community_id(
             community_user.user, community_user.community_id
         )
 
         if existing is None:
-            return self._community_user_repo.create(community_user)
+            return self._repo.create(community_user)
 
         overwrite_any: bool = False
 
@@ -75,4 +77,4 @@ class CommunityUserService:
         if not overwrite_any:
             return existing
 
-        return self._community_user_repo.update(existing)
+        return self._repo.update(existing)

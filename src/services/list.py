@@ -7,25 +7,22 @@ from repositories.attribute import AttributeRepository
 from repositories.list import ListRepository
 from sqlalchemy.orm import Session
 from domain import errors
+from services.community import CommunityService
 from services.dtos.list import ListInfoDTO
 
-from .base import BaseService
 
-
-class ListService(BaseService):
-    def __init__(self, session: Session) -> None:
-        super().__init__(session)
-
-        self.list_repo = ListRepository(session)
-        self.attribute_repo = AttributeRepository(session)
+class ListService:
+    def __init__(self, repo: ListRepository, community_service: CommunityService) -> None:
+        self._repo = repo
+        self._community_service = community_service
 
     def info(self, server_id: int, name: StrStore) -> ListInfoDTO:
-        community = self._get_community_by_server_id_or_throw(server_id)
+        community = self._community_service._get_by_server_id_or_raise(server_id)
 
-        lst = self.list_repo.get_by_name(community.id, name)
+        lst = self._repo.get_by_name(community.id, name)
 
         if lst is None:
-            raise errors.NotFound(List)
+            raise errors.NotFound(ListEntity)
 
         attributes = self.attribute_repo.get_by_list_id(lst.id)
         task_count = self.list_repo.count_tasks(lst.id)

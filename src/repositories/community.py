@@ -1,8 +1,8 @@
 from dataclasses import asdict
 
-from sqlalchemy import select, delete
+from sqlalchemy import func, select, delete
 
-from db.models import Community as Community, List, Server as Server
+from db.models import Community as Community, CommunityUser, List, Server as Server
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
@@ -111,5 +111,4 @@ class CommunityRepository(BaseRepository):
 
         return None if obj is None else _list_model_to_entity(obj)
 
-    def count_community_users(self, community_id: int) -> list[CommunityUserEntity]:
-        stmt = select(CommunityUserEntity)
+    

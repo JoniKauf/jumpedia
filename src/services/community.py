@@ -50,7 +50,7 @@ class CommunityService:
         community, _ = self._get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
 
         lists = self._list_repo.get_all(community.id)
-        community_users = self._community_repo.create
+        community_users = self._comm
 
     # -------------------------
     # CREATE COMMUNITY
