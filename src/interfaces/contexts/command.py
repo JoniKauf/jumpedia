@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 import discord
 
 from domain.entities.user import UserEntity
-from interfaces.context.interacting_user import InteractingUserContext
+from interfaces.contexts.interacting_user import InteractingUserContext
 
 
 @dataclass(frozen=True)

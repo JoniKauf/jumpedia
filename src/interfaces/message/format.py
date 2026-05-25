@@ -11,6 +11,7 @@ from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 
+from interfaces.message.layout import T, _TaggedObj
 from services.dtos.community import DeletedCommunityDto
 
 
@@ -45,7 +46,7 @@ class Mention:
     def __init__(self, mentionable: MentionableT) -> None:
         self._mentionable = mentionable
         self._type_name, self._obj_name = self._get_type_and_obj_name_lower(mentionable)
-    
+
     # This is purposefully very static and not dynamic with classes' __name__ to allow for
     # more customization if needed and to not have internal renames affect user-sided representation
     @staticmethod
@@ -106,10 +107,9 @@ class Mention:
                 t.assert_never(mentionable)
 
     @property
-    def type_title(self) -> str:
-        return self._type_name.title()
-    
+    def type_title(self) -> _TaggedObj:
+        return self._type_name.title() @ T.RAW
+
     @property
-    def mention(self) -> str:
-        return f"{self._type_name} ``{self._obj_name}``"
-    
+    def mention(self) -> _TaggedObj:
+        return f"{self._type_name} ``{self._obj_name}``" @ T.DEFAULT

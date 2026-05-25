@@ -7,7 +7,6 @@ from domain.value_objects.string import StrStore
 
 @dataclass(frozen=True, slots=True)
 class InteractingUserContext:
-    id: int
-    name: StrStore
+    user: UserEntity
     server_rank: ServerRank
     server_id: int

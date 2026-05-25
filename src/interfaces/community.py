@@ -25,6 +25,11 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
     @app_commands.command()
     @with_context()
+    async def info(self, ctx: CommandContext) -> None:
+        self.community_service.create
+        
+    @app_commands.command()
+    @with_context()
     async def create(
         self,
         ctx: CommandContext,
@@ -62,8 +67,15 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        self.community_service.delete(ctx.interacting_user_context)
+        community_dto = self.community_service.delete(ctx.interacting_user_context)
 
         await messages.nuked(
             ctx.interaction,
+            community_dto
         )
+
+    @app_commands.command()
+    @with_context()
+    async def connect(
+        self
+    )

@@ -6,6 +6,7 @@ from db.models import Community as Community, List, Server as Server
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
+from domain.entities.user import CommunityUserEntity
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 from repositories.list import _list_model_to_entity
@@ -109,3 +110,6 @@ class CommunityRepository(BaseRepository):
         obj = self.session.execute(stmt).scalar_one_or_none()
 
         return None if obj is None else _list_model_to_entity(obj)
+
+    def count_community_users(self, community_id: int) -> list[CommunityUserEntity]:
+        stmt = select(CommunityUserEntity)

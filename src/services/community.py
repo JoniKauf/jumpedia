@@ -5,8 +5,9 @@ from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.value_objects.string import StrStore
-from interfaces.context.interacting_user import InteractingUserContext
+from interfaces.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
+from repositories.list import ListRepository
 from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
 from services._permission import PermissionService
@@ -18,13 +19,14 @@ from sqlalchemy.orm import Session
 
 class CommunityService:
     def __init__(self, session: Session):
-        self.community_repo = CommunityRepository(session)
-        self.community_user_service = CommunityUserService(session)
-        self.list_service = ListService(session)
-        self.user_service = UserService(session)
+        self._community_repo = CommunityRepository(session)
+        self._community_user_service = CommunityUserService(session)
+        self._list_repo = ListRepository(session)
+        self._list_service = ListService(session)
+        self._user_service = UserService(session)
 
     def _get_by_server_id_or_raise(self, server_id: int) -> CommunityEntity:
-        obj = self.community_repo.get_by_server_id(server_id)
+        obj = self._community_repo.get_by_server_id(server_id)
 
         if obj is None:
             raise errors.NotInCommunity
@@ -35,11 +37,20 @@ class CommunityService:
         self, server_id: int, user: UserEntity
     ) -> tuple[CommunityEntity, CommunityUserEntity]:
         community = self._get_by_server_id_or_raise(server_id)
-        community_user = self.community_user_service.get_or_create(
-            CommunityUserEntity(user, 0, community.id)
+        community_user = self._community_user_service.get_or_create(
+            CommunityUserEntity(0, user, community.id)
         )
 
         return community, community_user
+
+    def info(
+        self,
+        ctx: InteractingUserContext,
+    ):
+        community, _ = self._get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
+
+        lists = self._list_repo.get_all(community.id)
+        community_users = self._community_repo.create
 
     # -------------------------
     # CREATE COMMUNITY
@@ -52,33 +63,31 @@ class CommunityService:
         owner_name: StrStore,
         limits: Limits,
     ) -> CommunityEntity:
-        user = self.user_service.get_or_create(UserEntity(ctx.id, ctx.name))
+        PermissionService.ensure_meta_rank(ctx.user.rank, MetaRank.ADMINISTRATOR)
 
-        PermissionService.ensure_meta_rank(user.rank, MetaRank.ADMINISTRATOR)
-
-        existing = self.community_repo.get_by_name(name)
+        existing = self._community_repo.get_by_name(name)
 
         if existing is not None:
             raise errors.NameAlreadyTaken(name, existing)
 
-        existing = self.community_repo.get_by_server_id(ctx.server_id)
+        existing = self._community_repo.get_by_server_id(ctx.server_id)
 
         if existing is not None:
             raise errors.ServerAlreadyConnectedToACommunity(ctx.server_id, existing)
 
         del existing
 
-        community = self.community_repo.create(CommunityEntity(0, name, limits))
+        community = self._community_repo.create(CommunityEntity(0, name, limits))
 
-        self.community_repo.link_server(community, ctx.server_id)
+        self._community_repo.link_server(community, ctx.server_id)
 
-        self.community_user_service.get_or_create(
-            CommunityUserEntity(0, community.id, owner_id, CommunityRank.OWNER, None),
+        self._community_user_service.get_or_create(
+            CommunityUserEntity(0, UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
             overwrite_rank=True,
             overwrite_selected_list=True,
         )
 
-        self.list_service.create(community.id, StrStore("Main"))
+        self._list_service.create(community.id, StrStore("Main"))
 
         return community
 
@@ -86,16 +95,14 @@ class CommunityService:
     # DELETE COMMUNITY
     # -------------------------
     def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDto:
-        user = self.user_service.get_or_create(UserEntity(ctx.id, ctx.name))
-
         community, community_user = self._get_by_server_id_or_raise_and_community_user(
-            ctx.server_id, user
+            ctx.server_id, ctx.user
         )
 
         PermissionService.ensure_community_rank(
-            community_user.rank, user.rank, CommunityRank.OWNER
+            community_user.rank, ctx.user.rank, CommunityRank.OWNER
         )
 
-        self.community_repo.delete(community.id)
+        self._community_repo.delete(community.id)
 
         return DeletedCommunityDto(community.name, community.limits)

@@ -13,10 +13,11 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
 from domain.value_objects.string import StrStore
-from interfaces.context.command import CommandContext
-from interfaces.context.interacting_user import InteractingUserContext
+from interfaces.contexts.command import CommandContext
+from interfaces.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
 from repositories.user import CommunityRank
+from services.user import UserService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
@@ -54,7 +55,7 @@ async def _handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Allowed",
-                t"You have the rank {format.Mention(e.rank).mention}, but you at least need the rank {format.mention(e.required)} to perform this action!",
+                t"You have the rank {format.Mention(e.rank).mention}, but you at least need the rank {format.Mention(e.required).mention} to perform this action!",
             )
 
         case errors.EmptyString():
@@ -107,8 +108,12 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                             session,
                             interaction,
                             InteractingUserContext(
-                                member.id,
-                                StrStore(member.name),
+                                self.user_service.get_or_create(
+                                    UserEntity(
+                                        member.id,
+                                        StrStore(member.name),
+                                    )
+                                ),
                                 self.get_server_rank(member),
                                 member.guild.id,
                             ),

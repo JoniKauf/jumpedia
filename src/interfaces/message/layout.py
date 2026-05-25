@@ -5,6 +5,7 @@ from types import UnionType
 import typing as t
 from interfaces.message import format
 
+
 class Status(enum.StrEnum):
     NONE = ""
     INFO = "information_source"
@@ -12,15 +13,16 @@ class Status(enum.StrEnum):
     WARNING = "warning"
     ERROR = "x"
 
+
 def _parse_interpolation(interpolation: Interpolation) -> str:
     if interpolation.format_spec:
         raise ValueError("Format is no longer supported")
-    
+
     obj = interpolation.value
-    
+
     if not isinstance(obj, _TaggedObj):
         obj = _TaggedObj(obj)
-    
+
     return str(obj)
 
 
@@ -51,18 +53,23 @@ def layout(header: Template, body: Template, status: Status) -> str:
 class T(enum.IntFlag):
     EMBED = 1 << 0
     SHORTEN = 1 << 1
-    
+
     # combos
     NONE = 0
+    FORMATTED = EMBED | SHORTEN
     RAW = NONE
-    DEFAULT = EMBED | SHORTEN
-    
+    DEFAULT = FORMATTED
+
     def __rmatmul__(self, value: t.Any) -> _TaggedObj:
+        # overwrite tags
+        if isinstance(value, _TaggedObj):
+            return _TaggedObj(value.obj, self)
+
         return _TaggedObj(value, self)
-    
+
     def has_flag(self, flag: T) -> bool:
         return self & flag == flag
-    
+
 
 @dataclass(frozen=True, slots=True)
 class _TaggedObj:
@@ -77,5 +84,5 @@ class _TaggedObj:
 
         if self.flags.has_flag(T.EMBED):
             s = f"``{s}``"
-        
+
         return s

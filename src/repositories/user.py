@@ -16,11 +16,11 @@ def _user_model_to_entity(model: User) -> UserEntity:
     )
 
 
-def _community_user_model_to_entity(model: CommunityUser) -> CommunityUserEntity:
+def _community_user_model_to_entity(model: CommunityUser, user: UserEntity) -> CommunityUserEntity:
     return CommunityUserEntity(
         id=model.community_user_id,
+        user=user,
         community_id=model.community_id,
-        user_id=model.user_id,
         rank=CommunityRank(model.power),
         selected_list_id=model.selected_list_id,
     )
@@ -61,15 +61,15 @@ class UserRepository(BaseRepository):
 
 
 class CommunityUserRepository(BaseRepository):
-    def get_by_user_id_and_community_id(
-        self, user_id: int, community_id: int
+    def get_by_user_and_community_id(
+        self, user: UserEntity, community_id: int
     ) -> CommunityUserEntity | None:
         stmt = select(CommunityUser).where(
-            CommunityUser.user_id == user_id,
+            CommunityUser.user_id == user.id,
             CommunityUser.community_id == community_id,
         )
         obj = self.session.scalar(stmt)
-        return None if obj is None else _community_user_model_to_entity(obj)
+        return None if obj is None else _community_user_model_to_entity(obj, user)
 
     def create(self, community_user: CommunityUserEntity) -> CommunityUserEntity:
         obj = CommunityUser(
@@ -82,7 +82,7 @@ class CommunityUserRepository(BaseRepository):
         self.session.add(obj)
         self.session.flush()
 
-        return _community_user_model_to_entity(obj)
+        return _community_user_model_to_entity(obj, community_user.user)
 
     def update(
         self,
@@ -96,4 +96,4 @@ class CommunityUserRepository(BaseRepository):
         obj.power = community_user.rank.value
         obj.selected_list_id = community_user.selected_list_id
 
-        return _community_user_model_to_entity(obj)
+        return _community_user_model_to_entity(obj, community_user.user)
