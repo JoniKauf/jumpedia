@@ -2,7 +2,9 @@ from sqlalchemy import select, func, delete
 
 from db.models import List as List, Task
 from domain.entities.list import ListEntity
+from domain.types.id import ID
 from domain.value_objects.string import StrStore
+from repositories.dtos.list import CreateListDTO
 from .base import BaseRepository
 
 
@@ -15,11 +17,11 @@ def _list_model_to_entity(model: List) -> ListEntity:
 
 
 class ListRepository(BaseRepository):
-    def create(self, community_id: int, name: StrStore) -> ListEntity:
+    def create(self, list: CreateListDTO) -> ListEntity:
         obj = List(
-            community_id=community_id,
-            norm_name=name.norm,
-            real_name=name.real,
+            community_id=list.community_id,
+            norm_name=list.name.norm,
+            real_name=list.name.real,
         )
 
         self.session.add(obj)
@@ -27,11 +29,11 @@ class ListRepository(BaseRepository):
 
         return _list_model_to_entity(obj)
 
-    def get_by_id(self, list_id: int) -> ListEntity | None:
+    def get_by_id(self, list_id: ID) -> ListEntity | None:
         obj = self.session.get(List, list_id)
         return None if obj is None else _list_model_to_entity(obj)
 
-    def get_by_name(self, community_id: int, name: StrStore) -> ListEntity | None:
+    def get_by_name(self, community_id: ID, name: StrStore) -> ListEntity | None:
         stmt = select(List).where(
             List.community_id == community_id,
             List.norm_name == name.norm,
@@ -39,11 +41,11 @@ class ListRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _list_model_to_entity(obj)
 
-    def get_all(self, community_id: int) -> list[ListEntity]:
+    def get_all(self, community_id: ID) -> list[ListEntity]:
         stmt = select(List).where(List.community_id == community_id)
         return [_list_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
 
-    def count(self, community_id: int) -> int:
+    def count(self, community_id: ID) -> int:
         stmt = (
             select(func.count())
             .select_from(List)
@@ -51,12 +53,12 @@ class ListRepository(BaseRepository):
         )
         return self.session.scalar(stmt) or 0
 
-    def delete(self, list_id: int) -> None:
+    def delete(self, list_id: ID) -> None:
         obj = self.session.get(List, list_id)
         if obj:
             self.session.delete(obj)
             self.session.flush()
 
-    def count_tasks(self, list_id: int) -> int:
+    def count_tasks(self, list_id: ID) -> int:
         stmt = select(func.count()).select_from(Task).where(Task.list_id == list_id)
         return self.session.scalar(stmt) or 0

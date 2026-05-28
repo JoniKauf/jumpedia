@@ -2,6 +2,8 @@ import typing as t
 import re
 import string
 
+from domain import errors
+
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
 
@@ -159,17 +161,17 @@ class StrStore:
 
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
-        mapping: dict[NormStr, RealStr] = {}
+        mapping: dict[NormStr, StrStore] = {}
 
-        for s in iterable:
-            s = cls(s)
+        for store in iterable:
+            store = cls(store)
 
-            existing_real = mapping.get(s.norm)
+            existing = mapping.get(store.norm)
 
-            if existing_real is not None:
-                raise ValueError(s.real, existing_real)
+            if existing is not None:
+                raise errors.DuplicateUniqueRequiredString(existing, store)
 
-            mapping[s.norm] = s.real
+            mapping[store.norm] = store
 
         # Dict order is preserved
-        return tuple(cls(real.value, _validate=False) for real in mapping.values())
+        return tuple(cls(_real=store.real, _norm=store.norm) for store in mapping.values())

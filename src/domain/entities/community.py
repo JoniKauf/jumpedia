@@ -1,16 +1,22 @@
 from domain import errors
 from domain.entities.base import BaseEntity
+from domain.types.id import ID
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 
 
 class CommunityEntity(BaseEntity):
-    _name: StrStore
-    _limits: Limits
-
-    def __init__(self, id: int, name: StrStore, limits: Limits) -> None:
+    def __init__(
+        self,
+        id: ID,
+        name: StrStore,
+        default_selected_list_id: ID | None,
+        limits: Limits,
+    ) -> None:
         super().__init__(id)
+
         self.name = name
+        self.default_selected_list_id = default_selected_list_id
         self.limits = limits
 
     @property
@@ -19,9 +25,11 @@ class CommunityEntity(BaseEntity):
 
     @name.setter
     def name(self, value: StrStore) -> None:
-        if len(self._name.real) > Limits.COMMUNITY_NAME_LENGTH_MAX:
+        if len(value.real) > Limits.COMMUNITY_NAME_LENGTH_MAX:
             raise errors.NameTooLong(
-                value, Limits.COMMUNITY_NAME_LENGTH_MAX, type(self)
+                value,
+                Limits.COMMUNITY_NAME_LENGTH_MAX,
+                type(self),
             )
 
         self._name = value
@@ -33,3 +41,11 @@ class CommunityEntity(BaseEntity):
     @limits.setter
     def limits(self, value: Limits) -> None:
         self._limits = value
+
+    @property
+    def default_selected_list_id(self) -> ID | None:
+        return self._selected_list_id
+
+    @default_selected_list_id.setter
+    def default_selected_list_id(self, value: ID | None) -> None:
+        self._selected_list_id = value

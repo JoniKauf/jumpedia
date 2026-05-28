@@ -4,6 +4,7 @@ from db.models import User, CommunityUser
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.value_objects.string import RealStr, StrStore
+from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from .base import BaseRepository
 import typing as t
 
@@ -31,7 +32,7 @@ class UserRepository(BaseRepository):
         obj = self.session.get(User, user_id)
         return None if obj is None else _user_model_to_entity(obj)
 
-    def create(self, user: UserEntity) -> UserEntity:
+    def create(self, user: CreateUserDTO) -> UserEntity:
         obj = User(
             user_id=user.id,
             norm_name=user.name.norm,
@@ -55,7 +56,7 @@ class UserRepository(BaseRepository):
 
         obj.raw_name = user.name.raw
         obj.norm_name = user.name.norm
-        obj.power = user.rank.value
+        obj.power = user.meta_rank.value
 
         return _user_model_to_entity(obj)
 
@@ -71,9 +72,9 @@ class CommunityUserRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_user_model_to_entity(obj, user)
 
-    def create(self, community_user: CommunityUserEntity) -> CommunityUserEntity:
+    def create(self, community_user: CreateCommunityUserDTO) -> CommunityUserEntity:
         obj = CommunityUser(
-            user_id=community_user.user_id,
+            user_id=community_user.user.id,
             community_id=community_user.community_id,
             power=community_user.rank.value,
             selected_list_id=community_user.selected_list_id,
@@ -93,7 +94,7 @@ class CommunityUserRepository(BaseRepository):
         if obj is None:
             raise RuntimeError("Tried updating a non existant community user")
 
-        obj.power = community_user.rank.value
+        obj.power = community_user.community_rank.value
         obj.selected_list_id = community_user.selected_list_id
 
         return _community_user_model_to_entity(obj, community_user.user)

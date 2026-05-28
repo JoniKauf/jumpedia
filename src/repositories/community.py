@@ -9,6 +9,7 @@ from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
+from repositories.dtos.community import CreateCommunityDTO
 from repositories.list import _list_model_to_entity
 from .base import BaseRepository
 import typing as t
@@ -18,6 +19,7 @@ def _community_model_to_entity(model: Community) -> CommunityEntity:
     return CommunityEntity(
         id=model.community_id,
         name=StrStore(_real=model.real_name, _norm=model.norm_name),
+        default_selected_list_id=model.default_selected_list_id,
         limits=Limits(
             community_list_count_max=model.community_list_count_max,
             list_attribute_count_max=model.list_attribute_count_max,
@@ -34,11 +36,18 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, community: CommunityEntity) -> CommunityEntity:
+    def create(self, community: CreateCommunityDTO) -> CommunityEntity:
         obj = Community(
             norm_name=community.name.norm,
             real_name=community.name.real,
-            **asdict(community.limits),
+            default_selected_list_id=None,
+            community_list_count_max=community.limits.community_list_count_max,
+            list_attribute_count_max=community.limits.list_attribute_count_max,
+            list_task_count_max=community.limits.list_task_count_max,
+            attribute_alias_count_max=community.limits.attribute_alias_count_max,
+            attribute_task_value_slot_count_max=community.limits.attribute_task_value_slot_count_max,
+            attribute_collection_entry_count_max=community.limits.attribute_collection_entry_count_max,
+            attribute_collection_entry_alias_count_max=community.limits.attribute_collection_entry_alias_count_max,
         )
 
         self.session.add(obj)
@@ -110,6 +119,3 @@ class CommunityRepository(BaseRepository):
         obj = self.session.execute(stmt).scalar_one_or_none()
 
         return None if obj is None else _list_model_to_entity(obj)
-
-    def count_community_users(self, community_id: int) -> list[CommunityUserEntity]:
-        stmt = select(CommunityUserEntity)

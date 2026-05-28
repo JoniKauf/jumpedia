@@ -74,3 +74,16 @@ class ServerAlreadyConnectedToACommunity(DomainError):
         super().__init__()
         self.server_id = server_id
         self.community = community
+
+
+class CountLimitReached(DomainError):
+    def __init__(self, limit: int, type: type[BaseEntity]) -> None:
+        super().__init__()
+        self.limit = limit
+        self.type = type
+
+class DuplicateUniqueRequiredString(DomainError):
+    def __init__(self, first: StrStore, second: StrStore) -> None:
+        super().__init__()
+        self.first = first
+        self.second = second

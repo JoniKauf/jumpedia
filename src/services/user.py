@@ -1,21 +1,17 @@
 from sqlalchemy.orm import Session
 
-from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
-from domain.enums.rank import CommunityRank, MetaRank, ServerRank
-from domain.value_objects.string import StrStore
+from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from repositories.user import CommunityUserRepository, UserRepository
-from db.models import CommunityUser
-import typing as t
 
 
 class UserService:
     def __init__(self, session: Session):
         self._user_repo = UserRepository(session)
 
-    def get_or_create(
+    def _get_or_create(
         self,
-        user: UserEntity,
+        user: CreateUserDTO,
         *,
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
@@ -32,7 +28,7 @@ class UserService:
             overwrite_any = True
 
         if overwrite_rank:
-            existing.rank = user.rank
+            existing.meta_rank = user.rank
             overwrite_any = True
 
         if not overwrite_any:
@@ -46,14 +42,14 @@ class CommunityUserService:
         self._community_user_repo = CommunityUserRepository(session)
         self._user_service = UserService(session)
 
-    def get_or_create(
+    def _get_or_create(
         self,
-        community_user: CommunityUserEntity,
+        community_user: CreateCommunityUserDTO,
         *,
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
     ) -> CommunityUserEntity:
-        self._user_service.get_or_create(UserEntity(0, community_user.user.name))
+        self._user_service._get_or_create(CreateUserDTO(community_user.user.id, community_user.user.name, community_user.user.meta_rank))
 
         existing = self._community_user_repo.get_by_user_and_community_id(
             community_user.user, community_user.community_id
@@ -65,7 +61,7 @@ class CommunityUserService:
         overwrite_any: bool = False
 
         if overwrite_rank:
-            existing.rank = community_user.rank
+            existing.community_rank = community_user.rank
             overwrite_any = True
 
         if overwrite_selected_list:

@@ -1,6 +1,7 @@
 from discord import app_commands
 import discord
 from domain.enums.rank import MetaRank
+from domain.types.id import ID
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
@@ -46,7 +47,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
         community = self.community_service.create(
             ctx.interacting_user_context,
             StrStore(name),
-            owner.id,
+            ID(owner.id),
             StrStore(owner.name),
             Limits(
                 community_list_count_max=community_list_count_max,

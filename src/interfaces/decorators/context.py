@@ -12,6 +12,7 @@ import db.session
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
+from domain.types.id import ID
 from domain.value_objects.string import StrStore
 from interfaces.contexts.command import CommandContext
 from interfaces.contexts.interacting_user import InteractingUserContext
@@ -108,9 +109,9 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                             session,
                             interaction,
                             InteractingUserContext(
-                                self.user_service.get_or_create(
+                                self.user_service._get_or_create(
                                     UserEntity(
-                                        member.id,
+                                        ID(member.id),
                                         StrStore(member.name),
                                     )
                                 ),

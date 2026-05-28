@@ -5,6 +5,6 @@ from domain.value_objects.string import StrStore
 
 
 @dataclass(frozen=True, slots=True)
-class DeletedCommunityDto:
+class DeletedCommunityDTO:
     name: StrStore
     limits: Limits

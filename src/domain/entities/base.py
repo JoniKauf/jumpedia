@@ -1,20 +1,20 @@
 import typing as t
 
+from domain.types.id import ID
+
 
 class BaseEntity:
-    _id: int
-
-    def __init__(self, id: int) -> None:
+    def __init__(self, id: ID) -> None:
         if type(self) is BaseEntity:
             raise TypeError
 
-        if id < 0:
-            raise RuntimeError("ID must be 0 (not persisted) or higher (persisted)")
+        if id < 1:
+            raise RuntimeError("ID must be higher than 1")
 
         self._id = id
 
     @property
-    def id(self) -> int:
+    def id(self) -> ID:
         if not self.is_persisted():
             raise RuntimeError("Programming Error: entity is not persisted!")
 

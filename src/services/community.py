@@ -4,14 +4,17 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
+from domain.types.id import ID
 from domain.value_objects.string import StrStore
 from interfaces.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
+from repositories.dtos.community import CreateCommunityDTO
+from repositories.dtos.user import CreateCommunityUserDTO
 from repositories.list import ListRepository
 from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
 from services._permission import PermissionService
-from services.dtos.community import DeletedCommunityDto
+from services.dtos.community import DeletedCommunityDTO
 from services.list import ListService
 from services.user import CommunityUserService, UserService
 from sqlalchemy.orm import Session
@@ -37,8 +40,8 @@ class CommunityService:
         self, server_id: int, user: UserEntity
     ) -> tuple[CommunityEntity, CommunityUserEntity]:
         community = self._get_by_server_id_or_raise(server_id)
-        community_user = self._community_user_service.get_or_create(
-            CommunityUserEntity(0, user, community.id)
+        community_user = self._community_user_service._get_or_create(
+            CreateCommunityUserDTO(user, community.id)
         )
 
         return community, community_user
@@ -59,11 +62,11 @@ class CommunityService:
         self,
         ctx: InteractingUserContext,
         name: StrStore,
-        owner_id: int,
+        owner_id: ID,
         owner_name: StrStore,
         limits: Limits,
     ) -> CommunityEntity:
-        PermissionService.ensure_meta_rank(ctx.user.rank, MetaRank.ADMINISTRATOR)
+        PermissionService.ensure_meta_rank(ctx.user.meta_rank, MetaRank.ADMINISTRATOR)
 
         existing = self._community_repo.get_by_name(name)
 
@@ -77,16 +80,17 @@ class CommunityService:
 
         del existing
 
-        community = self._community_repo.create(CommunityEntity(0, name, limits))
+        community = self._community_repo.create(CreateCommunityDTO(name, limits))
 
         self._community_repo.link_server(community, ctx.server_id)
 
-        self._community_user_service.get_or_create(
-            CommunityUserEntity(0, UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
+        self._community_user_service._get_or_create(
+            CreateCommunityUserDTO(UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
             overwrite_rank=True,
             overwrite_selected_list=True,
         )
 
+        # TODO set as default
         self._list_service.create(community.id, StrStore("Main"))
 
         return community
@@ -94,15 +98,15 @@ class CommunityService:
     # -------------------------
     # DELETE COMMUNITY
     # -------------------------
-    def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDto:
+    def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDTO:
         community, community_user = self._get_by_server_id_or_raise_and_community_user(
             ctx.server_id, ctx.user
         )
 
         PermissionService.ensure_community_rank(
-            community_user.rank, ctx.user.rank, CommunityRank.OWNER
+            community_user.community_rank, ctx.user.meta_rank, CommunityRank.OWNER
         )
 
         self._community_repo.delete(community.id)
 
-        return DeletedCommunityDto(community.name, community.limits)
+        return DeletedCommunityDTO(community.name, community.limits)
