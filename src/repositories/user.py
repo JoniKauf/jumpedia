@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from db.models import User, CommunityUser
 from domain.entities.user import CommunityUserEntity, UserEntity
@@ -98,3 +98,8 @@ class CommunityUserRepository(BaseRepository):
         obj.selected_list_id = community_user.selected_list_id
 
         return _community_user_model_to_entity(obj, community_user.user)
+
+
+    def count_by_community_id(self, community_id: int) -> int:
+        stmt = select(func.count()).select_from(CommunityUser).where(CommunityUser.community_id == community_id)
+        return self.session.scalar(stmt) or 0

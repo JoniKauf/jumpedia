@@ -11,6 +11,6 @@ from domain import errors
 from services.dtos.list import ListInfoDTO
 
 
-class ListService:
+class AttributeService:
     def __init__(self, session: Session) -> None:
         self.attribute_repo = AttributeRepository(session)

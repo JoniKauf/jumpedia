@@ -18,6 +18,7 @@ from interfaces.contexts.command import CommandContext
 from interfaces.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
 from repositories.user import CommunityRank
+from services.services import Services
 from services.user import UserService
 
 if t.TYPE_CHECKING:
@@ -106,7 +107,12 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     await func(
                         self,
                         CommandContext(
-                            session,
+                            Services(
+                                UserService(
+                                    session,
+                                    this_services_object
+                                )
+                            ),
                             interaction,
                             InteractingUserContext(
                                 self.user_service._get_or_create(

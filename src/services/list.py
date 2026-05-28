@@ -26,7 +26,7 @@ class ListService(BaseService):
         self._community_service = CommunityService(session)
 
     def info(self, server_id: int, name: StrStore) -> ListInfoDTO:
-        community = self._get_community_by_server_id_or_throw(server_id)
+        community = self._community_service._get_by_server_id_or_raise(server_id)
 
         lst = self._repo.get_by_name(community.id, name)
 

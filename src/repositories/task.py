@@ -19,3 +19,5 @@ class TaskRepository(BaseRepository):
 
     def get_by_id(self, task_id: int) -> Task | None:
         return self.session.get(Task, task_id)
+
+    stmt
