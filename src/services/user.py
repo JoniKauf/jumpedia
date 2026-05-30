@@ -1,15 +1,12 @@
-from sqlalchemy.orm import Session
+from dataclasses import dataclass
 
 from domain.entities.user import CommunityUserEntity, UserEntity
 from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from repositories.user import CommunityUserRepository, UserRepository
 
-from services.services import Services
-
-
+@dataclass(frozen=True, slots=True, eq=False)
 class UserService:
-    def __init__(self, repo: UserRepository):
-        self._repo = repo
+    _repo: UserRepository
 
     def _get_or_create(
         self,
@@ -38,11 +35,10 @@ class UserService:
 
         return self._repo.update(existing)
 
-
+@dataclass(frozen=True, slots=True, eq=False)
 class CommunityUserService:
-    def __init__(self, repo: CommunityUserRepository, user_service: UserService):
-        self._repo = repo
-        self._user_service = user_service
+    _repo: CommunityUserRepository
+    _user_service: UserService
 
     def get_or_create(
         self,

@@ -14,26 +14,18 @@ from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
 from domain.types.id import ID
 from domain.value_objects.string import StrStore
-from interfaces.contexts.command import CommandContext
+from interfaces.contexts.command import CommandContext, Services
 from interfaces.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
+from repositories.community import CommunityRepository
 from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
 from services.community import CommunityService
-from services.services import Services
+from services.permission import PermissionService
 from services.user import CommunityUserService, UserService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
 
-
-type FuncIn[T, **P] = t.Callable[
-    t.Concatenate[T, CommandContext, P],
-    ts.CoroutineType[None, None, None],
-]
-
-type FuncOut[T, **P] = t.Callable[
-    t.Concatenate[T, discord.Interaction, P], ts.CoroutineType[None, None, None]
-]
 
 
 async def _handle_domain_error(
@@ -80,6 +72,15 @@ async def _handle_domain_error(
             raise TypeError()
 
 
+type FuncIn[T, **P] = t.Callable[
+    t.Concatenate[T, CommandContext, P],
+    ts.CoroutineType[None, None, None],
+]
+
+type FuncOut[T, **P] = t.Callable[
+    t.Concatenate[T, discord.Interaction, P], ts.CoroutineType[None, None, None]
+]
+
 def with_context[T: BaseInterface, **P]() -> t.Callable[
     [FuncIn[T, P]],
     FuncOut[T, P],
@@ -105,9 +106,10 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     if not isinstance(member, discord.Member):
                         raise errors.NotInServer()
                     
+                    permission = PermissionService()
                     user_service = UserService(UserRepository(session))
                     community_user_service = CommunityUserService(CommunityUserRepository(session), user_service)
-                    community_service = CommunityService(session)
+                    community_service = CommunityService(CommunityRepository(session))
                     services = Services(
                         user_service,
                         community_user_service,

@@ -1,33 +1,27 @@
-import json
-from db.models import Community
+from dataclasses import dataclass
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
-from domain.enums.rank import CommunityRank, MetaRank, ServerRank
+from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.id import ID
 from domain.value_objects.string import StrStore
 from interfaces.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.dtos.user import CreateCommunityUserDTO
-from repositories.list import ListRepository
-from repositories.user import UserRepository
 from domain.value_objects.limits import Limits
-from services._permission import PermissionService
+from services.permission import PermissionService
 from services.dtos.community import DeletedCommunityDTO
 from services.list import ListService
-from services.user import CommunityUserService, UserService
-from sqlalchemy.orm import Session
+from services.user import CommunityUserService
 
-
+@dataclass(frozen=True, slots=True, eq=False)
 class CommunityService:
-    def __init__(self, repo: CommunityRepository):
-        self._repo = repo
-        self._community_user_service = CommunityUserService(session)
-        self._list_repo = ListRepository(session)
-        self._list_service = ListService(session)
-        self._user_service = UserService(session)
-
+    _repo: CommunityRepository
+    _query_service: CommunityQueryService
+    _permission_service: PermissionService
+    _community_user_service: CommunityUserService
+    _list_service: ListService
 
     # -------------------------
     # CREATE COMMUNITY
@@ -40,7 +34,7 @@ class CommunityService:
         owner_name: StrStore,
         limits: Limits,
     ) -> CommunityEntity:
-        PermissionService.ensure_meta_rank(ctx.user.meta_rank, MetaRank.ADMINISTRATOR)
+        self._permission_service.ensure_meta_rank(ctx.user.meta_rank, MetaRank.ADMINISTRATOR)
 
         existing = self._repo.get_by_name(name)
 
@@ -65,7 +59,7 @@ class CommunityService:
         )
 
         # TODO set as default
-        self._list_service.create(community.id, StrStore("Main"))
+        self._list_service.create(ctx, StrStore("Main"))
 
         return community
 
@@ -73,11 +67,11 @@ class CommunityService:
     # DELETE COMMUNITY
     # -------------------------
     def delete(self, ctx: InteractingUserContext) -> DeletedCommunityDTO:
-        community, community_user = self._get_by_server_id_or_raise_and_community_user(
-            ctx.server_id, ctx.user
+        community, community_user = self._query_service.get_by_server_id_or_raise_and_get_community_user(
+            ctx
         )
 
-        PermissionService.ensure_community_rank(
+        self._permission_service.ensure_community_rank(
             community_user.community_rank, ctx.user.meta_rank, CommunityRank.OWNER
         )
 
@@ -86,28 +80,26 @@ class CommunityService:
         return DeletedCommunityDTO(community.name, community.limits)
 
 
-
+@dataclass(frozen=True, slots=True, eq=False)
 class CommunityQueryService:
-    def __init__(self, repo: CommunityRepository, community_user_service: CommunityUserService, list_service: ListService) -> None:
-        self._repo = repo
-        self._community_user_service = community_user_service
-        self._list_repo = list_service
-        self._list_service = list_service
+    _repo: CommunityRepository
+    _community_user_service: CommunityUserService
+    _list_service: List
 
-    def get_by_server_id_or_raise(self, server_id: int) -> CommunityEntity:
-        obj = self._repo.get_by_server_id(server_id)
+    def get_by_server_id_or_raise(self, ctx: InteractingUserContext) -> CommunityEntity:
+        obj = self._repo.get_by_server_id(ctx.server_id)
 
         if obj is None:
             raise errors.NotInCommunity
 
         return obj
 
-    def get_by_server_id_or_raise_and_community_user(
-        self, server_id: int, user: UserEntity
+    def get_by_server_id_or_raise_and_get_community_user(
+        self, ctx: InteractingUserContext
     ) -> tuple[CommunityEntity, CommunityUserEntity]:
-        community = self.get_by_server_id_or_raise(server_id)
+        community = self.get_by_server_id_or_raise(ctx)
         community_user = self._community_user_service.get_or_create(
-            CreateCommunityUserDTO(user, community.id)
+            CreateCommunityUserDTO(ctx.user, community.id)
         )
 
         return community, community_user
@@ -116,7 +108,7 @@ class CommunityQueryService:
         self,
         ctx: InteractingUserContext,
     ):
-        community, _ = self.get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
+        community = self.get_by_server_id_or_raise(ctx)
 
         lists = self._list_repo.get_all(community.id)
         community_users = self._comm

@@ -1,12 +1,11 @@
+from dataclasses import dataclass
+
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain import errors
 
-
+@dataclass(frozen=True, slots=True, eq=False)
 class PermissionService:
-    def __init__(self) -> None:
-        pass
-    
     def ensure_meta_rank(self, meta_rank: MetaRank, required: MetaRank) -> None:
         if meta_rank.value < required.value:
             raise errors.NotAllowed(meta_rank, required)

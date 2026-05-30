@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from discord import Interaction
 
 from db.models import List
@@ -14,19 +16,19 @@ from repositories.dtos.list import CreateListDTO
 from repositories.list import ListRepository
 from sqlalchemy.orm import Session
 from domain import errors
-from services._permission import PermissionService
-from services.community import CommunityService
+from services.permission import PermissionService
+from services.community import CommunityQueryService, CommunityService
 from services.dtos.list import ListInfoDTO
 
 
-class ListService(BaseService):
-    def __init__(self, session: Session) -> None:
-        self._repo = ListRepository(session)
-        self._attribute_repo = AttributeRepository(session)
-        self._community_service = CommunityService(session)
+@dataclass(frozen=True, slots=True, eq=False)
+class ListService:
+    _ctx: InteractingUserContext
+    _repo: ListRepository
+    _community_query_service: CommunityQueryService
 
-    def info(self, server_id: int, name: StrStore) -> ListInfoDTO:
-        community = self._community_service.get_by_server_id_or_raise(server_id)
+    def info(self, name: StrStore) -> ListInfoDTO:
+        community = self._community_query_service.get_by_server_id_or_raise()
 
         lst = self._repo.get_by_name(community.id, name)
 
@@ -49,7 +51,7 @@ class ListService(BaseService):
     # -------------------------
     # CREATE LIST
     # -------------------------
-    def create(self, ctx: InteractingUserContext, name: StrStore) -> ListEntity:
+    def create(self, name: StrStore) -> ListEntity:
         community, community_user = self._community_service._get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
 
         PermissionService.ensure_community_rank(community_user.community_rank, ctx.user.meta_rank, CommunityRank.ADMINISTRATOR)
@@ -92,3 +94,8 @@ class ListService(BaseService):
             raise ValueError("name already taken")
 
         lst.name = name
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class ListQueryService:
+    pass
