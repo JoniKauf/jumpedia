@@ -17,9 +17,10 @@ from domain.value_objects.string import StrStore
 from interfaces.contexts.command import CommandContext
 from interfaces.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
-from repositories.user import CommunityRank
+from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
+from services.community import CommunityService
 from services.services import Services
-from services.user import UserService
+from services.user import CommunityUserService, UserService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
@@ -103,7 +104,15 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
 
                     if not isinstance(member, discord.Member):
                         raise errors.NotInServer()
-
+                    
+                    user_service = UserService(UserRepository(session))
+                    community_user_service = CommunityUserService(CommunityUserRepository(session), user_service)
+                    community_service = CommunityService(session)
+                    services = Services(
+                        user_service,
+                        community_user_service,
+                        
+                    )
                     await func(
                         self,
                         CommandContext(

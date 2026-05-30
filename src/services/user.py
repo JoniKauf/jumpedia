@@ -44,7 +44,7 @@ class CommunityUserService:
         self._repo = repo
         self._user_service = user_service
 
-    def _get_or_create(
+    def get_or_create(
         self,
         community_user: CreateCommunityUserDTO,
         *,

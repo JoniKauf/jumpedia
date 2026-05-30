@@ -21,39 +21,13 @@ from sqlalchemy.orm import Session
 
 
 class CommunityService:
-    def __init__(self, session: Session):
-        self._community_repo = CommunityRepository(session)
+    def __init__(self, repo: CommunityRepository):
+        self._repo = repo
         self._community_user_service = CommunityUserService(session)
         self._list_repo = ListRepository(session)
         self._list_service = ListService(session)
         self._user_service = UserService(session)
 
-    def _get_by_server_id_or_raise(self, server_id: int) -> CommunityEntity:
-        obj = self._community_repo.get_by_server_id(server_id)
-
-        if obj is None:
-            raise errors.NotInCommunity
-
-        return obj
-
-    def _get_by_server_id_or_raise_and_community_user(
-        self, server_id: int, user: UserEntity
-    ) -> tuple[CommunityEntity, CommunityUserEntity]:
-        community = self._get_by_server_id_or_raise(server_id)
-        community_user = self._community_user_service._get_or_create(
-            CreateCommunityUserDTO(user, community.id)
-        )
-
-        return community, community_user
-
-    def info(
-        self,
-        ctx: InteractingUserContext,
-    ):
-        community, _ = self._get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
-
-        lists = self._list_repo.get_all(community.id)
-        community_users = self._comm
 
     # -------------------------
     # CREATE COMMUNITY
@@ -68,23 +42,23 @@ class CommunityService:
     ) -> CommunityEntity:
         PermissionService.ensure_meta_rank(ctx.user.meta_rank, MetaRank.ADMINISTRATOR)
 
-        existing = self._community_repo.get_by_name(name)
+        existing = self._repo.get_by_name(name)
 
         if existing is not None:
             raise errors.NameAlreadyTaken(name, existing)
 
-        existing = self._community_repo.get_by_server_id(ctx.server_id)
+        existing = self._repo.get_by_server_id(ctx.server_id)
 
         if existing is not None:
             raise errors.ServerAlreadyConnectedToACommunity(ctx.server_id, existing)
 
         del existing
 
-        community = self._community_repo.create(CreateCommunityDTO(name, limits))
+        community = self._repo.create(CreateCommunityDTO(name, limits))
 
-        self._community_repo.link_server(community, ctx.server_id)
+        self._repo.link_server(community, ctx.server_id)
 
-        self._community_user_service._get_or_create(
+        self._community_user_service.get_or_create(
             CreateCommunityUserDTO(UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
             overwrite_rank=True,
             overwrite_selected_list=True,
@@ -107,6 +81,42 @@ class CommunityService:
             community_user.community_rank, ctx.user.meta_rank, CommunityRank.OWNER
         )
 
-        self._community_repo.delete(community.id)
+        self._repo.delete(community.id)
 
         return DeletedCommunityDTO(community.name, community.limits)
+
+
+
+class CommunityQueryService:
+    def __init__(self, repo: CommunityRepository, community_user_service: CommunityUserService, list_service: ListService) -> None:
+        self._repo = repo
+        self._community_user_service = community_user_service
+        self._list_repo = list_service
+        self._list_service = list_service
+
+    def get_by_server_id_or_raise(self, server_id: int) -> CommunityEntity:
+        obj = self._repo.get_by_server_id(server_id)
+
+        if obj is None:
+            raise errors.NotInCommunity
+
+        return obj
+
+    def get_by_server_id_or_raise_and_community_user(
+        self, server_id: int, user: UserEntity
+    ) -> tuple[CommunityEntity, CommunityUserEntity]:
+        community = self.get_by_server_id_or_raise(server_id)
+        community_user = self._community_user_service.get_or_create(
+            CreateCommunityUserDTO(user, community.id)
+        )
+
+        return community, community_user
+
+    def info(
+        self,
+        ctx: InteractingUserContext,
+    ):
+        community, _ = self.get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
+
+        lists = self._list_repo.get_all(community.id)
+        community_users = self._comm
