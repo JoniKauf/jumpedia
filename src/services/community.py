@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
-from domain.enums.rank import CommunityRank, MetaRank
+from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
 from domain.value_objects.string import StrStore
 from repositories.list import ListRepository
+from repositories.server import ServerRepository
 from services.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
 from repositories.dtos.community import CreateCommunityDTO
@@ -25,6 +26,7 @@ class CommunityService:
     _permission_service: PermissionService
     _community_user_service: CommunityUserService
     _list_service: ListService
+    _server_repo: ServerRepository
 
     # -------------------------
     # CREATE COMMUNITY
@@ -52,7 +54,7 @@ class CommunityService:
 
         community = self._repo.create(CreateCommunityDTO(name, limits))
 
-        self._repo.link_server(community, self._ctx.server_id)
+        self._server_repo.link(community, self._ctx.server_id)
 
         self._community_user_service.get_or_create(
             CreateCommunityUserDTO(UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
@@ -79,8 +81,31 @@ class CommunityService:
 
         return DeletedCommunityDTO(community.name, community.limits)
     
-    def connect(self):
+    def link(self, community_name: CommunityName) -> CommunityEntity:
+        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
+
+        community = self._repo.get_by_server_id(self._ctx.server_id)
+
+        if community is not None:
+            raise errors.InCommunity(community)
+        
+        community = self._repo.get_by_name(community_name)
+
+        if community is None:
+            raise errors.NotFound(CommunityEntity)
+        
+        self._server_repo.link(community, self._ctx.server_id)
+
+        return community
+    
+    def unlink(self) -> CommunityEntity:
+        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
+        
         community = self._access_service.get_by_server_id_or_raise()
+
+        self._server_repo.unlink(self._ctx.server_id)
+
+        return community
 
 
 @dataclass(frozen=True, slots=True, eq=False)

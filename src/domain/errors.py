@@ -12,36 +12,36 @@ if t.TYPE_CHECKING:
 # --- Base ---
 class DomainError(Exception):
     def __init__(self) -> None:
-        if type(self) in (DomainError, JumpediaHandledError):
+        if type(self) is DomainError:
             raise RuntimeError("Instance of base exception class created")
 
         super().__init__()
 
 
-class JumpediaHandledError(DomainError):
-    """This error is handled."""
-
-
 # --- Invalid String ---
-class EmptyString(JumpediaHandledError):
+class EmptyString(DomainError):
     pass
 
 
-class DoubleBacktick(JumpediaHandledError):
+class DoubleBacktick(DomainError):
     pass
 
 
 # --- Context ---
-class NotInServer(JumpediaHandledError):
+class NotInServer(DomainError):
     pass
 
 
-class NotInCommunity(JumpediaHandledError):
+class NotInCommunity(DomainError):
     pass
 
+class InCommunity(DomainError):
+    def __init__(self, community: CommunityEntity) -> None:
+        super().__init__()
+        self.community = community
 
 # --- Permission ---
-class NotAllowed(JumpediaHandledError):
+class NotAllowed(DomainError):
     def __init__(self, rank: AnyRankT, required: AnyRankT) -> None:
         super().__init__()
         self.rank = rank

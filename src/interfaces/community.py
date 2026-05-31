@@ -73,6 +73,18 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @with_context()
     async def connect(
         self,
-        ctx: CommandContext
+        ctx: CommandContext,
+        community: str,
     ) -> None:
-        ctx.services.community.create
+        ctx.services.community.link(CommunityName(community))
+
+        await messages.success(
+            ctx.interaction, 
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def disconnect(
+        self,
+        ctx: CommandContext,
+    ) -> None:

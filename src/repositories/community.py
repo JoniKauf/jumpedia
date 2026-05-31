@@ -7,6 +7,7 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity
+from domain.types.id import ID
 from domain.value_objects.community import CommunityName
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
@@ -59,11 +60,11 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # READ
     # -------------------------
-    def get_by_id(self, community_id: int) -> CommunityEntity | None:
+    def get_by_id(self, community_id: ID) -> CommunityEntity | None:
         obj = self.session.get(Community, community_id)
         return None if obj is None else _community_model_to_entity(obj)
 
-    def get_by_name(self, name: StrStore) -> CommunityEntity | None:
+    def get_by_name(self, name: CommunityName) -> CommunityEntity | None:
         stmt = select(Community).where(Community.norm_name == name.norm)
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_model_to_entity(obj)
@@ -76,25 +77,13 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # DELETE
     # -------------------------
-    def delete(self, community_id: int) -> None:
+    def delete(self, community_id: ID) -> None:
         obj = self.session.get(Community, community_id)
         if obj is not None:
             self.session.delete(obj)
             self.session.flush()
 
-    # -------------------------
-    # SERVER RELATIONSHIP
-    # -------------------------
-    def link_server(self, community: CommunityEntity, server_id: int) -> None:
-        self.session.add(
-            Server(
-                server_id=server_id,
-                community_id=community.id,
-            )
-        )
-        self.session.flush()
-
-    def get_by_server_id(self, server_id: int) -> CommunityEntity | None:
+    def get_by_server_id(self, server_id: ID) -> CommunityEntity | None:
         stmt = (
             select(Community)
             .join(Server, Server.community_id == Community.community_id)
@@ -103,12 +92,7 @@ class CommunityRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_model_to_entity(obj)
 
-    def unlink_server(self, server_id: int) -> None:
-        stmt = delete(Server).where(Server.server_id == server_id)
-        self.session.execute(stmt)
-        self.session.flush()
-
-    def get_default_selected_list(self, community_id: int) -> ListEntity | None:
+    def get_default_selected_list(self, community_id: ID) -> ListEntity | None:
         stmt = select(List).where(
             List.list_id
             == (

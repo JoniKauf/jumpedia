@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from domain.entities.user import UserEntity
 from domain.enums.rank import ServerRank
+from domain.types.id import ID
 from domain.value_objects.string import StrStore
 
 
@@ -9,4 +10,4 @@ from domain.value_objects.string import StrStore
 class InteractingUserContext:
     user: UserEntity
     server_rank: ServerRank
-    server_id: int
+    server_id: ID
