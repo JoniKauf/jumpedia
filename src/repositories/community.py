@@ -7,6 +7,7 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity
+from domain.value_objects.community import CommunityName
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 from repositories.dtos.community import CreateCommunityDTO
@@ -18,7 +19,7 @@ import typing as t
 def _community_model_to_entity(model: Community) -> CommunityEntity:
     return CommunityEntity(
         id=model.community_id,
-        name=StrStore(_real=model.real_name, _norm=model.norm_name),
+        name=CommunityName(_real=model.real_name, _norm=model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
         limits=Limits(
             community_list_count_max=model.community_list_count_max,

@@ -100,24 +100,23 @@ class NormStr(BaseStr):
         self._str = s._str.lower()
 
 
+
 class StrStore:
-    _validate: bool
     _real: RealStr | None
     _norm: NormStr | None
 
     @t.overload
-    def __init__(self, s: str, *, _validate: bool = True) -> None:
+    def __init__(self, s: str) -> None:
         pass
 
     @t.overload
     def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
         pass
-
+    
     def __init__(
         self,
         s: str | None = None,
         *,
-        _validate: bool = True,
         _real: RealStr | None = None,
         _norm: NormStr | None = None,
     ) -> None:
@@ -126,17 +125,19 @@ class StrStore:
             assert _norm is None
 
             self._raw = s
-            self._validate = _validate
             self._real = None
             self._norm = None
+            self._from_db = False
+
+            self._validation()
         else:
-            assert _validate is True
             assert _real is not None
             assert _norm is not None
 
             self._raw = _real._str
             self._real = _real
             self._norm = _norm
+            self._from_db = True
 
     @property
     def raw(self) -> str:
@@ -145,7 +146,7 @@ class StrStore:
     @property
     def real(self) -> RealStr:
         if self._real is None:
-            self._real = RealStr(self._raw, _validate=self._validate)
+            self._real = RealStr(self._raw, _validate=(not self._from_db))
 
         return self._real
 
@@ -159,6 +160,9 @@ class StrStore:
     def __len__(self):
         return len(self.real)
 
+    def _validation(self) -> None:
+        pass
+    
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, StrStore] = {}

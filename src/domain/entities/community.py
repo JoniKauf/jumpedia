@@ -1,6 +1,7 @@
 from domain import errors
 from domain.entities.base import BaseEntity
 from domain.types.id import ID
+from domain.value_objects.community import CommunityName
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 
@@ -9,7 +10,7 @@ class CommunityEntity(BaseEntity):
     def __init__(
         self,
         id: ID,
-        name: StrStore,
+        name: CommunityName,
         default_selected_list_id: ID | None,
         limits: Limits,
     ) -> None:
@@ -20,18 +21,11 @@ class CommunityEntity(BaseEntity):
         self.limits = limits
 
     @property
-    def name(self) -> StrStore:
+    def name(self) -> CommunityName:
         return self._name
 
     @name.setter
-    def name(self, value: StrStore) -> None:
-        if len(value.real) > Limits.COMMUNITY_NAME_LENGTH_MAX:
-            raise errors.NameTooLong(
-                value,
-                Limits.COMMUNITY_NAME_LENGTH_MAX,
-                type(self),
-            )
-
+    def name(self, value: CommunityName) -> None:
         self._name = value
 
     @property

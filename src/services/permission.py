@@ -3,21 +3,28 @@ from dataclasses import dataclass
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain import errors
+from services.contexts.interacting_user import InteractingUserContext
 
 @dataclass(frozen=True, slots=True, eq=False)
 class PermissionService:
-    def ensure_meta_rank(self, meta_rank: MetaRank, required: MetaRank) -> None:
+    _ctx: InteractingUserContext
+
+    def ensure_meta_rank(self, required: MetaRank) -> None:
+        meta_rank = self._ctx.user.meta_rank
+
         if meta_rank.value < required.value:
             raise errors.NotAllowed(meta_rank, required)
 
     def ensure_community_rank(
-        self, community_rank: CommunityRank, meta_rank: MetaRank, required: CommunityRank
+        self, community_rank: CommunityRank, required: CommunityRank
     ) -> None:
-        if not meta_rank and community_rank.value < required.value:
+        if not self._ctx.user.meta_rank and community_rank.value < required.value:
             raise errors.NotAllowed(community_rank, required)
 
     def ensure_server_rank(
-        self, server_rank: ServerRank, meta_rank: MetaRank, required: ServerRank
+        self, required: ServerRank
     ) -> None:
-        if not meta_rank and server_rank.value < required.value:
+        server_rank = self._ctx.server_rank
+
+        if not self._ctx.user.meta_rank and server_rank.value < required.value:
             raise errors.NotAllowed(server_rank, required)

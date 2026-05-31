@@ -2,6 +2,7 @@ from discord import app_commands
 import discord
 from domain.enums.rank import MetaRank
 from domain.types.id import ID
+from domain.value_objects.community import CommunityName
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
@@ -18,12 +19,6 @@ _DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
 
 
 class CommunityInterface(BaseInterface, group_name="community"):
-    def __init__(
-        self, community_service: CommunityService, user_service: UserService
-    ) -> None:
-        super().__init__(user_service)
-        self.community_service = community_service
-
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext) -> None:
@@ -44,9 +39,8 @@ class CommunityInterface(BaseInterface, group_name="community"):
         attr_coll_entry_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_count_max,
         attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
     ) -> None:
-        community = self.community_service.create(
-            ctx.interacting_user_context,
-            StrStore(name),
+        community = ctx.services.community.create(
+            CommunityName(name),
             ID(owner.id),
             StrStore(owner.name),
             Limits(
@@ -68,7 +62,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        community_dto = self.community_service.delete(ctx.interacting_user_context)
+        community_dto = ctx.services.community.delete()
 
         await messages.nuked(
             ctx.interaction,
@@ -78,5 +72,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
     async def connect(
-        self
-    )
+        self,
+        ctx: CommandContext
+    ) -> None:
+        ctx.services.community.create

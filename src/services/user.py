@@ -8,7 +8,7 @@ from repositories.user import CommunityUserRepository, UserRepository
 class UserService:
     _repo: UserRepository
 
-    def _get_or_create(
+    def get_or_create(
         self,
         user: CreateUserDTO,
         *,
@@ -47,7 +47,7 @@ class CommunityUserService:
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
     ) -> CommunityUserEntity:
-        self._user_service._get_or_create(CreateUserDTO(community_user.user.id, community_user.user.name, community_user.user.meta_rank))
+        self._user_service.get_or_create(CreateUserDTO(community_user.user.id, community_user.user.name, community_user.user.meta_rank))
 
         existing = self._repo.get_by_user_and_community_id(
             community_user.user, community_user.community_id

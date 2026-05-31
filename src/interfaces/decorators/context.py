@@ -14,12 +14,17 @@ from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain import errors
 from domain.types.id import ID
 from domain.value_objects.string import StrStore
-from interfaces.contexts.command import CommandContext, Services
-from interfaces.contexts.interacting_user import InteractingUserContext
+from interfaces.contexts.command import CommandContext, PublicServices
+from repositories.attribute import AttributeRepository
+from repositories.dtos.user import CreateUserDTO
+from repositories.list import ListRepository
+from services.attribute import AttributeService
+from services.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
 from repositories.community import CommunityRepository
 from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
-from services.community import CommunityService
+from services.community import CommunityAccessService, CommunityQueryService, CommunityService
+from services.list import ListService
 from services.permission import PermissionService
 from services.user import CommunityUserService, UserService
 
@@ -72,6 +77,52 @@ async def _handle_domain_error(
             raise TypeError()
 
 
+def _get_server_rank(member: discord.Member) -> ServerRank:
+    owner = member.guild.owner
+
+    if owner is not None and member.id == owner.id:
+        return ServerRank.OWNER
+
+    if member.guild_permissions.administrator:
+        return ServerRank.ADMINISTRATOR
+
+    return ServerRank.USER
+
+def _create_services_object(session: Session, member: discord.Member):
+    user_repo = UserRepository(session)
+    community_user_repo = CommunityUserRepository(session)
+    community_repo = CommunityRepository(session)
+    list_repo = ListRepository(session)
+    attribute_repo = AttributeRepository(session)
+    user_service = UserService(user_repo)
+
+    community_user_service = CommunityUserService(community_user_repo, user_service)
+
+    interacting_user_ctx = InteractingUserContext(
+        user_service.get_or_create(
+            CreateUserDTO(
+                ID(member.id),
+                StrStore(member.name),
+            )
+        ),
+        _get_server_rank(member),
+        member.guild.id,
+    )
+            
+    permission_service = PermissionService(interacting_user_ctx)
+    community_access_service = CommunityAccessService(interacting_user_ctx, community_repo, community_user_service)
+    community_query_service = CommunityQueryService(interacting_user_ctx, community_repo, list_repo)
+    list_service = ListService(interacting_user_ctx, list_repo, permission_service, community_access_service)
+    community_service = CommunityService(interacting_user_ctx, community_repo, community_access_service, permission_service, community_user_service, list_service)
+    attribute_service = AttributeService(interacting_user_ctx, attribute_repo, permission_service)
+
+    return PublicServices(
+        community_service,
+        community_query_service,
+        list_service,
+        attribute_service
+    )
+
 type FuncIn[T, **P] = t.Callable[
     t.Concatenate[T, CommandContext, P],
     ts.CoroutineType[None, None, None],
@@ -105,36 +156,14 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
 
                     if not isinstance(member, discord.Member):
                         raise errors.NotInServer()
-                    
-                    permission = PermissionService()
-                    user_service = UserService(UserRepository(session))
-                    community_user_service = CommunityUserService(CommunityUserRepository(session), user_service)
-                    community_service = CommunityService(CommunityRepository(session))
-                    services = Services(
-                        user_service,
-                        community_user_service,
-                        
-                    )
+
+                    services = _create_services_object(session, member)
+
                     await func(
                         self,
                         CommandContext(
-                            Services(
-                                UserService(
-                                    session,
-                                    this_services_object
-                                )
-                            ),
+                            services,
                             interaction,
-                            InteractingUserContext(
-                                self.user_service._get_or_create(
-                                    UserEntity(
-                                        ID(member.id),
-                                        StrStore(member.name),
-                                    )
-                                ),
-                                self.get_server_rank(member),
-                                member.guild.id,
-                            ),
                         ),
                         *args,
                         **kwargs,

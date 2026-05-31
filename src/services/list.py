@@ -9,7 +9,7 @@ from domain.types.id import ID
 from domain.value_objects.limits import Limits
 from domain.value_objects.string import StrStore
 from interfaces.contexts.command import CommandContext
-from interfaces.contexts.interacting_user import InteractingUserContext
+from services.contexts.interacting_user import InteractingUserContext
 from repositories.attribute import AttributeRepository
 from repositories.community import CommunityRepository
 from repositories.dtos.list import CreateListDTO
@@ -17,7 +17,7 @@ from repositories.list import ListRepository
 from sqlalchemy.orm import Session
 from domain import errors
 from services.permission import PermissionService
-from services.community import CommunityQueryService, CommunityService
+from services.community import CommunityAccessService, CommunityQueryService, CommunityService
 from services.dtos.list import ListInfoDTO
 
 
@@ -25,36 +25,16 @@ from services.dtos.list import ListInfoDTO
 class ListService:
     _ctx: InteractingUserContext
     _repo: ListRepository
-    _community_query_service: CommunityQueryService
-
-    def info(self, name: StrStore) -> ListInfoDTO:
-        community = self._community_query_service.get_by_server_id_or_raise()
-
-        lst = self._repo.get_by_name(community.id, name)
-
-        if lst is None:
-            raise errors.NotFound(ListEntity)
-
-        attributes = self._attribute_repo.get_by_list_id(lst.id)
-        task_count = self._repo.count_tasks(lst.id)
-        is_default = (
-            self._community_repo.get_default_selected_list(lst._community_id) == lst.id
-        )
-
-        return ListInfoDTO(
-            name=lst.name,
-            attributes=tuple(attributes),
-            task_count=task_count,
-            is_default_selected_list=is_default,
-        )
+    _permission_service: PermissionService
+    _community_access_service: CommunityAccessService
 
     # -------------------------
     # CREATE LIST
     # -------------------------
     def create(self, name: StrStore) -> ListEntity:
-        community, community_user = self._community_service._get_by_server_id_or_raise_and_community_user(ctx.server_id, ctx.user)
+        community, community_user = self._community_access_service.get_by_server_id_or_raise_and_get_or_create_community_user()
 
-        PermissionService.ensure_community_rank(community_user.community_rank, ctx.user.meta_rank, CommunityRank.ADMINISTRATOR)
+        self._permission_service.ensure_community_rank(community_user.community_rank, CommunityRank.ADMINISTRATOR)
 
         # TODO somehow replace this part with entity so invariants are checked internal
         if len(name) > Limits.LIST_NAME_LENGTH_MAX:
@@ -98,4 +78,23 @@ class ListService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListQueryService:
-    pass
+    def info(self, name: StrStore) -> ListInfoDTO:
+        community = self._community_query_service.get_by_server_id_or_raise()
+
+        lst = self._repo.get_by_name(community.id, name)
+
+        if lst is None:
+            raise errors.NotFound(ListEntity)
+
+        attributes = self._attribute_repo.get_by_list_id(lst.id)
+        task_count = self._repo.count_tasks(lst.id)
+        is_default = (
+            self._community_repo.get_default_selected_list(lst._community_id) == lst.id
+        )
+
+        return ListInfoDTO(
+            name=lst.name,
+            attributes=tuple(attributes),
+            task_count=task_count,
+            is_default_selected_list=is_default,
+        )
