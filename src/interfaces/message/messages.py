@@ -38,7 +38,7 @@ async def info(
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
 async def object_info(
-    interaction: discord.Interaction, header: Template, body: Template
+    interaction: discord.Interaction, entity_type: BaseEntity, data: dict[str, tuple[str, ...]]
 ) -> None:
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
