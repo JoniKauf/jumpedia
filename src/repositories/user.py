@@ -17,7 +17,9 @@ def _user_model_to_entity(model: User) -> UserEntity:
     )
 
 
-def _community_user_model_to_entity(model: CommunityUser, user: UserEntity) -> CommunityUserEntity:
+def _community_user_model_to_entity(
+    model: CommunityUser, user: UserEntity
+) -> CommunityUserEntity:
     return CommunityUserEntity(
         id=model.community_user_id,
         user=user,
@@ -99,7 +101,25 @@ class CommunityUserRepository(BaseRepository):
 
         return _community_user_model_to_entity(obj, community_user.user)
 
+    def get_all_by_community_id(self, community_id: int) -> list[CommunityUserEntity]:
+        stmt = (
+            select(CommunityUser, User)
+            .join(User, User.user_id == CommunityUser.user_id)
+            .where(CommunityUser.community_id == community_id)
+        )
+
+        return [
+            _community_user_model_to_entity(
+                community_user,
+                _user_model_to_entity(user),
+            )
+            for community_user, user in self.session.execute(stmt)
+        ]
 
     def count_by_community_id(self, community_id: int) -> int:
-        stmt = select(func.count()).select_from(CommunityUser).where(CommunityUser.community_id == community_id)
+        stmt = (
+            select(func.count())
+            .select_from(CommunityUser)
+            .where(CommunityUser.community_id == community_id)
+        )
         return self.session.scalar(stmt) or 0

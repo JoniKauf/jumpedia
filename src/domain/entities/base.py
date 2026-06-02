@@ -1,5 +1,6 @@
 import typing as t
 
+from domain import errors
 from domain.types.id import ID
 
 

@@ -100,7 +100,6 @@ class NormStr(BaseStr):
         self._str = s._str.lower()
 
 
-
 class StrStore:
     _real: RealStr | None
     _norm: NormStr | None
@@ -112,7 +111,7 @@ class StrStore:
     @t.overload
     def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
         pass
-    
+
     def __init__(
         self,
         s: str | None = None,
@@ -162,7 +161,7 @@ class StrStore:
 
     def _validation(self) -> None:
         pass
-    
+
     @classmethod
     def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, StrStore] = {}
@@ -178,4 +177,6 @@ class StrStore:
             mapping[store.norm] = store
 
         # Dict order is preserved
-        return tuple(cls(_real=store.real, _norm=store.norm) for store in mapping.values())
+        return tuple(
+            cls(_real=store.real, _norm=store.norm) for store in mapping.values()
+        )

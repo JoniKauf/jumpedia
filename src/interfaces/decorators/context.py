@@ -18,19 +18,24 @@ from interfaces.contexts.command import CommandContext, PublicServices
 from repositories.attribute import AttributeRepository
 from repositories.dtos.user import CreateUserDTO
 from repositories.list import ListRepository
+from repositories.server import ServerRepository
+from repositories.task import TaskRepository
 from services.attribute import AttributeService
 from services.contexts.interacting_user import InteractingUserContext
 from interfaces.message import format, messages
 from repositories.community import CommunityRepository
 from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
-from services.community import CommunityAccessService, CommunityQueryService, CommunityService
+from services.community import (
+    CommunityAccessService,
+    CommunityQueryService,
+    CommunityService,
+)
 from services.list import ListService
 from services.permission import PermissionService
 from services.user import CommunityUserService, UserService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
-
 
 
 async def _handle_domain_error(
@@ -88,12 +93,16 @@ def _get_server_rank(member: discord.Member) -> ServerRank:
 
     return ServerRank.USER
 
+
 def _create_services_object(session: Session, member: discord.Member):
     user_repo = UserRepository(session)
     community_user_repo = CommunityUserRepository(session)
+    server_repo = ServerRepository(session)
     community_repo = CommunityRepository(session)
     list_repo = ListRepository(session)
     attribute_repo = AttributeRepository(session)
+    task_repo = TaskRepository(session)
+    
     user_service = UserService(user_repo)
 
     community_user_service = CommunityUserService(community_user_repo, user_service)
@@ -106,22 +115,36 @@ def _create_services_object(session: Session, member: discord.Member):
             )
         ),
         _get_server_rank(member),
-        member.guild.id,
+        ID(member.guild.id),
     )
-            
+
     permission_service = PermissionService(interacting_user_ctx)
-    community_access_service = CommunityAccessService(interacting_user_ctx, community_repo, community_user_service)
-    community_query_service = CommunityQueryService(interacting_user_ctx, community_repo, list_repo)
-    list_service = ListService(interacting_user_ctx, list_repo, permission_service, community_access_service)
-    community_service = CommunityService(interacting_user_ctx, community_repo, community_access_service, permission_service, community_user_service, list_service)
-    attribute_service = AttributeService(interacting_user_ctx, attribute_repo, permission_service)
+    community_access_service = CommunityAccessService(
+        interacting_user_ctx, community_repo, community_user_service
+    )
+    community_query_service = CommunityQueryService(
+        interacting_user_ctx, community_repo, community_access_service, community_user_repo, list_repo, task_repo
+    )
+    list_service = ListService(
+        interacting_user_ctx, list_repo, permission_service, community_access_service
+    )
+    community_service = CommunityService(
+        interacting_user_ctx,
+        community_repo,
+        community_access_service,
+        permission_service,
+        community_user_service,
+        list_service,
+        server_repo,
+    )
+    attribute_service = AttributeService(
+        interacting_user_ctx, attribute_repo, permission_service
+    )
 
     return PublicServices(
-        community_service,
-        community_query_service,
-        list_service,
-        attribute_service
+        community_service, community_query_service, list_service, attribute_service
     )
+
 
 type FuncIn[T, **P] = t.Callable[
     t.Concatenate[T, CommandContext, P],
@@ -131,6 +154,7 @@ type FuncIn[T, **P] = t.Callable[
 type FuncOut[T, **P] = t.Callable[
     t.Concatenate[T, discord.Interaction, P], ts.CoroutineType[None, None, None]
 ]
+
 
 def with_context[T: BaseInterface, **P]() -> t.Callable[
     [FuncIn[T, P]],

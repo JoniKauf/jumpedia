@@ -23,6 +23,6 @@ class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()
     @with_context()
     async def info(self, context: CommandContext, name: str) -> None:
-        info = ListService(context.session).info(context.interacting_user_context.server_id, StrStore(name))
-
-        
+        info = ListService(context.session).info(
+            context.interacting_user_context.server_id, StrStore(name)
+        )

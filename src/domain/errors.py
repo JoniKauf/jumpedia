@@ -35,10 +35,12 @@ class NotInServer(DomainError):
 class NotInCommunity(DomainError):
     pass
 
+
 class InCommunity(DomainError):
     def __init__(self, community: CommunityEntity) -> None:
         super().__init__()
         self.community = community
+
 
 # --- Permission ---
 class NotAllowed(DomainError):
@@ -81,6 +83,7 @@ class CountLimitReached(DomainError):
         super().__init__()
         self.limit = limit
         self.type = type
+
 
 class DuplicateUniqueRequiredString(DomainError):
     def __init__(self, first: StrStore, second: StrStore) -> None:

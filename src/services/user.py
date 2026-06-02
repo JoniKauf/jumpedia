@@ -4,6 +4,7 @@ from domain.entities.user import CommunityUserEntity, UserEntity
 from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from repositories.user import CommunityUserRepository, UserRepository
 
+
 @dataclass(frozen=True, slots=True, eq=False)
 class UserService:
     _repo: UserRepository
@@ -35,6 +36,7 @@ class UserService:
 
         return self._repo.update(existing)
 
+
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityUserService:
     _repo: CommunityUserRepository
@@ -47,7 +49,13 @@ class CommunityUserService:
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
     ) -> CommunityUserEntity:
-        self._user_service.get_or_create(CreateUserDTO(community_user.user.id, community_user.user.name, community_user.user.meta_rank))
+        self._user_service.get_or_create(
+            CreateUserDTO(
+                community_user.user.id,
+                community_user.user.name,
+                community_user.user.meta_rank,
+            )
+        )
 
         existing = self._repo.get_by_user_and_community_id(
             community_user.user, community_user.community_id

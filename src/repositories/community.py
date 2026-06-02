@@ -104,5 +104,3 @@ class CommunityRepository(BaseRepository):
         obj = self.session.execute(stmt).scalar_one_or_none()
 
         return None if obj is None else _list_model_to_entity(obj)
-
-    

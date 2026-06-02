@@ -1,4 +1,3 @@
-
 from sqlalchemy import delete
 
 from db.models import Server

@@ -15,27 +15,8 @@ from discord.ext import commands as cmds
 
 from utils import secret, text
 
-BOT = cmds.Bot(command_prefix="awjkefejjefejffsn", intents=dc.Intents.default())
+BOT = cmds.Bot(command_prefix="j!", intents=dc.Intents.default())
 DEV_MODE: bool = False
-
-
-def _get_all_modules_of_cogs(pkg_path: str) -> t.Generator[types.ModuleType]:
-    rel = (
-        os.path.relpath(pkg_path, start=Path(__file__).resolve().parent.parent)
-        .strip(os.path.sep)
-        .replace(os.path.sep, ".")
-    )
-
-    # Use pkgutil to iterate over modules in the package
-    for _, modname, ispkg in pkgutil.iter_modules([pkg_path]):
-        if ispkg:
-            continue
-
-        if modname.startswith("_"):
-            continue
-
-        yield importlib.import_module(f"{rel}.{modname}")
-
 
 @BOT.event
 async def on_ready():

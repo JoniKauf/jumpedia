@@ -5,6 +5,7 @@ from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.id import ID
 from domain.value_objects.string import StrStore
 
+
 class UserEntity(BaseEntity):
     def __init__(
         self, id: ID, name: StrStore, rank: MetaRank = MetaRank.DEFAULT
@@ -74,3 +75,11 @@ class CommunityUserEntity(BaseEntity):
     @user.setter
     def user(self, value: UserEntity) -> None:
         self._user = value
+
+    @property
+    def name(self) -> StrStore:
+        return self.user.name
+
+    @property
+    def meta_rank(self) -> MetaRank:
+        return self.user.meta_rank

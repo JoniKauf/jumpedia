@@ -1,4 +1,4 @@
-def split_max(s: str, sep: str, max: int) -> list[str]:
+def split_max(s: str, sep: str, max: int, min: int = 0) -> list[str]:
     """
     Greedy bounded string splitter with separator-preferred backtracking.
 
@@ -22,6 +22,8 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
         Non-empty separator used to prefer split positions.
     max : int
         Maximum allowed segment length (> 0).
+    min : int
+        Minimum allowed segment length (except last).
 
     Returns
     -------
@@ -31,20 +33,24 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
     Notes
     -----
     - This is not equivalent to str.split, textwrap.wrap, or regex-based splitting.
-    - The algorithm uses a bounded lookahead window (max + len(sep)) to detect
-      separators for improved split alignment.
+    - The algorithm uses a bounded lookahead window (max + len(sep)) to detect separators for improved split alignment.
     """
-
     if not sep:
         raise ValueError("empty separator")
 
-    if not max:
-        raise ValueError("max lower or equal to 0")
+    if min < 0:
+        raise ValueError("min lower than 0")
+
+    if min > max:
+        raise ValueError("min greater than max")
+
+    if max == 0:
+        raise ValueError("max equal to 0")
 
     l = len(s)
     sl = len(sep)
 
-    if not l:
+    if l == 0:
         return [""]
 
     if l <= max:
@@ -57,18 +63,18 @@ def split_max(s: str, sep: str, max: int) -> list[str]:
         end = start + max
 
         if end >= l:
-            res.append(s[start:end])
-
+            res.append(s[start:])
             return res
 
-        pos = s[start : end + sl].rfind(sep)
+        search_start = start + min
+        search_end = end + sl
+
+        pos = s[search_start:search_end].rfind(sep)
 
         if pos == -1:
             res.append(s[start:end])
             start = end
         else:
-            pos += start
+            pos += search_start
             res.append(s[start:pos])
             start = pos + sl
-
-        i += 1

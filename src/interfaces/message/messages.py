@@ -32,8 +32,17 @@ async def success(
 ) -> None:
     await interaction.followup.send(layout.layout(header, body, Status.SUCCESS))
 
+async def info(
+    interaction: discord.Interaction, header: Template, body: Template
+) -> None:
+    await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
-async def created(
+async def object_info(
+    interaction: discord.Interaction, header: Template, body: Template
+) -> None:
+    await interaction.followup.send(layout.layout(header, body, Status.INFO))
+
+async def object_created(
     interaction: discord.Interaction,
     entity: format.MentionableEntityT,
 ) -> None:
@@ -41,16 +50,16 @@ async def created(
 
     await success(
         interaction,
-        t"{mention.type_title @ T.RAW} Created",
+        t"{mention.type_title} Created",
         t"The {mention.mention} has successfully been created!",
     )
 
 
-async def nuked(interaction: discord.Interaction, dto: format.MentionableDtoT) -> None:
+async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDtoT) -> None:
     mention = format.Mention(dto)
 
     await success(
         interaction,
-        t"{mention.type_title @ T.RAW} Deleted",
+        t"{mention.type_title} Deleted",
         t"The {mention.mention} has successfully been nuked!",
     )

@@ -1,6 +1,5 @@
 from discord import app_commands
 import discord
-from domain.enums.rank import MetaRank
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
 from domain.value_objects.limits import Limits
@@ -8,11 +7,7 @@ from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
-from repositories.user import UserEntity
-from services.community import CommunityService
-from services.list import ListService
-from services.user import UserService
-from sqlalchemy.orm import Session
+from interfaces.message.format import Mention
 import typing as t
 
 _DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
@@ -21,9 +16,16 @@ _DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
 class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
-    async def info(self, ctx: CommandContext) -> None:
-        self.community_service.create
-        
+    async def info(
+        self, ctx: CommandContext, community_name: str | None = None
+    ) -> None:
+        community_info = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
+
+        await messages.object_info(
+            ctx.interaction,
+            t"Community Info"
+        )
+
     @app_commands.command()
     @with_context()
     async def create(
@@ -54,7 +56,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             ),
         )
 
-        await messages.created(ctx.interaction, community)
+        await messages.object_created(ctx.interaction, community)
 
     @app_commands.command()
     @with_context()
@@ -64,27 +66,4 @@ class CommunityInterface(BaseInterface, group_name="community"):
     ) -> None:
         community_dto = ctx.services.community.delete()
 
-        await messages.nuked(
-            ctx.interaction,
-            community_dto
-        )
-
-    @app_commands.command()
-    @with_context()
-    async def connect(
-        self,
-        ctx: CommandContext,
-        community: str,
-    ) -> None:
-        ctx.services.community.link(CommunityName(community))
-
-        await messages.success(
-            ctx.interaction, 
-        )
-
-    @app_commands.command()
-    @with_context()
-    async def disconnect(
-        self,
-        ctx: CommandContext,
-    ) -> None:
+        await messages.object_nuked(ctx.interaction, community_dto)

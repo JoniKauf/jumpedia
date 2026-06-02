@@ -8,15 +8,18 @@ from domain.value_objects.community import CommunityName
 from domain.value_objects.string import StrStore
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
+from repositories.task import TaskRepository
+from repositories.user import CommunityUserRepository
 from services.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.dtos.user import CreateCommunityUserDTO
 from domain.value_objects.limits import Limits
 from services.permission import PermissionService
-from services.dtos.community import DeletedCommunityDTO
+from services.dtos.community import CommunityInfoDTO, DeletedCommunityDTO
 from services.list import ListService
 from services.user import CommunityUserService
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityService:
@@ -48,7 +51,9 @@ class CommunityService:
         existing = self._repo.get_by_server_id(self._ctx.server_id)
 
         if existing is not None:
-            raise errors.ServerAlreadyConnectedToACommunity(self._ctx.server_id, existing)
+            raise errors.ServerAlreadyConnectedToACommunity(
+                self._ctx.server_id, existing
+            )
 
         del existing
 
@@ -57,7 +62,12 @@ class CommunityService:
         self._server_repo.link(community, self._ctx.server_id)
 
         self._community_user_service.get_or_create(
-            CreateCommunityUserDTO(UserEntity(owner_id, owner_name), community.id, CommunityRank.OWNER, None),
+            CreateCommunityUserDTO(
+                UserEntity(owner_id, owner_name),
+                community.id,
+                CommunityRank.OWNER,
+                None,
+            ),
             overwrite_rank=True,
             overwrite_selected_list=True,
         )
@@ -71,7 +81,9 @@ class CommunityService:
     # DELETE COMMUNITY
     # -------------------------
     def delete(self) -> DeletedCommunityDTO:
-        community, community_user = self._access_service.get_by_server_id_or_raise_and_get_or_create_community_user()
+        community, community_user = (
+            self._access_service.get_by_server_id_or_raise_and_get_or_create_community_user()
+        )
 
         self._permission_service.ensure_community_rank(
             community_user.community_rank, CommunityRank.OWNER
@@ -80,7 +92,7 @@ class CommunityService:
         self._repo.delete(community.id)
 
         return DeletedCommunityDTO(community.name, community.limits)
-    
+
     def link(self, community_name: CommunityName) -> CommunityEntity:
         self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
 
@@ -88,19 +100,19 @@ class CommunityService:
 
         if community is not None:
             raise errors.InCommunity(community)
-        
+
         community = self._repo.get_by_name(community_name)
 
         if community is None:
             raise errors.NotFound(CommunityEntity)
-        
+
         self._server_repo.link(community, self._ctx.server_id)
 
         return community
-    
+
     def unlink(self) -> CommunityEntity:
         self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
-        
+
         community = self._access_service.get_by_server_id_or_raise()
 
         self._server_repo.unlink(self._ctx.server_id)
@@ -112,15 +124,28 @@ class CommunityService:
 class CommunityQueryService:
     _ctx: InteractingUserContext
     _repo: CommunityRepository
+    _access_service: CommunityAccessService
+    _community_user_repo: CommunityUserRepository
     _list_repo: ListRepository
+    _task_repo: TaskRepository
 
-    def info(
-        self,
-    ):
-        community = self.get_by_server_id_or_raise(ctx)
+    def info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
+        community = self._access_service.get_by_name_or_current(community_name)
 
-        lists = self._repo.get_all_by_community_id(community.id)
-        community_users = self._comm
+        community_users = self._community_user_repo.get_all_by_community_id(
+            community.id
+        )
+        lists = self._list_repo.get_all_by_community(community.id)
+        task_count = self._task_repo.count_by_community(community.id)
+
+        return CommunityInfoDTO(
+            community.name,
+            community.limits,
+            community.default_selected_list_id,
+            tuple(community_users),
+            tuple(lists),
+            task_count,
+        )
 
 
 @dataclass
@@ -133,10 +158,10 @@ class CommunityAccessService:
         obj = self._repo.get_by_server_id(self._ctx.server_id)
 
         if obj is None:
-            raise errors.NotInCommunity
+            raise errors.NotInCommunity()
 
         return obj
-    
+
     def get_by_server_id_or_raise_and_get_or_create_community_user(
         self,
     ) -> tuple[CommunityEntity, CommunityUserEntity]:
@@ -146,3 +171,16 @@ class CommunityAccessService:
         )
 
         return community, community_user
+
+    def get_by_name_or_current(
+        self, name: CommunityName | None = None
+    ) -> CommunityEntity:
+        if name is None:
+            return self.get_by_server_id_or_raise()
+
+        community = self._repo.get_by_name(name)
+
+        if community is None:
+            raise errors.NotFound(CommunityEntity)
+
+        return community

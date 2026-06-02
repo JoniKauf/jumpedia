@@ -33,7 +33,9 @@ class ListRepository(BaseRepository):
         obj = self.session.get(List, list_id)
         return None if obj is None else _list_model_to_entity(obj)
 
-    def get_by_name(self, community_id: ID, name: StrStore) -> ListEntity | None:
+    def get_by_community_and_name(
+        self, community_id: ID, name: StrStore
+    ) -> ListEntity | None:
         stmt = select(List).where(
             List.community_id == community_id,
             List.norm_name == name.norm,
@@ -41,11 +43,11 @@ class ListRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _list_model_to_entity(obj)
 
-    def get_all(self, community_id: ID) -> list[ListEntity]:
+    def get_all_by_community(self, community_id: ID) -> list[ListEntity]:
         stmt = select(List).where(List.community_id == community_id)
         return [_list_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
 
-    def count(self, community_id: ID) -> int:
+    def count_by_community(self, community_id: ID) -> int:
         stmt = (
             select(func.count())
             .select_from(List)
@@ -58,7 +60,3 @@ class ListRepository(BaseRepository):
         if obj:
             self.session.delete(obj)
             self.session.flush()
-
-    def count_tasks(self, list_id: ID) -> int:
-        stmt = select(func.count()).select_from(Task).where(Task.list_id == list_id)
-        return self.session.scalar(stmt) or 0
