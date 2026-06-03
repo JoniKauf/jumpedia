@@ -9,11 +9,20 @@ import requests
 __TOKEN = secret.listen().PASTEE_TOKEN
 
 
-def create_pastee(
+def try_create_pastee(
     files: dict[str, str],
     /,
     description: str | None = None,
+    *,
+    tries: int = 5,
+    between: float = 0.2
 ) -> str:
+    if tries < 1:
+        raise ValueError("tries")
+    
+    if between < 0:
+        raise ValueError("between")
+    
     headers = {
         "Content-Type": "application/json",
         "X-Auth-Token": __TOKEN,
@@ -32,10 +41,9 @@ def create_pastee(
     if description is not None:
         payload["description"] = description
 
-    RETRIES = 5
-    FIRST_SLEEP = 0.2
+    response: requests.Response | None = None
 
-    for i in range(1, RETRIES + 1):
+    for i in range(1, tries + 1):
         response = requests.post(
             "https://api.pastee.dev/v1/pastes",
             json=payload,
@@ -45,9 +53,11 @@ def create_pastee(
         if response.status_code == 201:
             return response.json()["link"]
 
-        if i < RETRIES:
-            time.sleep(FIRST_SLEEP**i)
+        if i < tries:
+            time.sleep(between*i)
 
+    assert response is not None
+    
     raise Exception(f"Failed to create paste: {response.status_code}\n{response.text}")
 
 
