@@ -6,23 +6,16 @@ from collections import deque
 
 import requests
 
+from utils import text
+
 __TOKEN = secret.listen().PASTEE_TOKEN
 
 
-def try_create_pastee(
+def create_pastee(
     files: dict[str, str],
     /,
     description: str | None = None,
-    *,
-    tries: int = 5,
-    between: float = 0.2
 ) -> str:
-    if tries < 1:
-        raise ValueError("tries")
-    
-    if between < 0:
-        raise ValueError("between")
-    
     headers = {
         "Content-Type": "application/json",
         "X-Auth-Token": __TOKEN,
@@ -41,39 +34,63 @@ def try_create_pastee(
     if description is not None:
         payload["description"] = description
 
-    response: requests.Response | None = None
+    response = requests.post(
+        "https://api.pastee.dev/v1/pastes",
+        json=payload,
+        headers=headers,
+    )
+
+    if response.status_code == 201:
+        return response.json()["link"]
+    
+    raise ConnectionError()
+    
+
+def create_pastee_with_retries(
+    files: dict[str, str],
+    /,
+    description: str | None = None,
+    *,
+    tries: int = 5,
+    between: float = 0.2
+) -> str:
+    if tries < 1:
+        raise ValueError("tries")
+    
+    if between < 0:
+        raise ValueError("between")
+
+    err: ConnectionError | None = None
 
     for i in range(1, tries + 1):
-        response = requests.post(
-            "https://api.pastee.dev/v1/pastes",
-            json=payload,
-            headers=headers,
-        )
-
-        if response.status_code == 201:
-            return response.json()["link"]
-
-        if i < tries:
+        try:
+           return create_pastee(files, description=description)
+        except ConnectionError as e:
             time.sleep(between*i)
-
-    assert response is not None
+            err = e
+            continue
     
-    raise Exception(f"Failed to create paste: {response.status_code}\n{response.text}")
+    assert err is not None
+    
+    raise err
 
 
 def table_to_pastee_strings(
     headers: t.Sequence[str],
-    rows: t.Iterable[t.Iterable[str | t.Sequence[str]]],
+    body_rows: t.Iterable[t.Iterable[t.Sequence[str]]],
     *,
-    approx_split_limit: int = 1_500_000,
+    max_body_total_length_per_link: int = 1_500_000,
 ) -> list[str]:
-    assert headers
+    if len(headers) <= 0:
+        raise ValueError
 
     col_count = len(headers)
     max_len_per_col = [len(h) for h in headers]
     final_rows: list[list[str]] = []
 
-    for row in rows:
+    MULTIPLE_ENTRIES_DIVIDOR: str = "   "
+
+    for row in body_rows:
         final_row: list[str] = []
 
         it = iter(row)
@@ -81,10 +98,7 @@ def table_to_pastee_strings(
         for i in range(col_count):
             cell = next(it, "")
 
-            if isinstance(cell, str):
-                s = cell
-            else:
-                s = "   ".join(cell)
+            s = MULTIPLE_ENTRIES_DIVIDOR.join(cell)
 
             final_row.append(s)
             max_len_per_col[i] = max(max_len_per_col[i], len(s))
@@ -107,34 +121,16 @@ def table_to_pastee_strings(
 
     headers_str = SPLIT.join(header_list) + "\n" + SPLIT_DIVIDOR.join(divider_list)
 
-    res: list[str] = []
-    cur: list[str] = []
-    cur_length = 0
-
-    def push():
-        nonlocal cur, cur_length
-        if cur:
-            res.append("\n".join(cur))
-            cur = []
-            cur_length = 0
-
-    for row in final_rows:
-        row_str = SPLIT.join(
+    body = "\n".join(
+        SPLIT.join(
             row[i].ljust(max_len_per_col[i]) if i < col_count - 1 else row[i]
             for i in range(col_count)
-        )
+        ) for row in final_rows
+    )
 
-        needed = len(row_str) + (1 if cur else len(headers_str) + 1)
+    bodies = text.split_into_chunks_prefer_seperator(body, "\n", max_body_total_length_per_link)
 
-        if cur_length + needed > approx_split_limit:
-            push()
+    for i, body in enumerate(bodies):
+        bodies[i] = f"{headers_str}\n{body}"
 
-        if not cur:
-            cur.append(headers_str)
-            cur_length += len(headers_str) + 1  # newline
-
-        cur.append(row_str)
-        cur_length += len(row_str) + 1
-
-    push()
-    return res
+    return bodies

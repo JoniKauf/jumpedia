@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
 from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from repositories.user import CommunityUserRepository, UserRepository
+from services.contexts.interacting_user import InteractingUserContext
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -49,14 +51,6 @@ class CommunityUserService:
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
     ) -> CommunityUserEntity:
-        self._user_service.get_or_create(
-            CreateUserDTO(
-                community_user.user.id,
-                community_user.user.name,
-                community_user.user.meta_rank,
-            )
-        )
-
         existing = self._repo.get_by_user_and_community_id(
             community_user.user, community_user.community_id
         )
@@ -78,3 +72,17 @@ class CommunityUserService:
             return existing
 
         return self._repo.update(existing)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class CommunityUserAccessService:
+    _ctx: InteractingUserContext
+    _repo: CommunityUserRepository
+
+    def get_or_create_current_with_defaults(
+        self, community: CommunityEntity
+    ) -> CommunityUserEntity:
+        return self._repo.create(CreateCommunityUserDTO(
+            self._ctx.user,
+            community.id,
+        ))

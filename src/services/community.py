@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from domain import errors
 from domain.entities.community import CommunityEntity
+from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
+from domain.value_objects.list import ListName
 from domain.value_objects.string import StrStore
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
@@ -14,12 +16,11 @@ from services.contexts.interacting_user import InteractingUserContext
 from repositories.community import CommunityRepository
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.dtos.user import CreateCommunityUserDTO
-from domain.value_objects.limits import Limits
+from domain.value_objects.community import CommunityLimits
 from services.permission import PermissionService
 from services.dtos.community import CommunityInfoDTO, DeletedCommunityDTO
 from services.list import ListService
-from services.user import CommunityUserService
-
+from services.user import CommunityUserAccessService, CommunityUserService
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityService:
@@ -28,6 +29,7 @@ class CommunityService:
     _access_service: CommunityAccessService
     _permission_service: PermissionService
     _community_user_service: CommunityUserService
+    _community_user_access_service: CommunityUserAccessService
     _list_service: ListService
     _server_repo: ServerRepository
 
@@ -39,7 +41,7 @@ class CommunityService:
         name: CommunityName,
         owner_id: ID,
         owner_name: StrStore,
-        limits: Limits,
+        limits: CommunityLimits,
     ) -> CommunityEntity:
         self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR)
 
@@ -73,7 +75,7 @@ class CommunityService:
         )
 
         # TODO set as default
-        self._list_service.create(StrStore("Main"))
+        self._list_service.create(ListName("Main"))
 
         return community
 
@@ -81,12 +83,13 @@ class CommunityService:
     # DELETE COMMUNITY
     # -------------------------
     def delete(self) -> DeletedCommunityDTO:
-        community, community_user = (
-            self._access_service.get_by_server_id_or_raise_and_get_or_create_community_user()
+        community = (
+            self._access_service.get_by_name_or_current_or_raise()
         )
-
+        community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
+        
         self._permission_service.ensure_community_rank(
-            community_user.community_rank, CommunityRank.OWNER
+            community_user, CommunityRank.OWNER
         )
 
         self._repo.delete(community.id)
@@ -113,7 +116,7 @@ class CommunityService:
     def unlink(self) -> CommunityEntity:
         self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
 
-        community = self._access_service.get_by_server_id_or_raise()
+        community = self._access_service.get_by_name_or_current_or_raise()
 
         self._server_repo.unlink(self._ctx.server_id)
 
@@ -130,7 +133,7 @@ class CommunityQueryService:
     _task_repo: TaskRepository
 
     def info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
-        community = self._access_service.get_by_name_or_current(community_name)
+        community = self._access_service.get_by_name_or_current_or_raise(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
             community.id
@@ -138,49 +141,44 @@ class CommunityQueryService:
         lists = self._list_repo.get_all_by_community(community.id)
         task_count = self._task_repo.count_by_community(community.id)
 
+        default_selected_list: ListEntity | None = None
+
+        if community.default_selected_list_id is not None:
+            for lst in lists:
+                if lst.id == community.default_selected_list_id:
+                    default_selected_list = lst
+                    break
+
         return CommunityInfoDTO(
             community.name,
             community.limits,
-            community.default_selected_list_id,
+            default_selected_list,
             tuple(community_users),
             tuple(lists),
             task_count,
         )
 
 
-@dataclass
+@dataclass(frozen=True, slots=True, eq=False)
 class CommunityAccessService:
     _ctx: InteractingUserContext
     _repo: CommunityRepository
     _community_user_service: CommunityUserService
 
-    def get_by_server_id_or_raise(self) -> CommunityEntity:
-        obj = self._repo.get_by_server_id(self._ctx.server_id)
-
-        if obj is None:
-            raise errors.NotInCommunity()
-
-        return obj
-
-    def get_by_server_id_or_raise_and_get_or_create_community_user(
-        self,
-    ) -> tuple[CommunityEntity, CommunityUserEntity]:
-        community = self.get_by_server_id_or_raise()
-        community_user = self._community_user_service.get_or_create(
-            CreateCommunityUserDTO(self._ctx.user, community.id)
-        )
-
-        return community, community_user
-
-    def get_by_name_or_current(
+    def get_by_name_or_current_or_raise(
         self, name: CommunityName | None = None
     ) -> CommunityEntity:
         if name is None:
-            return self.get_by_server_id_or_raise()
+            community = self._repo.get_by_server_id(self._ctx.server_id)
 
-        community = self._repo.get_by_name(name)
+            if community is None:
+                raise errors.NotInCommunity()
 
-        if community is None:
-            raise errors.NotFound(CommunityEntity)
+            return community
+        else:
+            community = self._repo.get_by_name(name)
 
-        return community
+            if community is None:
+                raise errors.NotFound(CommunityEntity)
+
+            return community

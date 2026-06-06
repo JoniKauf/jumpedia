@@ -17,10 +17,10 @@ class PermissionService:
             raise errors.NotAllowed(meta_rank, required)
 
     def ensure_community_rank(
-        self, community_rank: CommunityRank, required: CommunityRank
+        self, community_user: CommunityUserEntity, required: CommunityRank
     ) -> None:
-        if not self._ctx.user.meta_rank and community_rank.value < required.value:
-            raise errors.NotAllowed(community_rank, required)
+        if not self._ctx.user.meta_rank and community_user.community_rank.value < required.value:
+            raise errors.NotAllowed(community_user.community_rank, required)
 
     def ensure_server_rank(self, required: ServerRank) -> None:
         server_rank = self._ctx.server_rank

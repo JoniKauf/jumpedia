@@ -14,14 +14,14 @@ from db.base import Base
 from db.types import RealStrType, NormStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.value_objects.slot import AttributeSlot
+from domain.value_objects.attribute import AttributeSlot
 from domain.value_objects.string import RealStr, NormStr
-from domain.value_objects.limits import Limits
+from domain.value_objects.community import CommunityLimits
 import typing as t
 from domain.types.id import ID
 
 
-_DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
+_DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
 
 # --- Community ---
@@ -35,10 +35,10 @@ class Community(Base):
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+        NormStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
     )
     real_name: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+        RealStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
     )
 
     default_selected_list_id: Mapped[ID | None] = mapped_column(
@@ -93,8 +93,8 @@ class List(Base):
         ForeignKey("community.community_id", ondelete="CASCADE")
     )
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.LIST_NAME_LENGTH_MAX))
-    real_name: Mapped[RealStr] = mapped_column(RealStrType(Limits.LIST_NAME_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(CommunityLimits.LIST_NAME_LENGTH_MAX))
+    real_name: Mapped[RealStr] = mapped_column(RealStrType(CommunityLimits.LIST_NAME_LENGTH_MAX))
 
     __table_args__ = (
         *Base.__table_args__,
@@ -110,8 +110,8 @@ class User(Base):
 
     user_id: Mapped[ID] = mapped_column(BigInteger, primary_key=True)
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(Limits.USER_NAME_LENGTH_MAX))
-    raw_name: Mapped[str] = mapped_column(String(Limits.USER_NAME_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(NormStrType(CommunityLimits.USER_NAME_LENGTH_MAX))
+    raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
     power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
@@ -167,10 +167,10 @@ class Attribute(Base):
     kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
     real_name: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
 
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -195,10 +195,10 @@ class Attribute(Base):
         ),
         CheckConstraint(f"min_slot_count <= max_slot_count"),
         CheckConstraint(
-            f"min_slot_count BETWEEN {Limits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT} AND max_slot_count"
+            f"min_slot_count BETWEEN {CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT} AND max_slot_count"
         ),
         CheckConstraint(
-            f"max_slot_count >= {Limits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT}"
+            f"max_slot_count >= {CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT}"
         ),
     )
 
@@ -217,10 +217,10 @@ class AttributeAlias(Base):
     list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
     real_alias: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_SYN_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -246,10 +246,10 @@ class AttributeCollectionEntry(Base):
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     norm_slot: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
     real_slot: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -278,10 +278,10 @@ class AttributeCollectionEntryAlias(Base):
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
     real_alias: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -301,10 +301,10 @@ class Task(Base):
     list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
     real_name: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -325,10 +325,10 @@ class TaskAlias(Base):
     list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
     real_alias: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -354,7 +354,7 @@ class TaskAttributeValue(Base):
     index: Mapped[int] = mapped_column(primary_key=True)
 
     real_slot: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
 
@@ -398,7 +398,7 @@ class CommunityUserTaskAttributeValue(Base):
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     real_slot: Mapped[RealStr] = mapped_column(
-        RealStrType(Limits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (

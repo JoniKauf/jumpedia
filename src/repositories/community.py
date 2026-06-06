@@ -9,7 +9,7 @@ from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
-from domain.value_objects.limits import Limits
+from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.list import _list_model_to_entity
@@ -22,7 +22,7 @@ def _community_model_to_entity(model: Community) -> CommunityEntity:
         id=model.community_id,
         name=CommunityName(_real=model.real_name, _norm=model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
-        limits=Limits(
+        limits=CommunityLimits(
             community_list_count_max=model.community_list_count_max,
             list_attribute_count_max=model.list_attribute_count_max,
             list_task_count_max=model.list_task_count_max,

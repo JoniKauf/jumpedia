@@ -1,8 +1,12 @@
+from dataclasses import asdict
+import re
+
 from discord import app_commands
 import discord
+from domain.enums.rank import CommunityRank
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
-from domain.value_objects.limits import Limits
+from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
@@ -10,7 +14,7 @@ from interfaces.message import messages
 from interfaces.message.format import Mention
 import typing as t
 
-_DEFAULT_LIMITS: t.Final[Limits] = Limits.default()
+_DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
 
 class CommunityInterface(BaseInterface, group_name="community"):
@@ -19,11 +23,25 @@ class CommunityInterface(BaseInterface, group_name="community"):
     async def info(
         self, ctx: CommandContext, community_name: str | None = None
     ) -> None:
-        community_info = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
+        info_dto = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
+
+        data: dict[str, tuple[str, ...]] = {
+            "Name": (info_dto.name.real.value,),
+            "Owners": tuple(user.name.real.value for user in info_dto.community_users if user.community_rank is CommunityRank.OWNER),
+            "User Count": (str(len(info_dto.community_users)),),
+            "Lists": tuple(lst.name.real.value for lst in info_dto.lists),
+            "Default Selected List": (info_dto.default_selected_list.name.real.value,) if info_dto.default_selected_list else (),
+            "Task Count": (str(info_dto.task_count),),
+        }
+
+        data |= {
+            "Limit - " + name.replace("_", " ").title(): (str(value),) for name, value in asdict(info_dto.limits).items() if isinstance(value, int)
+        }
 
         await messages.object_info(
             ctx.interaction,
-            t"Community Info"
+            info_dto,
+            data
         )
 
     @app_commands.command()
@@ -45,7 +63,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             CommunityName(name),
             ID(owner.id),
             StrStore(owner.name),
-            Limits(
+            CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
                 list_task_count_max=list_task_count_max,

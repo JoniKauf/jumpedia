@@ -3,18 +3,19 @@ from sqlalchemy import select
 from db.models import Attribute
 from domain.entities.attribute import AttributeEntity, AttributeSlot
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
-from domain.value_objects.limits import Limits
+from domain.value_objects.attribute import AttributeName
+from domain.value_objects.community import CommunityLimits
 from interfaces.list import StrStore
 from repositories.base import BaseRepository
 
 
-def _attribute_model_to_entity(model: Attribute, limits: Limits) -> AttributeEntity:
+def _attribute_model_to_entity(model: Attribute, limits: CommunityLimits) -> AttributeEntity:
     return AttributeEntity(
         id=model.attribute_id,
         list_id=model.list_id,
         type=AttributeType(model.type),
         kind=AttributeKind(model.kind),
-        name=StrStore(_real=model.real_name, _norm=model.norm_name),
+        name=AttributeName(_real=model.real_name, _norm=model.norm_name),
         slot=AttributeSlot(
             AttributeSlotType(model.slot_type),
             model.min_slot_count,
@@ -26,11 +27,11 @@ def _attribute_model_to_entity(model: Attribute, limits: Limits) -> AttributeEnt
 
 
 class AttributeRepository(BaseRepository):
-    def get_by_id(self, attribute_id: int, limits: Limits) -> AttributeEntity | None:
+    def get_by_id(self, attribute_id: int, limits: CommunityLimits) -> AttributeEntity | None:
         obj = self.session.get(Attribute, attribute_id)
         return None if obj is None else _attribute_model_to_entity(obj, limits)
 
-    def get_by_list_id(self, list_id: int, limits: Limits) -> list[AttributeEntity]:
+    def get_by_list_id(self, list_id: int, limits: CommunityLimits) -> list[AttributeEntity]:
         stmt = select(Attribute).where(Attribute.list_id == list_id)
         objs = self.session.scalars(stmt).all()
         return [_attribute_model_to_entity(o, limits) for o in objs]

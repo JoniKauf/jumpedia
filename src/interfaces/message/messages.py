@@ -1,3 +1,4 @@
+import itertools
 from string.templatelib import Template
 import typing as t
 
@@ -5,6 +6,7 @@ import discord
 
 from domain.entities.base import BaseEntity
 from domain.errors import StrStore
+from infrastructure import pastee
 from interfaces.message import format, layout
 from interfaces.message.layout import T, Status
 
@@ -38,9 +40,17 @@ async def info(
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
 async def object_info(
-    interaction: discord.Interaction, entity_type: BaseEntity, data: dict[str, tuple[str, ...]]
+    interaction: discord.Interaction, dto: format.MentionableInfoDtoT, data: dict[str, tuple[str, ...]]
 ) -> None:
-    await interaction.followup.send(layout.layout(header, body, Status.INFO))
+    links = pastee.table_to_pastee_strings(tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),))
+    
+    mention = format.Mention(dto)
+
+    await interaction.followup.send(layout.layout(
+        t"{mention.type_title} Info", 
+        t"{'\n'.join(links) @ T.RAW}", 
+        Status.INFO
+    ))
 
 async def object_created(
     interaction: discord.Interaction,
@@ -55,7 +65,7 @@ async def object_created(
     )
 
 
-async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDtoT) -> None:
+async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDeletedDtoT) -> None:
     mention = format.Mention(dto)
 
     await success(

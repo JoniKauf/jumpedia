@@ -2,7 +2,7 @@ from domain import errors
 from domain.entities.base import BaseEntity
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
-from domain.value_objects.limits import Limits
+from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 
 
@@ -12,7 +12,7 @@ class CommunityEntity(BaseEntity):
         id: ID,
         name: CommunityName,
         default_selected_list_id: ID | None,
-        limits: Limits,
+        limits: CommunityLimits,
     ) -> None:
         super().__init__(id)
 
@@ -29,11 +29,11 @@ class CommunityEntity(BaseEntity):
         self._name = value
 
     @property
-    def limits(self) -> Limits:
+    def limits(self) -> CommunityLimits:
         return self._limits
 
     @limits.setter
-    def limits(self, value: Limits) -> None:
+    def limits(self, value: CommunityLimits) -> None:
         self._limits = value
 
     @property

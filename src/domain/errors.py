@@ -90,3 +90,7 @@ class DuplicateUniqueRequiredString(DomainError):
         super().__init__()
         self.first = first
         self.second = second
+
+class NoDefaultSelectedList(DomainError):
+    def __init__(self) -> None:
+        pass

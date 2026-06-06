@@ -12,7 +12,8 @@ from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 
 from interfaces.message.layout import T, _TaggedObj
-from services.dtos.community import DeletedCommunityDTO
+from services.dtos.community import CommunityInfoDTO, DeletedCommunityDTO
+from services.dtos.list import ListInfoDTO
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -37,7 +38,10 @@ def human_join(
 
 
 type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity
-type MentionableDtoT = DeletedCommunityDTO
+
+type MentionableInfoDtoT = CommunityInfoDTO | ListInfoDTO
+type MentionableDeletedDtoT = DeletedCommunityDTO
+type MentionableDtoT = MentionableInfoDtoT | MentionableDeletedDtoT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDtoT
 
@@ -76,6 +80,7 @@ class Mention:
                 | ListEntity()
                 | AttributeEntity()
                 | DeletedCommunityDTO()
+                | CommunityInfoDTO()
             ):
                 type_str: str
 
@@ -84,9 +89,9 @@ class Mention:
                         type_str = "user"
                     case CommunityUserEntity():
                         type_str = "community member"
-                    case CommunityEntity() | DeletedCommunityDTO():
+                    case CommunityEntity() | CommunityInfoDTO() | DeletedCommunityDTO():
                         type_str = "community"
-                    case ListEntity():
+                    case ListEntity() | ListInfoDTO():
                         type_str = "list"
                     case AttributeEntity():
                         match mentionable.type:

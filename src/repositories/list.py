@@ -1,8 +1,10 @@
 from sqlalchemy import select, func, delete
 
 from db.models import List as List, Task
+from domain import errors
 from domain.entities.list import ListEntity
 from domain.types.id import ID
+from domain.value_objects.list import ListName
 from domain.value_objects.string import StrStore
 from repositories.dtos.list import CreateListDTO
 from .base import BaseRepository
@@ -12,7 +14,7 @@ def _list_model_to_entity(model: List) -> ListEntity:
     return ListEntity(
         id=model.list_id,
         community_id=model.community_id,
-        name=StrStore(_real=model.real_name, _norm=model.norm_name),
+        name=ListName(_real=model.real_name, _norm=model.norm_name),
     )
 
 
@@ -34,7 +36,7 @@ class ListRepository(BaseRepository):
         return None if obj is None else _list_model_to_entity(obj)
 
     def get_by_community_and_name(
-        self, community_id: ID, name: StrStore
+        self, community_id: ID, name: ListName
     ) -> ListEntity | None:
         stmt = select(List).where(
             List.community_id == community_id,
@@ -60,3 +62,14 @@ class ListRepository(BaseRepository):
         if obj:
             self.session.delete(obj)
             self.session.flush()
+
+    def update(self, list: ListEntity) -> None:
+        obj = self.session.get(List, list.id)
+
+        if obj is None:
+            raise errors.NotFound(ListEntity)
+        
+        obj.norm_name = list.name.norm
+        obj.real_name = list.name.real
+        
+        self.session.flush()
