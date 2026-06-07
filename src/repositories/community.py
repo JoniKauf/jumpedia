@@ -22,6 +22,7 @@ def _community_model_to_entity(model: Community) -> CommunityEntity:
         id=model.community_id,
         name=CommunityName(_real=model.real_name, _norm=model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
+        created=model.created,
         limits=CommunityLimits(
             community_list_count_max=model.community_list_count_max,
             list_attribute_count_max=model.list_attribute_count_max,

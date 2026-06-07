@@ -23,7 +23,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     async def info(
         self, ctx: CommandContext, community_name: str | None = None
     ) -> None:
-        info_dto = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
+        info_dto = ctx.services.community_query.get_info(None if community_name is None else CommunityName(community_name))
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (info_dto.name.real.value,),
@@ -31,7 +31,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             "User Count": (str(len(info_dto.community_users)),),
             "Lists": tuple(lst.name.real.value for lst in info_dto.lists),
             "Default Selected List": (info_dto.default_selected_list.name.real.value,) if info_dto.default_selected_list else (),
-            "Task Count": (str(info_dto.task_count),),
+            "Task Count": (str(info_dto.total_task_count),),
         }
 
         data |= {
@@ -43,6 +43,11 @@ class CommunityInterface(BaseInterface, group_name="community"):
             info_dto,
             data
         )
+
+    @app_commands.command()
+    @with_context()
+    async def browse(self, ctx: CommandContext) -> None:
+        pass
 
     @app_commands.command()
     @with_context()

@@ -56,6 +56,20 @@ class ListRepository(BaseRepository):
             .where(List.community_id == community_id)
         )
         return self.session.scalar(stmt) or 0
+    
+    def count_grouped_by_community_id(self) -> dict[ID, int]:
+        stmt = (
+            select(
+                List.community_id,
+                func.count()
+            )
+            .group_by(List.community_id)
+        )
+
+        return {
+            ID(community_id): count
+            for community_id, count in self.session.execute(stmt)
+        }
 
     def delete(self, list_id: ID) -> None:
         obj = self.session.get(List, list_id)

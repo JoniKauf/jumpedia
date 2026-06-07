@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from db.models import User, CommunityUser
 from domain.entities.user import CommunityUserEntity, UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
+from domain.types.id import ID
 from domain.value_objects.string import RealStr, StrStore
 from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from .base import BaseRepository
@@ -101,6 +102,20 @@ class CommunityUserRepository(BaseRepository):
 
         return _community_user_model_to_entity(obj, community_user.user)
 
+    def count_grouped_by_community_id(self) -> dict[ID, int]:
+        stmt = (
+            select(
+                CommunityUser.community_id,
+                func.count()
+            )
+            .group_by(CommunityUser.community_id)
+        )
+
+        return {
+            community_id: count
+            for community_id, count in self.session.execute(stmt)
+        }
+        
     def get_all_by_community_id(self, community_id: int) -> list[CommunityUserEntity]:
         stmt = (
             select(CommunityUser, User)

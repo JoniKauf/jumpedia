@@ -18,7 +18,7 @@ from repositories.dtos.community import CreateCommunityDTO
 from repositories.dtos.user import CreateCommunityUserDTO
 from domain.value_objects.community import CommunityLimits
 from services.permission import PermissionService
-from services.dtos.community import CommunityInfoDTO, DeletedCommunityDTO
+from services.dtos.community import CommunityInfoDTO, CommunitySummaryDTO, DeletedCommunityDTO
 from services.list import ListService
 from services.user import CommunityUserAccessService, CommunityUserService
 
@@ -132,7 +132,7 @@ class CommunityQueryService:
     _list_repo: ListRepository
     _task_repo: TaskRepository
 
-    def info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
+    def get_info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
         community = self._access_service.get_by_name_or_current_or_raise(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
@@ -151,14 +151,33 @@ class CommunityQueryService:
 
         return CommunityInfoDTO(
             community.name,
-            community.limits,
             default_selected_list,
+            community.created,
+            community.limits,
             tuple(community_users),
             tuple(lists),
             task_count,
         )
+    
+    def get_all_summaries(self) -> tuple[CommunitySummaryDTO, ...]:
+        id_to_community = {community.id: community for community in self._repo.get_all()}
 
+        community_user_count = self._community_user_repo.count_grouped_by_community_id()
+        list_counts = self._list_repo.count_grouped_by_community_id()
+        task_counts = self._task_repo.count_grouped_by_community_id()
 
+        return tuple(
+            CommunitySummaryDTO(
+                community.name,
+                community.created,
+                community_user_count.get(id, 0),
+                list_counts.get(id, 0),
+                task_counts.get(id, 0)
+            )
+            for id, community in id_to_community.items()
+        )
+
+        
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityAccessService:
     _ctx: InteractingUserContext

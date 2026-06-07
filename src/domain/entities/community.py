@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from domain import errors
 from domain.entities.base import BaseEntity
 from domain.types.id import ID
@@ -12,12 +14,14 @@ class CommunityEntity(BaseEntity):
         id: ID,
         name: CommunityName,
         default_selected_list_id: ID | None,
+        created: datetime,
         limits: CommunityLimits,
     ) -> None:
         super().__init__(id)
 
         self.name = name
         self.default_selected_list_id = default_selected_list_id
+        self._created = created
         self.limits = limits
 
     @property
@@ -29,12 +33,8 @@ class CommunityEntity(BaseEntity):
         self._name = value
 
     @property
-    def limits(self) -> CommunityLimits:
-        return self._limits
-
-    @limits.setter
-    def limits(self, value: CommunityLimits) -> None:
-        self._limits = value
+    def created(self) -> datetime:
+        return self._created
 
     @property
     def default_selected_list_id(self) -> ID | None:
@@ -43,3 +43,11 @@ class CommunityEntity(BaseEntity):
     @default_selected_list_id.setter
     def default_selected_list_id(self, value: ID | None) -> None:
         self._selected_list_id = value
+
+    @property
+    def limits(self) -> CommunityLimits:
+        return self._limits
+
+    @limits.setter
+    def limits(self, value: CommunityLimits) -> None:
+        self._limits = value

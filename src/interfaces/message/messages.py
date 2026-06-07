@@ -40,7 +40,7 @@ async def info(
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
 async def object_info(
-    interaction: discord.Interaction, dto: format.MentionableInfoDtoT, data: dict[str, tuple[str, ...]]
+    interaction: discord.Interaction, dto: format.MentionableInfoDTOT, data: dict[str, tuple[str, ...]]
 ) -> None:
     links = pastee.table_to_pastee_strings(tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),))
     
@@ -51,6 +51,11 @@ async def object_info(
         t"{'\n'.join(links) @ T.RAW}", 
         Status.INFO
     ))
+
+async def object_browse(
+    interaction: discord.Interaction, dto_type: type[format.MentionableSummaryDTOT], data: dict[str, tuple[tuple[str, ...], ...]]
+) -> None:
+    pass
 
 async def object_created(
     interaction: discord.Interaction,

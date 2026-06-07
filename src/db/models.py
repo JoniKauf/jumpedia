@@ -1,6 +1,9 @@
 # db/models.py
+from datetime import UTC, datetime
+
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Integer,
     BigInteger,
@@ -39,6 +42,12 @@ class Community(Base):
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+    )
+
+    created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
     default_selected_list_id: Mapped[ID | None] = mapped_column(

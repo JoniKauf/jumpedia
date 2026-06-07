@@ -12,7 +12,7 @@ from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 
 from interfaces.message.layout import T, _TaggedObj
-from services.dtos.community import CommunityInfoDTO, DeletedCommunityDTO
+from services.dtos.community import CommunityInfoDTO, CommunitySummaryDTO, DeletedCommunityDTO
 from services.dtos.list import ListInfoDTO
 
 
@@ -39,77 +39,62 @@ def human_join(
 
 type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity
 
-type MentionableInfoDtoT = CommunityInfoDTO | ListInfoDTO
-type MentionableDeletedDtoT = DeletedCommunityDTO
-type MentionableDtoT = MentionableInfoDtoT | MentionableDeletedDtoT
+type MentionableInfoDTOT = CommunityInfoDTO | ListInfoDTO
+type MentionableSummaryDTOT = CommunitySummaryDTO
+type MentionableDeletedDTOT = DeletedCommunityDTO
+type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
-type MentionableT = AnyRankT | MentionableEntityT | MentionableDtoT
+type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
 
 
 class Mention:
     def __init__(self, mentionable: MentionableT) -> None:
         self._mentionable = mentionable
-        self._type_name, self._obj_name = self._get_type_and_obj_name_lower(mentionable)
+        self._type_name, self._obj_name = self.get_type_name_lower(mentionable)
+
+    _TYPE_MAP: dict[type[MentionableT], str] = {
+        MetaRank: "meta rank",
+        CommunityRank: "community rank",
+        ServerRank: "server rank",
+
+        UserEntity: "user",
+        CommunityUserEntity: "community member",
+        CommunityEntity: "community",
+        CommunityInfoDTO: "community",
+        DeletedCommunityDTO: "community",
+        ListEntity: "list",
+        ListInfoDTO: "list",
+        AttributeEntity: "attribute",
+    }
+
+    _ATTRIBUTE_TYPE_MAP = {
+        AttributeType.STATIC: "static",
+        AttributeType.TASK: "task",
+        AttributeType.USER: "user",
+    }
 
     # This is purposefully very static and not dynamic with classes' __name__ to allow for
     # more customization if needed and to not have internal renames affect user-sided representation
-    @staticmethod
-    def _get_type_and_obj_name_lower(mentionable: MentionableT) -> tuple[str, str]:
-        match mentionable:
-            case MetaRank() | CommunityRank() | ServerRank():
-                type_str: str
+    @classmethod
+    def get_type_name_lower(cls, mentionable: MentionableT | type[MentionableT]) -> str:
+        if isinstance(mentionable, type):
+            mentionable_type = mentionable
+        else:
+            mentionable_type = type(mentionable)
 
-                match mentionable:
-                    case MetaRank():
-                        type_str = "meta"
-                    case CommunityRank():
-                        type_str = "community"
-                    case ServerRank():
-                        type_str = "server"
-                    case _:
-                        t.assert_never(mentionable)
+        type_str = cls._TYPE_MAP[mentionable_type]
 
-                type_str += " rank"
+        if isinstance(mentionable, AttributeEntity):
+            type_str = f"{cls._ATTRIBUTE_TYPE_MAP[mentionable.type]} {type_str}"
 
-                return (type_str, mentionable.name.replace("_", " ").title())
-
-            case (
-                UserEntity()
-                | CommunityUserEntity()
-                | CommunityEntity()
-                | ListEntity()
-                | AttributeEntity()
-                | DeletedCommunityDTO()
-                | CommunityInfoDTO()
-            ):
-                type_str: str
-
-                match mentionable:
-                    case UserEntity():
-                        type_str = "user"
-                    case CommunityUserEntity():
-                        type_str = "community member"
-                    case CommunityEntity() | CommunityInfoDTO() | DeletedCommunityDTO():
-                        type_str = "community"
-                    case ListEntity() | ListInfoDTO():
-                        type_str = "list"
-                    case AttributeEntity():
-                        match mentionable.type:
-                            case AttributeType.STATIC:
-                                type_str = "static attribute"
-                            case AttributeType.TASK:
-                                type_str = "task attribute"
-                            case AttributeType.USER:
-                                type_str = "user attribute"
-                            case _:
-                                t.assert_never(mentionable)
-                    case _:
-                        t.assert_never(mentionable)
-
-                return (type_str, mentionable.name.real.value)
-
-            case _:
-                t.assert_never(mentionable)
+        return type_str
+    
+    @classmethod
+    def get_instance_name_lower(cls, mentionable: MentionableT) -> str:
+        if isinstance(mentionable, MetaRank | CommunityRank | ServerRank):
+            return mentionable.name.lower()
+        
+        return mentionable.name.real.value
 
     @property
     def type_title(self) -> _TaggedObj:
