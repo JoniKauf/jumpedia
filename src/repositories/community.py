@@ -105,3 +105,24 @@ class CommunityRepository(BaseRepository):
         obj = self.session.execute(stmt).scalar_one_or_none()
 
         return None if obj is None else _list_model_to_entity(obj)
+
+    def update(self, community: CommunityEntity) -> None:
+        obj = self.session.get(Community, community.id)
+
+        if obj is None:
+            raise errors.NotFoundById(CommunityEntity)
+        
+        obj.norm_name = community.name.norm
+        obj.real_name = community.name.real
+
+        obj.default_selected_list_id = community.default_selected_list_id
+
+        obj.community_list_count_max=community.limits.community_list_count_max
+        obj.list_attribute_count_max=community.limits.list_attribute_count_max
+        obj.list_task_count_max=community.limits.list_task_count_max
+        obj.attribute_alias_count_max=community.limits.attribute_alias_count_max
+        obj.attribute_task_value_slot_count_max=community.limits.attribute_task_value_slot_count_max
+        obj.attribute_collection_entry_count_max=community.limits.attribute_collection_entry_count_max
+        obj.attribute_collection_entry_alias_count_max=community.limits.attribute_collection_entry_alias_count_max
+
+        self.session.flush()

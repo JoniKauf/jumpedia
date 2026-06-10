@@ -81,7 +81,7 @@ class ListRepository(BaseRepository):
         obj = self.session.get(List, list.id)
 
         if obj is None:
-            raise errors.NotFound(ListEntity)
+            raise errors.NotFoundById(ListEntity)
         
         obj.norm_name = list.name.norm
         obj.real_name = list.name.real

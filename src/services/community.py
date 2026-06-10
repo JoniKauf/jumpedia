@@ -74,8 +74,8 @@ class CommunityService:
             overwrite_selected_list=True,
         )
 
-        # TODO set as default
-        self._list_service.create(ListName("Main"))
+        community.default_selected_list_id = self._list_service.create(ListName("Main")).id
+        self._repo.update(community)
 
         return community
 
@@ -84,7 +84,7 @@ class CommunityService:
     # -------------------------
     def delete(self) -> DeletedCommunityDTO:
         community = (
-            self._access_service.get_by_name_or_current_or_raise()
+            self._access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
         )
         community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
         
@@ -94,33 +94,7 @@ class CommunityService:
 
         self._repo.delete(community.id)
 
-        return DeletedCommunityDTO(community.name, community.limits)
-
-    def link(self, community_name: CommunityName) -> CommunityEntity:
-        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
-
-        community = self._repo.get_by_server_id(self._ctx.server_id)
-
-        if community is not None:
-            raise errors.InCommunity(community)
-
-        community = self._repo.get_by_name(community_name)
-
-        if community is None:
-            raise errors.NotFound(CommunityEntity)
-
-        self._server_repo.link(community, self._ctx.server_id)
-
-        return community
-
-    def unlink(self) -> CommunityEntity:
-        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
-
-        community = self._access_service.get_by_name_or_current_or_raise()
-
-        self._server_repo.unlink(self._ctx.server_id)
-
-        return community
+        return DeletedCommunityDTO(community.name, community.created, community.limits)
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -133,7 +107,7 @@ class CommunityQueryService:
     _task_repo: TaskRepository
 
     def get_info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
-        community = self._access_service.get_by_name_or_current_or_raise(community_name)
+        community = self._access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
             community.id
@@ -184,20 +158,23 @@ class CommunityAccessService:
     _repo: CommunityRepository
     _community_user_service: CommunityUserService
 
-    def get_by_name_or_current_or_raise(
+    def get_by_name_or_raise(self, name: CommunityName) -> CommunityEntity:
+        community = self._repo.get_by_name(name)
+
+        if community is None:
+            raise errors.NotFoundByName(name, CommunityEntity)
+
+        return community
+    
+    def get_current_or_raise(self) -> CommunityEntity:
+        community = self._repo.get_by_server_id(self._ctx.server_id)
+
+        if community is None:
+            raise errors.NotInCommunity()
+
+        return community
+    
+    def get_by_name_or_raise_if_given_else_get_by_current_or_raise(
         self, name: CommunityName | None = None
     ) -> CommunityEntity:
-        if name is None:
-            community = self._repo.get_by_server_id(self._ctx.server_id)
-
-            if community is None:
-                raise errors.NotInCommunity()
-
-            return community
-        else:
-            community = self._repo.get_by_name(name)
-
-            if community is None:
-                raise errors.NotFound(CommunityEntity)
-
-            return community
+        return self.get_current_or_raise() if name is None else self.get_by_name_or_raise(name) 

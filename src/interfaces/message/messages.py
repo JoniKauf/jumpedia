@@ -70,7 +70,7 @@ async def object_created(
     )
 
 
-async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDeletedDtoT) -> None:
+async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDeletedDTOT) -> None:
     mention = format.Mention(dto)
 
     await success(
