@@ -25,7 +25,7 @@ def __main() -> None:
         )
 
     # one_to_two.main()
-    import dc.run
+    import _dc.run
 
 
 if __name__ == "__main__":

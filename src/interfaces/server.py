@@ -17,7 +17,7 @@ class ServerInterface(BaseInterface, group_name="server"):
         ctx: CommandContext,
         community: str,
     ) -> None:
-        community_entity = ctx.services.community.link(CommunityName(community))
+        community_entity = ctx.services.server.link(CommunityName(community))
         mention = Mention(community_entity)
 
         await messages.success(
@@ -32,7 +32,7 @@ class ServerInterface(BaseInterface, group_name="server"):
         self,
         ctx: CommandContext,
     ) -> None:
-        community_entity = ctx.services.community.unlink()
+        community_entity = ctx.services.server.unlink()
         mention = Mention(community_entity)
 
         await messages.success(

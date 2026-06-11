@@ -1,18 +1,9 @@
 from discord import app_commands
-import discord
-from domain.entities.list import ListEntity
-from domain.enums.rank import MetaRank
 from domain.value_objects.list import ListName
-from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
-from services.community import CommunityService
-from services.list import ListService
-from services.user import UserService
-from sqlalchemy.orm import Session
 
-import typing as t
 
 class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()

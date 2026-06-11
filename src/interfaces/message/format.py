@@ -48,15 +48,10 @@ type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
 
 
 class Mention:
-    def __init__(self, mentionable: MentionableT) -> None:
-        self._mentionable = mentionable
-        self._type_name, self._obj_name = self.get_type_name_lower(mentionable)
-
-    _TYPE_MAP: dict[type[MentionableT], str] = {
+    _TYPE_MAP = {
         MetaRank: "meta rank",
         CommunityRank: "community rank",
         ServerRank: "server rank",
-
         UserEntity: "user",
         CommunityUserEntity: "community member",
         CommunityEntity: "community",
@@ -73,14 +68,15 @@ class Mention:
         AttributeType.USER: "user",
     }
 
-    # This is purposefully very static and not dynamic with classes' __name__ to allow for
-    # more customization if needed and to not have internal renames affect user-sided representation
     @classmethod
-    def get_type_name_lower(cls, mentionable: MentionableT | type[MentionableT]) -> str:
-        if isinstance(mentionable, type):
-            mentionable_type = mentionable
-        else:
-            mentionable_type = type(mentionable)
+    def _get_type_name_lower(
+        cls,
+        mentionable: MentionableT | type[MentionableT],
+    ) -> str:
+        mentionable_type = (
+            mentionable if isinstance(mentionable, type)
+            else type(mentionable)
+        )
 
         type_str = cls._TYPE_MAP[mentionable_type]
 
@@ -88,18 +84,30 @@ class Mention:
             type_str = f"{cls._ATTRIBUTE_TYPE_MAP[mentionable.type]} {type_str}"
 
         return type_str
-    
+
     @classmethod
-    def get_instance_name_lower(cls, mentionable: MentionableT) -> str:
-        if isinstance(mentionable, MetaRank | CommunityRank | ServerRank):
+    def _get_instance_name_lower(
+        cls,
+        mentionable: MentionableT,
+    ) -> str:
+        if isinstance(mentionable, (MetaRank, CommunityRank, ServerRank)):
             return mentionable.name.lower()
-        
+
         return mentionable.name.real.value
 
-    @property
-    def type_title(self) -> _TaggedObj:
-        return self._type_name.title() @ T.RAW
+    @classmethod
+    def get_type_name_title(
+        cls,
+        mentionable: MentionableT | type[MentionableT],
+    ) -> _TaggedObj:
+        return cls._get_type_name_lower(mentionable).title() @ T.RAW
 
-    @property
-    def mention(self) -> _TaggedObj:
-        return f"{self._type_name} ``{self._obj_name}``" @ T.DEFAULT
+    @classmethod
+    def mention(
+        cls,
+        mentionable: MentionableT,
+    ) -> _TaggedObj:
+        return (
+            f"{cls._get_type_name_lower(mentionable)} "
+            f"``{cls._get_instance_name_lower(mentionable)}``"
+        ) @ T.DEFAULT

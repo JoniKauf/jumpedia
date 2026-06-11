@@ -1,5 +1,4 @@
 from dataclasses import asdict
-import re
 
 from discord import app_commands
 import discord
@@ -11,7 +10,6 @@ from domain.value_objects.string import StrStore
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
-from interfaces.message.format import Mention
 import typing as t
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
@@ -47,7 +45,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
-        pass
+        summaries = ctx.services.community_query.get_all_summaries()
 
     @app_commands.command()
     @with_context()
