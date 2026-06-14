@@ -5,10 +5,11 @@ from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
+from domain.entities.user import CommunityUserEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeName, AttributeSlot
-from domain.value_objects.community import CommunityLimits
+from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
 from repositories.dtos.attribute import CreateAttributeDTO
@@ -24,6 +25,7 @@ import typing as t
 class AttributeService:
     _ctx: InteractingUserContext
     _repo: AttributeRepository
+    _access_service: AttributeAccessService
     _permission_service: PermissionService
     _list_access_service: ListAccessService
 
@@ -71,8 +73,13 @@ class AttributeService:
             attr_count + 1
         ))
     
-    def delete(self, name: AttributeName) -> None:
-        ...
+    def delete(self, name: AttributeName, list_name: ListName | None) -> None:
+        community, community_user, lst, attr = self._access_service.get_convenient(None, list_name, name)
+
+        self._permission_service.ensure_community_rank(community_user, CommunityRank.ADMINISTRATOR)
+
+        self._repo.create
+        
     
 
         
@@ -128,8 +135,7 @@ class AttributeQueryService:
 class AttributeAccessService:
     _ctx: InteractingUserContext
     _repo: AttributeRepository
-    _community_user_access_service: CommunityUserAccessService
-    _community_access_service: CommunityAccessService
+    _list_access_service: ListAccessService
 
     def get_by_list_and_name_or_raise(self, lst: ListEntity, name: AttributeName) -> AttributeEntity:
         attr = self._repo.get_by_list_id_and_name(lst.id, name)
@@ -138,3 +144,9 @@ class AttributeAccessService:
             raise errors.NotFoundByName(name, AttributeEntity)
         
         return attr
+    
+    def get_convenient(self, community_name: CommunityName | None, list_name: ListName | None, attribute_name: AttributeName) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, AttributeEntity]:
+        community, community_user, lst = self._list_access_service.get_convenient(community_name, list_name)
+        attr = self.get_by_list_and_name_or_raise(lst, attribute_name)
+
+        return (community, community_user, lst, attr)

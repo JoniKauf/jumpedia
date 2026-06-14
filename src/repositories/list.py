@@ -73,9 +73,12 @@ class ListRepository(BaseRepository):
 
     def delete(self, list_id: ID) -> None:
         obj = self.session.get(List, list_id)
-        if obj:
-            self.session.delete(obj)
-            self.session.flush()
+        
+        if obj is None:
+            raise errors.NotFoundById(ListEntity)
+        
+        self.session.delete(obj)
+        self.session.flush()
 
     def update(self, list: ListEntity) -> None:
         obj = self.session.get(List, list.id)

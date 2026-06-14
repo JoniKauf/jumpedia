@@ -76,9 +76,11 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     def delete(self, community_id: ID) -> None:
         obj = self.session.get(Community, community_id)
-        if obj is not None:
-            self.session.delete(obj)
-            self.session.flush()
+        if obj is None:
+            raise errors.NotFoundById(CommunityEntity)
+        
+        self.session.delete(obj)
+        self.session.flush()
 
     def get_by_server_id(self, server_id: ID) -> CommunityEntity | None:
         stmt = (
