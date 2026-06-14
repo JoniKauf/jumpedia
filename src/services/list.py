@@ -6,6 +6,7 @@ from domain.entities.list import ListEntity
 from domain.entities.user import CommunityUserEntity
 from domain.enums.rank import CommunityRank
 from domain.types.id import ID
+from domain.value_objects.community import CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
 from repositories.task import TaskRepository
@@ -17,23 +18,21 @@ from services.permission import PermissionService
 from services.community import (
     CommunityAccessService,
 )
-from services.dtos.list import DeletedListDTO, ListInfoDTO
+from services.dtos.list import DeletedListDTO, ListInfoDTO, ListSummaryDTO
 from services.user import CommunityUserAccessService
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListService:
     _ctx: InteractingUserContext
     _repo: ListRepository
-    _permission_service: PermissionService
     _access_service: ListAccessService
+    _permission_service: PermissionService
     _community_user_access_service: CommunityUserAccessService
-    _community_access_service: CommunityAccessService
 
     def create(self, name: ListName) -> ListEntity:
-        community = (
-            self._community_access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
+        community, community_user = (
+            self._community_user_access_service.get_convenient(None)
         )
-        community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.ADMINISTRATOR
@@ -48,60 +47,51 @@ class ListService:
 
         if existing := self._repo.get_by_community_and_name(community.id, name):
             raise errors.NameAlreadyTaken(name, existing)
+        
+        # TODO create static attributes
 
         return self._repo.create(CreateListDTO(community.id, name))
 
     def delete(self, name: ListName) -> DeletedListDTO:
-        community = self._community_access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
-        community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
+        _, community_user, lst = self._access_service.get_convenient(None, name)
 
         self._permission_service.ensure_community_rank(community_user, CommunityRank.ADMINISTRATOR)
-
-        lst = self._access_service.get_by_community_and_name_or_raise(community, name)
 
         self._repo.delete(lst.id)
 
         return DeletedListDTO(lst.community_id, lst.name)
 
 
-    def rename(self, old_name: ListName, new_name: ListName):
-        community = self._community_access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
-        community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
+    def rename(self, name_before: ListName, name_after: ListName) -> ListEntity:
+        _, community_user, lst = self._access_service.get_convenient(None, name_before)
 
         self._permission_service.ensure_community_rank(community_user, CommunityRank.ADMINISTRATOR)
 
-        lst = self._repo.get_by_community_and_name(community.id, old_name)
+        name_taken_lst = self._repo.get_by_community_and_name(lst.community_id, name_after)
 
-        if lst is None:
-            raise errors.NotFoundByName(old_name, ListEntity)
+        if name_taken_lst is not None:
+            raise errors.NameAlreadyTaken(lst.name, name_taken_lst)
 
-        existing = self._repo.get_by_community_and_name(lst.community_id, lst.name)
-
-        if existing is not None:
-            raise errors.NameAlreadyTaken(lst.name, existing)
-
-        lst.name = new_name
+        lst.name = name_after
 
         self._repo.update(lst)
+
+        return lst
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListQueryService:
     _ctx: InteractingUserContext
     _repo: ListRepository
+    _access_service: ListAccessService
+    _community_access_service: CommunityAccessService
     _attribute_repo: AttributeRepository
     _task_repo: TaskRepository
-    _community_access_service: CommunityAccessService
     
     def info(self, name: ListName) -> ListInfoDTO:
-        community = self._community_access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
+        community, _, lst = self._access_service.get_convenient(None, name)
 
-        lst = self._repo.get_by_community_and_name(community.id, name)
-
-        if lst is None:
-            raise errors.NotFoundByName(name, ListEntity)
-
-        attributes = self._attribute_repo.get_by_list_id(lst.id, community.limits)
+        attributes = self._attribute_repo.get_all_by_list_id(lst.id)
         task_count = self._task_repo.count_by_list(lst.id)
         is_default = (
             community.default_selected_list_id == lst.id
@@ -113,6 +103,35 @@ class ListQueryService:
             task_count=task_count,
             is_default_selected_list=is_default,
         )
+    
+    def summaries(self) -> tuple[ListSummaryDTO, ...]:
+        community = self._community_access_service.get_convenient(None)
+
+        lists = self._repo.get_all_by_community(community.id)
+
+        attributes_by_list = (
+            self._attribute_repo.get_grouped_by_list_id(
+                community.id
+            )
+        )
+
+        task_counts = (
+            self._task_repo.count_grouped_by_list_id(
+                community.id,
+            )
+        )
+
+        default_list_id = community.default_selected_list_id
+
+        return tuple(
+            ListSummaryDTO(
+                name=lst.name,
+                attributes=tuple(attributes_by_list.get(lst.id, ())),
+                task_count=task_counts.get(lst.id, 0),
+                is_default_selected_list=(lst.id == default_list_id),
+            )
+            for lst in lists
+        )
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -120,7 +139,6 @@ class ListAccessService:
     _ctx: InteractingUserContext
     _repo: ListRepository
     _community_user_access_service: CommunityUserAccessService
-    _community_access_service: CommunityAccessService
 
     def get_by_community_and_name_or_raise(self, community: CommunityEntity, name: ListName) -> ListEntity:
         lst = self._repo.get_by_community_and_name(community.id, name)
@@ -130,7 +148,14 @@ class ListAccessService:
         
         return lst
     
-    def get_priority_ordered_selected(self, community: CommunityEntity, community_user: CommunityUserEntity) -> ListEntity:
+    def get_by_priority(self, community: CommunityEntity, community_user: CommunityUserEntity) -> ListEntity:
+        """Get the selected list in priority order:
+
+        1. The user's selected list if specified
+        2. otherwise the community's default selected list
+        3. otherwise raise
+        """
+
         selected_list_id = community_user.selected_list_id or community.default_selected_list_id
 
         if selected_list_id is None:
@@ -141,3 +166,15 @@ class ListAccessService:
         assert lst is not None
 
         return lst
+    
+    def get_convenient(self, community_name: CommunityName | None, list_name: ListName | None) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity]:
+        community, community_user = self._community_user_access_service.get_convenient(community_name)
+
+        lst: ListEntity
+
+        if list_name is None:
+            lst = self.get_by_priority(community, community_user)
+        else:
+            lst = self.get_by_community_and_name_or_raise(community, list_name)
+
+        return (community, community_user, lst)

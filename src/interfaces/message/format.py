@@ -46,68 +46,56 @@ type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | Mentionabl
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
 
+_TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
+    MetaRank: ("meta rank", "meta ranks"),
+    CommunityRank: ("community rank", "community ranks"),
+    ServerRank: ("server rank", "server ranks"),
+    UserEntity: ("user", "users"),
+    CommunityUserEntity: ("community member", "community members"),
+    CommunityEntity: ("community", "communities"),
+    CommunityInfoDTO: ("community", "communities"),
+    DeletedCommunityDTO: ("community", "communities"),
+    ListEntity: ("list", "lists"),
+    ListInfoDTO: ("list", "lists"),
+    AttributeEntity: ("attribute", "attributes"),
+}
 
-class Mention:
-    _TYPE_MAP = {
-        MetaRank: "meta rank",
-        CommunityRank: "community rank",
-        ServerRank: "server rank",
-        UserEntity: "user",
-        CommunityUserEntity: "community member",
-        CommunityEntity: "community",
-        CommunityInfoDTO: "community",
-        DeletedCommunityDTO: "community",
-        ListEntity: "list",
-        ListInfoDTO: "list",
-        AttributeEntity: "attribute",
-    }
+_ATTRIBUTE_TYPE_PREFIX_MAP = {
+    AttributeType.STATIC: "static",
+    AttributeType.TASK: "task",
+    AttributeType.USER: "user",
+}
 
-    _ATTRIBUTE_TYPE_MAP = {
-        AttributeType.STATIC: "static",
-        AttributeType.TASK: "task",
-        AttributeType.USER: "user",
-    }
+def _get_type_name_lower(
+    mentionable_type: type[MentionableT],
+    singular: bool
+) -> str:
+    type_str = _TYPE_MAP[mentionable_type]
 
-    @classmethod
-    def _get_type_name_lower(
-        cls,
-        mentionable: MentionableT | type[MentionableT],
-    ) -> str:
-        mentionable_type = (
-            mentionable if isinstance(mentionable, type)
-            else type(mentionable)
-        )
+    if isinstance(mentionable_type, AttributeEntity):
+        type_str = f"{_ATTRIBUTE_TYPE_PREFIX_MAP[mentionable_type.type]} {type_str}"
 
-        type_str = cls._TYPE_MAP[mentionable_type]
+    return type_str[not singular]
 
-        if isinstance(mentionable, AttributeEntity):
-            type_str = f"{cls._ATTRIBUTE_TYPE_MAP[mentionable.type]} {type_str}"
+def _get_instance_name_lower(
+    mentionable: MentionableT,
+) -> str:
+    if isinstance(mentionable, (MetaRank, CommunityRank, ServerRank)):
+        return mentionable.name.lower()
 
-        return type_str
+    return mentionable.name.real.value
 
-    @classmethod
-    def _get_instance_name_lower(
-        cls,
-        mentionable: MentionableT,
-    ) -> str:
-        if isinstance(mentionable, (MetaRank, CommunityRank, ServerRank)):
-            return mentionable.name.lower()
+def type_name_title(
+    mentionable_type: type[MentionableT],
+    singular: bool = True
+) -> _TaggedObj:
+    return _get_type_name_lower(mentionable_type, singular).title() @ T.RAW
 
-        return mentionable.name.real.value
-
-    @classmethod
-    def get_type_name_title(
-        cls,
-        mentionable: MentionableT | type[MentionableT],
-    ) -> _TaggedObj:
-        return cls._get_type_name_lower(mentionable).title() @ T.RAW
-
-    @classmethod
-    def mention(
-        cls,
-        mentionable: MentionableT,
-    ) -> _TaggedObj:
-        return (
-            f"{cls._get_type_name_lower(mentionable)} "
-            f"``{cls._get_instance_name_lower(mentionable)}``"
-        ) @ T.DEFAULT
+def mention(
+    mentionable: MentionableT,
+    singular: bool = True
+) -> _TaggedObj:
+    return (
+        f"{_get_type_name_lower(type(mentionable), singular)} "
+        f"``{_get_instance_name_lower(mentionable)}``"
+    ) @ T.DEFAULT

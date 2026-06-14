@@ -10,15 +10,12 @@ class BaseEntity:
             raise TypeError
 
         if id < 1:
-            raise RuntimeError("ID must be higher than 1")
+            raise RuntimeError("ID must be higher than 0")
 
         self._id = id
 
     @property
     def id(self) -> ID:
-        if not self.is_persisted():
-            raise RuntimeError("Programming Error: entity is not persisted!")
-
         return self._id
 
     def __eq__(self, other: object) -> bool:
@@ -28,6 +25,3 @@ class BaseEntity:
 
     def __hash__(self) -> int:
         return hash(self.id)
-
-    def is_persisted(self) -> bool:
-        return self._id > 0

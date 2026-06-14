@@ -40,41 +40,41 @@ async def info(
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
 async def object_info(
-    interaction: discord.Interaction, dto: format.MentionableInfoDTOT, data: dict[str, tuple[str, ...]]
+    interaction: discord.Interaction, info_dto_type: type[format.MentionableInfoDTOT], data: t.Mapping[str, tuple[str, ...]]
 ) -> None:
     links = pastee.table_to_pastee_strings(tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),))
-    
-    mention = format.Mention(dto)
 
     await interaction.followup.send(layout.layout(
-        t"{mention.type_title} Info", 
+        t"{format.type_name_title(info_dto_type)} Info", 
         t"{'\n'.join(links) @ T.RAW}", 
         Status.INFO
     ))
 
 async def object_browse(
-    interaction: discord.Interaction, dto_type: type[format.MentionableSummaryDTOT], data: dict[str, tuple[tuple[str, ...], ...]]
+    interaction: discord.Interaction, summary_dto_type: type[format.MentionableSummaryDTOT], data: t.Mapping[str, tuple[tuple[str, ...], ...]]
 ) -> None:
-    pass
+    links = pastee.table_to_pastee_strings(tuple(data), data.values())
+
+    await interaction.followup.send(layout.layout(
+        t"{format.type_name_title(summary_dto_type)} Browsed",
+        t"{'\n'.join(links) @ T.RAW}",
+        Status.INFO
+    ))
 
 async def object_created(
     interaction: discord.Interaction,
     entity: format.MentionableEntityT,
 ) -> None:
-    mention = format.Mention(entity)
-
     await success(
         interaction,
-        t"{mention.type_title} Created",
-        t"The {mention.mention} has successfully been created!",
+        t"{format.type_name_title(type(entity))} Created",
+        t"The {format.mention(entity)} has successfully been created!",
     )
 
 
 async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDeletedDTOT) -> None:
-    mention = format.Mention(dto)
-
     await success(
         interaction,
-        t"{mention.type_title} Deleted",
-        t"The {mention.mention} has successfully been nuked!",
+        t"{format.type_name_title(type(dto))} Deleted",
+        t"The {format.mention(dto)} has successfully been nuked!",
     )

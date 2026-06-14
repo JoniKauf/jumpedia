@@ -6,6 +6,8 @@ from services.user import UserService
 
 
 class InterfaceMeta(commands.CogMeta):
+    """CogMeata subclass to enforce a group name being specified in instances of this metaclass."""
+
     def __new__(
         mcls,
         name: str,
@@ -15,7 +17,7 @@ class InterfaceMeta(commands.CogMeta):
         group_name: str,
         **kwargs: t.Any,
     ):
-        return super().__new__(mcls, name, bases, namespace, group_name, **kwargs)
+        return super().__new__(mcls, name, bases, namespace, group_name=group_name, **kwargs)
 
 
 class BaseInterface(commands.GroupCog, metaclass=InterfaceMeta, group_name="base"):

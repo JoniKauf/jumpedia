@@ -12,9 +12,9 @@ class AttributeEntity(BaseEntity):
         self,
         id: ID,
         list_id: ID,
+        name: AttributeName,
         type: AttributeType,
         kind: AttributeKind,
-        name: AttributeName,
         slot: AttributeSlot,
         position: int,
     ) -> None:

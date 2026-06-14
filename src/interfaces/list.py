@@ -18,5 +18,16 @@ class ListInterface(BaseInterface, group_name="list"):
             "Task Count": (str(info_dto.task_count),),
         }
 
-        await messages.object_info(ctx.interaction, info_dto, data)
+        await messages.object_info(ctx.interaction, type(info_dto), data)
 
+    @app_commands.command()
+    @with_context()
+    async def browse(self, ctx: CommandContext) -> None:
+        ctx.services.list_query.info
+
+    @app_commands.command()
+    @with_context()
+    async def create(self, ctx: CommandContext, name: str) -> None:
+        lst = ctx.services.list.create(ListName(name))
+
+        await messages.object_created(ctx.interaction, lst)

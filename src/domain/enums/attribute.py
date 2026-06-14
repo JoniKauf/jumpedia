@@ -10,6 +10,7 @@ class AttributeType(enum.IntEnum):
 
 
 class AttributeKind(enum.IntEnum):
+    NONE = 0
     NAME = 1
     ALIAS = 2
     ID = 3

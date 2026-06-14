@@ -14,6 +14,12 @@ class ListInfoDTO:
     task_count: int
     is_default_selected_list: bool
 
+@dataclass(frozen=True, slots=True)
+class ListSummaryDTO:
+    name: ListName
+    attributes: tuple[AttributeEntity, ...]
+    task_count: int
+    is_default_selected_list: bool
 
 @dataclass(frozen=True, slots=True)
 class DeletedListDTO:

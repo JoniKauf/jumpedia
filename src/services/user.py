@@ -2,8 +2,10 @@ from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
 from domain.entities.user import CommunityUserEntity, UserEntity
+from domain.value_objects.community import CommunityName
 from repositories.dtos.user import CreateCommunityUserDTO, CreateUserDTO
 from repositories.user import CommunityUserRepository, UserRepository
+from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 
 
@@ -78,6 +80,7 @@ class CommunityUserService:
 class CommunityUserAccessService:
     _ctx: InteractingUserContext
     _repo: CommunityUserRepository
+    _community_access_service: CommunityAccessService
 
     def get_or_create_current_with_defaults(
         self, community: CommunityEntity
@@ -86,3 +89,9 @@ class CommunityUserAccessService:
             self._ctx.user,
             community.id,
         ))
+    
+    def get_convenient(self, community_name: CommunityName | None) -> tuple[CommunityEntity, CommunityUserEntity]:
+        community = self._community_access_service.get_convenient(community_name)
+        community_user = self.get_or_create_current_with_defaults(community)
+
+        return (community, community_user)

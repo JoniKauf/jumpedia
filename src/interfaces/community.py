@@ -12,6 +12,8 @@ from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
 import typing as t
 
+from services.dtos.community import CommunitySummaryDTO
+
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
 
@@ -21,15 +23,16 @@ class CommunityInterface(BaseInterface, group_name="community"):
     async def info(
         self, ctx: CommandContext, community_name: str | None = None
     ) -> None:
-        info_dto = ctx.services.community_query.get_info(None if community_name is None else CommunityName(community_name))
+        info_dto = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (info_dto.name.real.value,),
+            "Created": (info_dto.created.strftime("%A, %Y/%m/%d %H:%M:%S"),),
             "Owners": tuple(user.name.real.value for user in info_dto.community_users if user.community_rank is CommunityRank.OWNER),
             "User Count": (str(len(info_dto.community_users)),),
             "Lists": tuple(lst.name.real.value for lst in info_dto.lists),
             "Default Selected List": (info_dto.default_selected_list.name.real.value,) if info_dto.default_selected_list else (),
-            "Task Count": (str(info_dto.total_task_count),),
+            "Total Task Count": (str(info_dto.total_task_count),),
         }
 
         data |= {
@@ -38,14 +41,29 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         await messages.object_info(
             ctx.interaction,
-            info_dto,
+            type(info_dto),
             data
         )
 
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
-        summaries = ctx.services.community_query.get_all_summaries()
+        summaries = ctx.services.community_query.summaries()
+
+        data: dict[str, tuple[tuple[str, ...], ...]] = {
+            "Name": tuple((summary.name.real.value,) for summary in summaries),
+            "Created": tuple((summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),) for summary in summaries),
+            "User Count": tuple((str(summary.community_user_count),) for summary in summaries),
+            "List Count": tuple((str(summary.list_count),) for summary in summaries),
+            "Total Task Count": tuple((str(summary.total_task_count),) for summary in summaries)
+        }
+
+        await messages.object_browse(
+            ctx.interaction,
+            CommunitySummaryDTO,
+            data
+        )
+
 
     @app_commands.command()
     @with_context()

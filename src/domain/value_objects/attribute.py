@@ -19,14 +19,12 @@ class AttributeSlot:
     type: AttributeSlotType
     min_count: int
     max_count: int
-    limits: CommunityLimits
 
     def __post_init__(self) -> None:
         if not (
             CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT
             <= self.min_count
             <= self.max_count
-            <= self.limits.attribute_task_value_slot_count_max
             and self.max_count >= CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT
         ):
             raise ValueError("Invalid slot bounds", self.min_count, self.max_count)

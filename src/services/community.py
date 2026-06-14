@@ -84,7 +84,7 @@ class CommunityService:
     # -------------------------
     def delete(self) -> DeletedCommunityDTO:
         community = (
-            self._access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise()
+            self._access_service.get_convenient(None)
         )
         community_user = self._community_user_access_service.get_or_create_current_with_defaults(community)
         
@@ -106,8 +106,8 @@ class CommunityQueryService:
     _list_repo: ListRepository
     _task_repo: TaskRepository
 
-    def get_info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
-        community = self._access_service.get_by_name_or_raise_if_given_else_get_by_current_or_raise(community_name)
+    def info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
+        community = self._access_service.get_convenient(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
             community.id
@@ -133,7 +133,7 @@ class CommunityQueryService:
             task_count,
         )
     
-    def get_all_summaries(self) -> tuple[CommunitySummaryDTO, ...]:
+    def summaries(self) -> tuple[CommunitySummaryDTO, ...]:
         id_to_community = {community.id: community for community in self._repo.get_all()}
 
         community_user_count = self._community_user_repo.count_grouped_by_community_id()
@@ -156,7 +156,6 @@ class CommunityQueryService:
 class CommunityAccessService:
     _ctx: InteractingUserContext
     _repo: CommunityRepository
-    _community_user_service: CommunityUserService
 
     def get_by_name_or_raise(self, name: CommunityName) -> CommunityEntity:
         community = self._repo.get_by_name(name)
@@ -174,7 +173,7 @@ class CommunityAccessService:
 
         return community
     
-    def get_by_name_or_raise_if_given_else_get_by_current_or_raise(
-        self, name: CommunityName | None = None
+    def get_convenient(
+        self, name: CommunityName | None
     ) -> CommunityEntity:
-        return self.get_current_or_raise() if name is None else self.get_by_name_or_raise(name) 
+        return self.get_current_or_raise() if name is None else self.get_by_name_or_raise(name)

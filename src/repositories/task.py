@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from db.models import Community, List, Task
 from domain.types.id import ID
 from .base import BaseRepository
-
+import typing as t
 
 class TaskRepository(BaseRepository):
     def create(self, list_id: int, norm_name: str, slot_name: str) -> Task:
@@ -48,4 +48,23 @@ class TaskRepository(BaseRepository):
         return {
             ID(community_id): count
             for community_id, count in self.session.execute(stmt)
+        }
+    
+    def count_grouped_by_list_id(
+        self,
+        community_id: ID,
+    ) -> dict[ID, int]:
+        stmt = (
+            select(
+                Task.list_id,
+                func.count(),
+            )
+            .join(List, List.list_id == Task.list_id)
+            .where(List.community_id == community_id)
+            .group_by(Task.list_id)
+        )
+
+        return {
+            ID(list_id): count
+            for list_id, count in self.session.execute(stmt)
         }
