@@ -1,4 +1,3 @@
-
 from discord import app_commands
 
 from domain.value_objects.community import CommunityName
@@ -7,6 +6,7 @@ from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.message import messages
 from interfaces.message import format
+
 
 class ServerInterface(BaseInterface, group_name="server"):
     @app_commands.command()
@@ -31,7 +31,7 @@ class ServerInterface(BaseInterface, group_name="server"):
         ctx: CommandContext,
     ) -> None:
         community_entity = ctx.services.server.unlink()
-        
+
         await messages.success(
             ctx.interaction,
             t"Server Disconnected",

@@ -34,32 +34,46 @@ async def success(
 ) -> None:
     await interaction.followup.send(layout.layout(header, body, Status.SUCCESS))
 
+
 async def info(
     interaction: discord.Interaction, header: Template, body: Template
 ) -> None:
     await interaction.followup.send(layout.layout(header, body, Status.INFO))
 
-async def object_info(
-    interaction: discord.Interaction, info_dto_type: type[format.MentionableInfoDTOT], data: t.Mapping[str, tuple[str, ...]]
-) -> None:
-    links = pastee.table_to_pastee_strings(tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),))
 
-    await interaction.followup.send(layout.layout(
-        t"{format.type_name_title(info_dto_type)} Info", 
-        t"{'\n'.join(links) @ T.RAW}", 
-        Status.INFO
-    ))
+async def object_info(
+    interaction: discord.Interaction,
+    info_dto_type: type[format.MentionableInfoDTOT],
+    data: t.Mapping[str, tuple[str, ...]],
+) -> None:
+    links = pastee.table_to_pastee_strings(
+        tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),)
+    )
+
+    await interaction.followup.send(
+        layout.layout(
+            t"{format.type_name_title(info_dto_type)} Info",
+            t"{'\n'.join(links) @ T.RAW}",
+            Status.INFO,
+        )
+    )
+
 
 async def object_browse(
-    interaction: discord.Interaction, summary_dto_type: type[format.MentionableSummaryDTOT], data: t.Mapping[str, tuple[tuple[str, ...], ...]]
+    interaction: discord.Interaction,
+    summary_dto_type: type[format.MentionableSummaryDTOT],
+    data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
     links = pastee.table_to_pastee_strings(tuple(data), data.values())
 
-    await interaction.followup.send(layout.layout(
-        t"{format.type_name_title(summary_dto_type)} Browsed",
-        t"{'\n'.join(links) @ T.RAW}",
-        Status.INFO
-    ))
+    await interaction.followup.send(
+        layout.layout(
+            t"{format.type_name_title(summary_dto_type)} Browsed",
+            t"{'\n'.join(links) @ T.RAW}",
+            Status.INFO,
+        )
+    )
+
 
 async def object_created(
     interaction: discord.Interaction,
@@ -72,7 +86,9 @@ async def object_created(
     )
 
 
-async def object_nuked(interaction: discord.Interaction, dto: format.MentionableDeletedDTOT) -> None:
+async def object_nuked(
+    interaction: discord.Interaction, dto: format.MentionableDeletedDTOT
+) -> None:
     await success(
         interaction,
         t"{format.type_name_title(type(dto))} Deleted",

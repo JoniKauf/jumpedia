@@ -1,6 +1,3 @@
-
-
-
 from dataclasses import dataclass
 
 from domain.enums.attribute import AttributeKind, AttributeType

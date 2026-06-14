@@ -23,27 +23,35 @@ class CommunityInterface(BaseInterface, group_name="community"):
     async def info(
         self, ctx: CommandContext, community_name: str | None = None
     ) -> None:
-        info_dto = ctx.services.community_query.info(None if community_name is None else CommunityName(community_name))
+        info_dto = ctx.services.community_query.info(
+            None if community_name is None else CommunityName(community_name)
+        )
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (info_dto.name.real.value,),
             "Created": (info_dto.created.strftime("%A, %Y/%m/%d %H:%M:%S"),),
-            "Owners": tuple(user.name.real.value for user in info_dto.community_users if user.community_rank is CommunityRank.OWNER),
+            "Owners": tuple(
+                user.name.real.value
+                for user in info_dto.community_users
+                if user.community_rank is CommunityRank.OWNER
+            ),
             "User Count": (str(len(info_dto.community_users)),),
             "Lists": tuple(lst.name.real.value for lst in info_dto.lists),
-            "Default Selected List": (info_dto.default_selected_list.name.real.value,) if info_dto.default_selected_list else (),
+            "Default Selected List": (
+                (info_dto.default_selected_list.name.real.value,)
+                if info_dto.default_selected_list
+                else ()
+            ),
             "Total Task Count": (str(info_dto.total_task_count),),
         }
 
         data |= {
-            "Limit - " + name.replace("_", " ").title(): (str(value),) for name, value in asdict(info_dto.limits).items() if isinstance(value, int)
+            "Limit - " + name.replace("_", " ").title(): (str(value),)
+            for name, value in asdict(info_dto.limits).items()
+            if isinstance(value, int)
         }
 
-        await messages.object_info(
-            ctx.interaction,
-            type(info_dto),
-            data
-        )
+        await messages.object_info(ctx.interaction, type(info_dto), data)
 
     @app_commands.command()
     @with_context()
@@ -52,18 +60,20 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((summary.name.real.value,) for summary in summaries),
-            "Created": tuple((summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),) for summary in summaries),
-            "User Count": tuple((str(summary.community_user_count),) for summary in summaries),
+            "Created": tuple(
+                (summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),)
+                for summary in summaries
+            ),
+            "User Count": tuple(
+                (str(summary.community_user_count),) for summary in summaries
+            ),
             "List Count": tuple((str(summary.list_count),) for summary in summaries),
-            "Total Task Count": tuple((str(summary.total_task_count),) for summary in summaries)
+            "Total Task Count": tuple(
+                (str(summary.total_task_count),) for summary in summaries
+            ),
         }
 
-        await messages.object_browse(
-            ctx.interaction,
-            CommunitySummaryDTO,
-            data
-        )
-
+        await messages.object_browse(ctx.interaction, CommunitySummaryDTO, data)
 
     @app_commands.command()
     @with_context()

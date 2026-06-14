@@ -4,8 +4,8 @@ from domain import errors
 from domain.types.id import ID
 
 
-class BaseEntity:
-    def __init__(self, id: ID) -> None:
+class BaseEntity[T: ID]:
+    def __init__(self, id: T) -> None:
         if type(self) is BaseEntity:
             raise TypeError
 
@@ -15,7 +15,7 @@ class BaseEntity:
         self._id = id
 
     @property
-    def id(self) -> ID:
+    def id(self) -> T:
         return self._id
 
     def __eq__(self, other: object) -> bool:

@@ -1,14 +1,12 @@
-from dataclasses import dataclass
-
 from domain.entities.base import BaseEntity
-from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.id import ID
-from domain.value_objects.string import StrStore
+from domain.enums.rank import MetaRank
+from domain.types.user import UserID
+from domain.value_objects.user import UserName
 
 
-class UserEntity(BaseEntity):
+class UserEntity(BaseEntity[UserID]):
     def __init__(
-        self, id: ID, name: StrStore, rank: MetaRank = MetaRank.DEFAULT
+        self, id: UserID, name: UserName, rank: MetaRank = MetaRank.DEFAULT
     ) -> None:
         super().__init__(id)
 
@@ -16,11 +14,11 @@ class UserEntity(BaseEntity):
         self.meta_rank = rank
 
     @property
-    def name(self) -> StrStore:
+    def name(self) -> UserName:
         return self._name
 
     @name.setter
-    def name(self, value: StrStore) -> None:
+    def name(self, value: UserName) -> None:
         self._name = value
 
     @property
@@ -30,56 +28,3 @@ class UserEntity(BaseEntity):
     @meta_rank.setter
     def meta_rank(self, value: MetaRank) -> None:
         self._rank = value
-
-
-class CommunityUserEntity(BaseEntity):
-    def __init__(
-        self,
-        id: ID,
-        user: UserEntity,
-        community_id: ID,
-        rank: CommunityRank = CommunityRank.DEFAULT,
-        selected_list_id: ID | None = None,
-    ) -> None:
-        super().__init__(id)
-
-        self._community_id = community_id
-        self.community_rank = rank
-        self.selected_list_id = selected_list_id
-        self.user = user
-
-    @property
-    def community_id(self) -> ID:
-        return self._community_id
-
-    @property
-    def community_rank(self) -> CommunityRank:
-        return self._rank
-
-    @community_rank.setter
-    def community_rank(self, value: CommunityRank) -> None:
-        self._rank = value
-
-    @property
-    def selected_list_id(self) -> ID | None:
-        return self._selected_list_id
-
-    @selected_list_id.setter
-    def selected_list_id(self, value: ID | None) -> None:
-        self._selected_list_id = value
-
-    @property
-    def user(self) -> UserEntity:
-        return self._user
-
-    @user.setter
-    def user(self, value: UserEntity) -> None:
-        self._user = value
-
-    @property
-    def name(self) -> StrStore:
-        return self.user.name
-
-    @property
-    def meta_rank(self) -> MetaRank:
-        return self.user.meta_rank

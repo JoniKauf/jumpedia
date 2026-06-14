@@ -13,7 +13,9 @@ class ListInterface(BaseInterface, group_name="list"):
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (info_dto.name.real.value,),
-            "Is Default Selected List": ("True" if info_dto.is_default_selected_list else "False",),
+            "Is Default Selected List": (
+                "True" if info_dto.is_default_selected_list else "False",
+            ),
             "Attributes": tuple(attr.name.real.value for attr in info_dto.attributes),
             "Task Count": (str(info_dto.task_count),),
         }

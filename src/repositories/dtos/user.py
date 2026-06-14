@@ -1,21 +1,12 @@
 from dataclasses import dataclass
 
-from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.id import ID
-from domain.value_objects.string import StrStore
-from domain.entities.user import UserEntity
+from domain.enums.rank import MetaRank
+from domain.types.user import UserID
+from domain.value_objects.user import UserName
 
 
 @dataclass(frozen=True, slots=True)
 class CreateUserDTO:
-    id: ID
-    name: StrStore
+    id: UserID
+    name: UserName
     rank: MetaRank = MetaRank.DEFAULT
-
-
-@dataclass(frozen=True, slots=True)
-class CreateCommunityUserDTO:
-    user: UserEntity
-    community_id: ID
-    rank: CommunityRank = CommunityRank.DEFAULT
-    selected_list_id: ID | None = None

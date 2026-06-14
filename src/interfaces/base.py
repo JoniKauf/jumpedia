@@ -17,7 +17,9 @@ class InterfaceMeta(commands.CogMeta):
         group_name: str,
         **kwargs: t.Any,
     ):
-        return super().__new__(mcls, name, bases, namespace, group_name=group_name, **kwargs)
+        return super().__new__(
+            mcls, name, bases, namespace, group_name=group_name, **kwargs
+        )
 
 
 class BaseInterface(commands.GroupCog, metaclass=InterfaceMeta, group_name="base"):

@@ -6,13 +6,17 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
-from domain.entities.user import CommunityUserEntity, UserEntity
+from domain.entities.community_user import CommunityUserEntity, UserEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 
 from interfaces.message.layout import T, _TaggedObj
-from services.dtos.community import CommunityInfoDTO, CommunitySummaryDTO, DeletedCommunityDTO
+from services.dtos.community import (
+    CommunityInfoDTO,
+    CommunitySummaryDTO,
+    DeletedCommunityDTO,
+)
 from services.dtos.list import ListInfoDTO
 
 
@@ -66,16 +70,15 @@ _ATTRIBUTE_TYPE_PREFIX_MAP = {
     AttributeType.USER: "user",
 }
 
-def _get_type_name_lower(
-    mentionable_type: type[MentionableT],
-    singular: bool
-) -> str:
+
+def _get_type_name_lower(mentionable_type: type[MentionableT], singular: bool) -> str:
     type_str = _TYPE_MAP[mentionable_type]
 
     if isinstance(mentionable_type, AttributeEntity):
         type_str = f"{_ATTRIBUTE_TYPE_PREFIX_MAP[mentionable_type.type]} {type_str}"
 
     return type_str[not singular]
+
 
 def _get_instance_name_lower(
     mentionable: MentionableT,
@@ -85,16 +88,14 @@ def _get_instance_name_lower(
 
     return mentionable.name.real.value
 
+
 def type_name_title(
-    mentionable_type: type[MentionableT],
-    singular: bool = True
+    mentionable_type: type[MentionableT], singular: bool = True
 ) -> _TaggedObj:
     return _get_type_name_lower(mentionable_type, singular).title() @ T.RAW
 
-def mention(
-    mentionable: MentionableT,
-    singular: bool = True
-) -> _TaggedObj:
+
+def mention(mentionable: MentionableT, singular: bool = True) -> _TaggedObj:
     return (
         f"{_get_type_name_lower(type(mentionable), singular)} "
         f"``{_get_instance_name_lower(mentionable)}``"

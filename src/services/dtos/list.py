@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import typing as t
 
-from domain.types.id import ID
+from domain.entities.community import CommunityEntity
+from domain.types.community import CommunityID
 from domain.value_objects.list import ListName
 from domain.value_objects.string import StrStore
 from repositories.attribute import AttributeEntity
@@ -14,6 +15,7 @@ class ListInfoDTO:
     task_count: int
     is_default_selected_list: bool
 
+
 @dataclass(frozen=True, slots=True)
 class ListSummaryDTO:
     name: ListName
@@ -21,7 +23,8 @@ class ListSummaryDTO:
     task_count: int
     is_default_selected_list: bool
 
+
 @dataclass(frozen=True, slots=True)
 class DeletedListDTO:
-    community_id: ID
+    community: CommunityEntity
     name: ListName

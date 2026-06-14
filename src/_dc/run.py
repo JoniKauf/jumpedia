@@ -18,6 +18,7 @@ from utils import secret, text
 BOT = cmds.Bot(command_prefix="j!", intents=dc.Intents.default())
 DEV_MODE: bool = False
 
+
 @BOT.event
 async def on_ready():
     from . import cogs

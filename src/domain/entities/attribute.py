@@ -1,17 +1,15 @@
-from domain import errors
 from domain.entities.base import BaseEntity
 from domain.enums.attribute import AttributeType, AttributeKind
-from domain.types.id import ID
-from domain.value_objects.community import CommunityLimits
+from domain.types.attribute import AttributeID
+from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeName, AttributeSlot
-from domain.value_objects.string import StrStore
 
 
-class AttributeEntity(BaseEntity):
+class AttributeEntity(BaseEntity[AttributeID]):
     def __init__(
         self,
-        id: ID,
-        list_id: ID,
+        id: AttributeID,
+        list_id: ListID,
         name: AttributeName,
         type: AttributeType,
         kind: AttributeKind,
@@ -28,7 +26,7 @@ class AttributeEntity(BaseEntity):
         self.position = position
 
     @property
-    def list_id(self) -> ID:
+    def list_id(self) -> ListID:
         return self._list_id
 
     @property

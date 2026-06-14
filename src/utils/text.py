@@ -1,5 +1,6 @@
-
-def split_into_chunks_prefer_seperator(s: str, sep: str, max: int, min: int = 0) -> list[str]:
+def split_into_chunks_prefer_seperator(
+    s: str, sep: str, max: int, min: int = 0
+) -> list[str]:
     """
     Greedy bounded string splitter with separator-preferred backtracking.
 

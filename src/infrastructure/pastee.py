@@ -42,9 +42,9 @@ def create_pastee(
 
     if response.status_code == 201:
         return response.json()["link"]
-    
+
     raise ConnectionError()
-    
+
 
 def create_pastee_with_retries(
     files: dict[str, str],
@@ -52,11 +52,11 @@ def create_pastee_with_retries(
     description: str | None = None,
     *,
     tries: int = 5,
-    between: float = 0.2
+    between: float = 0.2,
 ) -> str:
     if tries < 1:
         raise ValueError("tries")
-    
+
     if between < 0:
         raise ValueError("between")
 
@@ -64,14 +64,14 @@ def create_pastee_with_retries(
 
     for i in range(1, tries + 1):
         try:
-           return create_pastee(files, description=description)
+            return create_pastee(files, description=description)
         except ConnectionError as e:
-            time.sleep(between*i)
+            time.sleep(between * i)
             err = e
             continue
-    
+
     assert err is not None
-    
+
     raise err
 
 
@@ -125,10 +125,13 @@ def table_to_pastee_strings(
         SPLIT.join(
             row[i].ljust(max_len_per_col[i]) if i < col_count - 1 else row[i]
             for i in range(col_count)
-        ) for row in final_rows
+        )
+        for row in final_rows
     )
 
-    bodies = text.split_into_chunks_prefer_seperator(body, "\n", max_body_total_length_per_link)
+    bodies = text.split_into_chunks_prefer_seperator(
+        body, "\n", max_body_total_length_per_link
+    )
 
     for i, body in enumerate(bodies):
         bodies[i] = f"{headers_str}\n{body}"

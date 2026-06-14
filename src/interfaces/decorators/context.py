@@ -60,7 +60,7 @@ async def _handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Allowed",
-                t"You have the rank {format.Mention(e.rank).mention}, but you at least need the rank {format.Mention(e.required).mention} to perform this action!",
+                t"You have the rank {format.mention(e.rank)}, but you at least need the rank {format.mention(e.required)} to perform this action!",
             )
 
         case errors.EmptyString():
@@ -102,7 +102,7 @@ def _create_services_object(session: Session, member: discord.Member):
     list_repo = ListRepository(session)
     attribute_repo = AttributeRepository(session)
     task_repo = TaskRepository(session)
-    
+
     user_service = UserService(user_repo)
 
     community_user_service = CommunityUserService(community_user_repo, user_service)
@@ -123,7 +123,12 @@ def _create_services_object(session: Session, member: discord.Member):
         interacting_user_ctx, community_repo, community_user_service
     )
     community_query_service = CommunityQueryService(
-        interacting_user_ctx, community_repo, community_access_service, community_user_repo, list_repo, task_repo
+        interacting_user_ctx,
+        community_repo,
+        community_access_service,
+        community_user_repo,
+        list_repo,
+        task_repo,
     )
     list_service = ListService(
         interacting_user_ctx, list_repo, permission_service, community_access_service

@@ -11,17 +11,22 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
-from sqlalchemy.orm import Mapped, mapped_column, validates
+from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
 from db.types import RealStrType, NormStrType
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.value_objects.attribute import AttributeSlot
+from domain.types.attribute import AttributeID
+from domain.types.community import CommunityID
+from domain.types.community_user import CommunityUserID
+from domain.types.id import ID
+from domain.types.list import ListID
+from domain.types.server import ServerID
+from domain.types.task import TaskID
+from domain.types.user import UserID
 from domain.value_objects.string import RealStr, NormStr
 from domain.value_objects.community import CommunityLimits
 import typing as t
-from domain.types.id import ID
 
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
@@ -33,7 +38,7 @@ _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 class Community(Base):
     __tablename__ = "community"
 
-    community_id: Mapped[ID] = mapped_column(
+    community_id: Mapped[CommunityID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
@@ -50,7 +55,7 @@ class Community(Base):
         nullable=False,
     )
 
-    default_selected_list_id: Mapped[ID | None] = mapped_column(
+    default_selected_list_id: Mapped[ListID | None] = mapped_column(
         ForeignKey("list.list_id", ondelete="SET NULL")
     )
 
@@ -83,9 +88,9 @@ class Community(Base):
 class Server(Base):
     __tablename__ = "server"
 
-    server_id: Mapped[ID] = mapped_column(BigInteger, primary_key=True)
+    server_id: Mapped[ServerID] = mapped_column(BigInteger, primary_key=True)
 
-    community_id: Mapped[ID] = mapped_column(
+    community_id: Mapped[CommunityID] = mapped_column(
         ForeignKey("community.community_id", ondelete="CASCADE")
     )
 
@@ -96,14 +101,20 @@ class Server(Base):
 class List(Base):
     __tablename__ = "list"
 
-    list_id: Mapped[ID] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    list_id: Mapped[ListID] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
-    community_id: Mapped[ID] = mapped_column(
+    community_id: Mapped[CommunityID] = mapped_column(
         ForeignKey("community.community_id", ondelete="CASCADE")
     )
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(CommunityLimits.LIST_NAME_LENGTH_MAX))
-    real_name: Mapped[RealStr] = mapped_column(RealStrType(CommunityLimits.LIST_NAME_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(
+        NormStrType(CommunityLimits.LIST_NAME_LENGTH_MAX)
+    )
+    real_name: Mapped[RealStr] = mapped_column(
+        RealStrType(CommunityLimits.LIST_NAME_LENGTH_MAX)
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -117,9 +128,11 @@ class List(Base):
 class User(Base):
     __tablename__ = "jumpedia_user"
 
-    user_id: Mapped[ID] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[UserID] = mapped_column(BigInteger, primary_key=True)
 
-    norm_name: Mapped[NormStr] = mapped_column(NormStrType(CommunityLimits.USER_NAME_LENGTH_MAX))
+    norm_name: Mapped[NormStr] = mapped_column(
+        NormStrType(CommunityLimits.USER_NAME_LENGTH_MAX)
+    )
     raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
     power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
@@ -134,21 +147,21 @@ class User(Base):
 class CommunityUser(Base):
     __tablename__ = "community_user"
 
-    community_user_id: Mapped[ID] = mapped_column(
+    community_user_id: Mapped[CommunityUserID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
-    community_id: Mapped[ID] = mapped_column(
+    community_id: Mapped[CommunityID] = mapped_column(
         ForeignKey("community.community_id", ondelete="CASCADE")
     )
 
-    user_id: Mapped[ID] = mapped_column(
+    user_id: Mapped[UserID] = mapped_column(
         ForeignKey("jumpedia_user.user_id", ondelete="CASCADE")
     )
 
     power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
-    selected_list_id: Mapped[ID | None] = mapped_column(
+    selected_list_id: Mapped[ListID | None] = mapped_column(
         ForeignKey("list.list_id", ondelete="SET NULL")
     )
 
@@ -166,11 +179,13 @@ class CommunityUser(Base):
 class Attribute(Base):
     __tablename__ = "attribute"
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
-    list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
+    list_id: Mapped[ListID] = mapped_column(
+        ForeignKey("list.list_id", ondelete="CASCADE")
+    )
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
@@ -201,11 +216,13 @@ class AttributeAlias(Base):
         Integer, primary_key=True, autoincrement=True
     )
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 
-    list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
+    list_id: Mapped[ListID] = mapped_column(
+        ForeignKey("list.list_id", ondelete="CASCADE")
+    )
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
@@ -230,7 +247,7 @@ class AttributeCollectionEntry(Base):
         Integer, primary_key=True, autoincrement=True
     )
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 
@@ -264,7 +281,7 @@ class AttributeCollectionEntryAlias(Base):
         )
     )
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 
@@ -287,9 +304,13 @@ class AttributeCollectionEntryAlias(Base):
 class Task(Base):
     __tablename__ = "task"
 
-    task_id: Mapped[ID] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[TaskID] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
-    list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
+    list_id: Mapped[ListID] = mapped_column(
+        ForeignKey("list.list_id", ondelete="CASCADE")
+    )
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
@@ -311,9 +332,13 @@ class TaskAlias(Base):
         Integer, primary_key=True, autoincrement=True
     )
 
-    task_id: Mapped[ID] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
+    task_id: Mapped[TaskID] = mapped_column(
+        ForeignKey("task.task_id", ondelete="CASCADE")
+    )
 
-    list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
+    list_id: Mapped[ListID] = mapped_column(
+        ForeignKey("list.list_id", ondelete="CASCADE")
+    )
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
@@ -334,11 +359,11 @@ class TaskAlias(Base):
 class TaskAttributeValue(Base):
     __tablename__ = "task_attribute_value"
 
-    task_id: Mapped[ID] = mapped_column(
+    task_id: Mapped[TaskID] = mapped_column(
         ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
     )
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE"), primary_key=True
     )
 
@@ -359,11 +384,13 @@ class CommunityUserTask(Base):
         BigInteger, primary_key=True, autoincrement=True
     )
 
-    community_user_id: Mapped[ID] = mapped_column(
+    community_user_id: Mapped[CommunityUserID] = mapped_column(
         ForeignKey("community_user.community_user_id", ondelete="CASCADE")
     )
 
-    task_id: Mapped[ID] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
+    task_id: Mapped[TaskID] = mapped_column(
+        ForeignKey("task.task_id", ondelete="CASCADE")
+    )
 
     __table_args__ = (
         *Base.__table_args__,
@@ -382,7 +409,7 @@ class CommunityUserTaskAttributeValue(Base):
         ForeignKey("community_user_task.community_user_task_id", ondelete="CASCADE")
     )
 
-    attribute_id: Mapped[ID] = mapped_column(
+    attribute_id: Mapped[AttributeID] = mapped_column(
         ForeignKey("attribute.attribute_id", ondelete="CASCADE")
     )
 

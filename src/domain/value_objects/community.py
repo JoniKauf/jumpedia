@@ -11,10 +11,14 @@ import typing as t
 
 
 if t.TYPE_CHECKING:
+
     class CommunityName(StrStore):
         pass
+
 else:
-    CommunityName = factories.make_constrained_str_store_type("CommunityName", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity)
+    CommunityName = factories.make_constrained_str_store_type(
+        "CommunityName", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
+    )
 
 
 @dataclass(frozen=True, unsafe_hash=True, kw_only=True, slots=True)

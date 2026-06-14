@@ -1,11 +1,11 @@
-
 from sqlalchemy import select
 
 from db.models import Community as Community, List, Server as Server
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
-from domain.types.id import ID
+from domain.types.community import CommunityID
+from domain.types.server import ServerID
 from domain.value_objects.community import CommunityName
 from domain.value_objects.community import CommunityLimits
 from repositories.dtos.community import CreateCommunityDTO
@@ -57,7 +57,7 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # READ
     # -------------------------
-    def get_by_id(self, community_id: ID) -> CommunityEntity | None:
+    def get_by_id(self, community_id: CommunityID) -> CommunityEntity | None:
         obj = self.session.get(Community, community_id)
         return None if obj is None else _community_model_to_entity(obj)
 
@@ -74,15 +74,15 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # DELETE
     # -------------------------
-    def delete(self, community_id: ID) -> None:
+    def delete(self, community_id: CommunityID) -> None:
         obj = self.session.get(Community, community_id)
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
-        
+
         self.session.delete(obj)
         self.session.flush()
 
-    def get_by_server_id(self, server_id: ID) -> CommunityEntity | None:
+    def get_by_server_id(self, server_id: ServerID) -> CommunityEntity | None:
         stmt = (
             select(Community)
             .join(Server, Server.community_id == Community.community_id)
@@ -91,7 +91,7 @@ class CommunityRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_model_to_entity(obj)
 
-    def get_default_selected_list(self, community_id: ID) -> ListEntity | None:
+    def get_default_selected_list(self, community_id: CommunityID) -> ListEntity | None:
         stmt = select(List).where(
             List.list_id
             == (
@@ -109,18 +109,24 @@ class CommunityRepository(BaseRepository):
 
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
-        
+
         obj.norm_name = community.name.norm
         obj.real_name = community.name.real
 
         obj.default_selected_list_id = community.default_selected_list_id
 
-        obj.community_list_count_max=community.limits.community_list_count_max
-        obj.list_attribute_count_max=community.limits.list_attribute_count_max
-        obj.list_task_count_max=community.limits.list_task_count_max
-        obj.attribute_alias_count_max=community.limits.attribute_alias_count_max
-        obj.attribute_task_value_slot_count_max=community.limits.attribute_task_value_slot_count_max
-        obj.attribute_collection_entry_count_max=community.limits.attribute_collection_entry_count_max
-        obj.attribute_collection_entry_alias_count_max=community.limits.attribute_collection_entry_alias_count_max
+        obj.community_list_count_max = community.limits.community_list_count_max
+        obj.list_attribute_count_max = community.limits.list_attribute_count_max
+        obj.list_task_count_max = community.limits.list_task_count_max
+        obj.attribute_alias_count_max = community.limits.attribute_alias_count_max
+        obj.attribute_task_value_slot_count_max = (
+            community.limits.attribute_task_value_slot_count_max
+        )
+        obj.attribute_collection_entry_count_max = (
+            community.limits.attribute_collection_entry_count_max
+        )
+        obj.attribute_collection_entry_alias_count_max = (
+            community.limits.attribute_collection_entry_alias_count_max
+        )
 
         self.session.flush()

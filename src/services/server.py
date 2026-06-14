@@ -1,5 +1,3 @@
-
-
 from dataclasses import dataclass
 
 from domain import errors
@@ -28,7 +26,7 @@ class ServerService:
 
         if community is not None:
             raise errors.InCommunity(community)
-        
+
         community = self._community_access_service.get_by_name_or_raise(community_name)
 
         self._repo.link(community, self._ctx.server_id)

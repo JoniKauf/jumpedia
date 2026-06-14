@@ -57,11 +57,13 @@ class NotFoundById(DomainError):
         super().__init__()
         self.type = type
 
+
 class NotFoundByName(DomainError):
     def __init__(self, name: StrStore, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
         self.type = type
+
 
 class NameTooLong(DomainError):
     def __init__(self, name: StrStore, limit: int, type: type[BaseEntity]) -> None:
@@ -91,8 +93,11 @@ class CountLimitReached(DomainError):
         self.limit = limit
         self.type = type
 
+
 class SlotCountLimitExceeded(DomainError):
-    def __init__(self, min: int, max: int, min_min: int, min_max: int, max_max: int | None) -> None:
+    def __init__(
+        self, min: int, max: int, min_min: int, min_max: int, max_max: int | None
+    ) -> None:
         super().__init__()
 
         self.min = min
@@ -101,11 +106,13 @@ class SlotCountLimitExceeded(DomainError):
         self.min_max = min_max
         self.max_max = max_max
 
+
 class DuplicateUniqueRequiredString(DomainError):
     def __init__(self, first: StrStore, second: StrStore) -> None:
         super().__init__()
         self.first = first
         self.second = second
+
 
 class NoDefaultSelectedList(DomainError):
     def __init__(self) -> None:

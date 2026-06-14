@@ -1,11 +1,11 @@
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 
-from db.models import List as List, Task
+from db.models import List as List
 from domain import errors
 from domain.entities.list import ListEntity
-from domain.types.id import ID
+from domain.types.community import CommunityID
+from domain.types.list import ListID
 from domain.value_objects.list import ListName
-from domain.value_objects.string import StrStore
 from repositories.dtos.list import CreateListDTO
 from .base import BaseRepository
 
@@ -31,12 +31,12 @@ class ListRepository(BaseRepository):
 
         return _list_model_to_entity(obj)
 
-    def get_by_id(self, list_id: ID) -> ListEntity | None:
+    def get_by_id(self, list_id: ListID) -> ListEntity | None:
         obj = self.session.get(List, list_id)
         return None if obj is None else _list_model_to_entity(obj)
 
     def get_by_community_and_name(
-        self, community_id: ID, name: ListName
+        self, community_id: CommunityID, name: ListName
     ) -> ListEntity | None:
         stmt = select(List).where(
             List.community_id == community_id,
@@ -45,38 +45,32 @@ class ListRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _list_model_to_entity(obj)
 
-    def get_all_by_community(self, community_id: ID) -> list[ListEntity]:
+    def get_all_by_community(self, community_id: CommunityID) -> list[ListEntity]:
         stmt = select(List).where(List.community_id == community_id)
         return [_list_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
 
-    def count_by_community(self, community_id: ID) -> int:
+    def count_by_community(self, community_id: CommunityID) -> int:
         stmt = (
             select(func.count())
             .select_from(List)
             .where(List.community_id == community_id)
         )
         return self.session.scalar(stmt) or 0
-    
-    def count_grouped_by_community_id(self) -> dict[ID, int]:
-        stmt = (
-            select(
-                List.community_id,
-                func.count()
-            )
-            .group_by(List.community_id)
-        )
+
+    def count_grouped_by_community_id(self) -> dict[CommunityID, int]:
+        stmt = select(List.community_id, func.count()).group_by(List.community_id)
 
         return {
-            ID(community_id): count
+            CommunityID(community_id): count
             for community_id, count in self.session.execute(stmt)
         }
 
-    def delete(self, list_id: ID) -> None:
+    def delete(self, list_id: ListID) -> None:
         obj = self.session.get(List, list_id)
-        
+
         if obj is None:
             raise errors.NotFoundById(ListEntity)
-        
+
         self.session.delete(obj)
         self.session.flush()
 
@@ -85,8 +79,8 @@ class ListRepository(BaseRepository):
 
         if obj is None:
             raise errors.NotFoundById(ListEntity)
-        
+
         obj.norm_name = list.name.norm
         obj.real_name = list.name.real
-        
+
         self.session.flush()
