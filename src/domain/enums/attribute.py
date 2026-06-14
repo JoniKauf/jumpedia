@@ -3,20 +3,20 @@ from functools import cached_property
 import typing as t
 
 
-class AttributeType(enum.IntEnum):
+class AttributeType(enum.Enum):
     STATIC = 1
     TASK = 2
     USER = 3
 
 
-class AttributeKind(enum.IntEnum):
-    NONE = 0
+class AttributeKind(enum.Enum):
+    NONE = None
     NAME = 1
     ALIAS = 2
     ID = 3
 
 
-class AttributeSlotType(enum.IntEnum):
+class AttributeSlotType(enum.Enum):
     BOOL = 1
     INT = 2
     FLOAT = 3

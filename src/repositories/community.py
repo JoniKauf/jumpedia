@@ -1,20 +1,16 @@
-from dataclasses import asdict
 
-from sqlalchemy import func, select, delete
+from sqlalchemy import select
 
-from db.models import Community as Community, CommunityUser, List, Server as Server
+from db.models import Community as Community, List, Server as Server
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
-from domain.entities.user import CommunityUserEntity
 from domain.types.id import ID
 from domain.value_objects.community import CommunityName
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import StrStore
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.list import _list_model_to_entity
 from .base import BaseRepository
-import typing as t
 
 
 def _community_model_to_entity(model: Community) -> CommunityEntity:

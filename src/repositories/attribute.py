@@ -11,6 +11,8 @@ from repositories.base import BaseRepository
 import typing as t
 from sqlalchemy import func
 
+from repositories.dtos.attribute import CreateAttributeDTO
+
 def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
     return AttributeEntity(
         id=model.attribute_id,
@@ -28,6 +30,24 @@ def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
 
 
 class AttributeRepository(BaseRepository):
+    def create(self, attribute: CreateAttributeDTO) -> AttributeEntity:
+        obj = Attribute(
+            list_id=attribute.list_id,
+            norm_name=attribute.name.norm,
+            real_name=attribute.name.real,
+            type=attribute.type,
+            kind=attribute.kind.value,
+            slot_type=attribute.slot.type,
+            min_slot_count=attribute.slot.min_count,
+            max_slot_count=attribute.slot.max_count,
+            position=attribute.position,
+        )
+
+        self.session.add(obj)
+        self.session.flush()
+
+        return _attribute_model_to_entity(obj)
+
     def get_by_id(self, attribute_id: int) -> AttributeEntity | None:
         obj = self.session.get(Attribute, attribute_id)
         return None if obj is None else _attribute_model_to_entity(obj)

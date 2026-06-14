@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.value_objects.community import CommunityLimits
@@ -14,10 +15,12 @@ else:
     AttributeName = factories.make_constrained_str_store_type("AttributeName", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity)
 
 
+TMin = t.TypeVar("TMin", bound=int, covariant=True, default=int)
+
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
-class AttributeSlot:
+class AttributeSlot(t.Generic[TMin]):
     type: AttributeSlotType
-    min_count: int
+    min_count: TMin
     max_count: int
 
     def __post_init__(self) -> None:
@@ -27,4 +30,4 @@ class AttributeSlot:
             <= self.max_count
             and self.max_count >= CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT
         ):
-            raise ValueError("Invalid slot bounds", self.min_count, self.max_count)
+            raise errors.SlotCountLimitExceeded(self.min_count, self.max_count, CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT, CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT, None)

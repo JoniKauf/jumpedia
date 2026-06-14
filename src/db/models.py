@@ -172,9 +172,6 @@ class Attribute(Base):
 
     list_id: Mapped[ID] = mapped_column(ForeignKey("list.list_id", ondelete="CASCADE"))
 
-    type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
-    kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
-
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
@@ -182,33 +179,18 @@ class Attribute(Base):
         RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
 
+    type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
-    position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
-
     min_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
         *Base.__table_args__,
         UniqueConstraint("list_id", "kind"),
         UniqueConstraint("list_id", "norm_name"),
         UniqueConstraint("list_id", "position"),
-        CheckConstraint(
-            f"type BETWEEN {min(r.value for r in AttributeType)} AND {max(r.value for r in AttributeType)}"
-        ),
-        CheckConstraint(
-            f"kind BETWEEN {min(r.value for r in AttributeKind)} AND {max(r.value for r in AttributeKind)}"
-        ),
-        CheckConstraint(
-            f"slot_type BETWEEN {min(r.value for r in AttributeSlotType)} AND {max(r.value for r in AttributeSlotType)}"
-        ),
-        CheckConstraint(f"min_slot_count <= max_slot_count"),
-        CheckConstraint(
-            f"min_slot_count BETWEEN {CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT} AND max_slot_count"
-        ),
-        CheckConstraint(
-            f"max_slot_count >= {CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT}"
-        ),
     )
 
 
