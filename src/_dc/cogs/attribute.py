@@ -4,11 +4,9 @@ import typing as t
 from types import CoroutineType
 
 import discord.ext.commands as cmds
-from discord import app_commands as acmds
-
 from _adapters._attribute import AnyAttributeAdapterT
 from _adapters.interaction import _InteractionAdapter
-from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
+from discord import app_commands as acmds
 from structures.attribute import (
     ALL_ATTRIBUTE_TYPES,
     BaseAttribute,
@@ -17,8 +15,10 @@ from structures.attribute import (
 )
 from structures.attribute.collection import CollectionEntry
 from structures.attribute.slot_str import SLOT_TYPES
-from utils import itertools2
+
+from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from domain.enum.rank import CommunityRank
+from utils import itertools2
 
 
 def _collection_entry_to_browse_str(entry: CollectionEntry) -> str:

@@ -4,8 +4,7 @@ from domain.value_objects.community import CommunityName
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.message import messages
-from interfaces.message import format
+from interfaces.message import format, messages
 
 
 class ServerInterface(BaseInterface, group_name="server"):

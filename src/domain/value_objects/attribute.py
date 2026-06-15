@@ -1,31 +1,39 @@
+import itertools
+import typing as t
 from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.value_objects.community import CommunityLimits
-import typing as t
-
 from domain.value_objects.string import StrStore
 
 if t.TYPE_CHECKING:
 
-    class AttributeName(StrStore):
+    class AttributeSyn(StrStore):
         pass
 
 else:
-    AttributeName = factories.make_constrained_str_store_type(
-        "AttributeName", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
+    AttributeSyn = factories.make_constrained_str_store_type(
+        "AttributeSyn", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
     )
 
 
-TMin = t.TypeVar("TMin", bound=int, covariant=True, default=int)
+if t.TYPE_CHECKING:
+
+    class AttributeCollectionEntrySyn(StrStore):
+        pass
+
+else:
+    AttributeCollectionEntrySyn = factories.make_constrained_str_store_type(
+        "CollectionEntrySyn", CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX, AttributeEntity
+    )
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
-class AttributeSlot(t.Generic[TMin]):
+class AttributeSlot:
     type: AttributeSlotType
-    min_count: TMin
+    min_count: int
     max_count: int
 
     def __post_init__(self) -> None:
@@ -43,3 +51,16 @@ class AttributeSlot(t.Generic[TMin]):
                 CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT,
                 None,
             )
+
+@dataclass(frozen=True, unsafe_hash=True, slots=True)
+class AttributeCollectionEntry:
+    value: AttributeCollectionEntrySyn
+    aliases: tuple[AttributeCollectionEntrySyn, ...]
+
+@dataclass(frozen=True, unsafe_hash=True, slots=True)
+class AttributeCollection:
+    entries: tuple[AttributeCollectionEntry, ...]
+
+    def __post_init__(self) -> None:
+        all_syns = tuple(syn for entry in self.entries for syn in (entry.value, *entry.aliases))
+        StrStore.unique(all_syns)

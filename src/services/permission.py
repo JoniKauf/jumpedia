@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
+from domain import errors
 from domain.entities.community_user import CommunityUserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
-from domain import errors
 from services.contexts.interacting_user import InteractingUserContext
 
 

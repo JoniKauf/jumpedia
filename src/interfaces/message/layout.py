@@ -1,8 +1,9 @@
-from dataclasses import dataclass
 import enum
+import typing as t
+from dataclasses import dataclass
 from string.templatelib import Interpolation, Template, convert
 from types import UnionType
-import typing as t
+
 from interfaces.message import format
 
 

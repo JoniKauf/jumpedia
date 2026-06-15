@@ -7,11 +7,11 @@ from types import CoroutineType, EllipsisType
 
 import discord as dc
 import mariadb
-from discord.ext import commands as cmds
-
 from _adapters.interaction import _InteractionAdapter
-from _dc_utils import layouts, user
+from discord.ext import commands as cmds
 from structures import BaseStructure
+
+from _dc_utils import layouts, user
 from domain.enum.rank import AnyRankT, CommunityRank
 
 if t.TYPE_CHECKING:

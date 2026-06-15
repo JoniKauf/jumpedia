@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from db.models import List, Task
 from domain.types.community import CommunityID
 from domain.types.list import ListID
+
 from .base import BaseRepository
 
 

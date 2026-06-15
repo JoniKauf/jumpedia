@@ -7,7 +7,7 @@ from repositories.user import UserRepository
 
 @dataclass(frozen=True, slots=True, eq=False)
 class UserService:
-    _repo: UserRepository
+    _user_repo: UserRepository
 
     def get_or_create(
         self,
@@ -16,10 +16,10 @@ class UserService:
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
     ) -> UserEntity:
-        existing = self._repo.get_by_id(user.id)
+        existing = self._user_repo.get_by_id(user.id)
 
         if existing is None:
-            return self._repo.create(user)
+            return self._user_repo.create(user)
 
         overwrite_any: bool = False
 
@@ -34,5 +34,4 @@ class UserService:
         if not overwrite_any:
             return existing
 
-        return self._repo.update(existing)
-
+        return self._user_repo.update(existing)

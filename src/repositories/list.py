@@ -1,4 +1,4 @@
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from db.models import List as List
 from domain import errors
@@ -7,6 +7,7 @@ from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.list import ListName
 from repositories.dtos.list import CreateListDTO
+
 from .base import BaseRepository
 
 

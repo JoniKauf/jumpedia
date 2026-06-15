@@ -1,17 +1,18 @@
+import typing as t
 from dataclasses import asdict
 
-from discord import app_commands
 import discord
+from discord import app_commands
+
 from domain.enums.rank import CommunityRank
 from domain.types.id import ID
-from domain.value_objects.community import CommunityName
-from domain.value_objects.community import CommunityLimits
+from domain.types.user import UserID
+from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.string import StrStore
+from domain.value_objects.user import UserName
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
-import typing as t
-
 from services.dtos.community import CommunitySummaryDTO
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
@@ -92,8 +93,8 @@ class CommunityInterface(BaseInterface, group_name="community"):
     ) -> None:
         community = ctx.services.community.create(
             CommunityName(name),
-            ID(owner.id),
-            StrStore(owner.name),
+            UserID(ID(owner.id)),
+            UserName(owner.name),
             CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,

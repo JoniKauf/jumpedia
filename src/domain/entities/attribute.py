@@ -1,8 +1,8 @@
 from domain.entities.base import BaseEntity
-from domain.enums.attribute import AttributeType, AttributeKind
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeName, AttributeSlot
+from domain.value_objects.attribute import AttributeSyn, AttributeSlot
 
 
 class AttributeEntity(BaseEntity[AttributeID]):
@@ -10,7 +10,7 @@ class AttributeEntity(BaseEntity[AttributeID]):
         self,
         id: AttributeID,
         list_id: ListID,
-        name: AttributeName,
+        name: AttributeSyn,
         type: AttributeType,
         kind: AttributeKind,
         slot: AttributeSlot,
@@ -46,11 +46,11 @@ class AttributeEntity(BaseEntity[AttributeID]):
         self._kind = value
 
     @property
-    def name(self) -> AttributeName:
+    def name(self) -> AttributeSyn:
         return self._name
 
     @name.setter
-    def name(self, value: AttributeName) -> None:
+    def name(self, value: AttributeSyn) -> None:
         self._name = value
 
     @property

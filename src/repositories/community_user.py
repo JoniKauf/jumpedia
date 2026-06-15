@@ -5,9 +5,10 @@ from domain.entities.community_user import CommunityUserEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
 from domain.types.community import CommunityID
+from repositories import user as user_module
 from repositories.base import BaseRepository
 from repositories.dtos.community_user import CreateCommunityUserDTO
-from repositories import user as user_module
+
 
 def _community_user_model_to_entity(
     model: CommunityUser, user: UserEntity

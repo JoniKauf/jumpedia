@@ -1,16 +1,15 @@
 import enum
-from string.templatelib import Template
 import typing as t
+from string.templatelib import Template
 
 from domain.entities.attribute import AttributeEntity
 from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
-from domain.entities.list import ListEntity
 from domain.entities.community_user import CommunityUserEntity, UserEntity
+from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
-
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.community import (
     CommunityInfoDTO,

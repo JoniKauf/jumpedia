@@ -4,12 +4,12 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeName, AttributeSlot
+from domain.value_objects.attribute import AttributeSyn, AttributeSlot
 
 
 @dataclass(frozen=True, slots=True)
 class AttributeInfoDTO:
-    name: AttributeName
+    name: AttributeSyn
     list: ListEntity
     type: AttributeType
     kind: AttributeKind
@@ -19,16 +19,17 @@ class AttributeInfoDTO:
 
 @dataclass(frozen=True, slots=True)
 class AttributeSummaryDTO:
-    name: AttributeName
+    name: AttributeSyn
     list: ListEntity
     type: AttributeType
     kind: AttributeKind
     slot: AttributeSlot
     position: int
 
+
 @dataclass(frozen=True, slots=True)
 class DeletedAttributeDTO:
-    name: AttributeName
+    name: AttributeSyn
     list: ListEntity
     type: AttributeType
     kind: AttributeKind

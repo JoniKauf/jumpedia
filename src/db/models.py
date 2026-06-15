@@ -1,12 +1,13 @@
 # db/models.py
+import typing as t
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
-    BigInteger,
     String,
     UniqueConstraint,
 )
@@ -14,7 +15,7 @@ from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
-from db.types import RealStrType, NormStrType
+from db.types import NormStrType, RealStrType
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
@@ -24,10 +25,8 @@ from domain.types.list import ListID
 from domain.types.server import ServerID
 from domain.types.task import TaskID
 from domain.types.user import UserID
-from domain.value_objects.string import RealStr, NormStr
 from domain.value_objects.community import CommunityLimits
-import typing as t
-
+from domain.value_objects.string import NormStr, RealStr
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 

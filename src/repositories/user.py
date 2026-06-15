@@ -1,4 +1,3 @@
-
 from db.models import User
 from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
@@ -6,6 +5,7 @@ from domain.types.user import UserID
 from domain.value_objects.string import RealStr
 from domain.value_objects.user import UserName
 from repositories.dtos.user import CreateUserDTO
+
 from .base import BaseRepository
 
 
@@ -15,6 +15,7 @@ def _user_model_to_entity(model: User) -> UserEntity:
         name=UserName(_real=RealStr(model.raw_name), _norm=model.norm_name),
         rank=MetaRank(model.power),
     )
+
 
 class UserRepository(BaseRepository):
     def get_by_id(self, user_id: UserID) -> UserEntity | None:

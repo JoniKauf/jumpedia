@@ -2,11 +2,12 @@ import functools
 import itertools
 import typing as t
 
-from _dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.task import Task
 from structures.task.attribute_value_mapping import AttributeValueMapping
+
+from _dc_utils import errors
 from utils import orm
 from utils.text import NormStr, RealStr
 

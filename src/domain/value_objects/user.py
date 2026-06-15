@@ -3,8 +3,6 @@ import typing as t
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 
-
-
 if t.TYPE_CHECKING:
 
     class UserName(StrStore):

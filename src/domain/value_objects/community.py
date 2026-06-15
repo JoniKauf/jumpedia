@@ -1,3 +1,4 @@
+import typing as t
 from dataclasses import dataclass
 
 from typing_extensions import Self
@@ -7,8 +8,6 @@ from domain.entities.community import CommunityEntity
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
-import typing as t
-
 
 if t.TYPE_CHECKING:
 

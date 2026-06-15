@@ -1,6 +1,6 @@
-import typing as t
 import re
 import string
+import typing as t
 
 from domain import errors
 
@@ -163,11 +163,14 @@ class StrStore:
         pass
 
     @classmethod
-    def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
+    def unique(cls, iterable: t.Iterable[str | t.Self], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, StrStore] = {}
 
-        for store in iterable:
-            store = cls(store)
+        for s in iterable:
+            if isinstance(s, cls):
+                store = s
+            else:
+                store = cls(s)  # type: ignore
 
             existing = mapping.get(store.norm)
 

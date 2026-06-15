@@ -3,8 +3,7 @@ from datetime import datetime
 from domain.entities.base import BaseEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
-from domain.value_objects.community import CommunityName
-from domain.value_objects.community import CommunityLimits
+from domain.value_objects.community import CommunityLimits, CommunityName
 
 
 class CommunityEntity(BaseEntity[CommunityID]):

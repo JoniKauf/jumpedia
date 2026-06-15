@@ -1,6 +1,8 @@
-from sqlalchemy import Dialect
-from sqlalchemy.types import TypeDecorator, String
 import typing as t
+
+from sqlalchemy import Dialect
+from sqlalchemy.types import String, TypeDecorator
+
 from domain.value_objects import string
 
 

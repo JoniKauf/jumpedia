@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
 from domain import errors
+from domain.entities.community import CommunityEntity
 from domain.enums.rank import ServerRank
 from domain.value_objects.community import CommunityName
-from domain.entities.community import CommunityEntity
 from repositories.community import CommunityRepository
 from repositories.server import ServerRepository
 from services.community import CommunityAccessService
@@ -14,7 +14,7 @@ from services.permission import PermissionService
 @dataclass(frozen=True, slots=True, eq=False)
 class ServerService:
     _ctx: InteractingUserContext
-    _repo: ServerRepository
+    _server_repo: ServerRepository
     _community_repo: CommunityRepository
     _permission_service: PermissionService
     _community_access_service: CommunityAccessService
@@ -29,7 +29,7 @@ class ServerService:
 
         community = self._community_access_service.get_by_name_or_raise(community_name)
 
-        self._repo.link(community, self._ctx.server_id)
+        self._server_repo.link(community, self._ctx.server_id)
 
         return community
 
@@ -38,6 +38,6 @@ class ServerService:
 
         community = self._community_access_service.get_current_or_raise()
 
-        self._repo.unlink(self._ctx.server_id)
+        self._server_repo.unlink(self._ctx.server_id)
 
         return community

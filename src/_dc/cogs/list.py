@@ -4,14 +4,14 @@ from types import CoroutineType
 
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-
 from _adapters.interaction import _InteractionAdapter
-from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
-from utils import itertools2
+
+from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
 from domain.enum.rank import CommunityRank
+from utils import itertools2
 
 _ListRow = command.row_type_factory[
     str,

@@ -1,7 +1,8 @@
 import typing as t
 
-from _dc_utils import errors
 from structures.attribute import AnyAttributeT, BaseAttribute
+
+from _dc_utils import errors
 from utils import orm
 from utils.text import NormStr, RealStr
 

@@ -1,6 +1,6 @@
 import itertools
-from string.templatelib import Template
 import typing as t
+from string.templatelib import Template
 
 import discord
 
@@ -8,7 +8,7 @@ from domain.entities.base import BaseEntity
 from domain.errors import StrStore
 from infrastructure import pastee
 from interfaces.message import format, layout
-from interfaces.message.layout import T, Status
+from interfaces.message.layout import Status, T
 
 
 async def error(

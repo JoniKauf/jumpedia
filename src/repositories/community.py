@@ -1,15 +1,17 @@
 from sqlalchemy import select
 
-from db.models import Community as Community, List, Server as Server
+from db.models import Community as Community
+from db.models import List
+from db.models import Server as Server
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.types.community import CommunityID
 from domain.types.server import ServerID
-from domain.value_objects.community import CommunityName
-from domain.value_objects.community import CommunityLimits
+from domain.value_objects.community import CommunityLimits, CommunityName
 from repositories.dtos.community import CreateCommunityDTO
 from repositories.list import _list_model_to_entity
+
 from .base import BaseRepository
 
 

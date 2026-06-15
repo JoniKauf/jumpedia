@@ -1,6 +1,6 @@
 import enum
-from functools import cached_property
 import typing as t
+from functools import cached_property
 
 
 class AttributeType(enum.Enum):

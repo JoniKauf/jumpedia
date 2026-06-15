@@ -1,35 +1,34 @@
 import functools
-
+import types as ts
+import typing as t
 from dataclasses import dataclass
+
 import discord
 from discord.ext import commands
-import typing as t
-import types as ts
-
 from sqlalchemy.orm import Session
 
 import db.session
+from domain import errors
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
-from domain import errors
 from domain.types.id import ID
 from domain.value_objects.string import StrStore
 from interfaces.contexts.command import CommandContext, PublicServices
+from interfaces.message import format, messages
 from repositories.attribute import AttributeRepository
+from repositories.community import CommunityRepository
 from repositories.dtos.user import CreateUserDTO
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from services.attribute import AttributeService
-from services.contexts.interacting_user import InteractingUserContext
-from interfaces.message import format, messages
-from repositories.community import CommunityRepository
 from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
+from services.attribute import AttributeService
 from services.community import (
     CommunityAccessService,
     CommunityQueryService,
     CommunityService,
 )
+from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.permission import PermissionService
 from services.user import CommunityUserService, UserService

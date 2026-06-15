@@ -4,11 +4,11 @@ from string.templatelib import Template
 from types import CoroutineType
 
 import discord as dc
-
 from _adapters.interaction import _InteractionAdapter
+from structures import BaseStructure
+
 from _dc_utils import errors, layouts, message, shortcuts
 from _dc_utils.errors import FeedbackError
-from structures import BaseStructure
 
 TIMEOUT: t.Final[int] = 30
 

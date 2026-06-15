@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import typing as t
+from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
 from domain.types.community import CommunityID

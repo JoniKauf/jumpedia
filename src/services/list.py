@@ -1,34 +1,34 @@
 from dataclasses import dataclass
 
-
+from domain import errors
 from domain.entities.community import CommunityEntity
-from domain.entities.list import ListEntity
 from domain.entities.community_user import CommunityUserEntity
+from domain.entities.list import ListEntity
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.types.id import ID
+from domain.value_objects.attribute import AttributeSyn, AttributeSlot
 from domain.value_objects.community import CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
-from repositories.task import TaskRepository
-from services.contexts.interacting_user import InteractingUserContext
+from repositories.dtos.attribute import CreateAttributeDTO
 from repositories.dtos.list import CreateListDTO
 from repositories.list import ListRepository
-from domain import errors
-from services.permission import PermissionService
-from services.community import (
-    CommunityAccessService,
-)
-from services.dtos.list import DeletedListDTO, ListInfoDTO, ListSummaryDTO
+from repositories.task import TaskRepository
+from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
+from services.contexts.interacting_user import InteractingUserContext
+from services.dtos.list import DeletedListDTO, ListInfoDTO, ListSummaryDTO
+from services.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListService:
-    _ctx: InteractingUserContext
-    _repo: ListRepository
-    _access_service: ListAccessService
+    _list_repo: ListRepository
+    _attribute_repo: AttributeRepository
     _permission_service: PermissionService
     _community_user_access_service: CommunityUserAccessService
+    _list_access_service: ListAccessService
 
     def create(self, name: ListName) -> ListEntity:
         community, community_user = self._community_user_access_service.get_convenient(
@@ -39,39 +39,64 @@ class ListService:
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        list_count = self._repo.count_by_community(community.id)
+        list_count = self._list_repo.count_by_community(community.id)
 
         if list_count >= community.limits.community_list_count_max:
             raise errors.CountLimitReached(
                 community.limits.community_list_count_max, ListEntity
             )
 
-        if existing := self._repo.get_by_community_and_name(community.id, name):
+        if existing := self._list_repo.get_by_community_and_name(community.id, name):
             raise errors.NameAlreadyTaken(name, existing)
 
-        # TODO create static attributes
+        lst = self._list_repo.create(CreateListDTO(community.id, name))
 
-        return self._repo.create(CreateListDTO(community.id, name))
+        # Create static attributes
+        for i, kind in enumerate(AttributeKind):
+            self._attribute_repo.create(
+                CreateAttributeDTO(
+                    list_id=lst.id,
+                    name=AttributeSyn(kind.name.title()),
+                    type=AttributeType.STATIC,
+                    kind=kind,
+                    slot=AttributeSlot(
+                        type=(
+                            AttributeSlotType.INT,
+                            AttributeSlotType.STR,
+                            AttributeSlotType.STR,
+                        )[i],
+                        min_count=(1, 1, 0)[i],
+                        max_count=(1, 1, community.limits.attribute_task_value_slot_count_max)[i],
+                    ),
+                    position=i + 1,
+                )
+            )
+
+        return lst
 
     def delete(self, name: ListName) -> DeletedListDTO:
-        community, community_user, lst = self._access_service.get_convenient(None, name)
+        community, community_user, lst = self._list_access_service.get_convenient(
+            None, name
+        )
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        self._repo.delete(lst.id)
+        self._list_repo.delete(lst.id)
 
         return DeletedListDTO(community, lst.name)
 
     def rename(self, name_before: ListName, name_after: ListName) -> ListEntity:
-        _, community_user, lst = self._access_service.get_convenient(None, name_before)
+        _, community_user, lst = self._list_access_service.get_convenient(
+            None, name_before
+        )
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        name_taken_lst = self._repo.get_by_community_and_name(
+        name_taken_lst = self._list_repo.get_by_community_and_name(
             lst.community_id, name_after
         )
 
@@ -80,22 +105,21 @@ class ListService:
 
         lst.name = name_after
 
-        self._repo.update(lst)
+        self._list_repo.update(lst)
 
         return lst
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListQueryService:
-    _ctx: InteractingUserContext
-    _repo: ListRepository
-    _access_service: ListAccessService
-    _community_access_service: CommunityAccessService
+    _list_repo: ListRepository
     _attribute_repo: AttributeRepository
     _task_repo: TaskRepository
+    _community_access_service: CommunityAccessService
+    _list_access_service: ListAccessService
 
     def info(self, name: ListName) -> ListInfoDTO:
-        community, _, lst = self._access_service.get_convenient(None, name)
+        community, _, lst = self._list_access_service.get_convenient(None, name)
 
         attributes = self._attribute_repo.get_all_by_list_id(lst.id)
         task_count = self._task_repo.count_by_list(lst.id)
@@ -111,7 +135,7 @@ class ListQueryService:
     def summaries(self) -> tuple[ListSummaryDTO, ...]:
         community = self._community_access_service.get_convenient(None)
 
-        lists = self._repo.get_all_by_community(community.id)
+        lists = self._list_repo.get_all_by_community(community.id)
 
         attributes_by_list = self._attribute_repo.get_grouped_by_list_id(community.id)
 
@@ -134,14 +158,13 @@ class ListQueryService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListAccessService:
-    _ctx: InteractingUserContext
-    _repo: ListRepository
+    _list_repo: ListRepository
     _community_user_access_service: CommunityUserAccessService
 
     def get_by_community_and_name_or_raise(
         self, community: CommunityEntity, name: ListName
     ) -> ListEntity:
-        lst = self._repo.get_by_community_and_name(community.id, name)
+        lst = self._list_repo.get_by_community_and_name(community.id, name)
 
         if lst is None:
             raise errors.NotFoundByName(name, ListEntity)
@@ -165,7 +188,7 @@ class ListAccessService:
         if selected_list_id is None:
             raise errors.NoDefaultSelectedList()
 
-        lst = self._repo.get_by_id(selected_list_id)
+        lst = self._list_repo.get_by_id(selected_list_id)
 
         assert lst is not None
 

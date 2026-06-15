@@ -1,4 +1,6 @@
-from sqlalchemy import select, text, update
+import typing as t
+
+from sqlalchemy import func, or_, select, text, update
 
 from db.models import Attribute, AttributeAlias, List
 from domain import errors
@@ -8,13 +10,10 @@ from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeTy
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeName
+from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 from repositories.base import BaseRepository
-import typing as t
-from sqlalchemy import func
-
 from repositories.dtos.attribute import CreateAttributeDTO
 
 
@@ -22,7 +21,7 @@ def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
     return AttributeEntity(
         id=model.attribute_id,
         list_id=model.list_id,
-        name=AttributeName(_real=model.real_name, _norm=model.norm_name),
+        name=AttributeSyn(_real=model.real_name, _norm=model.norm_name),
         type=AttributeType(model.type),
         kind=AttributeKind(model.kind),
         slot=AttributeSlot(
@@ -74,11 +73,41 @@ class AttributeRepository(BaseRepository):
     def get_by_list_id_and_name(
         self,
         list_id: ListID,
-        name: AttributeName,
+        name: AttributeSyn,
     ) -> AttributeEntity | None:
         stmt = select(Attribute).where(
             Attribute.list_id == list_id,
             Attribute.norm_name == name.norm,
+        )
+
+        obj = self.session.scalar(stmt)
+
+        return None if obj is None else _attribute_model_to_entity(obj)
+    
+    def get_by_list_id_and_any_syn(
+        self,
+        list_id: ListID,
+        names: t.Iterable[AttributeSyn],
+    ) -> AttributeEntity | None:
+        norms = tuple(name.norm for name in names)
+
+        if not norms:
+            return None
+
+        stmt = (
+            select(Attribute)
+            .outerjoin(
+                AttributeAlias,
+                AttributeAlias.attribute_id == Attribute.attribute_id,
+            )
+            .where(
+                Attribute.list_id == list_id,
+                or_(
+                    Attribute.norm_name.in_(norms),
+                    AttributeAlias.norm_alias.in_(norms),
+                ),
+            )
+            .limit(1)
         )
 
         obj = self.session.scalar(stmt)

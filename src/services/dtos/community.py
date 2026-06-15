@@ -3,8 +3,7 @@ from datetime import datetime
 
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
-from domain.value_objects.community import CommunityName
-from domain.value_objects.community import CommunityLimits
+from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.string import StrStore
 
 

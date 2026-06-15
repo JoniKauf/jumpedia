@@ -1,6 +1,8 @@
+import typing as t
+
 import discord
 from discord.ext import commands
-import typing as t
+
 from domain.enums.rank import ServerRank
 from services.user import UserService
 

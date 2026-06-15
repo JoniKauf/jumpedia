@@ -4,10 +4,10 @@ from types import CoroutineType
 import discord as dc
 import discord.app_commands as acmds
 import discord.ext.commands as cmds
-
 from _adapters._community import CommunityAdapter
 from _adapters._user import UserAdapter
 from _adapters.interaction import _InteractionAdapter
+
 from _dc_utils import command, group, message, shortcuts
 from domain.enum.rank import CommunityRank, JumpediaRank, ServerRank
 
