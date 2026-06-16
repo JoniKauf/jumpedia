@@ -17,13 +17,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.base import Base
 from db.types import NormStrType, RealStrType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.attribute import AttributeID
+from domain.types.attribute import AttributeAliasID, AttributeID
+from domain.types.attribute_collection_entry import AttributeCollectionEntryAliasID, AttributeCollectionEntryID
 from domain.types.community import CommunityID
 from domain.types.community_user import CommunityUserID
 from domain.types.id import ID
 from domain.types.list import ListID
 from domain.types.server import ServerID
-from domain.types.task import TaskID
+from domain.types.task import TaskAliasID, TaskID
 from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import NormStr, RealStr
@@ -211,7 +212,7 @@ class Attribute(Base):
 class AttributeAlias(Base):
     __tablename__ = "attribute_alias"
 
-    attribute_alias_id: Mapped[ID] = mapped_column(
+    attribute_alias_id: Mapped[AttributeAliasID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
@@ -242,7 +243,7 @@ class AttributeAlias(Base):
 class AttributeCollectionEntry(Base):
     __tablename__ = "attribute_collection_entry"
 
-    attribute_collection_entry_id: Mapped[ID] = mapped_column(
+    attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
@@ -269,11 +270,11 @@ class AttributeCollectionEntry(Base):
 class AttributeCollectionEntryAlias(Base):
     __tablename__ = "attribute_collection_entry_alias"
 
-    attribute_collection_entry_alias_id: Mapped[ID] = mapped_column(
+    attribute_collection_entry_alias_id: Mapped[AttributeCollectionEntryAliasID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
-    attribute_collection_entry_id: Mapped[ID] = mapped_column(
+    attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(
         ForeignKey(
             "attribute_collection_entry.attribute_collection_entry_id",
             ondelete="CASCADE",
@@ -327,7 +328,7 @@ class Task(Base):
 class TaskAlias(Base):
     __tablename__ = "task_alias"
 
-    task_alias_id: Mapped[ID] = mapped_column(
+    task_alias_id: Mapped[TaskAliasID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 

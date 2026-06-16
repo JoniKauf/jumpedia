@@ -163,7 +163,7 @@ class StrStore:
         pass
 
     @classmethod
-    def unique(cls, iterable: t.Iterable[str | t.Self], /) -> tuple[t.Self, ...]:
+    def unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, StrStore] = {}
 
         for s in iterable:
@@ -183,3 +183,15 @@ class StrStore:
         return tuple(
             cls(_real=store.real, _norm=store.norm) for store in mapping.values()
         )
+    
+    @classmethod
+    def raise_if_not_unique(cls, iterable: t.Iterable[t.Self]) -> None:
+        seen: dict[NormStr, t.Self] = {}
+
+        for elem in iterable:
+            existing = seen.get(elem.norm)
+
+            if existing is None:
+                seen[elem.norm] = elem
+            else:
+                raise errors.DuplicateUniqueRequiredString(existing, elem)

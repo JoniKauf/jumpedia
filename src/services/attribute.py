@@ -8,7 +8,7 @@ from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.value_objects.attribute import AttributeSyn, AttributeSlot
+from domain.value_objects.attribute import AttributeCollection, AttributeSyn, AttributeSlot
 from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
@@ -38,6 +38,7 @@ class AttributeService:
         type: t.Literal[AttributeType.TASK, AttributeType.USER],
         slot: AttributeSlot,
         aliases: t.Iterable[AttributeSyn],
+        collection: AttributeCollection | None,
         list_name: ListName | None,
     ) -> AttributeEntity:
         # --- Get Data ---
@@ -59,15 +60,18 @@ class AttributeService:
                 community.limits.list_attribute_count_max, AttributeEntity
             )
         
+        syns = (name, *aliases)
+        
+        if len(syns) - 1 > community.limits.attribute_alias_count_max:
+            raise errors.AliasCountLimitReached(community.limits.attribute_alias_count_max, AttributeEntity)
+        
         # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
-        syns = AttributeSyn.unique((name, *aliases))
+        syns = AttributeSyn.unique(syns)
         
         existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(lst.id, syns)
         
         if existing_same_syn is not None:
             raise errors.SynAlreadyTaken(existing_same_syn)
-
-        # TODO allow aliases, allow collection and verify
 
         # --- Validate Slot ---
         if slot.min_count != 0:
@@ -75,13 +79,18 @@ class AttributeService:
 
         # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
         if slot.max_count > community.limits.attribute_task_value_slot_count_max:
-            raise errors.SlotCountLimitExceeded(
+            raise errors.SlotCountDefinitionLimitExceeded(
                 slot.min_count,
                 slot.max_count,
                 CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT,
                 CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT,
                 community.limits.attribute_task_value_slot_count_max,
             )
+
+        # --- Validate Collection ---
+        if collection is not None:
+            if len(collection.entries) > community.limits.attribute_collection_entry_count_max:
+                raise errors.SlotCountDefinitionLimitExceeded
 
         # --- Create Attribute ---
         return self._attribute_repo.create(
