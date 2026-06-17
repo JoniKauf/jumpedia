@@ -97,10 +97,10 @@ class CountLimitReached(DomainError):
         self.type = type
 
 class AliasCountLimitReached(DomainError):
-    def __init__(self, limit: int, type: type[BaseEntity]) -> None:
+    def __init__(self, limit: int, entity_name: StrStore) -> None:
         super().__init__()
         self.limit = limit
-        self.type = type
+        self.entity_name = entity_name
 
 class SlotCountDefinitionLimitExceeded(DomainError):
     def __init__(

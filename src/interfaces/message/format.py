@@ -12,11 +12,11 @@ from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.community import (
-    CommunityInfoDTO,
-    CommunitySummaryDTO,
-    DeletedCommunityDTO,
+    CommunityInfo,
+    CommunitySummary,
+    DeletedCommunity,
 )
-from services.dtos.list import ListInfoDTO
+from services.dtos.list import ListInfo
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -42,9 +42,9 @@ def human_join(
 
 type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity
 
-type MentionableInfoDTOT = CommunityInfoDTO | ListInfoDTO
-type MentionableSummaryDTOT = CommunitySummaryDTO
-type MentionableDeletedDTOT = DeletedCommunityDTO
+type MentionableInfoDTOT = CommunityInfo | ListInfo
+type MentionableSummaryDTOT = CommunitySummary
+type MentionableDeletedDTOT = DeletedCommunity
 type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
@@ -56,10 +56,10 @@ _TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     UserEntity: ("user", "users"),
     CommunityUserEntity: ("community member", "community members"),
     CommunityEntity: ("community", "communities"),
-    CommunityInfoDTO: ("community", "communities"),
-    DeletedCommunityDTO: ("community", "communities"),
+    CommunityInfo: ("community", "communities"),
+    DeletedCommunity: ("community", "communities"),
     ListEntity: ("list", "lists"),
-    ListInfoDTO: ("list", "lists"),
+    ListInfo: ("list", "lists"),
     AttributeEntity: ("attribute", "attributes"),
 }
 

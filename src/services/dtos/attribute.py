@@ -8,7 +8,7 @@ from domain.value_objects.attribute import AttributeSyn, AttributeSlot
 
 
 @dataclass(frozen=True, slots=True)
-class AttributeInfoDTO:
+class AttributeInfo:
     name: AttributeSyn
     list: ListEntity
     type: AttributeType
@@ -18,7 +18,7 @@ class AttributeInfoDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class AttributeSummaryDTO:
+class AttributeSummary:
     name: AttributeSyn
     list: ListEntity
     type: AttributeType
@@ -28,7 +28,7 @@ class AttributeSummaryDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class DeletedAttributeDTO:
+class DeletedAttribute:
     name: AttributeSyn
     list: ListEntity
     type: AttributeType

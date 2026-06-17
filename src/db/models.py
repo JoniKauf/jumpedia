@@ -253,10 +253,10 @@ class AttributeCollectionEntry(Base):
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
-    norm_slot: Mapped[NormStr] = mapped_column(
+    norm_value: Mapped[NormStr] = mapped_column(
         NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
-    real_slot: Mapped[RealStr] = mapped_column(
+    real_value: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 

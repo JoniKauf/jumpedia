@@ -4,7 +4,7 @@ from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.value_objects.community import CommunityName
 from repositories.community_user import CommunityUserRepository
-from repositories.dtos.community_user import CreateCommunityUserDTO
+from repositories.dtos.community_user import CommunityUserInsert
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.user import UserService
@@ -17,7 +17,7 @@ class CommunityUserService:
 
     def get_or_create(
         self,
-        community_user: CreateCommunityUserDTO,
+        community_user: CommunityUserInsert,
         *,
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
@@ -55,7 +55,7 @@ class CommunityUserAccessService:
         self, community: CommunityEntity
     ) -> CommunityUserEntity:
         return self._community_user_repo.create(
-            CreateCommunityUserDTO(
+            CommunityUserInsert(
                 self._ctx.user,
                 community.id,
             )

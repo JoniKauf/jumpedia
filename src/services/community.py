@@ -11,17 +11,17 @@ from domain.value_objects.list import ListName
 from domain.value_objects.user import UserName
 from repositories.community import CommunityRepository
 from repositories.community_user import CommunityUserRepository
-from repositories.dtos.community import CreateCommunityDTO
-from repositories.dtos.community_user import CreateCommunityUserDTO
+from repositories.dtos.community import CommunityInsert
+from repositories.dtos.community_user import CommunityUserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
 from services.community_user import CommunityUserAccessService, CommunityUserService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import (
-    CommunityInfoDTO,
-    CommunitySummaryDTO,
-    DeletedCommunityDTO,
+    CommunityInfo,
+    CommunitySummary,
+    DeletedCommunity,
 )
 from services.list import ListService
 from services.permission import PermissionService
@@ -61,12 +61,12 @@ class CommunityService:
 
         del existing
 
-        community = self._community_repo.create(CreateCommunityDTO(name, limits))
+        community = self._community_repo.create(CommunityInsert(name, limits))
 
         self._server_repo.link(community, self._ctx.server_id)
 
         self._community_user_service.get_or_create(
-            CreateCommunityUserDTO(
+            CommunityUserInsert(
                 UserEntity(owner_id, owner_name),
                 community.id,
                 CommunityRank.OWNER,
@@ -84,7 +84,7 @@ class CommunityService:
 
         return community
 
-    def delete(self) -> DeletedCommunityDTO:
+    def delete(self) -> DeletedCommunity:
         community, community_user = self._community_user_access_service.get_convenient(
             None
         )
@@ -95,7 +95,7 @@ class CommunityService:
 
         self._community_repo.delete(community.id)
 
-        return DeletedCommunityDTO(community.name, community.created, community.limits)
+        return DeletedCommunity(community.name, community.created, community.limits)
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -106,7 +106,7 @@ class CommunityQueryService:
     _community_user_repo: CommunityUserRepository
     _community_access_service: CommunityAccessService
 
-    def info(self, community_name: CommunityName | None) -> CommunityInfoDTO:
+    def info(self, community_name: CommunityName | None) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
@@ -123,7 +123,7 @@ class CommunityQueryService:
                     default_selected_list = lst
                     break
 
-        return CommunityInfoDTO(
+        return CommunityInfo(
             community.name,
             default_selected_list,
             community.created,
@@ -133,7 +133,7 @@ class CommunityQueryService:
             task_count,
         )
 
-    def summaries(self) -> tuple[CommunitySummaryDTO, ...]:
+    def summaries(self) -> tuple[CommunitySummary, ...]:
         id_to_community = {
             community.id: community for community in self._community_repo.get_all()
         }
@@ -143,7 +143,7 @@ class CommunityQueryService:
         task_counts = self._task_repo.count_grouped_by_community_id()
 
         return tuple(
-            CommunitySummaryDTO(
+            CommunitySummary(
                 community.name,
                 community.created,
                 community_user_count.get(id, 0),

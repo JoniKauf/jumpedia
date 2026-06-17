@@ -9,7 +9,7 @@ from domain.entities.list import ListEntity
 from domain.types.community import CommunityID
 from domain.types.server import ServerID
 from domain.value_objects.community import CommunityLimits, CommunityName
-from repositories.dtos.community import CreateCommunityDTO
+from repositories.dtos.community import CommunityInsert
 from repositories.list import _list_model_to_entity
 
 from .base import BaseRepository
@@ -37,7 +37,7 @@ class CommunityRepository(BaseRepository):
     # -------------------------
     # CREATE
     # -------------------------
-    def create(self, community: CreateCommunityDTO) -> CommunityEntity:
+    def create(self, community: CommunityInsert) -> CommunityEntity:
         obj = Community(
             norm_name=community.name.norm,
             real_name=community.name.real,

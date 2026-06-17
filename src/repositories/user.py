@@ -4,7 +4,7 @@ from domain.enums.rank import MetaRank
 from domain.types.user import UserID
 from domain.value_objects.string import RealStr
 from domain.value_objects.user import UserName
-from repositories.dtos.user import CreateUserDTO
+from repositories.dtos.user import UserInsert
 
 from .base import BaseRepository
 
@@ -22,7 +22,7 @@ class UserRepository(BaseRepository):
         obj = self.session.get(User, user_id)
         return None if obj is None else _user_model_to_entity(obj)
 
-    def create(self, user: CreateUserDTO) -> UserEntity:
+    def create(self, user: UserInsert) -> UserEntity:
         obj = User(
             user_id=user.id,
             norm_name=user.name.norm,

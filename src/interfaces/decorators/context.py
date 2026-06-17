@@ -17,7 +17,7 @@ from interfaces.contexts.command import CommandContext, PublicServices
 from interfaces.message import format, messages
 from repositories.attribute import AttributeRepository
 from repositories.community import CommunityRepository
-from repositories.dtos.user import CreateUserDTO
+from repositories.dtos.user import UserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
@@ -108,7 +108,7 @@ def _create_services_object(session: Session, member: discord.Member):
 
     interacting_user_ctx = InteractingUserContext(
         user_service.get_or_create(
-            CreateUserDTO(
+            UserInsert(
                 ID(member.id),
                 StrStore(member.name),
             )

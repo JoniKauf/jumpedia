@@ -8,7 +8,7 @@ from domain.value_objects.string import StrStore
 
 
 @dataclass(frozen=True, slots=True)
-class CommunityInfoDTO:
+class CommunityInfo:
     name: CommunityName
     default_selected_list: ListEntity | None
     created: datetime
@@ -19,7 +19,7 @@ class CommunityInfoDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class CommunitySummaryDTO:
+class CommunitySummary:
     name: CommunityName
     created: datetime
     community_user_count: int
@@ -28,7 +28,7 @@ class CommunitySummaryDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class DeletedCommunityDTO:
+class DeletedCommunity:
     name: StrStore
     created: datetime
     limits: CommunityLimits

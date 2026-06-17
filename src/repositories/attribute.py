@@ -14,7 +14,7 @@ from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 from repositories.base import BaseRepository
-from repositories.dtos.attribute import CreateAttributeDTO
+from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
 
 def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
@@ -34,7 +34,7 @@ def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
 
 
 class AttributeRepository(BaseRepository):
-    def create(self, attribute: CreateAttributeDTO) -> AttributeEntity:
+    def create(self, attribute: AttributeInsert) -> AttributeEntity:
         obj = Attribute(
             list_id=attribute.list_id,
             norm_name=attribute.name.norm,
@@ -52,6 +52,17 @@ class AttributeRepository(BaseRepository):
 
         return _attribute_model_to_entity(obj)
 
+    def create_many_aliases(self, attribute_aliases: t.Iterable[AttributeAliasInsert]) -> None:
+        objs = tuple(AttributeAlias(
+            attribute_id=attr_alias.attribute_id,
+            list_id=attr_alias.list_id,
+            norm_alias=attr_alias.alias.norm,
+            real_alias=attr_alias.alias.real
+        ) for attr_alias in attribute_aliases)
+
+        self.session.add_all(objs)
+        self.session.flush()
+    
     def delete(self, attribute_id: AttributeID) -> None:
         obj = self.session.get(Attribute, attribute_id)
 

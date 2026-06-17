@@ -9,7 +9,7 @@ from repositories.attribute import AttributeEntity
 
 
 @dataclass(frozen=True, slots=True)
-class ListInfoDTO:
+class ListInfo:
     name: ListName
     attributes: tuple[AttributeEntity, ...]
     task_count: int
@@ -17,7 +17,7 @@ class ListInfoDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class ListSummaryDTO:
+class ListSummary:
     name: ListName
     attributes: tuple[AttributeEntity, ...]
     task_count: int
@@ -25,6 +25,6 @@ class ListSummaryDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class DeletedListDTO:
+class DeletedList:
     community: CommunityEntity
     name: ListName

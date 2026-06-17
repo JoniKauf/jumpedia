@@ -6,7 +6,7 @@ from domain.value_objects.user import UserName
 
 
 @dataclass(frozen=True, slots=True)
-class CreateUserDTO:
+class UserInsert:
     id: UserID
     name: UserName
     rank: MetaRank = MetaRank.DEFAULT

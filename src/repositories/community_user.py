@@ -7,7 +7,7 @@ from domain.enums.rank import CommunityRank
 from domain.types.community import CommunityID
 from repositories import user as user_module
 from repositories.base import BaseRepository
-from repositories.dtos.community_user import CreateCommunityUserDTO
+from repositories.dtos.community_user import CommunityUserInsert
 
 
 def _community_user_model_to_entity(
@@ -33,7 +33,7 @@ class CommunityUserRepository(BaseRepository):
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_user_model_to_entity(obj, user)
 
-    def create(self, community_user: CreateCommunityUserDTO) -> CommunityUserEntity:
+    def create(self, community_user: CommunityUserInsert) -> CommunityUserEntity:
         obj = CommunityUser(
             user_id=community_user.user.id,
             community_id=community_user.community_id,

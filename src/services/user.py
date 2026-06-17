@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from domain.entities.user import UserEntity
-from repositories.dtos.user import CreateUserDTO
+from repositories.dtos.user import UserInsert
 from repositories.user import UserRepository
 
 
@@ -11,7 +11,7 @@ class UserService:
 
     def get_or_create(
         self,
-        user: CreateUserDTO,
+        user: UserInsert,
         *,
         overwrite_name: bool = True,
         overwrite_rank: bool = False,

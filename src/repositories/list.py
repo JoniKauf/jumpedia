@@ -6,7 +6,7 @@ from domain.entities.list import ListEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.list import ListName
-from repositories.dtos.list import CreateListDTO
+from repositories.dtos.list import ListInsert
 
 from .base import BaseRepository
 
@@ -20,7 +20,7 @@ def _list_model_to_entity(model: List) -> ListEntity:
 
 
 class ListRepository(BaseRepository):
-    def create(self, list: CreateListDTO) -> ListEntity:
+    def create(self, list: ListInsert) -> ListEntity:
         obj = List(
             community_id=list.community_id,
             norm_name=list.name.norm,

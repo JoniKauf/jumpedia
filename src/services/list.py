@@ -11,14 +11,14 @@ from domain.value_objects.attribute import AttributeSyn, AttributeSlot
 from domain.value_objects.community import CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
-from repositories.dtos.attribute import CreateAttributeDTO
-from repositories.dtos.list import CreateListDTO
+from repositories.dtos.attribute import AttributeInsert
+from repositories.dtos.list import ListInsert
 from repositories.list import ListRepository
 from repositories.task import TaskRepository
 from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.list import DeletedListDTO, ListInfoDTO, ListSummaryDTO
+from services.dtos.list import DeletedList, ListInfo, ListSummary
 from services.permission import PermissionService
 
 
@@ -49,12 +49,12 @@ class ListService:
         if existing := self._list_repo.get_by_community_and_name(community.id, name):
             raise errors.NameAlreadyTaken(name, existing)
 
-        lst = self._list_repo.create(CreateListDTO(community.id, name))
+        lst = self._list_repo.create(ListInsert(community.id, name))
 
         # Create static attributes
         for i, kind in enumerate(AttributeKind):
             self._attribute_repo.create(
-                CreateAttributeDTO(
+                AttributeInsert(
                     list_id=lst.id,
                     name=AttributeSyn(kind.name.title()),
                     type=AttributeType.STATIC,
@@ -74,7 +74,7 @@ class ListService:
 
         return lst
 
-    def delete(self, name: ListName) -> DeletedListDTO:
+    def delete(self, name: ListName) -> DeletedList:
         community, community_user, lst = self._list_access_service.get_convenient(
             None, name
         )
@@ -85,7 +85,7 @@ class ListService:
 
         self._list_repo.delete(lst.id)
 
-        return DeletedListDTO(community, lst.name)
+        return DeletedList(community, lst.name)
 
     def rename(self, name_before: ListName, name_after: ListName) -> ListEntity:
         _, community_user, lst = self._list_access_service.get_convenient(
@@ -118,21 +118,21 @@ class ListQueryService:
     _community_access_service: CommunityAccessService
     _list_access_service: ListAccessService
 
-    def info(self, name: ListName) -> ListInfoDTO:
+    def info(self, name: ListName) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(None, name)
 
         attributes = self._attribute_repo.get_all_by_list_id(lst.id)
         task_count = self._task_repo.count_by_list(lst.id)
         is_default = community.default_selected_list_id == lst.id
 
-        return ListInfoDTO(
+        return ListInfo(
             name=lst.name,
             attributes=tuple(attributes),
             task_count=task_count,
             is_default_selected_list=is_default,
         )
 
-    def summaries(self) -> tuple[ListSummaryDTO, ...]:
+    def summaries(self) -> tuple[ListSummary, ...]:
         community = self._community_access_service.get_convenient(None)
 
         lists = self._list_repo.get_all_by_community(community.id)
@@ -146,7 +146,7 @@ class ListQueryService:
         default_list_id = community.default_selected_list_id
 
         return tuple(
-            ListSummaryDTO(
+            ListSummary(
                 name=lst.name,
                 attributes=tuple(attributes_by_list.get(lst.id, ())),
                 task_count=task_counts.get(lst.id, 0),

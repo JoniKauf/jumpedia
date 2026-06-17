@@ -13,7 +13,7 @@ from domain.value_objects.user import UserName
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
-from services.dtos.community import CommunitySummaryDTO
+from services.dtos.community import CommunitySummary
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
@@ -74,7 +74,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             ),
         }
 
-        await messages.object_browse(ctx.interaction, CommunitySummaryDTO, data)
+        await messages.object_browse(ctx.interaction, CommunitySummary, data)
 
     @app_commands.command()
     @with_context()
