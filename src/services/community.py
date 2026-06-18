@@ -16,13 +16,11 @@ from repositories.dtos.community_user import CommunityUserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from services.community_user import CommunityUserAccessService, CommunityUserService
+from services.community_user import (CommunityUserAccessService,
+                                     CommunityUserService)
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.community import (
-    CommunityInfo,
-    CommunitySummary,
-    DeletedCommunity,
-)
+from services.dtos.community import (CommunityInfo, CommunitySummary,
+                                     DeletedCommunity)
 from services.list import ListService
 from services.permission import PermissionService
 

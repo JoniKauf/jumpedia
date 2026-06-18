@@ -9,7 +9,8 @@ from structures.attribute import ALL_ATTRIBUTE_TYPES, AnyAttributeT
 from structures.list import List
 from structures.task import Task
 
-from _dc_utils import command, confirm, group, layouts, message, predicate, shortcuts
+from _dc_utils import (command, confirm, group, layouts, message, predicate,
+                       shortcuts)
 from domain.enum.rank import CommunityRank
 from utils import itertools2
 

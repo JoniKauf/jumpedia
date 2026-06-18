@@ -1,7 +1,8 @@
 import enum
 
 
-class CommunityRank(enum.Enum):
+@enum.verify(enum.CONTINUOUS)
+class CommunityRank(enum.IntEnum):
     USER = 0
     HELPER = 1
     MODERATOR = 2
@@ -16,7 +17,8 @@ class CommunityRank(enum.Enum):
         return bool(self.value)
 
 
-class MetaRank(enum.Enum):
+@enum.verify(enum.CONTINUOUS)
+class MetaRank(enum.IntEnum):
     USER = 0
     ADMINISTRATOR = 1
     JONIKAUF = 2
@@ -29,7 +31,8 @@ class MetaRank(enum.Enum):
         return bool(self.value)
 
 
-class ServerRank(enum.Enum):
+@enum.verify(enum.CONTINUOUS)
+class ServerRank(enum.IntEnum):
     USER = 0
     ADMINISTRATOR = 1
     OWNER = 2

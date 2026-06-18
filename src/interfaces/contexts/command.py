@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import discord
 
-from services.attribute import AttributeService
+from services.attribute import AttributeQueryService, AttributeService
 from services.community import CommunityQueryService, CommunityService
 from services.list import ListQueryService, ListService
 from services.server import ServerService
@@ -16,6 +16,7 @@ class PublicServices:
     list: ListService
     list_query: ListQueryService
     attribute: AttributeService
+    attribute_query: AttributeQueryService
 
 
 @dataclass(frozen=True)

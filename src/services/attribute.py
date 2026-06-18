@@ -3,29 +3,31 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
-from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
+from domain.entities.attribute_collection_entry import \
+    AttributeCollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.value_objects.attribute import AttributeSyn, AttributeSlot
-from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
+from domain.value_objects.attribute import AttributeSlot, AttributeSyn
+from domain.value_objects.attribute_collection_entry import \
+    AttributeCollectionEntrySyn
 from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
-from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
+from repositories.attribute_collection_entry import \
+    AttributeCollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
-from repositories.dtos.attribute_collection_entry import AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert
+from repositories.dtos.attribute_collection_entry import (
+    AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert)
 from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.attribute import (
-    AttributeInfo,
-    AttributeSummary,
-    DeletedAttribute,
-)
-from services.dtos.attribute_collection_entry import CreateAttributeCollectionEntry
+from services.dtos.attribute import (AttributeInfo, AttributeSummary,
+                                     DeletedAttribute)
+from services.dtos.attribute_collection_entry import \
+    CreateAttributeCollectionEntry
 from services.list import ListAccessService
 from services.permission import PermissionService
 
@@ -65,17 +67,21 @@ class AttributeService:
             raise errors.CountLimitReached(
                 community.limits.list_attribute_count_max, AttributeEntity
             )
-        
+
         syns: tuple[AttributeSyn, ...] = (name, *aliases)
-        
+
         if len(syns) - 1 > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(community.limits.attribute_alias_count_max, name)
-        
+            raise errors.AliasCountLimitReached(
+                community.limits.attribute_alias_count_max, name
+            )
+
         # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
         AttributeSyn.raise_if_not_norm_unique(syns)
-        
-        existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(lst.id, syns)
-        
+
+        existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(
+            lst.id, syns
+        )
+
         if existing_same_syn is not None:
             raise errors.SynAlreadyTaken(existing_same_syn)
 
@@ -95,17 +101,33 @@ class AttributeService:
 
         # --- Validate Collection ---
         if collection_entries:
-            AttributeCollectionEntrySyn.raise_if_not_norm_unique(syn for entry in collection_entries for syn in (entry.value, *entry.aliases))
-            
-            if len(collection_entries) > community.limits.attribute_collection_entry_count_max:
-                raise errors.CountLimitReached(community.limits.attribute_collection_entry_count_max, AttributeCollectionEntryEntity)
+            AttributeCollectionEntrySyn.raise_if_not_norm_unique(
+                syn
+                for entry in collection_entries
+                for syn in (entry.value, *entry.aliases)
+            )
+
+            if (
+                len(collection_entries)
+                > community.limits.attribute_collection_entry_count_max
+            ):
+                raise errors.CountLimitReached(
+                    community.limits.attribute_collection_entry_count_max,
+                    AttributeCollectionEntryEntity,
+                )
 
             for entry in collection_entries:
-                if len(entry.aliases) > community.limits.attribute_collection_entry_alias_count_max:
-                    raise errors.AliasCountLimitReached(community.limits.attribute_collection_entry_alias_count_max, entry.value)
-            
+                if (
+                    len(entry.aliases)
+                    > community.limits.attribute_collection_entry_alias_count_max
+                ):
+                    raise errors.AliasCountLimitReached(
+                        community.limits.attribute_collection_entry_alias_count_max,
+                        entry.value,
+                    )
+
             # Collection doesn't exist before so here we don't have to check for uniqueness across other db entries
-        
+
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
             AttributeInsert(
@@ -115,32 +137,29 @@ class AttributeService:
 
         # --- Create Attribute Aliases ---
         self._attribute_repo.create_many_aliases(
-            AttributeAliasInsert(
-                attr_entity.id,
-                lst.id,
-                alias
-            ) for alias in aliases
+            AttributeAliasInsert(attr_entity.id, lst.id, alias) for alias in aliases
         )
 
         # --- Create Attribute Collection ---
         if collection_entries:
-            created_entries: list[AttributeCollectionEntryEntity] = self._attribute_collection_entry_repo.create_many(AttributeCollectionEntryInsert(
-                attr_entity.id,
-                i,
-                entry.value
-            ) for i, entry in enumerate(collection_entries))
+            created_entries: list[AttributeCollectionEntryEntity] = (
+                self._attribute_collection_entry_repo.create_many(
+                    AttributeCollectionEntryInsert(attr_entity.id, i, entry.value)
+                    for i, entry in enumerate(collection_entries)
+                )
+            )
 
             all_aliases: list[AttributeCollectionEntryAliasInsert] = []
 
             for i, created_entry in enumerate(created_entries):
                 for alias in collection_entries[i].aliases:
                     alias_insert = AttributeCollectionEntryAliasInsert(
-                        created_entry.id,
-                        created_entry.attribute_id,
-                        alias
+                        created_entry.id, created_entry.attribute_id, alias
                     )
 
                     all_aliases.append(alias_insert)
+
+            self._attribute_collection_entry_repo.create_many_aliases(all_aliases)
 
         return attr_entity
 
@@ -171,10 +190,8 @@ class AttributeQueryService:
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
 
-    def info(self, name: AttributeSyn, list_name: str | None) -> AttributeInfo:
-        _, _, lst = self._list_access_service.get_convenient(
-            None, None if list_name is None else ListName(list_name)
-        )
+    def info(self, name: AttributeSyn, list_name: ListName | None) -> AttributeInfo:
+        _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
         attr = self._attribute_access_service.get_by_list_and_name_or_raise(lst, name)
 
@@ -182,12 +199,12 @@ class AttributeQueryService:
             attr.name, lst, attr.type, attr.kind, attr.slot, attr.position
         )
 
-    def browse(
+    def summaries(
         self,
-        list_name: str | None,
+        list_name: ListName | None,
     ) -> tuple[AttributeSummary, ...]:
         _, _, lst = self._list_access_service.get_convenient(
-            None, None if list_name is None else ListName(list_name)
+            None, list_name
         )
 
         attrs = self._attribute_repo.get_all_by_list_id(

@@ -6,7 +6,8 @@ from db.models import Attribute, AttributeAlias, List
 from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeSlot
 from domain.entities.community import CommunityEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import (AttributeKind, AttributeSlotType,
+                                    AttributeType)
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
@@ -52,17 +53,22 @@ class AttributeRepository(BaseRepository):
 
         return _attribute_model_to_entity(obj)
 
-    def create_many_aliases(self, attribute_aliases: t.Iterable[AttributeAliasInsert]) -> None:
-        objs = tuple(AttributeAlias(
-            attribute_id=attr_alias.attribute_id,
-            list_id=attr_alias.list_id,
-            norm_alias=attr_alias.alias.norm,
-            real_alias=attr_alias.alias.real
-        ) for attr_alias in attribute_aliases)
+    def create_many_aliases(
+        self, attribute_aliases: t.Iterable[AttributeAliasInsert]
+    ) -> None:
+        objs = tuple(
+            AttributeAlias(
+                attribute_id=attr_alias.attribute_id,
+                list_id=attr_alias.list_id,
+                norm_alias=attr_alias.alias.norm,
+                real_alias=attr_alias.alias.real,
+            )
+            for attr_alias in attribute_aliases
+        )
 
         self.session.add_all(objs)
         self.session.flush()
-    
+
     def delete(self, attribute_id: AttributeID) -> None:
         obj = self.session.get(Attribute, attribute_id)
 
@@ -94,7 +100,7 @@ class AttributeRepository(BaseRepository):
         obj = self.session.scalar(stmt)
 
         return None if obj is None else _attribute_model_to_entity(obj)
-    
+
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,

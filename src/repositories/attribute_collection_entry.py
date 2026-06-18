@@ -1,48 +1,62 @@
+import typing as t
+
 from sqlalchemy import func, or_, select
 
 from db.models import AttributeCollectionEntry, AttributeCollectionEntryAlias
 from domain import errors
-from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
+from domain.entities.attribute_collection_entry import \
+    AttributeCollectionEntryEntity
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
-from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
+from domain.value_objects.attribute_collection_entry import \
+    AttributeCollectionEntrySyn
 from repositories.base import BaseRepository
-import typing as t
+from repositories.dtos.attribute_collection_entry import (
+    AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert)
 
-from repositories.dtos.attribute_collection_entry import AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert
 
-def _attribute_collection_entry_model_to_entity(model: AttributeCollectionEntry) -> AttributeCollectionEntryEntity:
+def _attribute_collection_entry_model_to_entity(
+    model: AttributeCollectionEntry,
+) -> AttributeCollectionEntryEntity:
     return AttributeCollectionEntryEntity(
         model.attribute_collection_entry_id,
         model.attribute_id,
-        AttributeCollectionEntrySyn(
-            _real=model.real_value,
-            _norm=model.norm_value
-        )
+        AttributeCollectionEntrySyn(_real=model.real_value, _norm=model.norm_value),
     )
 
+
 class AttributeCollectionEntryRepository(BaseRepository):
-    def create_many(self, entries: t.Iterable[AttributeCollectionEntryInsert]) -> list[AttributeCollectionEntryEntity]:
+    def create_many(
+        self, entries: t.Iterable[AttributeCollectionEntryInsert]
+    ) -> list[AttributeCollectionEntryEntity]:
         """Preserves order."""
-        objs = tuple(AttributeCollectionEntry(
-            attribute_id=entry.attribute_id,
-            index=entry.index,
-            norm_value=entry.value.norm,
-            real_value=entry.value.real
-        ) for entry in entries)
+        objs = tuple(
+            AttributeCollectionEntry(
+                attribute_id=entry.attribute_id,
+                index=entry.index,
+                norm_value=entry.value.norm,
+                real_value=entry.value.real,
+            )
+            for entry in entries
+        )
 
         self.session.add_all(objs)
         self.session.flush()
 
         return [_attribute_collection_entry_model_to_entity(obj) for obj in objs]
-    
-    def create_many_aliases(self, entry_aliases: t.Iterable[AttributeCollectionEntryAliasInsert]) -> None:
-        objs = tuple(AttributeCollectionEntryAlias(
-            attribute_collection_entry_id=entry_alias.attribute_collection_entry_id,
-            attribute_id=entry_alias.attribute_id,
-            norm_alias=entry_alias.alias.norm,
-            real_alias=entry_alias.alias.real
-        ) for entry_alias in entry_aliases)
+
+    def create_many_aliases(
+        self, entry_aliases: t.Iterable[AttributeCollectionEntryAliasInsert]
+    ) -> None:
+        objs = tuple(
+            AttributeCollectionEntryAlias(
+                attribute_collection_entry_id=entry_alias.attribute_collection_entry_id,
+                attribute_id=entry_alias.attribute_id,
+                norm_alias=entry_alias.alias.norm,
+                real_alias=entry_alias.alias.real,
+            )
+            for entry_alias in entry_aliases
+        )
 
         self.session.add_all(objs)
         self.session.flush()
@@ -53,11 +67,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
     ) -> AttributeCollectionEntryEntity | None:
         obj = self.session.get(AttributeCollectionEntry, entry_id)
 
-        return (
-            None
-            if obj is None
-            else _attribute_collection_entry_model_to_entity(obj)
-        )
+        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
 
     def get_by_attribute_id(
         self,
@@ -86,11 +96,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return (
-            None
-            if obj is None
-            else _attribute_collection_entry_model_to_entity(obj)
-        )
+        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
 
     def get_by_attribute_id_and_alias(
         self,
@@ -112,24 +118,20 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return (
-            None
-            if obj is None
-            else _attribute_collection_entry_model_to_entity(obj)
-        )
+        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
 
     def get_by_attribute_id_and_any_syn(
         self,
         attribute_id: AttributeID,
         syns: t.Iterable[AttributeCollectionEntrySyn],
-    ) -> tuple[
-        AttributeCollectionEntryEntity,
-        AttributeCollectionEntrySyn,
-    ] | None:
-        norm_to_store = {
-            syn.norm: syn
-            for syn in syns
-        }
+    ) -> (
+        tuple[
+            AttributeCollectionEntryEntity,
+            AttributeCollectionEntrySyn,
+        ]
+        | None
+    ):
+        norm_to_store = {syn.norm: syn for syn in syns}
 
         if not norm_to_store:
             return None
@@ -148,12 +150,8 @@ class AttributeCollectionEntryRepository(BaseRepository):
             .where(
                 AttributeCollectionEntry.attribute_id == attribute_id,
                 or_(
-                    AttributeCollectionEntry.norm_value.in_(
-                        tuple(norm_to_store)
-                    ),
-                    AttributeCollectionEntryAlias.norm_alias.in_(
-                        tuple(norm_to_store)
-                    ),
+                    AttributeCollectionEntry.norm_value.in_(tuple(norm_to_store)),
+                    AttributeCollectionEntryAlias.norm_alias.in_(tuple(norm_to_store)),
                 ),
             )
             .limit(1)
@@ -166,17 +164,12 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         obj, entry_norm, alias_norm = row
 
-        matched_norm = (
-            entry_norm
-            if entry_norm in norm_to_store
-            else alias_norm
-        )
+        matched_norm = entry_norm if entry_norm in norm_to_store else alias_norm
 
         return (
             _attribute_collection_entry_model_to_entity(obj),
             norm_to_store[matched_norm],
         )
-
 
     def count_by_attribute_id(
         self,
@@ -185,9 +178,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
         stmt = (
             select(func.count())
             .select_from(AttributeCollectionEntry)
-            .where(
-                AttributeCollectionEntry.attribute_id == attribute_id
-            )
+            .where(AttributeCollectionEntry.attribute_id == attribute_id)
         )
 
         return self.session.scalar(stmt) or 0
@@ -203,6 +194,6 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         if obj is None:
             raise errors.NotFoundById(AttributeCollectionEntryEntity)
-        
+
         self.session.delete(obj)
         self.session.flush()

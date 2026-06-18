@@ -183,7 +183,7 @@ class StrStore:
         return tuple(
             cls(_real=store.real, _norm=store.norm) for store in mapping.values()
         )
-    
+
     @classmethod
     def raise_if_not_norm_unique(cls, iterable: t.Iterable[t.Self]) -> None:
         seen: dict[NormStr, t.Self] = {}

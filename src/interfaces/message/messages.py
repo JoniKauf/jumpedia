@@ -50,12 +50,10 @@ async def object_info(
         tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),)
     )
 
-    await interaction.followup.send(
-        layout.layout(
-            t"{format.type_name_title(info_dto_type)} Info",
-            t"{'\n'.join(links) @ T.RAW}",
-            Status.INFO,
-        )
+    await info(
+        interaction,
+        t"{format.type_name_header(info_dto_type)} Info",
+        t"{'\n'.join(links) @ T.RAW}"
     )
 
 
@@ -64,14 +62,22 @@ async def object_browse(
     summary_dto_type: type[format.MentionableSummaryDTOT],
     data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
-    links = pastee.table_to_pastee_strings(tuple(data), data.values())
+    header = t"{format.type_name_header(summary_dto_type)} Browsed"
 
-    await interaction.followup.send(
-        layout.layout(
-            t"{format.type_name_title(summary_dto_type)} Browsed",
-            t"{'\n'.join(links) @ T.RAW}",
-            Status.INFO,
+    if not data:
+        return await info(
+            interaction,
+            header,
+            t"No {format.type_name_body(summary_dto_type)} with the specified criteria could be found!"
         )
+    
+    links = pastee.table_to_pastee_strings(tuple(data), data.values())
+    count: int = len(next(iter(data.values())))  # Count length of first value in the mapping
+
+    await info(
+        interaction,
+        header,
+        t"A total of {count @ T.EMBED} {format.type_name_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}"
     )
 
 
@@ -81,8 +87,8 @@ async def object_created(
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_title(type(entity))} Created",
-        t"The {format.mention(entity)} has successfully been created!",
+        t"{format.type_name_header(type(entity))} Created",
+        t"The {format.mention_body(entity)} has successfully been created!",
     )
 
 
@@ -91,6 +97,6 @@ async def object_nuked(
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_title(type(dto))} Deleted",
-        t"The {format.mention(dto)} has successfully been nuked!",
+        t"{format.type_name_header(type(dto))} Deleted",
+        t"The {format.mention_body(dto)} has successfully been nuked!",
     )

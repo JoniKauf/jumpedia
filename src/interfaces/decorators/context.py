@@ -21,13 +21,11 @@ from repositories.dtos.user import UserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
+from repositories.user import (CommunityRank, CommunityUserRepository,
+                               UserRepository)
 from services.attribute import AttributeService
-from services.community import (
-    CommunityAccessService,
-    CommunityQueryService,
-    CommunityService,
-)
+from services.community import (CommunityAccessService, CommunityQueryService,
+                                CommunityService)
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.permission import PermissionService
@@ -59,7 +57,7 @@ async def _handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Allowed",
-                t"You have the rank {format.mention(e.rank)}, but you at least need the rank {format.mention(e.required)} to perform this action!",
+                t"You have the rank {format.mention_body(e.rank)}, but you at least need the rank {format.mention_body(e.required)} to perform this action!",
             )
 
         case errors.EmptyString():

@@ -21,38 +21,36 @@ _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
-    async def info(
-        self, ctx: CommandContext, community_name: str | None = None
-    ) -> None:
-        info_dto = ctx.services.community_query.info(
-            None if community_name is None else CommunityName(community_name)
+    async def info(self, ctx: CommandContext, community: str | None = None) -> None:
+        info = ctx.services.community_query.info(
+            None if community is None else CommunityName(community)
         )
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (info_dto.name.real.value,),
-            "Created": (info_dto.created.strftime("%A, %Y/%m/%d %H:%M:%S"),),
+            "Name": (info.name.real.value,),
+            "Created": (info.created.strftime("%A, %Y/%m/%d %H:%M:%S"),),
             "Owners": tuple(
                 user.name.real.value
-                for user in info_dto.community_users
+                for user in info.community_users
                 if user.community_rank is CommunityRank.OWNER
             ),
-            "User Count": (str(len(info_dto.community_users)),),
-            "Lists": tuple(lst.name.real.value for lst in info_dto.lists),
+            "User Count": (str(len(info.community_users)),),
+            "Lists": tuple(lst.name.real.value for lst in info.lists),
             "Default Selected List": (
-                (info_dto.default_selected_list.name.real.value,)
-                if info_dto.default_selected_list
+                (info.default_selected_list.name.real.value,)
+                if info.default_selected_list
                 else ()
             ),
-            "Total Task Count": (str(info_dto.total_task_count),),
+            "Total Task Count": (str(info.total_task_count),),
         }
 
         data |= {
             "Limit - " + name.replace("_", " ").title(): (str(value),)
-            for name, value in asdict(info_dto.limits).items()
+            for name, value in asdict(info.limits).items()
             if isinstance(value, int)
         }
 
-        await messages.object_info(ctx.interaction, type(info_dto), data)
+        await messages.object_info(ctx.interaction, type(info), data)
 
     @app_commands.command()
     @with_context()
@@ -81,8 +79,8 @@ class CommunityInterface(BaseInterface, group_name="community"):
     async def create(
         self,
         ctx: CommandContext,
-        name: str,
-        owner: discord.User,
+        community_name: str,
+        community_owner: discord.User,
         community_list_count_max: int = _DEFAULT_LIMITS.community_list_count_max,
         list_attribute_count_max: int = _DEFAULT_LIMITS.list_attribute_count_max,
         list_task_count_max: int = _DEFAULT_LIMITS.list_task_count_max,
@@ -92,9 +90,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
         attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
     ) -> None:
         community = ctx.services.community.create(
-            CommunityName(name),
-            UserID(ID(owner.id)),
-            UserName(owner.name),
+            CommunityName(community_name),
+            UserID(ID(community_owner.id)),
+            UserName(community_owner.name),
             CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,

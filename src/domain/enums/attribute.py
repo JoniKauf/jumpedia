@@ -1,37 +1,41 @@
+import decimal
 import enum
 import typing as t
 from functools import cached_property
 
 
-class AttributeType(enum.Enum):
+@enum.verify(enum.UNIQUE, enum.CONTINUOUS)
+class AttributeType(enum.IntEnum):
     STATIC = 1
     TASK = 2
     USER = 3
 
 
-class AttributeKind(enum.Enum):
-    NONE = None
+@enum.verify(enum.UNIQUE, enum.CONTINUOUS)
+class AttributeKind(enum.IntEnum):
+    NONE = 0
     NAME = 1
     ALIAS = 2
     ID = 3
 
 
-class AttributeSlotType(enum.Enum):
-    BOOL = 1
-    INT = 2
-    FLOAT = 3
-    STR = 4
+@enum.verify(enum.UNIQUE, enum.CONTINUOUS)
+class AttributeSlotType(enum.IntEnum):
+    BOOLEAN = 1
+    INTEGER = 2
+    DECIMAL = 3
+    STRING = 4
 
     @cached_property
     def type(self) -> type:
         match self:
-            case AttributeSlotType.BOOL:
+            case AttributeSlotType.BOOLEAN:
                 return bool
-            case AttributeSlotType.INT:
+            case AttributeSlotType.INTEGER:
                 return int
-            case AttributeSlotType.FLOAT:
-                return float
-            case AttributeSlotType.STR:
+            case AttributeSlotType.DECIMAL:
+                return decimal.Decimal
+            case AttributeSlotType.STRING:
                 return str
             case _:
                 t.assert_never(self)

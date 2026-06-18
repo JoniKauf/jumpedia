@@ -2,23 +2,18 @@
 import typing as t
 from datetime import UTC, datetime
 
-from sqlalchemy import (
-    BigInteger,
-    CheckConstraint,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
-)
+from sqlalchemy import (BigInteger, CheckConstraint, DateTime, ForeignKey,
+                        Integer, String, UniqueConstraint)
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import Base
 from db.types import NormStrType, RealStrType
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.attribute import AttributeAliasID, AttributeID
-from domain.types.attribute_collection_entry import AttributeCollectionEntryAliasID, AttributeCollectionEntryID
+from domain.types.attribute_collection_entry import (
+    AttributeCollectionEntryAliasID, AttributeCollectionEntryID)
 from domain.types.community import CommunityID
 from domain.types.community_user import CommunityUserID
 from domain.types.id import ID
@@ -167,9 +162,7 @@ class CommunityUser(Base):
 
     __table_args__ = (
         *Base.__table_args__,
-        CheckConstraint(
-            f"power BETWEEN {min(r.value for r in CommunityRank)} AND {max(r.value for r in CommunityRank)}"
-        ),
+        CheckConstraint(f"power BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"),
     )
 
 
@@ -195,7 +188,7 @@ class Attribute(Base):
     )
 
     type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
-    kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
+    kind: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     min_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -206,6 +199,13 @@ class Attribute(Base):
         UniqueConstraint("list_id", "kind"),
         UniqueConstraint("list_id", "norm_name"),
         UniqueConstraint("list_id", "position"),
+        # Only check most important constraints here, rest is done in service layer (valid position and so on)
+        CheckConstraint(
+            f"(type = {AttributeType.STATIC} AND kind BETWEEN {AttributeKind.NONE + 1} AND {max(AttributeKind)}) "
+            f"OR "
+            f"(type in ({AttributeType.TASK}, {AttributeType.USER}) AND kind = {AttributeKind.NONE})"
+        ),
+        CheckConstraint(f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}")
     )
 
 
@@ -270,8 +270,8 @@ class AttributeCollectionEntry(Base):
 class AttributeCollectionEntryAlias(Base):
     __tablename__ = "attribute_collection_entry_alias"
 
-    attribute_collection_entry_alias_id: Mapped[AttributeCollectionEntryAliasID] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+    attribute_collection_entry_alias_id: Mapped[AttributeCollectionEntryAliasID] = (
+        mapped_column(Integer, primary_key=True, autoincrement=True)
     )
 
     attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(

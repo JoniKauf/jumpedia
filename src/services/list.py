@@ -4,10 +4,11 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import (AttributeKind, AttributeSlotType,
+                                    AttributeType)
 from domain.enums.rank import CommunityRank
 from domain.types.id import ID
-from domain.value_objects.attribute import AttributeSyn, AttributeSlot
+from domain.value_objects.attribute import AttributeSlot, AttributeSyn
 from domain.value_objects.community import CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
@@ -61,12 +62,16 @@ class ListService:
                     kind=kind,
                     slot=AttributeSlot(
                         type=(
-                            AttributeSlotType.INT,
-                            AttributeSlotType.STR,
-                            AttributeSlotType.STR,
+                            AttributeSlotType.INTEGER,
+                            AttributeSlotType.STRING,
+                            AttributeSlotType.STRING,
                         )[i],
                         min_count=(1, 1, 0)[i],
-                        max_count=(1, 1, community.limits.attribute_task_value_slot_count_max)[i],
+                        max_count=(
+                            1,
+                            1,
+                            community.limits.attribute_task_value_slot_count_max,
+                        )[i],
                     ),
                     position=i + 1,
                 )

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSyn, AttributeSlot
+from domain.value_objects.attribute import AttributeSlot, AttributeSyn
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +14,7 @@ class AttributeInsert:
     kind: AttributeKind
     slot: AttributeSlot
     position: int
+
 
 @dataclass(frozen=True, slots=True)
 class AttributeAliasInsert:

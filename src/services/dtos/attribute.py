@@ -4,7 +4,7 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSyn, AttributeSlot
+from domain.value_objects.attribute import AttributeSlot, AttributeSyn
 
 
 @dataclass(frozen=True, slots=True)

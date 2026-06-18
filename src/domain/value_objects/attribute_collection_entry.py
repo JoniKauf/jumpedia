@@ -15,5 +15,7 @@ if t.TYPE_CHECKING:
 
 else:
     AttributeCollectionEntrySyn = factories.make_constrained_str_store_type(
-        "CollectionEntrySyn", CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX, AttributeEntity
+        "CollectionEntrySyn",
+        CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX,
+        AttributeEntity,
     )

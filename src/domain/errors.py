@@ -78,10 +78,12 @@ class NameAlreadyTaken(DomainError):
         self.name = name
         self.existing = existing
 
+
 class SynAlreadyTaken(DomainError):
     def __init__(self, existing: BaseEntity) -> None:
         super().__init__()
         self.existing = existing
+
 
 class ServerAlreadyConnectedToACommunity(DomainError):
     def __init__(self, server_id: int, community: CommunityEntity) -> None:
@@ -96,11 +98,13 @@ class CountLimitReached(DomainError):
         self.limit = limit
         self.type = type
 
+
 class AliasCountLimitReached(DomainError):
     def __init__(self, limit: int, entity_name: StrStore) -> None:
         super().__init__()
         self.limit = limit
         self.entity_name = entity_name
+
 
 class SlotCountDefinitionLimitExceeded(DomainError):
     def __init__(
@@ -114,8 +118,10 @@ class SlotCountDefinitionLimitExceeded(DomainError):
         self.min_max = min_max
         self.max_max = max_max
 
+
 class InitialSlotCountMustBeZero(DomainError):
     pass
+
 
 class DuplicateUniqueRequiredString(DomainError):
     def __init__(self, first: StrStore, second: StrStore) -> None:

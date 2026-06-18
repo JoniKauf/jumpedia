@@ -11,12 +11,10 @@ from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 from interfaces.message.layout import T, _TaggedObj
-from services.dtos.community import (
-    CommunityInfo,
-    CommunitySummary,
-    DeletedCommunity,
-)
-from services.dtos.list import ListInfo
+from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
+from services.dtos.community import (CommunityInfo, CommunitySummary,
+                                     DeletedCommunity)
+from services.dtos.list import DeletedList, ListInfo, ListSummary
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -42,9 +40,9 @@ def human_join(
 
 type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity
 
-type MentionableInfoDTOT = CommunityInfo | ListInfo
-type MentionableSummaryDTOT = CommunitySummary
-type MentionableDeletedDTOT = DeletedCommunity
+type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo
+type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary
+type MentionableDeletedDTOT = DeletedCommunity | DeletedList | DeletedAttribute
 type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
@@ -88,13 +86,17 @@ def _get_instance_name_lower(
     return mentionable.name.real.value
 
 
-def type_name_title(
+def type_name_body(
+    mentionable_type: type[MentionableT], singular: bool = True
+) -> _TaggedObj:
+    return _get_type_name_lower(mentionable_type, singular) @ T.RAW
+
+def type_name_header(
     mentionable_type: type[MentionableT], singular: bool = True
 ) -> _TaggedObj:
     return _get_type_name_lower(mentionable_type, singular).title() @ T.RAW
 
-
-def mention(mentionable: MentionableT, singular: bool = True) -> _TaggedObj:
+def mention_body(mentionable: MentionableT, singular: bool = True) -> _TaggedObj:
     return (
         f"{_get_type_name_lower(type(mentionable), singular)} "
         f"``{_get_instance_name_lower(mentionable)}``"

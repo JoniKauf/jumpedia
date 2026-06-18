@@ -13,14 +13,14 @@ class ServerInterface(BaseInterface, group_name="server"):
     async def connect(
         self,
         ctx: CommandContext,
-        community: str,
+        community_name: str,
     ) -> None:
-        community_entity = ctx.services.server.link(CommunityName(community))
+        community_entity = ctx.services.server.link(CommunityName(community_name))
 
         await messages.success(
             ctx.interaction,
             t"Server Connected",
-            t"The server was successfully connected to the community {format.mention(community_entity)}!",
+            t"The server was successfully connected to the community {format.mention_body(community_entity)}!",
         )
 
     @app_commands.command()
@@ -34,5 +34,5 @@ class ServerInterface(BaseInterface, group_name="server"):
         await messages.success(
             ctx.interaction,
             t"Server Disconnected",
-            t"The server was successfully disconnected from the community {format.mention(community_entity)}!",
+            t"The server was successfully disconnected from the community {format.mention_body(community_entity)}!",
         )
