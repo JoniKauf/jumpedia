@@ -4,8 +4,7 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
-from domain.enums.attribute import (AttributeKind, AttributeSlotType,
-                                    AttributeType)
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.types.id import ID
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn

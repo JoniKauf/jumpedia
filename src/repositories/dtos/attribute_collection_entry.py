@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
-from domain.value_objects.attribute_collection_entry import \
-    AttributeCollectionEntrySyn
+from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 
 
 @dataclass(frozen=True, slots=True)

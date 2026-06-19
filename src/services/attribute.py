@@ -3,31 +3,28 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
-from domain.entities.attribute_collection_entry import \
-    AttributeCollectionEntryEntity
+from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
-from domain.value_objects.attribute_collection_entry import \
-    AttributeCollectionEntrySyn
+from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.list import ListName
 from repositories.attribute import AttributeRepository
-from repositories.attribute_collection_entry import \
-    AttributeCollectionEntryRepository
+from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 from repositories.dtos.attribute_collection_entry import (
-    AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert)
+    AttributeCollectionEntryAliasInsert,
+    AttributeCollectionEntryInsert,
+)
 from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.attribute import (AttributeInfo, AttributeSummary,
-                                     DeletedAttribute)
-from services.dtos.attribute_collection_entry import \
-    CreateAttributeCollectionEntry
+from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
+from services.dtos.attribute_collection_entry import CreateAttributeCollectionEntry
 from services.list import ListAccessService
 from services.permission import PermissionService
 
@@ -203,9 +200,7 @@ class AttributeQueryService:
         self,
         list_name: ListName | None,
     ) -> tuple[AttributeSummary, ...]:
-        _, _, lst = self._list_access_service.get_convenient(
-            None, list_name
-        )
+        _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
         attrs = self._attribute_repo.get_all_by_list_id(
             lst.id,

@@ -11,11 +11,12 @@ from _adapters.interaction import _InteractionAdapter
 from structures.attribute import AnyAttributeT, StaticAttribute, UserAttribute
 from structures.list import Kind
 from structures.task import Task
-from structures.task.attribute_value_mapping import (AttributeValueMapping,
-                                                     UserAttributeValueMapping)
+from structures.task.attribute_value_mapping import (
+    AttributeValueMapping,
+    UserAttributeValueMapping,
+)
 
-from _dc_utils import (command, group, layouts, message, parsing, predicate,
-                       shortcuts)
+from _dc_utils import command, group, layouts, message, parsing, predicate, shortcuts
 from domain.enum.rank import CommunityRank
 from utils.text import NormStr, RealStr
 

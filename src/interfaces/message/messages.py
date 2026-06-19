@@ -53,7 +53,7 @@ async def object_info(
     await info(
         interaction,
         t"{format.type_name_header(info_dto_type)} Info",
-        t"{'\n'.join(links) @ T.RAW}"
+        t"{'\n'.join(links) @ T.RAW}",
     )
 
 
@@ -68,16 +68,18 @@ async def object_browse(
         return await info(
             interaction,
             header,
-            t"No {format.type_name_body(summary_dto_type)} with the specified criteria could be found!"
+            t"No {format.type_name_body(summary_dto_type)} with the specified criteria could be found!",
         )
-    
+
     links = pastee.table_to_pastee_strings(tuple(data), data.values())
-    count: int = len(next(iter(data.values())))  # Count length of first value in the mapping
+    count: int = len(
+        next(iter(data.values()))
+    )  # Count length of first value in the mapping
 
     await info(
         interaction,
         header,
-        t"A total of {count @ T.EMBED} {format.type_name_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}"
+        t"A total of {count @ T.EMBED} {format.type_name_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}",
     )
 
 

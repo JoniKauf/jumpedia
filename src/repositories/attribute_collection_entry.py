@@ -4,15 +4,15 @@ from sqlalchemy import func, or_, select
 
 from db.models import AttributeCollectionEntry, AttributeCollectionEntryAlias
 from domain import errors
-from domain.entities.attribute_collection_entry import \
-    AttributeCollectionEntryEntity
+from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
-from domain.value_objects.attribute_collection_entry import \
-    AttributeCollectionEntrySyn
+from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from repositories.base import BaseRepository
 from repositories.dtos.attribute_collection_entry import (
-    AttributeCollectionEntryAliasInsert, AttributeCollectionEntryInsert)
+    AttributeCollectionEntryAliasInsert,
+    AttributeCollectionEntryInsert,
+)
 
 
 def _attribute_collection_entry_model_to_entity(

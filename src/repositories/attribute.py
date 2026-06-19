@@ -6,8 +6,7 @@ from db.models import Attribute, AttributeAlias, List
 from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeSlot
 from domain.entities.community import CommunityEntity
-from domain.enums.attribute import (AttributeKind, AttributeSlotType,
-                                    AttributeType)
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID

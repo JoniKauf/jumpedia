@@ -21,11 +21,13 @@ from repositories.dtos.user import UserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from repositories.user import (CommunityRank, CommunityUserRepository,
-                               UserRepository)
+from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
 from services.attribute import AttributeService
-from services.community import (CommunityAccessService, CommunityQueryService,
-                                CommunityService)
+from services.community import (
+    CommunityAccessService,
+    CommunityQueryService,
+    CommunityService,
+)
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.permission import PermissionService

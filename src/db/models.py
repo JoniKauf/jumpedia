@@ -2,8 +2,15 @@
 import typing as t
 from datetime import UTC, datetime
 
-from sqlalchemy import (BigInteger, CheckConstraint, DateTime, ForeignKey,
-                        Integer, String, UniqueConstraint)
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,7 +20,9 @@ from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeTy
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.attribute import AttributeAliasID, AttributeID
 from domain.types.attribute_collection_entry import (
-    AttributeCollectionEntryAliasID, AttributeCollectionEntryID)
+    AttributeCollectionEntryAliasID,
+    AttributeCollectionEntryID,
+)
 from domain.types.community import CommunityID
 from domain.types.community_user import CommunityUserID
 from domain.types.id import ID
@@ -205,7 +214,9 @@ class Attribute(Base):
             f"OR "
             f"(type in ({AttributeType.TASK}, {AttributeType.USER}) AND kind = {AttributeKind.NONE})"
         ),
-        CheckConstraint(f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}")
+        CheckConstraint(
+            f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}"
+        ),
     )
 
 

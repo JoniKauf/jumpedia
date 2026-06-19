@@ -9,8 +9,7 @@ if t.TYPE_CHECKING:
     from _adapters._community import CommunityAdapter
     from _adapters._jumpedia import JumpediaAdapter
     from _adapters._list import ListAdapter
-    from _adapters._user import (CommunityUserAdapter, JumpediaUserAdapter,
-                                 UserAdapter)
+    from _adapters._user import CommunityUserAdapter, JumpediaUserAdapter, UserAdapter
     from _adapters.interaction import _InteractionAdapter
 
 

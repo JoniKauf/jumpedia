@@ -32,9 +32,15 @@ class ListInterface(BaseInterface, group_name="list"):
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((summary.name.real.value,) for summary in summaries),
             "Is Default Selected List": (
-                tuple(("True" if summary.is_default_selected_list else "False",) for summary in summaries)
+                tuple(
+                    ("True" if summary.is_default_selected_list else "False",)
+                    for summary in summaries
+                )
             ),
-            "Attributes": tuple(tuple(attr.name.real.value for attr in summary.attributes) for summary in summaries),
+            "Attributes": tuple(
+                tuple(attr.name.real.value for attr in summary.attributes)
+                for summary in summaries
+            ),
             "Task Count": tuple((str(summary.task_count),) for summary in summaries),
         }
 

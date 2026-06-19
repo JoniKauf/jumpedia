@@ -12,8 +12,7 @@ from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, StrStore
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
-from services.dtos.community import (CommunityInfo, CommunitySummary,
-                                     DeletedCommunity)
+from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.list import DeletedList, ListInfo, ListSummary
 
 
@@ -91,10 +90,12 @@ def type_name_body(
 ) -> _TaggedObj:
     return _get_type_name_lower(mentionable_type, singular) @ T.RAW
 
+
 def type_name_header(
     mentionable_type: type[MentionableT], singular: bool = True
 ) -> _TaggedObj:
     return _get_type_name_lower(mentionable_type, singular).title() @ T.RAW
+
 
 def mention_body(mentionable: MentionableT, singular: bool = True) -> _TaggedObj:
     return (

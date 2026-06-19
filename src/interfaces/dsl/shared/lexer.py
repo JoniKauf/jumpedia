@@ -6,35 +6,42 @@ from dataclasses import dataclass
 from interfaces.dsl.shared.value_objects import Span
 
 
+class TokenType(enum.Enum):
+    NONE = 0
+    STRING = 1
+    IDENT = 2
+    LPAREN = 3
+    RPAREN = 4
+    PLUS = 5
+    LT = 6
+    LE = 7
+    GT = 8
+    GE = 9
+    COLON = 10
+    COMMA = 11
+
+
+SYMBOLS: dict[str, TokenType] = {
+    "(": TokenType.LPAREN,
+    ")": TokenType.RPAREN,
+    ":": TokenType.COLON,
+    ",": TokenType.COMMA,
+    "+": TokenType.PLUS,
+    "<": TokenType.LT,
+    "<=": TokenType.LE,
+    ">": TokenType.GT,
+    ">=": TokenType.GE,
+}
+
+
 @dataclass(frozen=True, slots=True)
 class Token:
+    type: TokenType
     span: Span
-
-
-@dataclass(frozen=True, slots=True)
-class IdentifierToken(Token):
     value: str
 
 
-@dataclass(frozen=True, slots=True)
-class StringToken(Token):
-    value: str
-
-
-class SymbolKind(enum.StrEnum):
-    LPAREN = "("
-    RPAREN = ")"
-    PLUS = "+"
-    LT = "<"
-    LE = "<="
-    GT = ">"
-    GE = ">="
-    COMMA = ","
-
-
-@dataclass(frozen=True, slots=True)
-class SymbolToken(Token):
-    value: SymbolKind
+NONE_TOKEN = Token(TokenType.NONE, Span(-1, -1), "")
 
 
 @t.final
@@ -48,8 +55,8 @@ class Lexer:
     )
 
     def lex(self, s: str) -> t.Generator[Token]:
-        SYMBOL_KINDS_LONGEST_TO_SHORTEST: t.Final[tuple[SymbolKind, ...]] = tuple(
-            sorted(SymbolKind, key=len, reverse=True)
+        SYMBOLS_LONGEST_TO_SHORTEST: t.Final[tuple[str, ...]] = tuple(
+            sorted(SYMBOLS, key=len, reverse=True)
         )
 
         i: int = 0
@@ -100,7 +107,7 @@ class Lexer:
                         raise ValueError("End reached in string")
 
                 j += 1  # Skip closing quote
-                yield StringToken(Span(i, j), "".join(buf))
+                yield Token(TokenType.STRING, Span(i, j), "".join(buf))
 
                 i = j
                 continue
@@ -119,24 +126,25 @@ class Lexer:
 
                     j += 1
 
-                yield IdentifierToken(Span(i, j), s[i:j])
+                yield Token(TokenType.IDENT, Span(i, j), s[i:j])
 
                 i = j
                 continue
 
             # --- Lex Symbol --- #
-            kind: SymbolKind | None = None
+            symbol: str | None = None
 
-            for k in SYMBOL_KINDS_LONGEST_TO_SHORTEST:
-                if s.startswith(k, i):
-                    kind = k
+            for s in SYMBOLS_LONGEST_TO_SHORTEST:
+                if s.startswith(s, i):
+                    symbol = s
                     break
 
-            if kind is None:
-                raise ValueError(f"unknown symbol '{s[i]}'")
+            # End point of lexing, nothing matched
+            if symbol is None:
+                raise ValueError(f"Invalid character '{s[i]}'")
 
-            j = i + len(kind)
-            yield SymbolToken(Span(i, j), kind)
+            j = i + len(symbol)
+            yield Token(SYMBOLS[symbol], Span(i, j), symbol)
 
             i = j
 
