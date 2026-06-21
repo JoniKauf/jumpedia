@@ -10,12 +10,12 @@ from domain.types.community import CommunityID
 from domain.types.server import ServerID
 from domain.value_objects.community import CommunityLimits, CommunityName
 from repositories.dtos.community import CommunityInsert
-from repositories.list import _list_model_to_entity
+from repositories.list import list_model_to_entity
 
 from .base import BaseRepository
 
 
-def _community_model_to_entity(model: Community) -> CommunityEntity:
+def community_model_to_entity(model: Community) -> CommunityEntity:
     return CommunityEntity(
         id=model.community_id,
         name=CommunityName(_real=model.real_name, _norm=model.norm_name),
@@ -54,24 +54,24 @@ class CommunityRepository(BaseRepository):
         self.session.add(obj)
         self.session.flush()
 
-        return _community_model_to_entity(obj)
+        return community_model_to_entity(obj)
 
     # -------------------------
     # READ
     # -------------------------
     def get_by_id(self, community_id: CommunityID) -> CommunityEntity | None:
         obj = self.session.get(Community, community_id)
-        return None if obj is None else _community_model_to_entity(obj)
+        return None if obj is None else community_model_to_entity(obj)
 
     def get_by_name(self, name: CommunityName) -> CommunityEntity | None:
         stmt = select(Community).where(Community.norm_name == name.norm)
         obj = self.session.scalar(stmt)
-        return None if obj is None else _community_model_to_entity(obj)
+        return None if obj is None else community_model_to_entity(obj)
 
     def get_all(self) -> list[CommunityEntity]:
         stmt = select(Community)
         objs = self.session.scalars(stmt).all()
-        return [_community_model_to_entity(o) for o in objs]
+        return [community_model_to_entity(o) for o in objs]
 
     # -------------------------
     # DELETE
@@ -91,7 +91,7 @@ class CommunityRepository(BaseRepository):
             .where(Server.server_id == server_id)
         )
         obj = self.session.scalar(stmt)
-        return None if obj is None else _community_model_to_entity(obj)
+        return None if obj is None else community_model_to_entity(obj)
 
     def get_default_selected_list(self, community_id: CommunityID) -> ListEntity | None:
         stmt = select(List).where(
@@ -104,7 +104,7 @@ class CommunityRepository(BaseRepository):
         )
         obj = self.session.execute(stmt).scalar_one_or_none()
 
-        return None if obj is None else _list_model_to_entity(obj)
+        return None if obj is None else list_model_to_entity(obj)
 
     def update(self, community: CommunityEntity) -> None:
         obj = self.session.get(Community, community.id)

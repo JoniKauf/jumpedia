@@ -1,24 +1,35 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
-from db.models import List, Task
+from db.models import List, Task, TaskAlias
+from domain.entities.task import TaskEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
+from domain.value_objects.task_value_slot import TaskValueSlot
+from repositories.dtos.task import TaskInsert
+import typing as t
 
 from .base import BaseRepository
 
 
+def task_model_to_entity(model: Task) -> TaskEntity:
+    return TaskEntity(
+        model.task_id,
+        model.list_id,
+        TaskValueSlot(_real=model.real_name, _norm=model.norm_name)
+    )
+
 class TaskRepository(BaseRepository):
-    def create(self, list_id: int, norm_name: str, slot_name: str) -> Task:
+    def create(self, task: TaskInsert) -> TaskEntity:
         obj = Task(
-            list_id=list_id,
-            norm_name=norm_name,
-            slot_name=slot_name,
+            list_id=task.list_id,
+            norm_name=task.name.norm,
+            slot_name=task.name.real,
         )
 
         self.session.add(obj)
         self.session.flush()
 
-        return obj
+        return task_model_to_entity(obj)
 
     def get_by_id(self, task_id: int) -> Task | None:
         return self.session.get(Task, task_id)
@@ -67,3 +78,33 @@ class TaskRepository(BaseRepository):
         )
 
         return {ListID(list_id): count for list_id, count in self.session.execute(stmt)}
+
+    def get_by_list_id_and_any_syn(
+        self,
+        list_id: ListID,
+        names: t.Iterable[TaskValueSlot],
+    ) -> TaskEntity | None:
+        norms = tuple(name.norm for name in names)
+
+        if not norms:
+            return None
+
+        stmt = (
+            select(Task)
+            .outerjoin(
+                TaskAlias,
+                TaskAlias.task_id == Task.task_id,
+            )
+            .where(
+                Task.list_id == list_id,
+                or_(
+                    Task.norm_name.in_(norms),
+                    TaskAlias.norm_alias.in_(norms),
+                ),
+            )
+            .limit(1)
+        )
+
+        obj = self.session.scalar(stmt)
+
+        return None if obj is None else task_model_to_entity(obj)

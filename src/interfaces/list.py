@@ -26,6 +26,22 @@ class ListInterface(BaseInterface, group_name="list"):
 
     @app_commands.command()
     @with_context()
+    async def create(self, ctx: CommandContext, list_name: str) -> None:
+        lst = ctx.services.list.create(ListName(list_name))
+
+        await messages.object_created(ctx.interaction, lst)
+
+    @app_commands.command()
+    @with_context()
+    async def nuke(self, ctx: CommandContext, list_name: str) -> None:
+        deleted = ctx.services.list.delete(ListName(list_name))
+
+        await messages.object_nuked(ctx.interaction, deleted)
+
+
+class ListsInterface(BaseInterface, group_name="lists"):
+    @app_commands.command()
+    @with_context()
     async def browse(self, ctx: CommandContext) -> None:
         summaries = ctx.services.list_query.summaries()
 
@@ -45,10 +61,3 @@ class ListInterface(BaseInterface, group_name="list"):
         }
 
         await messages.object_browse(ctx.interaction, ListSummary, data)
-
-    @app_commands.command()
-    @with_context()
-    async def create(self, ctx: CommandContext, list_name: str) -> None:
-        lst = ctx.services.list.create(ListName(list_name))
-
-        await messages.object_created(ctx.interaction, lst)

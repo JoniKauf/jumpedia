@@ -17,7 +17,7 @@ from repositories.base import BaseRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
 
-def _attribute_model_to_entity(model: Attribute) -> AttributeEntity:
+def attribute_model_to_entity(model: Attribute) -> AttributeEntity:
     return AttributeEntity(
         id=model.attribute_id,
         list_id=model.list_id,
@@ -50,7 +50,7 @@ class AttributeRepository(BaseRepository):
         self.session.add(obj)
         self.session.flush()
 
-        return _attribute_model_to_entity(obj)
+        return attribute_model_to_entity(obj)
 
     def create_many_aliases(
         self, attribute_aliases: t.Iterable[AttributeAliasInsert]
@@ -79,12 +79,12 @@ class AttributeRepository(BaseRepository):
 
     def get_by_id(self, attribute_id: int) -> AttributeEntity | None:
         obj = self.session.get(Attribute, attribute_id)
-        return None if obj is None else _attribute_model_to_entity(obj)
+        return None if obj is None else attribute_model_to_entity(obj)
 
     def get_all_by_list_id(self, list_id: int) -> list[AttributeEntity]:
         stmt = select(Attribute).where(Attribute.list_id == list_id)
         objs = self.session.scalars(stmt).all()
-        return [_attribute_model_to_entity(o) for o in objs]
+        return [attribute_model_to_entity(o) for o in objs]
 
     def get_by_list_id_and_name(
         self,
@@ -98,14 +98,14 @@ class AttributeRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return None if obj is None else _attribute_model_to_entity(obj)
+        return None if obj is None else attribute_model_to_entity(obj)
 
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        names: t.Iterable[AttributeSyn],
+        syns: t.Iterable[AttributeSyn],
     ) -> AttributeEntity | None:
-        norms = tuple(name.norm for name in names)
+        norms = tuple(name.norm for name in syns)
 
         if not norms:
             return None
@@ -128,7 +128,7 @@ class AttributeRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return None if obj is None else _attribute_model_to_entity(obj)
+        return None if obj is None else attribute_model_to_entity(obj)
 
     def get_by_list_id_and_alias(
         self,
@@ -146,7 +146,7 @@ class AttributeRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return None if obj is None else _attribute_model_to_entity(obj)
+        return None if obj is None else attribute_model_to_entity(obj)
 
     def get_grouped_by_list_id(
         self,
@@ -161,7 +161,7 @@ class AttributeRepository(BaseRepository):
         res: dict[ListID, list[AttributeEntity]] = {}
 
         for obj in self.session.scalars(stmt):
-            res.setdefault(obj.list_id, []).append(_attribute_model_to_entity(obj))
+            res.setdefault(obj.list_id, []).append(attribute_model_to_entity(obj))
 
         return res
 
@@ -195,3 +195,38 @@ class AttributeRepository(BaseRepository):
         )
 
         self.session.flush()
+
+    def get_syn_to_attribute_by_list_id(
+        self,
+        list_id: ListID,
+    ) -> dict[AttributeSyn, AttributeEntity]:
+        stmt = (
+            select(Attribute, AttributeAlias)
+            .outerjoin(
+                AttributeAlias,
+                AttributeAlias.attribute_id == Attribute.attribute_id,
+            )
+            .where(Attribute.list_id == list_id)
+        )
+
+        res: dict[AttributeSyn, AttributeEntity] = {}
+        id_to_entity: dict[AttributeID, AttributeEntity] = {}
+
+        for attr_obj, alias_obj in self.session.execute(stmt):
+            attr_obj: Attribute
+            alias_obj: AttributeAlias | None
+
+            entity = id_to_entity.get(attr_obj.attribute_id)
+
+            if entity is None:
+                entity = attribute_model_to_entity(attr_obj)
+                id_to_entity[attr_obj.attribute_id] = entity 
+                res[entity.name] = entity
+
+            if alias_obj is not None:
+                res[AttributeSyn(
+                    _real=alias_obj.real_alias,
+                    _norm=alias_obj.norm_alias)
+                ] = entity
+
+        return res

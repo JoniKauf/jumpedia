@@ -15,7 +15,7 @@ if t.TYPE_CHECKING:
         pass
 
 else:
-    CommunityName = factories.make_constrained_str_store_type(
+    CommunityName = factories.make_length_limited_str_store_type(
         "CommunityName", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
     )
 

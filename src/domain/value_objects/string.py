@@ -138,6 +138,8 @@ class StrStore:
             self._norm = _norm
             self._from_db = True
 
+        self._norm_equality = True
+
     @property
     def raw(self) -> str:
         return self._raw
@@ -161,6 +163,12 @@ class StrStore:
 
     def _validation(self) -> None:
         pass
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, type(self)) and self.norm == value.norm
+    
+    def __hash__(self) -> int:
+        return hash(self.norm)
 
     @classmethod
     def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:

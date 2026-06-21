@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
+from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import StrStore
 
@@ -14,7 +15,7 @@ if t.TYPE_CHECKING:
         pass
 
 else:
-    AttributeSyn = factories.make_constrained_str_store_type(
+    AttributeSyn = factories.make_length_limited_str_store_type(
         "AttributeSyn", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
     )
 

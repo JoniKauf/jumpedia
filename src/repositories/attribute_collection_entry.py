@@ -15,7 +15,7 @@ from repositories.dtos.attribute_collection_entry import (
 )
 
 
-def _attribute_collection_entry_model_to_entity(
+def attribute_collection_entry_model_to_entity(
     model: AttributeCollectionEntry,
 ) -> AttributeCollectionEntryEntity:
     return AttributeCollectionEntryEntity(
@@ -43,7 +43,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
         self.session.add_all(objs)
         self.session.flush()
 
-        return [_attribute_collection_entry_model_to_entity(obj) for obj in objs]
+        return [attribute_collection_entry_model_to_entity(obj) for obj in objs]
 
     def create_many_aliases(
         self, entry_aliases: t.Iterable[AttributeCollectionEntryAliasInsert]
@@ -67,9 +67,9 @@ class AttributeCollectionEntryRepository(BaseRepository):
     ) -> AttributeCollectionEntryEntity | None:
         obj = self.session.get(AttributeCollectionEntry, entry_id)
 
-        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
+        return None if obj is None else attribute_collection_entry_model_to_entity(obj)
 
-    def get_by_attribute_id(
+    def get_all_by_attribute_id(
         self,
         attribute_id: AttributeID,
     ) -> list[AttributeCollectionEntryEntity]:
@@ -80,7 +80,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
         )
 
         return [
-            _attribute_collection_entry_model_to_entity(obj)
+            attribute_collection_entry_model_to_entity(obj)
             for obj in self.session.scalars(stmt)
         ]
 
@@ -96,7 +96,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
+        return None if obj is None else attribute_collection_entry_model_to_entity(obj)
 
     def get_by_attribute_id_and_alias(
         self,
@@ -118,7 +118,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         obj = self.session.scalar(stmt)
 
-        return None if obj is None else _attribute_collection_entry_model_to_entity(obj)
+        return None if obj is None else attribute_collection_entry_model_to_entity(obj)
 
     def get_by_attribute_id_and_any_syn(
         self,
@@ -167,7 +167,7 @@ class AttributeCollectionEntryRepository(BaseRepository):
         matched_norm = entry_norm if entry_norm in norm_to_store else alias_norm
 
         return (
-            _attribute_collection_entry_model_to_entity(obj),
+            attribute_collection_entry_model_to_entity(obj),
             norm_to_store[matched_norm],
         )
 

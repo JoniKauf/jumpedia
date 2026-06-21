@@ -54,28 +54,6 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
     @app_commands.command()
     @with_context()
-    async def browse(self, ctx: CommandContext) -> None:
-        summaries = ctx.services.community_query.summaries()
-
-        data: dict[str, tuple[tuple[str, ...], ...]] = {
-            "Name": tuple((summary.name.real.value,) for summary in summaries),
-            "Created": tuple(
-                (summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),)
-                for summary in summaries
-            ),
-            "User Count": tuple(
-                (str(summary.community_user_count),) for summary in summaries
-            ),
-            "List Count": tuple((str(summary.list_count),) for summary in summaries),
-            "Total Task Count": tuple(
-                (str(summary.total_task_count),) for summary in summaries
-            ),
-        }
-
-        await messages.object_browse(ctx.interaction, CommunitySummary, data)
-
-    @app_commands.command()
-    @with_context()
     async def create(
         self,
         ctx: CommandContext,
@@ -112,6 +90,29 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        community_dto = ctx.services.community.delete()
+        deleted = ctx.services.community.delete()
 
-        await messages.object_nuked(ctx.interaction, community_dto)
+        await messages.object_nuked(ctx.interaction, deleted)
+
+class CommunitiesInterface(BaseInterface, group_name="communities"):
+    @app_commands.command()
+    @with_context()
+    async def browse(self, ctx: CommandContext) -> None:
+        summaries = ctx.services.community_query.summaries()
+
+        data: dict[str, tuple[tuple[str, ...], ...]] = {
+            "Name": tuple((summary.name.real.value,) for summary in summaries),
+            "Created": tuple(
+                (summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),)
+                for summary in summaries
+            ),
+            "User Count": tuple(
+                (str(summary.community_user_count),) for summary in summaries
+            ),
+            "List Count": tuple((str(summary.list_count),) for summary in summaries),
+            "Total Task Count": tuple(
+                (str(summary.total_task_count),) for summary in summaries
+            ),
+        }
+
+        await messages.object_browse(ctx.interaction, CommunitySummary, data)

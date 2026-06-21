@@ -100,5 +100,5 @@ async def object_nuked(
     await success(
         interaction,
         t"{format.type_name_header(type(dto))} Deleted",
-        t"The {format.mention_body(dto)} has successfully been nuked!",
+        t"The {format.mention_body(dto)} has successfully been nuked! 💣",
     )

@@ -11,7 +11,7 @@ from repositories.dtos.list import ListInsert
 from .base import BaseRepository
 
 
-def _list_model_to_entity(model: List) -> ListEntity:
+def list_model_to_entity(model: List) -> ListEntity:
     return ListEntity(
         id=model.list_id,
         community_id=model.community_id,
@@ -30,11 +30,11 @@ class ListRepository(BaseRepository):
         self.session.add(obj)
         self.session.flush()
 
-        return _list_model_to_entity(obj)
+        return list_model_to_entity(obj)
 
     def get_by_id(self, list_id: ListID) -> ListEntity | None:
         obj = self.session.get(List, list_id)
-        return None if obj is None else _list_model_to_entity(obj)
+        return None if obj is None else list_model_to_entity(obj)
 
     def get_by_community_and_name(
         self, community_id: CommunityID, name: ListName
@@ -44,11 +44,11 @@ class ListRepository(BaseRepository):
             List.norm_name == name.norm,
         )
         obj = self.session.scalar(stmt)
-        return None if obj is None else _list_model_to_entity(obj)
+        return None if obj is None else list_model_to_entity(obj)
 
     def get_all_by_community(self, community_id: CommunityID) -> list[ListEntity]:
         stmt = select(List).where(List.community_id == community_id)
-        return [_list_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
+        return [list_model_to_entity(obj) for obj in self.session.scalars(stmt).all()]
 
     def count_by_community(self, community_id: CommunityID) -> int:
         stmt = (

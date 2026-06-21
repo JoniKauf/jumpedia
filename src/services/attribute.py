@@ -67,7 +67,7 @@ class AttributeService:
 
         syns: tuple[AttributeSyn, ...] = (name, *aliases)
 
-        if len(syns) - 1 > community.limits.attribute_alias_count_max:
+        if len(aliases) > community.limits.attribute_alias_count_max:
             raise errors.AliasCountLimitReached(
                 community.limits.attribute_alias_count_max, name
             )

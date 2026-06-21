@@ -42,6 +42,59 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.object_info(ctx.interaction, type(attr_info), data)
 
+    class NonStaticAttributeTypesEnum(enum.Enum):
+        TASK = AttributeType.TASK
+        USER = AttributeType.USER
+
+    @app_commands.command()
+    @with_context()
+    async def create(
+        self,
+        ctx: CommandContext,
+        attribute_name: str,
+        list_name: str,
+        type: NonStaticAttributeTypesEnum,
+        slot_type: AttributeSlotType,
+        max_slot_count: int,
+        aliases_dsl: str | None = None,
+        collection_dsl: str | None = None,
+    ) -> None:
+        aliases: tuple[AttributeSyn, ...] = ()
+        
+        if aliases_dsl is not None:
+            aliases = tuple(map(AttributeSyn, ValueListInterpreter().interpret(aliases_dsl)))
+
+        collection: tuple[CreateAttributeCollectionEntry, ...] = ()
+
+        if collection_dsl:
+            collection = tuple(
+                CreateAttributeCollectionEntry(
+                    AttributeCollectionEntrySyn(k),
+                    tuple(AttributeCollectionEntrySyn(elem) for elem in v),
+                )
+                for k, v in ValueToValueListInterpreter().interpret(collection_dsl)
+            )
+
+        attr = ctx.services.attribute.create(
+            AttributeSyn(attribute_name),
+            type.value,
+            AttributeSlot(slot_type, 0, max_slot_count),
+            aliases,
+            collection,
+            ListName(list_name),
+        )
+
+        await messages.object_created(ctx.interaction, attr)
+
+    @app_commands.command()
+    @with_context()
+    async def nuke(self, ctx: CommandContext, attribute_name: str, list_name: str) -> None:
+        deleted = ctx.services.attribute.delete(AttributeSyn(attribute_name), ListName(list_name))
+
+        await messages.object_nuked(ctx.interaction, deleted)
+
+
+class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
@@ -67,45 +120,3 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         }
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)
-
-    class NonStaticAttributeTypesEnum(enum.Enum):
-        TASK = AttributeType.TASK
-        USER = AttributeType.USER
-
-    @app_commands.command()
-    @with_context()
-    async def create(
-        self,
-        ctx: CommandContext,
-        attribute_name: str,
-        list_name: str,
-        type: NonStaticAttributeTypesEnum,
-        slot_type: AttributeSlotType,
-        max_slot_count: int,
-        aliases_dsl: str | None = None,
-        collection_dsl: str | None = None,
-    ) -> None:
-        ctx.services.attribute.create(
-            AttributeSyn(attribute_name),
-            type.value,
-            AttributeSlot(slot_type, 0, max_slot_count),
-            (
-                ()
-                if aliases_dsl is None
-                else tuple(
-                    map(AttributeSyn, ValueListInterpreter().interpret(aliases_dsl))
-                )
-            ),
-            (
-                ()
-                if collection_dsl is None
-                else tuple(
-                    CreateAttributeCollectionEntry(
-                        AttributeCollectionEntrySyn(k),
-                        tuple(AttributeCollectionEntrySyn(elem) for elem in v),
-                    )
-                    for k, v in ValueToValueListInterpreter().interpret(collection_dsl)
-                )
-            ),
-            ListName(list_name),
-        )

@@ -12,6 +12,6 @@ if t.TYPE_CHECKING:
         pass
 
 else:
-    ListName = factories.make_constrained_str_store_type(
+    ListName = factories.make_length_limited_str_store_type(
         "ListName", CommunityLimits.LIST_NAME_LENGTH_MAX, ListEntity
     )

@@ -12,16 +12,20 @@ from domain import errors
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain.types.id import ID
+from domain.types.server import ServerID
+from domain.types.user import UserID
 from domain.value_objects.string import StrStore
+from domain.value_objects.user import UserName
 from interfaces.contexts.command import CommandContext, PublicServices
 from interfaces.message import format, messages
 from repositories.attribute import AttributeRepository
 from repositories.community import CommunityRepository
+from repositories.community_user import CommunityUserRepository
 from repositories.dtos.user import UserInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from repositories.user import CommunityRank, CommunityUserRepository, UserRepository
+from repositories.user import UserRepository
 from services.attribute import AttributeService
 from services.community import (
     CommunityAccessService,
@@ -31,7 +35,7 @@ from services.community import (
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.permission import PermissionService
-from services.user import CommunityUserService, UserService
+from services.user import UserService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
@@ -95,9 +99,9 @@ def _get_server_rank(member: discord.Member) -> ServerRank:
 
 def _create_services_object(session: Session, member: discord.Member):
     user_repo = UserRepository(session)
-    community_user_repo = CommunityUserRepository(session)
     server_repo = ServerRepository(session)
     community_repo = CommunityRepository(session)
+    community_user_repo = CommunityUserRepository(session)
     list_repo = ListRepository(session)
     attribute_repo = AttributeRepository(session)
     task_repo = TaskRepository(session)
@@ -109,12 +113,12 @@ def _create_services_object(session: Session, member: discord.Member):
     interacting_user_ctx = InteractingUserContext(
         user_service.get_or_create(
             UserInsert(
-                ID(member.id),
-                StrStore(member.name),
+                UserID(ID(member.id)),
+                UserName(member.name),
             )
         ),
         _get_server_rank(member),
-        ID(member.guild.id),
+        ServerID(ID(member.guild.id)),
     )
 
     permission_service = PermissionService(interacting_user_ctx)
