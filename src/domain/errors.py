@@ -51,12 +51,6 @@ class NotAllowed(DomainError):
         self.required = required
 
 
-class NotFoundById(DomainError):
-    def __init__(self, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.type = type
-
-
 class NotFoundByName(DomainError):
     def __init__(self, name: StrStore, type: type[BaseEntity]) -> None:
         super().__init__()
@@ -133,3 +127,14 @@ class DuplicateUniqueRequiredString(DomainError):
 class NoDefaultSelectedList(DomainError):
     def __init__(self) -> None:
         pass
+
+
+
+class InternalError(Exception):
+    pass
+
+
+class NotFoundById(InternalError):
+    def __init__(self, type: type[BaseEntity]) -> None:
+        super().__init__()
+        self.type = type

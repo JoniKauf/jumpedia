@@ -9,14 +9,10 @@ from domain.value_objects.list import ListName
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.dsl.value_list.interpreter import ValueListInterpreter
-from interfaces.dsl.value_to_value_list_mapping.interpreter import (
-    ValueToValueListInterpreter,
-)
 from interfaces.message import messages
 from services.dtos.attribute_collection_entry import CreateAttributeCollectionEntry
 from services.dtos.attribute import AttributeSummary
-
+from interfaces import dsl
 
 class AttributeInterface(BaseInterface, group_name="attribute"):
     @app_commands.command()
@@ -62,7 +58,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         aliases: tuple[AttributeSyn, ...] = ()
         
         if aliases_dsl is not None:
-            aliases = tuple(map(AttributeSyn, ValueListInterpreter().interpret(aliases_dsl)))
+            aliases = tuple(map(AttributeSyn, (aliases_dsl)))
 
         collection: tuple[CreateAttributeCollectionEntry, ...] = ()
 
@@ -72,7 +68,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
                     AttributeCollectionEntrySyn(k),
                     tuple(AttributeCollectionEntrySyn(elem) for elem in v),
                 )
-                for k, v in ValueToValueListInterpreter().interpret(collection_dsl)
+                for k, v in dsl.value_list.engine.eval(collection_dsl)
             )
 
         attr = ctx.services.attribute.create(

@@ -1,29 +1,29 @@
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsl.shared.lexer import NONE_TOKEN, Token, TokenType
+from interfaces.dsl.shared import lex
 from interfaces.dsl.shared.value_objects import Span
 
 
 class PushbackTokenStream:
-    def __init__(self, iterable: t.Iterable[Token]):
+    def __init__(self, iterable: t.Iterable[lex.Token]):
         self._it = iter(iterable)
-        self._buf: list[Token] = []
+        self._buf: list[lex.Token] = []
 
-    def pop(self) -> Token:
+    def pop(self) -> lex.Token:
         if self._buf:
             return self._buf.pop()
-        return next(self._it, NONE_TOKEN)
+        return next(self._it, lex.NONE_TOKEN)
 
-    def push(self, tok: Token) -> None:
+    def push(self, tok: lex.Token) -> None:
         self._buf.append(tok)
 
-    def peek(self) -> Token:
+    def peek(self) -> lex.Token:
         if self._buf:
             return self._buf[-1]
         tok = next(self._it, None)
         if tok is None:
-            return NONE_TOKEN
+            return lex.NONE_TOKEN
         self._buf.append(tok)
         return tok
 
@@ -53,11 +53,11 @@ def get_string_from_stringy_node(node: StringyNodeT) -> str:
     return node.name
 
 
-def stringy_token_to_node(tok: Token) -> StringyNodeT:
-    if tok.type is TokenType.IDENT:
+def stringy_token_to_node(tok: lex.Token) -> StringyNodeT:
+    if tok.type is lex.TokenType.IDENT:
         return IdentifierNode(tok.span, tok.value)
 
-    if tok.type is TokenType.STRING:
+    if tok.type is lex.TokenType.STRING:
         return StringNode(tok.span, tok.value)
 
     raise ValueError("Unexpected token")

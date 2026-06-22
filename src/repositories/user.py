@@ -1,4 +1,5 @@
 from db.models import User
+from domain import errors
 from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from domain.types.user import UserID
@@ -42,7 +43,7 @@ class UserRepository(BaseRepository):
         obj = self.session.get(User, user.id)
 
         if obj is None:
-            raise RuntimeError("Tried updating a non existant user")
+            raise errors.InternalError("Tried updating a non existant user")
 
         obj.raw_name = user.name.raw
         obj.norm_name = user.name.norm

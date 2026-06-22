@@ -1,6 +1,7 @@
 from sqlalchemy import func, select
 
 from db.models import CommunityUser, User
+from domain import errors
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
@@ -53,7 +54,7 @@ class CommunityUserRepository(BaseRepository):
         obj = self.session.get(CommunityUser, community_user.id)
 
         if obj is None:
-            raise RuntimeError("Tried updating a non existant community user")
+            raise errors.InternalError("Tried updating a non existant community user")
 
         obj.power = community_user.community_rank.value
         obj.selected_list_id = community_user.selected_list_id
