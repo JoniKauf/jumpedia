@@ -5,7 +5,7 @@ from string.templatelib import Template
 import discord
 
 from domain.entities.base import BaseEntity
-from domain.errors import StrStore
+from domain.errors import Str
 from infrastructure import pastee
 from interfaces.message import format, layout
 from interfaces.message.layout import Status, T

@@ -6,7 +6,7 @@ from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.community import CommunityID
 from domain.types.community_user import CommunityUserID
 from domain.types.list import ListID
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 
 class CommunityUserEntity(BaseEntity[CommunityUserID]):
@@ -54,7 +54,7 @@ class CommunityUserEntity(BaseEntity[CommunityUserID]):
         self._user = value
 
     @property
-    def name(self) -> StrStore:
+    def name(self) -> Str:
         return self.user.name
 
     @property

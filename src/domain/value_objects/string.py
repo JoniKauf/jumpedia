@@ -59,6 +59,8 @@ class BaseStr:
 
 
 class RealStr(BaseStr):
+    """String wrapper to sanitize a string."""
+
     def __init__(self, s: str, *, _validate: bool = True) -> None:
         super().__init__()
 
@@ -77,6 +79,8 @@ class RealStr(BaseStr):
 
 
 class NormStr(BaseStr):
+    """String wrapper to normalize a :class:`~RealStr`."""
+
     @t.overload
     def __init__(self, s: str, *, _validate: bool = True) -> None:
         pass
@@ -97,10 +101,20 @@ class NormStr(BaseStr):
         if isinstance(s, str):
             s = RealStr(s)
 
-        self._str = s._str.lower()
+        self._str = s._str.casefold()
 
 
-class StrStore:
+# Per definition in unicode 1 character map to at most 3 characters after casing operations
+UNICODE_MAX_MULTIPLE_CASING: t.Final[int] = 3
+
+class Str:
+    """A string wrapper used inside the entire domain.
+    
+    It holds the raw, a :class:`~RealStr` and a :class:`~NormStr` version of the wrapped string.
+
+    The length is returned from the real version of the string, while equality and
+    the hash is based off the norm version of the string.
+    """
     _real: RealStr | None
     _norm: NormStr | None
 
@@ -172,7 +186,7 @@ class StrStore:
 
     @classmethod
     def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
-        mapping: dict[NormStr, StrStore] = {}
+        mapping: dict[NormStr, Str] = {}
 
         for s in iterable:
             if isinstance(s, cls):

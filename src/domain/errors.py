@@ -7,7 +7,7 @@ from domain.value_objects.attribute import AttributeSlot
 if t.TYPE_CHECKING:
     from domain.entities.base import BaseEntity
     from domain.entities.community import CommunityEntity
-    from domain.value_objects.string import StrStore
+    from domain.value_objects.string import Str
 
 
 # --- Base ---
@@ -52,14 +52,14 @@ class NotAllowed(DomainError):
 
 
 class NotFoundByName(DomainError):
-    def __init__(self, name: StrStore, type: type[BaseEntity]) -> None:
+    def __init__(self, name: Str, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
         self.type = type
 
 
 class NameTooLong(DomainError):
-    def __init__(self, name: StrStore, limit: int, type: type[BaseEntity]) -> None:
+    def __init__(self, name: Str, limit: int, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
         self.limit = limit
@@ -67,7 +67,7 @@ class NameTooLong(DomainError):
 
 
 class NameAlreadyTaken(DomainError):
-    def __init__(self, name: StrStore, existing: BaseEntity) -> None:
+    def __init__(self, name: Str, existing: BaseEntity) -> None:
         super().__init__()
         self.name = name
         self.existing = existing
@@ -94,7 +94,7 @@ class CountLimitReached(DomainError):
 
 
 class AliasCountLimitReached(DomainError):
-    def __init__(self, limit: int, entity_name: StrStore) -> None:
+    def __init__(self, limit: int, entity_name: Str) -> None:
         super().__init__()
         self.limit = limit
         self.entity_name = entity_name
@@ -118,7 +118,7 @@ class InitialSlotCountMustBeZero(DomainError):
 
 
 class DuplicateUniqueRequiredString(DomainError):
-    def __init__(self, first: StrStore, second: StrStore) -> None:
+    def __init__(self, first: Str, second: Str) -> None:
         super().__init__()
         self.first = first
         self.second = second

@@ -1,12 +1,12 @@
 from domain import errors
 from domain.entities.base import BaseEntity
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 
 def make_length_limited_str_store_type(
     name: str, limit: int, entity_type: type[BaseEntity]
-) -> type[StrStore]:
-    class ConstrainedStrStore(StrStore):
+) -> type[Str]:
+    class ConstrainedStrStore(Str):
         def _validation(self) -> None:
             if len(self) < limit:
                 raise errors.NameTooLong(self, limit, entity_type)

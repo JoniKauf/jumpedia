@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from domain.entities.community import CommunityEntity
 from domain.types.community import CommunityID
 from domain.value_objects.list import ListName
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 from repositories.attribute import AttributeEntity
 
 

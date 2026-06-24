@@ -12,7 +12,7 @@ from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 from repositories.base import BaseRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
@@ -133,7 +133,7 @@ class AttributeRepository(BaseRepository):
     def get_by_list_id_and_alias(
         self,
         list_id: ListID,
-        alias: StrStore,
+        alias: Str,
     ) -> AttributeEntity | None:
         stmt = (
             select(Attribute)

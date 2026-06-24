@@ -8,7 +8,7 @@ from domain.enums.rank import CommunityRank
 from domain.types.id import ID
 from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityName
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 from domain.value_objects.user import UserName
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context

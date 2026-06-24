@@ -9,7 +9,7 @@ from domain.entities.community_user import CommunityUserEntity, UserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
-from domain.errors import AnyRankT, StrStore
+from domain.errors import AnyRankT, Str
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity

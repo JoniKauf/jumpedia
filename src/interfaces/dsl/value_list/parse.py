@@ -3,22 +3,22 @@ from dataclasses import dataclass
 
 from interfaces.dsl.shared import parsing
 from interfaces.dsl.shared.lex import Token, TokenType
-from interfaces.dsl.shared.parsing import ExprNode, PushbackTokenStream, StringyNodeT
+from interfaces.dsl.shared.parsing import ExprNode, PushbackTokenStream, TextNodeT
 from interfaces.dsl.shared.value_objects import Span
 
 
 @dataclass(frozen=True, slots=True)
 class ValueListNode(ExprNode):
-    elements: tuple[StringyNodeT, ...]
+    elements: tuple[TextNodeT, ...]
 
 
 def parse(tokens: t.Iterable[Token]) -> ValueListNode:
     stream = PushbackTokenStream(tokens)
 
-    res: list[StringyNodeT] = []
+    res: list[TextNodeT] = []
 
     while (next := stream.pop()).type is not TokenType.NONE:
-        res.append(parsing.stringy_token_to_node(next))
+        res.append(parsing.text_token_to_node(next))
 
     if not res:
         raise ValueError("Empty")

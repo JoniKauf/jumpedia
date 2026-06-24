@@ -3,18 +3,18 @@ from dataclasses import dataclass
 
 from interfaces.dsl.shared import parsing
 from interfaces.dsl.shared.lex import Token, TokenType
-from interfaces.dsl.shared.parsing import ExprNode, PushbackTokenStream, StringyNodeT
+from interfaces.dsl.shared.parsing import ExprNode, PushbackTokenStream, TextNodeT
 from interfaces.dsl.shared.value_objects import Span
 
 
 @dataclass(frozen=True, slots=True)
 class ValueListNode(ExprNode):
-    elements: tuple[StringyNodeT, ...]
+    elements: tuple[TextNodeT, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class ValueToValueListMappingItemNode(ExprNode):
-    key: StringyNodeT
+    key: TextNodeT
     value: ValueListNode
 
 
@@ -55,7 +55,7 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
 
             begin = lparen_tok.span.begin
 
-        key = parsing.stringy_token_to_node(stream.pop())
+        key = parsing.text_token_to_node(stream.pop())
 
         if not with_parens:
             begin = key.span.begin
@@ -68,7 +68,7 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
         if colon.type is not TokenType.COLON:
             raise ValueError("Expected colon")
 
-        values: list[StringyNodeT] = []
+        values: list[TextNodeT] = []
 
         if with_parens:
             while (popped_tok := stream.pop()).type is not TokenType.NONE:
@@ -76,7 +76,7 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
                     end = popped_tok.span.end
                     break
 
-                values.append(parsing.stringy_token_to_node(popped_tok))
+                values.append(parsing.text_token_to_node(popped_tok))
 
             # We didn't break, so no ")" was found
             else:
@@ -103,7 +103,7 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
                     break
 
                 stream.pop()
-                values.append(parsing.stringy_token_to_node(peeked_tok))
+                values.append(parsing.text_token_to_node(peeked_tok))
                 end = peeked_tok.span.end
                 prev_tok = peeked_tok
 
@@ -115,7 +115,7 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
             ),
             tuple(values),
         )
-        key_str = parsing.get_string_from_stringy_node(key)
+        key_str = parsing.get_string_from_text_node(key)
 
         if key_str in unique_res:
             raise ValueError("Non unique keys")

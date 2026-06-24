@@ -4,7 +4,7 @@ from datetime import datetime
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.value_objects.community import CommunityLimits, CommunityName
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +29,6 @@ class CommunitySummary:
 
 @dataclass(frozen=True, slots=True)
 class DeletedCommunity:
-    name: StrStore
+    name: Str
     created: datetime
     limits: CommunityLimits

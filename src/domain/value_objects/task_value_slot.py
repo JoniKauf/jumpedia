@@ -3,12 +3,12 @@ import typing as t
 from domain.entities.task import TaskEntity
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 
 if t.TYPE_CHECKING:
 
-    class TaskValueSlot(StrStore):
+    class TaskValueSlot(Str):
         pass
 
 else:

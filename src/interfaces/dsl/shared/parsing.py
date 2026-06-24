@@ -1,3 +1,4 @@
+import functools
 import typing as t
 from dataclasses import dataclass
 
@@ -43,17 +44,17 @@ class StringNode(ExprNode):
     value: str
 
 
-type StringyNodeT = StringNode | IdentifierNode
+type TextNodeT = StringNode | IdentifierNode
 
 
-def get_string_from_stringy_node(node: StringyNodeT) -> str:
+def get_string_from_text_node(node: TextNodeT) -> str:
     if isinstance(node, StringNode):
         return node.value
 
     return node.name
 
 
-def stringy_token_to_node(tok: lex.Token) -> StringyNodeT:
+def text_token_to_node(tok: lex.Token) -> TextNodeT:
     if tok.type is lex.TokenType.IDENT:
         return IdentifierNode(tok.span, tok.value)
 

@@ -7,11 +7,11 @@ from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class AttributeSyn(StrStore):
+    class AttributeSyn(Str):
         pass
 
 else:

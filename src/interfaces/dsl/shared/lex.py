@@ -7,18 +7,18 @@ from interfaces.dsl.shared.value_objects import Span
 
 
 class TokenType(enum.Enum):
-    NONE = 0
-    STRING = 1
-    IDENT = 2
-    LPAREN = 3
-    RPAREN = 4
-    PLUS = 5
-    LT = 6
-    LE = 7
-    GT = 8
-    GE = 9
-    COLON = 10
-    COMMA = 11
+    NONE = enum.auto()
+    STRING = enum.auto()
+    IDENT = enum.auto()
+    LPAREN = enum.auto()
+    RPAREN = enum.auto()
+    LT = enum.auto()
+    LTE = enum.auto()
+    GT = enum.auto()
+    GTE = enum.auto()
+    PLUS = enum.auto()
+    COLON = enum.auto()
+    COMMA = enum.auto()
 
 
 SYMBOLS: dict[str, TokenType] = {
@@ -28,9 +28,9 @@ SYMBOLS: dict[str, TokenType] = {
     ",": TokenType.COMMA,
     "+": TokenType.PLUS,
     "<": TokenType.LT,
-    "<=": TokenType.LE,
+    "<=": TokenType.LTE,
     ">": TokenType.GT,
-    ">=": TokenType.GE,
+    ">=": TokenType.GTE,
 }
 
 
@@ -47,7 +47,7 @@ ESCAPES: t.Final[ts.MappingProxyType[str, str]] = ts.MappingProxyType(
     {"\\": "\\", '"': '"', "'": "'", "n": "\n"}
 )
 
-def lex(s: str, *, multiline: bool) -> t.Generator[Token]:
+def lex(s: str, *, multiline_strings: bool) -> t.Generator[Token]:
     SYMBOLS_LONGEST_TO_SHORTEST: t.Final[tuple[str, ...]] = tuple(
         sorted(SYMBOLS, key=len, reverse=True)
     )
@@ -77,7 +77,7 @@ def lex(s: str, *, multiline: bool) -> t.Generator[Token]:
                     if escaped_v is None:
                         raise ValueError(f"Unescapable char '{cc}'")
 
-                    if not multiline and escaped_v == "\n":
+                    if not multiline_strings and escaped_v == "\n":
                         raise ValueError("Single line mode")
 
                     buf.append(escaped_v)

@@ -14,7 +14,7 @@ from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain.types.id import ID
 from domain.types.server import ServerID
 from domain.types.user import UserID
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 from domain.value_objects.user import UserName
 from interfaces.contexts.command import CommandContext, PublicServices
 from interfaces.message import format, messages

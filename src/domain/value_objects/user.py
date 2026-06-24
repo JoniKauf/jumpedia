@@ -1,11 +1,11 @@
 import typing as t
 
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import StrStore
+from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class UserName(StrStore):
+    class UserName(Str):
         pass
 
 else:

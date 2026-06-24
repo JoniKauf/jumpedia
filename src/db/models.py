@@ -30,6 +30,7 @@ from domain.types.list import ListID
 from domain.types.server import ServerID
 from domain.types.task import TaskAliasID, TaskID
 from domain.types.user import UserID
+from domain.value_objects import string
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import NormStr, RealStr
 
@@ -47,7 +48,7 @@ class Community(Base):
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
+        NormStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING), unique=True
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
@@ -114,7 +115,7 @@ class List(Base):
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.LIST_NAME_LENGTH_MAX)
+        NormStrType(CommunityLimits.LIST_NAME_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.LIST_NAME_LENGTH_MAX)
@@ -135,7 +136,7 @@ class User(Base):
     user_id: Mapped[UserID] = mapped_column(BigInteger, primary_key=True)
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.USER_NAME_LENGTH_MAX)
+        NormStrType(CommunityLimits.USER_NAME_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
     power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -190,7 +191,7 @@ class Attribute(Base):
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
@@ -236,7 +237,7 @@ class AttributeAlias(Base):
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
@@ -265,7 +266,7 @@ class AttributeCollectionEntry(Base):
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     norm_value: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_value: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
@@ -297,7 +298,7 @@ class AttributeCollectionEntryAlias(Base):
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
@@ -324,7 +325,7 @@ class Task(Base):
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
@@ -352,7 +353,7 @@ class TaskAlias(Base):
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
-        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        NormStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING)
     )
     real_alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
