@@ -104,14 +104,15 @@ class AttributeRepository(BaseRepository):
         self,
         list_id: ListID,
         syns: t.Iterable[AttributeSyn],
-    ) -> AttributeEntity | None:
-        norms = tuple(name.norm for name in syns)
+    ) -> tuple[AttributeEntity, AttributeSyn] | None:
+        syns = tuple(syns)
+        norms = {syn.norm for syn in syns}
 
         if not norms:
             return None
 
         stmt = (
-            select(Attribute)
+            select(Attribute, AttributeAlias)
             .outerjoin(
                 AttributeAlias,
                 AttributeAlias.attribute_id == Attribute.attribute_id,
@@ -126,9 +127,30 @@ class AttributeRepository(BaseRepository):
             .limit(1)
         )
 
-        obj = self.session.scalar(stmt)
+        row = self.session.execute(stmt).first()
 
-        return None if obj is None else attribute_model_to_entity(obj)
+        if row is None:
+            return None
+
+        attr_obj, alias_obj = row
+        attr_obj: Attribute
+        alias_obj: AttributeAlias | None
+
+        entity = attribute_model_to_entity(attr_obj)
+
+        if attr_obj.norm_name in norms:
+            syn = AttributeSyn(
+                _real=attr_obj.real_name,
+                _norm=attr_obj.norm_name,
+            )
+        else:
+            assert alias_obj is not None
+            syn = AttributeSyn(
+                _real=alias_obj.real_alias,
+                _norm=alias_obj.norm_alias,
+            )
+
+        return entity, syn
 
     def get_by_list_id_and_alias(
         self,
@@ -199,6 +221,7 @@ class AttributeRepository(BaseRepository):
     def get_syn_to_attribute_by_list_id(
         self,
         list_id: ListID,
+        types: t.AbstractSet[AttributeType]
     ) -> dict[AttributeSyn, AttributeEntity]:
         stmt = (
             select(Attribute, AttributeAlias)
@@ -207,6 +230,7 @@ class AttributeRepository(BaseRepository):
                 AttributeAlias.attribute_id == Attribute.attribute_id,
             )
             .where(Attribute.list_id == list_id)
+            .where(Attribute.type.in_(types))
         )
 
         res: dict[AttributeSyn, AttributeEntity] = {}

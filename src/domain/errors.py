@@ -74,9 +74,10 @@ class NameAlreadyTaken(DomainError):
 
 
 class SynAlreadyTaken(DomainError):
-    def __init__(self, existing: BaseEntity) -> None:
+    def __init__(self, existing: BaseEntity, taken: Str) -> None:
         super().__init__()
         self.existing = existing
+        self.taken = taken
 
 
 class ServerAlreadyConnectedToACommunity(DomainError):

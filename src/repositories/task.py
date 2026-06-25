@@ -4,6 +4,7 @@ from db.models import List, Task, TaskAlias
 from domain.entities.task import TaskEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
+from domain.types.task import TaskID
 from domain.value_objects.task_value_slot import TaskValueSlot
 from repositories.dtos.task import TaskInsert
 import typing as t
@@ -79,18 +80,57 @@ class TaskRepository(BaseRepository):
 
         return {ListID(list_id): count for list_id, count in self.session.execute(stmt)}
 
+    def get_syn_to_task_by_list_id(
+        self,
+        list_id: ListID,
+    ) -> dict[TaskValueSlot, TaskEntity]:
+        stmt = (
+            select(Task, TaskAlias)
+            .outerjoin(
+                TaskAlias,
+                TaskAlias.task_id == Task.task_id,
+            )
+            .where(Task.list_id == list_id)
+        )
+
+        res: dict[TaskValueSlot, TaskEntity] = {}
+        id_to_entity: dict[TaskID, TaskEntity] = {}
+
+        for task_obj, alias_obj in self.session.execute(stmt):
+            task_obj: Task
+            alias_obj: TaskAlias | None
+
+            entity = id_to_entity.get(task_obj.task_id)
+
+            if entity is None:
+                entity = task_model_to_entity(task_obj)
+                id_to_entity[task_obj.task_id] = entity
+                res[entity.name] = entity
+
+            if alias_obj is not None:
+                res[
+                    TaskValueSlot(
+                        _real=alias_obj.real_alias,
+                        _norm=alias_obj.norm_alias,
+                    )
+                ] = entity
+
+        return res
+    
+
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        names: t.Iterable[TaskValueSlot],
-    ) -> TaskEntity | None:
-        norms = tuple(name.norm for name in names)
+        syns: t.Iterable[TaskValueSlot],
+    ) -> tuple[TaskEntity, TaskValueSlot] | None:
+        syns = tuple(syns)
+        norms = {syn.norm for syn in syns}
 
         if not norms:
             return None
 
         stmt = (
-            select(Task)
+            select(Task, TaskAlias)
             .outerjoin(
                 TaskAlias,
                 TaskAlias.task_id == Task.task_id,
@@ -105,6 +145,27 @@ class TaskRepository(BaseRepository):
             .limit(1)
         )
 
-        obj = self.session.scalar(stmt)
+        row = self.session.execute(stmt).first()
 
-        return None if obj is None else task_model_to_entity(obj)
+        if row is None:
+            return None
+
+        task_obj, alias_obj = row
+        task_obj: Task
+        alias_obj: TaskAlias | None
+
+        entity = task_model_to_entity(task_obj)
+
+        if task_obj.norm_name in norms:
+            syn = TaskValueSlot(
+                _real=task_obj.real_name,
+                _norm=task_obj.norm_name,
+            )
+        else:
+            assert alias_obj is not None
+            syn = TaskValueSlot(
+                _real=alias_obj.real_alias,
+                _norm=alias_obj.norm_alias,
+            )
+
+        return entity, syn

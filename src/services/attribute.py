@@ -13,6 +13,7 @@ from domain.value_objects.attribute import AttributeSlot, AttributeSyn
 from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.list import ListName
+from domain.value_objects.task_value_slot import TaskValueSlot
 from repositories.attribute import AttributeRepository
 from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
@@ -80,7 +81,7 @@ class AttributeService:
         )
 
         if existing_same_syn is not None:
-            raise errors.SynAlreadyTaken(existing_same_syn)
+            raise errors.SynAlreadyTaken(*existing_same_syn)
 
         # --- Validate Slot ---
         if slot.min_count != 0:

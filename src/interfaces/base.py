@@ -1,10 +1,7 @@
 import typing as t
 
-import discord
 from discord.ext import commands
 
-from domain.enums.rank import ServerRank
-from services.user import UserService
 
 
 class InterfaceMeta(commands.CogMeta):

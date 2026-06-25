@@ -4,12 +4,16 @@
 from dataclasses import dataclass
 
 from domain import errors
+from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
+from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.list import ListName
 from domain.value_objects.task_value_slot import TaskValueSlot
+from repositories.attribute import AttributeRepository
 from repositories.task import TaskRepository
+from services.attribute_value_mapping import AttributeValueMappingService
 from services.contexts.interacting_user import InteractingUserContext
 import typing as t
 
@@ -20,8 +24,10 @@ from services.permission import PermissionService
 class TaskService:
     _ctx: InteractingUserContext
     _task_repo: TaskRepository
+    _attribute_repo: AttributeRepository
     _permission_service: PermissionService
     _list_access_service: ListAccessService
+    _attribute_value_mapping_service: AttributeValueMappingService
 
     def create(        
         self,
@@ -63,12 +69,14 @@ class TaskService:
         )
 
         if existing_same_syn is not None:
-            raise errors.SynAlreadyTaken(existing_same_syn)
-
+            raise errors.SynAlreadyTaken(*existing_same_syn)
+        
         # --- Validate Task Attribute Value Mapping --- #
 
-        
-        
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(lst.id, {AttributeType.TASK})
+
+        avm = self._attribute_value_mapping_service.validate_and_build(task_attribute_value_mapping, syn_to_attr)
+
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
             AttributeInsert(
