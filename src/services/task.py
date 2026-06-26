@@ -8,10 +8,13 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank
+from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.list import ListName
 from domain.value_objects.task_value_slot import TaskValueSlot
 from repositories.attribute import AttributeRepository
+from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
+from repositories.dtos.attribute_collection_entry import AttributeCollectionEntryWithAliases
 from repositories.task import TaskRepository
 from services.attribute_value_mapping import AttributeValueMappingService
 from services.contexts.interacting_user import InteractingUserContext
@@ -28,6 +31,7 @@ class TaskService:
     _permission_service: PermissionService
     _list_access_service: ListAccessService
     _attribute_value_mapping_service: AttributeValueMappingService
+    _attribute_collection_entry_repo: AttributeCollectionEntryRepository
 
     def create(        
         self,
@@ -73,9 +77,12 @@ class TaskService:
         
         # --- Validate Task Attribute Value Mapping --- #
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(lst.id, {AttributeType.TASK})
+        ATTRIBUTE_TYPES: t.Final[frozenset[AttributeType]] = frozenset({AttributeType.TASK})
 
-        avm = self._attribute_value_mapping_service.validate_and_build(task_attribute_value_mapping, syn_to_attr)
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(lst.id, ATTRIBUTE_TYPES)
+        attr_id_to_collection = self._attribute_collection_entry_repo.get_grouped_collections_by_list_id(lst.id, ATTRIBUTE_TYPES)
+        
+        avm = self._attribute_value_mapping_service.validate_and_build(task_attribute_value_mapping, syn_to_attr, attr_id_to_collection)
 
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(

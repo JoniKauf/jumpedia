@@ -2,16 +2,19 @@ import typing as t
 
 from sqlalchemy import func, or_, select
 
-from db.models import AttributeCollectionEntry, AttributeCollectionEntryAlias
+from db.models import Attribute, AttributeCollectionEntry, AttributeCollectionEntryAlias
 from domain import errors
 from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
+from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
+from domain.types.list import ListID
 from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from repositories.base import BaseRepository
 from repositories.dtos.attribute_collection_entry import (
     AttributeCollectionEntryAliasInsert,
     AttributeCollectionEntryInsert,
+    AttributeCollectionEntryWithAliases,
 )
 
 
@@ -197,3 +200,71 @@ class AttributeCollectionEntryRepository(BaseRepository):
 
         self.session.delete(obj)
         self.session.flush()
+
+
+    def get_grouped_collections_by_list_id(
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[AttributeType],
+    ) -> dict[AttributeID, list[AttributeCollectionEntryWithAliases]]:
+        stmt = (
+            select(AttributeCollectionEntry, AttributeCollectionEntryAlias)
+            .join(
+                Attribute,
+                Attribute.attribute_id == AttributeCollectionEntry.attribute_id,
+            )
+            .outerjoin(
+                AttributeCollectionEntryAlias,
+                AttributeCollectionEntryAlias.attribute_collection_entry_id
+                == AttributeCollectionEntry.attribute_collection_entry_id,
+            )
+            .where(
+                Attribute.list_id == list_id,
+                Attribute.type.in_(types),
+            )
+            .order_by(
+                AttributeCollectionEntry.attribute_id.asc(),
+                AttributeCollectionEntry.index.asc(),
+                AttributeCollectionEntryAlias.attribute_collection_entry_alias_id.asc(),
+            )
+        )
+
+        entries: dict[AttributeCollectionEntryID, AttributeCollectionEntryEntity] = {}
+        entry_aliases: dict[
+            AttributeCollectionEntryID,
+            list[AttributeCollectionEntrySyn],
+        ] = {}
+        grouped_entries: dict[
+            AttributeID,
+            list[AttributeCollectionEntryEntity],
+        ] = {}
+
+        for entry_obj, alias_obj in self.session.execute(stmt):
+            entry_obj: AttributeCollectionEntry
+            alias_obj: AttributeCollectionEntryAlias | None
+            
+            entry = entries.get(entry_obj.attribute_collection_entry_id)
+
+            if entry is None:
+                entry = attribute_collection_entry_model_to_entity(entry_obj)
+                entries[entry.id] = entry
+                grouped_entries.setdefault(entry.attribute_id, []).append(entry)
+
+            if alias_obj is not None:
+                entry_aliases.setdefault(entry.id, []).append(
+                    AttributeCollectionEntrySyn(
+                        _real=alias_obj.real_alias,
+                        _norm=alias_obj.norm_alias,
+                    )
+                )
+
+        return {
+            attribute_id: [
+                AttributeCollectionEntryWithAliases(
+                    entry=entry,
+                    aliases=tuple(entry_aliases.get(entry.id, ())),
+                )
+                for entry in collection
+            ]
+            for attribute_id, collection in grouped_entries.items()
+        }

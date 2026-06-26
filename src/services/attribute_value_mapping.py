@@ -7,8 +7,11 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
+from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.task_value_slot import TaskValueSlot
+from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
+from repositories.dtos.attribute_collection_entry import AttributeCollectionEntryWithAliases
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
 NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1
@@ -20,7 +23,7 @@ def _is_number_in_range(v: int | decimal.Decimal) -> bool:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeValueMappingService:
-    def validate_and_build(self, attribute_value_mapping: t.Mapping[AttributeSyn, tuple[TaskValueSlot, ...]], syn_to_attr: t.Mapping[AttributeSyn, AttributeEntity]) -> ts.MappingProxyType[AttributeEntity, tuple[TaskValueSlot, ...]]:
+    def validate_and_build(self, attribute_value_mapping: t.Mapping[AttributeSyn, t.Sequence[TaskValueSlot]], syn_to_attr: t.Mapping[AttributeSyn, AttributeEntity], attribute_id_to_collection: t.Mapping[AttributeID, t.Sequencejmn           [AttributeCollectionEntryWithAliases]]) -> ts.MappingProxyType[AttributeEntity, tuple[TaskValueSlot, ...]]:
         """Make sure the attribute value mapping and attribute mapping contain the same attribute types."""
 
         attrs_sorted = sorted(set(syn_to_attr.values()), key=lambda attr: attr.position)
@@ -33,9 +36,7 @@ class AttributeValueMappingService:
             if attr in avm:
                 raise ValueError("Attr mentioned more than once")
             
-            avm[attr] = value
-
-        # TODO COLLECTION!!!
+            avm[attr] = tuple(value)
         
         for attr in attrs_sorted:
             v = avm.get(attr)
@@ -52,7 +53,13 @@ class AttributeValueMappingService:
             if len(v) > attr.slot.max_count:
                 raise ValueError("attr max count overflow")
             
-            avm[attr] = tuple(self._validate_and_normalize_slot_with_attribute_type(slot, attr) for slot in v)
+            v = tuple(self._validate_and_normalize_slot_with_attribute_type(slot, attr) for slot in v)
+
+            collection = attribute_id_to_collection.get(attr.id)
+
+            if not collection:
+
+            avm[attr] = v
 
         return ts.MappingProxyType(avm)
 
