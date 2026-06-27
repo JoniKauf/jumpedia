@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from db import models
-from db.base import Base
+from db.base import BaseModel
 from utils import secret  # ensures all models are registered
 
 engine = create_engine(
@@ -25,7 +25,7 @@ SessionLocal = sessionmaker(
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    BaseModel.metadata.create_all(bind=engine)
 
 
 @contextmanager

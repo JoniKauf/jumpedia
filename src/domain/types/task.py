@@ -1,6 +1,6 @@
 import typing as t
 
-from domain.types.id import ID
+from domain.types.common import ID
 
 TaskID = t.NewType("TaskID", ID)
 TaskAliasID = t.NewType("TaskAliasID", ID)

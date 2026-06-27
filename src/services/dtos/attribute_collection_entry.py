@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
+from domain.value_objects.task_attribute_slot import TaskAttributeSlot
 
 
 @dataclass(frozen=True, slots=True)
 class CreateAttributeCollectionEntry:
-    value: AttributeCollectionEntrySyn
-    aliases: tuple[AttributeCollectionEntrySyn, ...]
+    value: TaskAttributeSlot
+    aliases: tuple[TaskAttributeSlot, ...]

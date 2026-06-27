@@ -9,19 +9,23 @@ from domain.value_objects.community import CommunityLimits, CommunityName
 class CommunityEntity(BaseEntity[CommunityID]):
     def __init__(
         self,
-        id: CommunityID,
+        community_id: CommunityID,
         name: CommunityName,
         default_selected_list_id: ListID | None,
         created: datetime,
         limits: CommunityLimits,
     ) -> None:
-        super().__init__(id)
+        super().__init__(community_id)
 
         self.name = name
         self.default_selected_list_id = default_selected_list_id
         self._created = created
         self.limits = limits
 
+    @property
+    def community_id(self) -> CommunityID:
+        return self._composite_key[0]
+    
     @property
     def name(self) -> CommunityName:
         return self._name

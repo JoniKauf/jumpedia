@@ -1,5 +1,5 @@
 import typing as t
 
-from domain.types.id import ID
+from domain.types.common import ID
 
 ServerID = t.NewType("ServerID", ID)

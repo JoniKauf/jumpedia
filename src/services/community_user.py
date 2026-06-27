@@ -57,7 +57,7 @@ class CommunityUserAccessService:
         return self._community_user_repo.create(
             CommunityUserInsert(
                 self._ctx.user,
-                community.id,
+                community.community_id,
             )
         )
 

@@ -6,13 +6,17 @@ from domain.value_objects.user import UserName
 
 class UserEntity(BaseEntity[UserID]):
     def __init__(
-        self, id: UserID, name: UserName, rank: MetaRank = MetaRank.DEFAULT
+        self, user_id: UserID, name: UserName, rank: MetaRank = MetaRank.DEFAULT
     ) -> None:
-        super().__init__(id)
+        super().__init__(user_id)
 
         self.name = name
         self.meta_rank = rank
 
+    @property
+    def user_id(self) -> UserID:
+        return self._composite_key[0]
+    
     @property
     def name(self) -> UserName:
         return self._name

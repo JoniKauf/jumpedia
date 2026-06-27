@@ -2,7 +2,7 @@ import typing as t
 
 from sqlalchemy import func, or_, select, text, update
 
-from db.models import Attribute, AttributeAlias, List
+from db.models import AttributeModel, AttributeAliasModel, ListModel
 from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeSlot
 from domain.entities.community import CommunityEntity
@@ -12,14 +12,15 @@ from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSyn
 from domain.value_objects.community import CommunityLimits
+from domain.value_objects.position import Position
 from domain.value_objects.string import Str
 from repositories.base import BaseRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
 
-def attribute_model_to_entity(model: Attribute) -> AttributeEntity:
+def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity:
     return AttributeEntity(
-        id=model.attribute_id,
+        attribute_id=model.attribute_id,
         list_id=model.list_id,
         name=AttributeSyn(_real=model.real_name, _norm=model.norm_name),
         type=AttributeType(model.type),
@@ -29,13 +30,13 @@ def attribute_model_to_entity(model: Attribute) -> AttributeEntity:
             model.min_slot_count,
             model.max_slot_count,
         ),
-        position=model.position,
+        position=Position(model.position),
     )
 
 
 class AttributeRepository(BaseRepository):
     def create(self, attribute: AttributeInsert) -> AttributeEntity:
-        obj = Attribute(
+        obj = AttributeModel(
             list_id=attribute.list_id,
             norm_name=attribute.name.norm,
             real_name=attribute.name.real,
@@ -44,7 +45,7 @@ class AttributeRepository(BaseRepository):
             slot_type=attribute.slot.type,
             min_slot_count=attribute.slot.min_count,
             max_slot_count=attribute.slot.max_count,
-            position=attribute.position,
+            position=attribute.position.value,
         )
 
         self.session.add(obj)
@@ -56,7 +57,7 @@ class AttributeRepository(BaseRepository):
         self, attribute_aliases: t.Iterable[AttributeAliasInsert]
     ) -> None:
         objs = tuple(
-            AttributeAlias(
+            AttributeAliasModel(
                 attribute_id=attr_alias.attribute_id,
                 list_id=attr_alias.list_id,
                 norm_alias=attr_alias.alias.norm,
@@ -69,7 +70,7 @@ class AttributeRepository(BaseRepository):
         self.session.flush()
 
     def delete(self, attribute_id: AttributeID) -> None:
-        obj = self.session.get(Attribute, attribute_id)
+        obj = self.session.get(AttributeModel, attribute_id)
 
         if obj is None:
             raise errors.NotFoundById(AttributeEntity)
@@ -78,11 +79,11 @@ class AttributeRepository(BaseRepository):
         self.session.flush()
 
     def get_by_id(self, attribute_id: int) -> AttributeEntity | None:
-        obj = self.session.get(Attribute, attribute_id)
+        obj = self.session.get(AttributeModel, attribute_id)
         return None if obj is None else attribute_model_to_entity(obj)
 
     def get_all_by_list_id(self, list_id: int) -> list[AttributeEntity]:
-        stmt = select(Attribute).where(Attribute.list_id == list_id)
+        stmt = select(AttributeModel).where(AttributeModel.list_id == list_id)
         objs = self.session.scalars(stmt).all()
         return [attribute_model_to_entity(o) for o in objs]
 
@@ -91,9 +92,9 @@ class AttributeRepository(BaseRepository):
         list_id: ListID,
         name: AttributeSyn,
     ) -> AttributeEntity | None:
-        stmt = select(Attribute).where(
-            Attribute.list_id == list_id,
-            Attribute.norm_name == name.norm,
+        stmt = select(AttributeModel).where(
+            AttributeModel.list_id == list_id,
+            AttributeModel.norm_name == name.norm,
         )
 
         obj = self.session.scalar(stmt)
@@ -112,16 +113,16 @@ class AttributeRepository(BaseRepository):
             return None
 
         stmt = (
-            select(Attribute, AttributeAlias)
+            select(AttributeModel, AttributeAliasModel)
             .outerjoin(
-                AttributeAlias,
-                AttributeAlias.attribute_id == Attribute.attribute_id,
+                AttributeAliasModel,
+                AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
             )
             .where(
-                Attribute.list_id == list_id,
+                AttributeModel.list_id == list_id,
                 or_(
-                    Attribute.norm_name.in_(norms),
-                    AttributeAlias.norm_alias.in_(norms),
+                    AttributeModel.norm_name.in_(norms),
+                    AttributeAliasModel.norm_alias.in_(norms),
                 ),
             )
             .limit(1)
@@ -133,8 +134,8 @@ class AttributeRepository(BaseRepository):
             return None
 
         attr_obj, alias_obj = row
-        attr_obj: Attribute
-        alias_obj: AttributeAlias | None
+        attr_obj: AttributeModel
+        alias_obj: AttributeAliasModel | None
 
         entity = attribute_model_to_entity(attr_obj)
 
@@ -158,11 +159,11 @@ class AttributeRepository(BaseRepository):
         alias: Str,
     ) -> AttributeEntity | None:
         stmt = (
-            select(Attribute)
-            .join(AttributeAlias, AttributeAlias.attribute_id == Attribute.attribute_id)
+            select(AttributeModel)
+            .join(AttributeAliasModel, AttributeAliasModel.attribute_id == AttributeModel.attribute_id)
             .where(
-                Attribute.list_id == list_id,
-                AttributeAlias.norm_alias == alias.norm,
+                AttributeModel.list_id == list_id,
+                AttributeAliasModel.norm_alias == alias.norm,
             )
         )
 
@@ -175,9 +176,9 @@ class AttributeRepository(BaseRepository):
         community_id: CommunityID,
     ) -> dict[ListID, list[AttributeEntity]]:
         stmt = (
-            select(Attribute)
-            .join(List, List.list_id == Attribute.list_id)
-            .where(List.community_id == community_id)
+            select(AttributeModel)
+            .join(ListModel, ListModel.list_id == AttributeModel.list_id)
+            .where(ListModel.community_id == community_id)
         )
 
         res: dict[ListID, list[AttributeEntity]] = {}
@@ -190,12 +191,12 @@ class AttributeRepository(BaseRepository):
     def count_by_list(self, list_id: ListID) -> int:
         stmt = (
             select(func.count())
-            .select_from(Attribute)
-            .where(Attribute.list_id == list_id)
+            .select_from(AttributeModel)
+            .where(AttributeModel.list_id == list_id)
         )
         return self.session.scalar(stmt) or 0
 
-    def decrement_positions_after(self, list_id: ListID, position: int) -> None:
+    def decrement_positions_after(self, list_id: ListID, position: Position) -> None:
         # Unique situation where we have need to decrement n positions, but all are unique
         # We use mariadbs order by which is made for this reason. Though not directly supported
         # by sqlalchemy, so we use raw sql
@@ -212,7 +213,7 @@ class AttributeRepository(BaseRepository):
             ),
             {
                 "list_id": list_id,
-                "position": position,
+                "position": position.value,
             },
         )
 
@@ -224,21 +225,21 @@ class AttributeRepository(BaseRepository):
         types: t.AbstractSet[AttributeType]
     ) -> dict[AttributeSyn, AttributeEntity]:
         stmt = (
-            select(Attribute, AttributeAlias)
+            select(AttributeModel, AttributeAliasModel)
             .outerjoin(
-                AttributeAlias,
-                AttributeAlias.attribute_id == Attribute.attribute_id,
+                AttributeAliasModel,
+                AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
             )
-            .where(Attribute.list_id == list_id)
-            .where(Attribute.type.in_(types))
+            .where(AttributeModel.list_id == list_id)
+            .where(AttributeModel.type.in_(types))
         )
 
         res: dict[AttributeSyn, AttributeEntity] = {}
         id_to_entity: dict[AttributeID, AttributeEntity] = {}
 
         for attr_obj, alias_obj in self.session.execute(stmt):
-            attr_obj: Attribute
-            alias_obj: AttributeAlias | None
+            attr_obj: AttributeModel
+            alias_obj: AttributeAliasModel | None
 
             entity = id_to_entity.get(attr_obj.attribute_id)
 

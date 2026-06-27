@@ -12,19 +12,23 @@ from domain.value_objects.string import Str
 class CommunityUserEntity(BaseEntity[CommunityUserID]):
     def __init__(
         self,
-        id: CommunityUserID,
+        community_user_id: CommunityUserID,
         user: UserEntity,
         community_id: CommunityID,
         rank: CommunityRank = CommunityRank.DEFAULT,
         selected_list_id: ListID | None = None,
     ) -> None:
-        super().__init__(id)
+        super().__init__(community_user_id)
 
         self._community_id = community_id
         self.community_rank = rank
         self.selected_list_id = selected_list_id
         self.user = user
 
+    @property
+    def community_user_id(self) -> CommunityUserID:
+        return self._composite_key[0]
+    
     @property
     def community_id(self) -> CommunityID:
         return self._community_id

@@ -1,27 +1,14 @@
 import typing as t
 
-from domain import errors
-from domain.types.id import ID
 
-
-class BaseEntity[T: ID]:
-    def __init__(self, id: T) -> None:
-        if type(self) is BaseEntity:
-            raise TypeError
-
-        if id < 1:
-            raise RuntimeError("ID must be higher than 0")
-
-        self._id = id
-
-    @property
-    def id(self) -> T:
-        return self._id
+class BaseEntity[*Ts]:
+    def __init__(self, *composite_key: *Ts) -> None:
+        self._composite_key = composite_key
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
-        return self._id == other._id
+        return self._composite_key == other._composite_key
 
     def __hash__(self) -> int:
-        return hash(self.id)
+        return hash(self._composite_key)

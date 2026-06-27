@@ -6,10 +6,11 @@ import types as ts
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
+from domain.entities.community import CommunityEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSyn
-from domain.value_objects.task_value_slot import TaskValueSlot
+from domain.value_objects.task_attribute_slot import TaskAttributeSlot
 from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
 from repositories.dtos.attribute_collection_entry import AttributeCollectionEntryWithAliases
 
@@ -23,12 +24,12 @@ def _is_number_in_range(v: int | decimal.Decimal) -> bool:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeValueMappingService:
-    def validate_and_build(self, attribute_value_mapping: t.Mapping[AttributeSyn, t.Sequence[TaskValueSlot]], syn_to_attr: t.Mapping[AttributeSyn, AttributeEntity], attribute_id_to_collection: t.Mapping[AttributeID, t.Sequencejmn           [AttributeCollectionEntryWithAliases]]) -> ts.MappingProxyType[AttributeEntity, tuple[TaskValueSlot, ...]]:
+    def validate_and_build(self, attribute_value_mapping: t.Mapping[AttributeSyn, t.Sequence[TaskAttributeSlot]], syn_to_attr: t.Mapping[AttributeSyn, AttributeEntity], attribute_id_to_collection: t.Mapping[AttributeID, t.Sequence[AttributeCollectionEntryWithAliases]]) -> ts.MappingProxyType[AttributeEntity, tuple[TaskAttributeSlot, ...]]:
         """Make sure the attribute value mapping and attribute mapping contain the same attribute types."""
 
-        attrs_sorted = sorted(set(syn_to_attr.values()), key=lambda attr: attr.position)
+        attrs_sorted = sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
         
-        avm: dict[AttributeEntity, tuple[TaskValueSlot, ...]] = {}
+        avm: dict[AttributeEntity, tuple[TaskAttributeSlot, ...]] = {}
 
         for attr_syn, value in attribute_value_mapping.items():
             attr = syn_to_attr[attr_syn]
@@ -39,7 +40,7 @@ class AttributeValueMappingService:
             avm[attr] = tuple(value)
         
         for attr in attrs_sorted:
-            v = avm.get(attr)
+            v: tuple[TaskAttributeSlot, ...] | None = avm.get(attr)
 
             if v is None:
                 if attr.slot.min_count > 0:
@@ -55,15 +56,32 @@ class AttributeValueMappingService:
             
             v = tuple(self._validate_and_normalize_slot_with_attribute_type(slot, attr) for slot in v)
 
-            collection = attribute_id_to_collection.get(attr.id)
+            collection = attribute_id_to_collection.get(attr.attribute_id)
 
-            if not collection:
+            # Not None or empty
+            if collection:
+                syn_to_value: dict[TaskAttributeSlot, TaskAttributeSlot] = {
+                    syn: entry_with_aliases.entry.value for entry_with_aliases in collection
+                    for syn in (entry_with_aliases.entry.value, *entry_with_aliases.aliases)
+                }
 
+                collectionified_v: list[TaskAttributeSlot] = []
+
+                for slot in v:
+                    slot = syn_to_value.get(slot)
+
+                    if slot is None:
+                        raise ValueError("Unknown slot")
+                    
+                    collectionified_v.append(slot)
+                
+                v = tuple(collectionified_v)
+                    
             avm[attr] = v
 
         return ts.MappingProxyType(avm)
 
-    def _validate_and_normalize_slot_with_attribute_type(self, slot: TaskValueSlot, attr: AttributeEntity) -> TaskValueSlot:
+    def _validate_and_normalize_slot_with_attribute_type(self, slot: TaskAttributeSlot, attr: AttributeEntity) -> TaskAttributeSlot:
         match attr.slot.type:
             case AttributeSlotType.STRING:
                 return slot
@@ -72,9 +90,9 @@ class AttributeValueMappingService:
                 s = slot.real.value.lower()
 
                 if s == "false":
-                    return TaskValueSlot(str(False))
+                    return TaskAttributeSlot("False")
                 if s == "true":
-                    return TaskValueSlot(str(True))
+                    return TaskAttributeSlot("True")
 
                 raise ValueError("Invalid Slot Str Error")
 
@@ -87,7 +105,7 @@ class AttributeValueMappingService:
                 if not _is_number_in_range(n):
                     raise ValueError("Invalid Slot Str Error")
 
-                return TaskValueSlot(str(n))
+                return TaskAttributeSlot(str(n))
 
             case AttributeSlotType.DECIMAL:
                 try:
@@ -103,6 +121,6 @@ class AttributeValueMappingService:
                 if not _is_number_in_range(n):
                     raise ValueError("Invalid Slot Str Error")
 
-                return TaskValueSlot(format(n, "f"))
+                return TaskAttributeSlot(format(n, "f"))
 
         t.assert_never(attr)

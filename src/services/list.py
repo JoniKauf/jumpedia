@@ -6,10 +6,11 @@ from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.types.id import ID
+from domain.types.common import ID
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
 from domain.value_objects.community import CommunityName
 from domain.value_objects.list import ListName
+from domain.value_objects.position import Position
 from repositories.attribute import AttributeRepository
 from repositories.dtos.attribute import AttributeInsert
 from repositories.dtos.list import ListInsert
@@ -39,23 +40,23 @@ class ListService:
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        list_count = self._list_repo.count_by_community(community.id)
+        list_count = self._list_repo.count_by_community(community.community_id)
 
         if list_count >= community.limits.community_list_count_max:
             raise errors.CountLimitReached(
                 community.limits.community_list_count_max, ListEntity
             )
 
-        if existing := self._list_repo.get_by_community_and_name(community.id, name):
+        if existing := self._list_repo.get_by_community_and_name(community.community_id, name):
             raise errors.NameAlreadyTaken(name, existing)
 
-        lst = self._list_repo.create(ListInsert(community.id, name))
+        lst = self._list_repo.create(ListInsert(community.community_id, name))
 
         # Create static attributes
         for i, kind in enumerate(AttributeKind):
             self._attribute_repo.create(
                 AttributeInsert(
-                    list_id=lst.id,
+                    list_id=lst.list_id,
                     name=AttributeSyn(kind.name.title()),
                     type=AttributeType.STATIC,
                     kind=kind,
@@ -72,7 +73,7 @@ class ListService:
                             community.limits.attribute_task_value_slot_count_max,
                         )[i],
                     ),
-                    position=i + 1,
+                    position=Position(i + 1),
                 )
             )
 
@@ -87,7 +88,7 @@ class ListService:
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        self._list_repo.delete(lst.id)
+        self._list_repo.delete(lst.list_id)
 
         return DeletedList(community, lst.name)
 
@@ -125,9 +126,9 @@ class ListQueryService:
     def info(self, name: ListName) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(None, name)
 
-        attributes = self._attribute_repo.get_all_by_list_id(lst.id)
-        task_count = self._task_repo.count_by_list(lst.id)
-        is_default = community.default_selected_list_id == lst.id
+        attributes = self._attribute_repo.get_all_by_list_id(lst.list_id)
+        task_count = self._task_repo.count_by_list(lst.list_id)
+        is_default = community.default_selected_list_id == lst.list_id
 
         return ListInfo(
             name=lst.name,
@@ -139,12 +140,12 @@ class ListQueryService:
     def summaries(self) -> tuple[ListSummary, ...]:
         community = self._community_access_service.get_convenient(None)
 
-        lists = self._list_repo.get_all_by_community(community.id)
+        lists = self._list_repo.get_all_by_community(community.community_id)
 
-        attributes_by_list = self._attribute_repo.get_grouped_by_list_id(community.id)
+        attributes_by_list = self._attribute_repo.get_grouped_by_list_id(community.community_id)
 
         task_counts = self._task_repo.count_grouped_by_list_id(
-            community.id,
+            community.community_id,
         )
 
         default_list_id = community.default_selected_list_id
@@ -152,9 +153,9 @@ class ListQueryService:
         return tuple(
             ListSummary(
                 name=lst.name,
-                attributes=tuple(attributes_by_list.get(lst.id, ())),
-                task_count=task_counts.get(lst.id, 0),
-                is_default_selected_list=(lst.id == default_list_id),
+                attributes=tuple(attributes_by_list.get(lst.list_id, ())),
+                task_count=task_counts.get(lst.list_id, 0),
+                is_default_selected_list=(lst.list_id == default_list_id),
             )
             for lst in lists
         )
@@ -168,7 +169,7 @@ class ListAccessService:
     def get_by_community_and_name_or_raise(
         self, community: CommunityEntity, name: ListName
     ) -> ListEntity:
-        lst = self._list_repo.get_by_community_and_name(community.id, name)
+        lst = self._list_repo.get_by_community_and_name(community.community_id, name)
 
         if lst is None:
             raise errors.NotFoundByName(name, ListEntity)

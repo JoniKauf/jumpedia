@@ -14,7 +14,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.base import Base
+from domain.types.common import ID
+from db.base import BaseModel
 from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
@@ -25,7 +26,6 @@ from domain.types.attribute_collection_entry import (
 )
 from domain.types.community import CommunityID
 from domain.types.community_user import CommunityUserID
-from domain.types.id import ID
 from domain.types.list import ListID
 from domain.types.server import ServerID
 from domain.types.task import TaskAliasID, TaskID
@@ -40,7 +40,7 @@ _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 # --- Community ---
 
 
-class Community(Base):
+class CommunityModel(BaseModel):
     __tablename__ = "community"
 
     community_id: Mapped[CommunityID] = mapped_column(
@@ -90,7 +90,7 @@ class Community(Base):
     )
 
 
-class Server(Base):
+class ServerModel(BaseModel):
     __tablename__ = "server"
 
     server_id: Mapped[ServerID] = mapped_column(BigInteger, primary_key=True)
@@ -103,7 +103,7 @@ class Server(Base):
 # --- List ---
 
 
-class List(Base):
+class ListModel(BaseModel):
     __tablename__ = "list"
 
     list_id: Mapped[ListID] = mapped_column(
@@ -122,7 +122,7 @@ class List(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("community_id", "norm_name"),
     )
 
@@ -130,7 +130,7 @@ class List(Base):
 # --- Users ---
 
 
-class User(Base):
+class UserModel(BaseModel):
     __tablename__ = "jumpedia_user"
 
     user_id: Mapped[UserID] = mapped_column(BigInteger, primary_key=True)
@@ -142,14 +142,14 @@ class User(Base):
     power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         CheckConstraint(
             f"power BETWEEN {min(r.value for r in MetaRank)} AND {max(r.value for r in MetaRank)}"
         ),
     )
 
 
-class CommunityUser(Base):
+class CommunityUserModel(BaseModel):
     __tablename__ = "community_user"
 
     community_user_id: Mapped[CommunityUserID] = mapped_column(
@@ -171,7 +171,7 @@ class CommunityUser(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         CheckConstraint(f"power BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"),
     )
 
@@ -179,7 +179,7 @@ class CommunityUser(Base):
 # --- Attribute ---
 
 
-class Attribute(Base):
+class AttributeModel(BaseModel):
     __tablename__ = "attribute"
 
     attribute_id: Mapped[AttributeID] = mapped_column(
@@ -205,7 +205,7 @@ class Attribute(Base):
     position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "kind"),
         UniqueConstraint("list_id", "norm_name"),
         UniqueConstraint("list_id", "position"),
@@ -221,7 +221,7 @@ class Attribute(Base):
     )
 
 
-class AttributeAlias(Base):
+class AttributeAliasModel(BaseModel):
     __tablename__ = "attribute_alias"
 
     attribute_alias_id: Mapped[AttributeAliasID] = mapped_column(
@@ -244,7 +244,7 @@ class AttributeAlias(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_alias"),
     )
 
@@ -252,7 +252,7 @@ class AttributeAlias(Base):
 # --- Attribute Collection ---
 
 
-class AttributeCollectionEntry(Base):
+class AttributeCollectionEntryModel(BaseModel):
     __tablename__ = "attribute_collection_entry"
 
     attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(
@@ -273,13 +273,13 @@ class AttributeCollectionEntry(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("attribute_id", "norm_slot"),
         UniqueConstraint("attribute_id", "index"),
     )
 
 
-class AttributeCollectionEntryAlias(Base):
+class AttributeCollectionEntryAliasModel(BaseModel):
     __tablename__ = "attribute_collection_entry_alias"
 
     attribute_collection_entry_alias_id: Mapped[AttributeCollectionEntryAliasID] = (
@@ -305,7 +305,7 @@ class AttributeCollectionEntryAlias(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("attribute_id", "norm_alias"),
     )
 
@@ -313,7 +313,7 @@ class AttributeCollectionEntryAlias(Base):
 # --- Task ---
 
 
-class Task(Base):
+class TaskModel(BaseModel):
     __tablename__ = "task"
 
     task_id: Mapped[TaskID] = mapped_column(
@@ -332,12 +332,12 @@ class Task(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_name"),
     )
 
 
-class TaskAlias(Base):
+class TaskAliasModel(BaseModel):
     __tablename__ = "task_alias"
 
     task_alias_id: Mapped[TaskAliasID] = mapped_column(
@@ -360,7 +360,7 @@ class TaskAlias(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_alias"),
     )
 
@@ -368,8 +368,8 @@ class TaskAlias(Base):
 # --- Static Task Values ---
 
 
-class TaskAttributeValue(Base):
-    __tablename__ = "task_attribute_value"
+class TaskAttributeSlotModel(BaseModel):
+    __tablename__ = "task_attribute_slot"
 
     task_id: Mapped[TaskID] = mapped_column(
         ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
@@ -385,11 +385,15 @@ class TaskAttributeValue(Base):
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
+    norm_slot: Mapped[NormStr] = mapped_column(
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * 3)
+    )
+
 
 # --- User Task ---
 
 
-class CommunityUserTask(Base):
+class CommunityUserTaskModel(BaseModel):
     __tablename__ = "community_user_task"
 
     community_user_task_id: Mapped[ID] = mapped_column(
@@ -405,13 +409,13 @@ class CommunityUserTask(Base):
     )
 
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("community_user_id", "task_id"),
     )
 
 
-class CommunityUserTaskAttributeValue(Base):
-    __tablename__ = "community_user_task_attribute_value"
+class CommunityUserTaskAttributeSlotModel(BaseModel):
+    __tablename__ = "community_user_task_attribute_slot"
 
     community_user_task_attribute_value_id: Mapped[ID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
@@ -431,7 +435,11 @@ class CommunityUserTaskAttributeValue(Base):
         RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
     )
 
+    norm_slot: Mapped[NormStr] = mapped_column(
+        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * 3)
+    )
+
     __table_args__ = (
-        *Base.__table_args__,
+        *BaseModel.__table_args__,
         UniqueConstraint("community_user_task_id", "attribute_id", "index"),
     )

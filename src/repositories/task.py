@@ -1,27 +1,27 @@
 from sqlalchemy import func, or_, select
 
-from db.models import List, Task, TaskAlias
+from db.models import ListModel, TaskModel, TaskAliasModel
 from domain.entities.task import TaskEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.task_value_slot import TaskValueSlot
-from repositories.dtos.task import TaskInsert
+from domain.value_objects.task_attribute_slot import TaskAttributeSlot
+from repositories.dtos.task import TaskAliasInsert, TaskInsert
 import typing as t
 
 from .base import BaseRepository
 
 
-def task_model_to_entity(model: Task) -> TaskEntity:
+def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
         model.task_id,
         model.list_id,
-        TaskValueSlot(_real=model.real_name, _norm=model.norm_name)
+        TaskAttributeSlot(_real=model.real_name, _norm=model.norm_name)
     )
 
 class TaskRepository(BaseRepository):
     def create(self, task: TaskInsert) -> TaskEntity:
-        obj = Task(
+        obj = TaskModel(
             list_id=task.list_id,
             norm_name=task.name.norm,
             slot_name=task.name.real,
@@ -29,22 +29,22 @@ class TaskRepository(BaseRepository):
 
         self.session.add(obj)
         self.session.flush()
-
+        
         return task_model_to_entity(obj)
 
-    def get_by_id(self, task_id: int) -> Task | None:
-        return self.session.get(Task, task_id)
+    def get_by_id(self, task_id: int) -> TaskModel | None:
+        return self.session.get(TaskModel, task_id)
 
     def count_by_list(self, list_id: ListID) -> int:
-        stmt = select(func.count()).select_from(Task).where(Task.list_id == list_id)
+        stmt = select(func.count()).select_from(TaskModel).where(TaskModel.list_id == list_id)
         return self.session.scalar(stmt) or 0
 
     def count_by_community(self, community_id: CommunityID) -> int:
         stmt = (
             select(func.count())
-            .select_from(Task)
-            .join(List, List.list_id == Task.list_id)
-            .where(List.community_id == community_id)
+            .select_from(TaskModel)
+            .join(ListModel, ListModel.list_id == TaskModel.list_id)
+            .where(ListModel.community_id == community_id)
         )
 
         return self.session.scalar(stmt) or 0
@@ -52,11 +52,11 @@ class TaskRepository(BaseRepository):
     def count_grouped_by_community_id(self) -> dict[CommunityID, int]:
         stmt = (
             select(
-                List.community_id,
+                ListModel.community_id,
                 func.count(),
             )
-            .join(Task, Task.list_id == List.list_id)
-            .group_by(List.community_id)
+            .join(TaskModel, TaskModel.list_id == ListModel.list_id)
+            .group_by(ListModel.community_id)
         )
 
         return {
@@ -70,12 +70,12 @@ class TaskRepository(BaseRepository):
     ) -> dict[ListID, int]:
         stmt = (
             select(
-                Task.list_id,
+                TaskModel.list_id,
                 func.count(),
             )
-            .join(List, List.list_id == Task.list_id)
-            .where(List.community_id == community_id)
-            .group_by(Task.list_id)
+            .join(ListModel, ListModel.list_id == TaskModel.list_id)
+            .where(ListModel.community_id == community_id)
+            .group_by(TaskModel.list_id)
         )
 
         return {ListID(list_id): count for list_id, count in self.session.execute(stmt)}
@@ -83,22 +83,22 @@ class TaskRepository(BaseRepository):
     def get_syn_to_task_by_list_id(
         self,
         list_id: ListID,
-    ) -> dict[TaskValueSlot, TaskEntity]:
+    ) -> dict[TaskAttributeSlot, TaskEntity]:
         stmt = (
-            select(Task, TaskAlias)
+            select(TaskModel, TaskAliasModel)
             .outerjoin(
-                TaskAlias,
-                TaskAlias.task_id == Task.task_id,
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
             )
-            .where(Task.list_id == list_id)
+            .where(TaskModel.list_id == list_id)
         )
 
-        res: dict[TaskValueSlot, TaskEntity] = {}
+        res: dict[TaskAttributeSlot, TaskEntity] = {}
         id_to_entity: dict[TaskID, TaskEntity] = {}
 
         for task_obj, alias_obj in self.session.execute(stmt):
-            task_obj: Task
-            alias_obj: TaskAlias | None
+            task_obj: TaskModel
+            alias_obj: TaskAliasModel | None
 
             entity = id_to_entity.get(task_obj.task_id)
 
@@ -109,7 +109,7 @@ class TaskRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    TaskValueSlot(
+                    TaskAttributeSlot(
                         _real=alias_obj.real_alias,
                         _norm=alias_obj.norm_alias,
                     )
@@ -121,8 +121,8 @@ class TaskRepository(BaseRepository):
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        syns: t.Iterable[TaskValueSlot],
-    ) -> tuple[TaskEntity, TaskValueSlot] | None:
+        syns: t.Iterable[TaskAttributeSlot],
+    ) -> tuple[TaskEntity, TaskAttributeSlot] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
 
@@ -130,16 +130,16 @@ class TaskRepository(BaseRepository):
             return None
 
         stmt = (
-            select(Task, TaskAlias)
+            select(TaskModel, TaskAliasModel)
             .outerjoin(
-                TaskAlias,
-                TaskAlias.task_id == Task.task_id,
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
             )
             .where(
-                Task.list_id == list_id,
+                TaskModel.list_id == list_id,
                 or_(
-                    Task.norm_name.in_(norms),
-                    TaskAlias.norm_alias.in_(norms),
+                    TaskModel.norm_name.in_(norms),
+                    TaskAliasModel.norm_alias.in_(norms),
                 ),
             )
             .limit(1)
@@ -151,21 +151,37 @@ class TaskRepository(BaseRepository):
             return None
 
         task_obj, alias_obj = row
-        task_obj: Task
-        alias_obj: TaskAlias | None
+        task_obj: TaskModel
+        alias_obj: TaskAliasModel | None
 
         entity = task_model_to_entity(task_obj)
 
         if task_obj.norm_name in norms:
-            syn = TaskValueSlot(
+            syn = TaskAttributeSlot(
                 _real=task_obj.real_name,
                 _norm=task_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = TaskValueSlot(
+            syn = TaskAttributeSlot(
                 _real=alias_obj.real_alias,
                 _norm=alias_obj.norm_alias,
             )
 
         return entity, syn
+    
+    def create_many_aliases(
+        self, task_aliases: t.Iterable[TaskAliasInsert]
+    ) -> None:
+        objs = tuple(
+            TaskAliasModel(
+                task_id=task_alias.task_id,
+                list_id=task_alias.list_id,
+                norm_alias=task_alias.alias.norm,
+                real_alias=task_alias.alias.real,
+            )
+            for task_alias in task_aliases
+        )
+
+        self.session.add_all(objs)
+        self.session.flush()

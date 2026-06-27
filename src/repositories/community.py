@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
-from db.models import Community as Community
-from db.models import List
-from db.models import Server as Server
+from db.models import CommunityModel as CommunityModel
+from db.models import ListModel
+from db.models import ServerModel as ServerModel
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
@@ -15,9 +15,9 @@ from repositories.list import list_model_to_entity
 from .base import BaseRepository
 
 
-def community_model_to_entity(model: Community) -> CommunityEntity:
+def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
-        id=model.community_id,
+        community_id=model.community_id,
         name=CommunityName(_real=model.real_name, _norm=model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
         created=model.created,
@@ -38,7 +38,7 @@ class CommunityRepository(BaseRepository):
     # CREATE
     # -------------------------
     def create(self, community: CommunityInsert) -> CommunityEntity:
-        obj = Community(
+        obj = CommunityModel(
             norm_name=community.name.norm,
             real_name=community.name.real,
             default_selected_list_id=None,
@@ -60,16 +60,16 @@ class CommunityRepository(BaseRepository):
     # READ
     # -------------------------
     def get_by_id(self, community_id: CommunityID) -> CommunityEntity | None:
-        obj = self.session.get(Community, community_id)
+        obj = self.session.get(CommunityModel, community_id)
         return None if obj is None else community_model_to_entity(obj)
 
     def get_by_name(self, name: CommunityName) -> CommunityEntity | None:
-        stmt = select(Community).where(Community.norm_name == name.norm)
+        stmt = select(CommunityModel).where(CommunityModel.norm_name == name.norm)
         obj = self.session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 
     def get_all(self) -> list[CommunityEntity]:
-        stmt = select(Community)
+        stmt = select(CommunityModel)
         objs = self.session.scalars(stmt).all()
         return [community_model_to_entity(o) for o in objs]
 
@@ -77,7 +77,7 @@ class CommunityRepository(BaseRepository):
     # DELETE
     # -------------------------
     def delete(self, community_id: CommunityID) -> None:
-        obj = self.session.get(Community, community_id)
+        obj = self.session.get(CommunityModel, community_id)
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
 
@@ -86,19 +86,19 @@ class CommunityRepository(BaseRepository):
 
     def get_by_server_id(self, server_id: ServerID) -> CommunityEntity | None:
         stmt = (
-            select(Community)
-            .join(Server, Server.community_id == Community.community_id)
-            .where(Server.server_id == server_id)
+            select(CommunityModel)
+            .join(ServerModel, ServerModel.community_id == CommunityModel.community_id)
+            .where(ServerModel.server_id == server_id)
         )
         obj = self.session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 
     def get_default_selected_list(self, community_id: CommunityID) -> ListEntity | None:
-        stmt = select(List).where(
-            List.list_id
+        stmt = select(ListModel).where(
+            ListModel.list_id
             == (
-                select(Community.default_selected_list_id)
-                .where(Community.community_id == community_id)
+                select(CommunityModel.default_selected_list_id)
+                .where(CommunityModel.community_id == community_id)
                 .scalar_subquery()
             )
         )
@@ -107,7 +107,7 @@ class CommunityRepository(BaseRepository):
         return None if obj is None else list_model_to_entity(obj)
 
     def update(self, community: CommunityEntity) -> None:
-        obj = self.session.get(Community, community.id)
+        obj = self.session.get(CommunityModel, community.community_id)
 
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)

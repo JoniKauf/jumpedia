@@ -64,7 +64,7 @@ class CommunityService:
         self._community_user_service.get_or_create(
             CommunityUserInsert(
                 UserEntity(owner_id, owner_name),
-                community.id,
+                community.community_id,
                 CommunityRank.OWNER,
                 None,
             ),
@@ -74,7 +74,7 @@ class CommunityService:
 
         community.default_selected_list_id = self._list_service.create(
             ListName("Main")
-        ).id
+        ).list_id
 
         self._community_repo.update(community)
 
@@ -89,7 +89,7 @@ class CommunityService:
             community_user, CommunityRank.OWNER
         )
 
-        self._community_repo.delete(community.id)
+        self._community_repo.delete(community.community_id)
 
         return DeletedCommunity(community.name, community.created, community.limits)
 
@@ -106,16 +106,16 @@ class CommunityQueryService:
         community = self._community_access_service.get_convenient(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
-            community.id
+            community.community_id
         )
-        lists = self._list_repo.get_all_by_community(community.id)
-        task_count = self._task_repo.count_by_community(community.id)
+        lists = self._list_repo.get_all_by_community(community.community_id)
+        task_count = self._task_repo.count_by_community(community.community_id)
 
         default_selected_list: ListEntity | None = None
 
         if community.default_selected_list_id is not None:
             for lst in lists:
-                if lst.id == community.default_selected_list_id:
+                if lst.list_id == community.default_selected_list_id:
                     default_selected_list = lst
                     break
 
@@ -131,7 +131,7 @@ class CommunityQueryService:
 
     def summaries(self) -> tuple[CommunitySummary, ...]:
         id_to_community = {
-            community.id: community for community in self._community_repo.get_all()
+            community.community_id: community for community in self._community_repo.get_all()
         }
 
         community_user_count = self._community_user_repo.count_grouped_by_community_id()

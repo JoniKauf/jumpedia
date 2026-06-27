@@ -10,10 +10,11 @@ from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
-from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.index import Index
 from domain.value_objects.list import ListName
-from domain.value_objects.task_value_slot import TaskValueSlot
+from domain.value_objects.position import Position
+from domain.value_objects.task_attribute_slot import TaskAttributeSlot
 from repositories.attribute import AttributeRepository
 from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
@@ -59,7 +60,7 @@ class AttributeService:
 
         # --- Verify Limit Of Count Not Exceeded ---
         # pos starts at 1 so max_pos == count
-        attr_count = self._attribute_repo.count_by_list(lst.id)
+        attr_count = self._attribute_repo.count_by_list(lst.list_id)
 
         if attr_count >= community.limits.list_attribute_count_max:
             raise errors.CountLimitReached(
@@ -77,7 +78,7 @@ class AttributeService:
         AttributeSyn.raise_if_not_norm_unique(syns)
 
         existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(
-            lst.id, syns
+            lst.list_id, syns
         )
 
         if existing_same_syn is not None:
@@ -99,7 +100,7 @@ class AttributeService:
 
         # --- Validate Collection ---
         if collection_entries:
-            AttributeCollectionEntrySyn.raise_if_not_norm_unique(
+            TaskAttributeSlot.raise_if_not_norm_unique(
                 syn
                 for entry in collection_entries
                 for syn in (entry.value, *entry.aliases)
@@ -129,20 +130,20 @@ class AttributeService:
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
             AttributeInsert(
-                lst._id, name, type, AttributeKind.NONE, slot, attr_count + 1
+                lst.list_id, name, type, AttributeKind.NONE, slot, Position(attr_count + 1)
             )
         )
 
         # --- Create Attribute Aliases ---
         self._attribute_repo.create_many_aliases(
-            AttributeAliasInsert(attr_entity.id, lst.id, alias) for alias in aliases
+            AttributeAliasInsert(attr_entity.attribute_id, lst.list_id, alias) for alias in aliases
         )
 
         # --- Create Attribute Collection ---
         if collection_entries:
             created_entries: list[AttributeCollectionEntryEntity] = (
                 self._attribute_collection_entry_repo.create_many(
-                    AttributeCollectionEntryInsert(attr_entity.id, i, entry.value)
+                    AttributeCollectionEntryInsert(attr_entity.attribute_id, Index(i), entry.value)
                     for i, entry in enumerate(collection_entries)
                 )
             )
@@ -152,7 +153,7 @@ class AttributeService:
             for i, created_entry in enumerate(created_entries):
                 for alias in collection_entries[i].aliases:
                     alias_insert = AttributeCollectionEntryAliasInsert(
-                        created_entry.id, created_entry.attribute_id, alias
+                        created_entry.attribute_collection_entry_id, created_entry.attribute_id, alias
                     )
 
                     all_aliases.append(alias_insert)
@@ -172,8 +173,8 @@ class AttributeService:
             community_user, CommunityRank.ADMINISTRATOR
         )
 
-        self._attribute_repo.delete(attr.id)
-        self._attribute_repo.decrement_positions_after(lst.id, attr.position)
+        self._attribute_repo.delete(attr.attribute_id)
+        self._attribute_repo.decrement_positions_after(lst.list_id, attr.position)
 
         return DeletedAttribute(
             attr.name, lst, attr.type, attr.kind, attr.slot, attr.position
@@ -204,7 +205,7 @@ class AttributeQueryService:
         _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
         attrs = self._attribute_repo.get_all_by_list_id(
-            lst.id,
+            lst.list_id,
         )
 
         return tuple(
@@ -229,7 +230,7 @@ class AttributeAccessService:
     def get_by_list_and_name_or_raise(
         self, lst: ListEntity, name: AttributeSyn
     ) -> AttributeEntity:
-        attr = self._repo.get_by_list_id_and_name(lst.id, name)
+        attr = self._repo.get_by_list_id_and_name(lst.list_id, name)
 
         if attr is None:
             raise errors.NotFoundByName(name, AttributeEntity)

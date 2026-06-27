@@ -11,7 +11,7 @@ import db.session
 from domain import errors
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
-from domain.types.id import ID
+from domain.types.common import ID
 from domain.types.server import ServerID
 from domain.types.user import UserID
 from domain.value_objects.string import Str

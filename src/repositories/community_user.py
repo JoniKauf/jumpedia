@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
 
-from db.models import CommunityUser, User
+from db.models import CommunityUserModel, UserModel
 from domain import errors
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.user import UserEntity
@@ -12,10 +12,10 @@ from repositories.dtos.community_user import CommunityUserInsert
 
 
 def _community_user_model_to_entity(
-    model: CommunityUser, user: UserEntity
+    model: CommunityUserModel, user: UserEntity
 ) -> CommunityUserEntity:
     return CommunityUserEntity(
-        id=model.community_user_id,
+        community_user_id=model.community_user_id,
         user=user,
         community_id=model.community_id,
         rank=CommunityRank(model.power),
@@ -27,16 +27,16 @@ class CommunityUserRepository(BaseRepository):
     def get_by_user_and_community_id(
         self, user: UserEntity, community_id: CommunityID
     ) -> CommunityUserEntity | None:
-        stmt = select(CommunityUser).where(
-            CommunityUser.user_id == user.id,
-            CommunityUser.community_id == community_id,
+        stmt = select(CommunityUserModel).where(
+            CommunityUserModel.user_id == user.user_id,
+            CommunityUserModel.community_id == community_id,
         )
         obj = self.session.scalar(stmt)
         return None if obj is None else _community_user_model_to_entity(obj, user)
 
     def create(self, community_user: CommunityUserInsert) -> CommunityUserEntity:
-        obj = CommunityUser(
-            user_id=community_user.user.id,
+        obj = CommunityUserModel(
+            user_id=community_user.user.user_id,
             community_id=community_user.community_id,
             power=community_user.rank.value,
             selected_list_id=community_user.selected_list_id,
@@ -51,7 +51,7 @@ class CommunityUserRepository(BaseRepository):
         self,
         community_user: CommunityUserEntity,
     ) -> CommunityUserEntity:
-        obj = self.session.get(CommunityUser, community_user.id)
+        obj = self.session.get(CommunityUserModel, community_user.community_user_id)
 
         if obj is None:
             raise errors.InternalError("Tried updating a non existant community user")
@@ -62,8 +62,8 @@ class CommunityUserRepository(BaseRepository):
         return _community_user_model_to_entity(obj, community_user.user)
 
     def count_grouped_by_community_id(self) -> dict[CommunityID, int]:
-        stmt = select(CommunityUser.community_id, func.count()).group_by(
-            CommunityUser.community_id
+        stmt = select(CommunityUserModel.community_id, func.count()).group_by(
+            CommunityUserModel.community_id
         )
 
         return {
@@ -72,9 +72,9 @@ class CommunityUserRepository(BaseRepository):
 
     def get_all_by_community_id(self, community_id: int) -> list[CommunityUserEntity]:
         stmt = (
-            select(CommunityUser, User)
-            .join(User, User.user_id == CommunityUser.user_id)
-            .where(CommunityUser.community_id == community_id)
+            select(CommunityUserModel, UserModel)
+            .join(UserModel, UserModel.user_id == CommunityUserModel.user_id)
+            .where(CommunityUserModel.community_id == community_id)
         )
 
         return [
@@ -88,7 +88,7 @@ class CommunityUserRepository(BaseRepository):
     def count_by_community_id(self, community_id: int) -> int:
         stmt = (
             select(func.count())
-            .select_from(CommunityUser)
-            .where(CommunityUser.community_id == community_id)
+            .select_from(CommunityUserModel)
+            .where(CommunityUserModel.community_id == community_id)
         )
         return self.session.scalar(stmt) or 0

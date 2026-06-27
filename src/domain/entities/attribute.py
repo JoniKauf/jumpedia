@@ -3,20 +3,21 @@ from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
+from domain.value_objects.position import Position
 
 
 class AttributeEntity(BaseEntity[AttributeID]):
     def __init__(
         self,
-        id: AttributeID,
+        attribute_id: AttributeID,
         list_id: ListID,
         name: AttributeSyn,
         type: AttributeType,
         kind: AttributeKind,
         slot: AttributeSlot,
-        position: int,
+        position: Position,
     ) -> None:
-        super().__init__(id)
+        super().__init__(attribute_id)
 
         self._list_id = list_id
         self._type = type
@@ -25,6 +26,10 @@ class AttributeEntity(BaseEntity[AttributeID]):
         self.slot = slot
         self.position = position
 
+    @property
+    def attribute_id(self) -> AttributeID:
+        return self._composite_key[0]
+    
     @property
     def list_id(self) -> ListID:
         return self._list_id
@@ -54,12 +59,9 @@ class AttributeEntity(BaseEntity[AttributeID]):
         self._slot = value
 
     @property
-    def position(self) -> int:
+    def position(self) -> Position:
         return self._position
 
     @position.setter
-    def position(self, value: int) -> None:
-        if value < 1:
-            raise ValueError("position < 1")
-
+    def position(self, value: Position) -> None:
         self._position = value

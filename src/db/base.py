@@ -2,7 +2,7 @@
 from sqlalchemy.orm import DeclarativeBase
 
 
-class Base(DeclarativeBase):
+class BaseModel(DeclarativeBase):
     __abstract__ = True
 
     __table_args__ = {

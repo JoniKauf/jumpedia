@@ -4,8 +4,8 @@ from discord import app_commands
 
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
-from domain.value_objects.attribute_collection_entry import AttributeCollectionEntrySyn
 from domain.value_objects.list import ListName
+from domain.value_objects.task_attribute_slot import TaskAttributeSlot
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -33,7 +33,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             "Slot Type": (attr_info.slot.type.name.title(),),
             "Minimum Slot Count": (str(attr_info.slot.min_count),),
             "Maximum Slot Count": (str(attr_info.slot.max_count),),
-            "Position": (str(attr_info.position),),
+            "Position": (str(attr_info.position.value),),
         }
 
         await messages.object_info(ctx.interaction, type(attr_info), data)
@@ -65,8 +65,8 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         if collection_dsl:
             collection = tuple(
                 CreateAttributeCollectionEntry(
-                    AttributeCollectionEntrySyn(k),
-                    tuple(AttributeCollectionEntrySyn(elem) for elem in v),
+                    TaskAttributeSlot(k),
+                    tuple(TaskAttributeSlot(elem) for elem in v),
                 )
                 for k, v in dsl.value_list.engine.eval(collection_dsl)
             )
@@ -112,7 +112,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
             "Maximum Slot Count": tuple(
                 (str(summary.slot.max_count),) for summary in summaries
             ),
-            "Position": tuple((str(summary.position),) for summary in summaries),
+            "Position": tuple((str(summary.position.value),) for summary in summaries),
         }
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)

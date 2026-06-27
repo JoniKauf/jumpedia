@@ -5,6 +5,7 @@ from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSyn
+from domain.value_objects.position import Position
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,7 +15,7 @@ class AttributeInfo:
     type: AttributeType
     kind: AttributeKind
     slot: AttributeSlot
-    position: int
+    position: Position
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +25,7 @@ class AttributeSummary:
     type: AttributeType
     kind: AttributeKind
     slot: AttributeSlot
-    position: int
+    position: Position
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,4 +35,4 @@ class DeletedAttribute:
     type: AttributeType
     kind: AttributeKind
     slot: AttributeSlot
-    position: int
+    position: Position

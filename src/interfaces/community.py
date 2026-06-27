@@ -5,7 +5,7 @@ import discord
 from discord import app_commands
 
 from domain.enums.rank import CommunityRank
-from domain.types.id import ID
+from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityName
 from domain.value_objects.string import Str
