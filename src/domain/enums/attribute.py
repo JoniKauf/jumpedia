@@ -13,14 +13,15 @@ class AttributeType(enum.IntEnum):
     @classmethod
     def ALL(cls) -> set[AttributeType]:
         return {cls.STATIC, cls.TASK, cls.USER}
-    
+
     @classmethod
     def NON_STATIC(cls) -> set[AttributeType]:
         return {cls.TASK, cls.USER}
-    
+
     @classmethod
     def NON_USER(cls) -> set[AttributeType]:
         return {cls.STATIC, cls.TASK}
+
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
 class AttributeKind(enum.IntEnum):

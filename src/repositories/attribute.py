@@ -1,8 +1,9 @@
+import types as ts
 import typing as t
 
 from sqlalchemy import func, or_, select, text, update
 
-from db.models import AttributeModel, AttributeAliasModel, ListModel
+from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeSlot
 from domain.entities.community import CommunityEntity
@@ -10,7 +11,7 @@ from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeTy
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSyn
+from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.position import Position
 from domain.value_objects.string import Str
@@ -22,7 +23,7 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity:
     return AttributeEntity(
         attribute_id=model.attribute_id,
         list_id=model.list_id,
-        name=AttributeSyn(_real=model.real_name, _norm=model.norm_name),
+        name=AttributeSynStr(_real=model.real_name, _norm=model.norm_name),
         type=AttributeType(model.type),
         kind=AttributeKind(model.kind),
         slot=AttributeSlot(
@@ -48,8 +49,8 @@ class AttributeRepository(BaseRepository):
             position=attribute.position.value,
         )
 
-        self.session.add(obj)
-        self.session.flush()
+        self._session.add(obj)
+        self._session.flush()
 
         return attribute_model_to_entity(obj)
 
@@ -59,6 +60,7 @@ class AttributeRepository(BaseRepository):
         objs = tuple(
             AttributeAliasModel(
                 attribute_id=attr_alias.attribute_id,
+                index=attr_alias.index.value,
                 list_id=attr_alias.list_id,
                 norm_alias=attr_alias.alias.norm,
                 real_alias=attr_alias.alias.real,
@@ -66,46 +68,52 @@ class AttributeRepository(BaseRepository):
             for attr_alias in attribute_aliases
         )
 
-        self.session.add_all(objs)
-        self.session.flush()
+        self._session.add_all(objs)
+        self._session.flush()
 
     def delete(self, attribute_id: AttributeID) -> None:
-        obj = self.session.get(AttributeModel, attribute_id)
+        obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
             raise errors.NotFoundById(AttributeEntity)
 
-        self.session.delete(obj)
-        self.session.flush()
+        self._session.delete(obj)
+        self._session.flush()
 
-    def get_by_id(self, attribute_id: int) -> AttributeEntity | None:
-        obj = self.session.get(AttributeModel, attribute_id)
+    def get_by_id(self, attribute_id: AttributeID) -> AttributeEntity | None:
+        obj = self._session.get(AttributeModel, attribute_id)
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_all_by_list_id(self, list_id: int) -> list[AttributeEntity]:
-        stmt = select(AttributeModel).where(AttributeModel.list_id == list_id)
-        objs = self.session.scalars(stmt).all()
-        return [attribute_model_to_entity(o) for o in objs]
+    def get_all_by_list_id(
+        self, list_id: ListID, types: t.AbstractSet[AttributeType]
+    ) -> tuple[AttributeEntity, ...]:
+        stmt = (
+            select(AttributeModel)
+            .where(AttributeModel.list_id == list_id)
+            .where(AttributeModel.type.in_(types))
+        )
+        objs = self._session.scalars(stmt).all()
+        return tuple(attribute_model_to_entity(o) for o in objs)
 
     def get_by_list_id_and_name(
         self,
         list_id: ListID,
-        name: AttributeSyn,
+        name: AttributeSynStr,
     ) -> AttributeEntity | None:
         stmt = select(AttributeModel).where(
             AttributeModel.list_id == list_id,
             AttributeModel.norm_name == name.norm,
         )
 
-        obj = self.session.scalar(stmt)
+        obj = self._session.scalar(stmt)
 
         return None if obj is None else attribute_model_to_entity(obj)
 
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        syns: t.Iterable[AttributeSyn],
-    ) -> tuple[AttributeEntity, AttributeSyn] | None:
+        syns: t.Iterable[AttributeSynStr],
+    ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
 
@@ -128,7 +136,7 @@ class AttributeRepository(BaseRepository):
             .limit(1)
         )
 
-        row = self.session.execute(stmt).first()
+        row = self._session.execute(stmt).first()
 
         if row is None:
             return None
@@ -140,18 +148,43 @@ class AttributeRepository(BaseRepository):
         entity = attribute_model_to_entity(attr_obj)
 
         if attr_obj.norm_name in norms:
-            syn = AttributeSyn(
+            syn = AttributeSynStr(
                 _real=attr_obj.real_name,
                 _norm=attr_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = AttributeSyn(
+            syn = AttributeSynStr(
                 _real=alias_obj.real_alias,
                 _norm=alias_obj.norm_alias,
             )
 
         return entity, syn
+
+    def get_by_list_id_and_syn(
+        self,
+        list_id: ListID,
+        syn: AttributeSynStr,
+    ) -> AttributeEntity | None:
+        stmt = (
+            select(AttributeModel)
+            .outerjoin(
+                AttributeAliasModel,
+                AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
+            )
+            .where(
+                AttributeModel.list_id == list_id,
+                or_(
+                    AttributeModel.norm_name == syn.norm,
+                    AttributeAliasModel.norm_alias == syn.norm,
+                ),
+            )
+            .limit(1)
+        )
+
+        obj = self._session.scalar(stmt)
+
+        return None if obj is None else attribute_model_to_entity(obj)
 
     def get_by_list_id_and_alias(
         self,
@@ -160,21 +193,24 @@ class AttributeRepository(BaseRepository):
     ) -> AttributeEntity | None:
         stmt = (
             select(AttributeModel)
-            .join(AttributeAliasModel, AttributeAliasModel.attribute_id == AttributeModel.attribute_id)
+            .join(
+                AttributeAliasModel,
+                AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
+            )
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeAliasModel.norm_alias == alias.norm,
             )
         )
 
-        obj = self.session.scalar(stmt)
+        obj = self._session.scalar(stmt)
 
         return None if obj is None else attribute_model_to_entity(obj)
 
     def get_grouped_by_list_id(
         self,
         community_id: CommunityID,
-    ) -> dict[ListID, list[AttributeEntity]]:
+    ) -> ts.MappingProxyType[ListID, list[AttributeEntity]]:
         stmt = (
             select(AttributeModel)
             .join(ListModel, ListModel.list_id == AttributeModel.list_id)
@@ -183,10 +219,10 @@ class AttributeRepository(BaseRepository):
 
         res: dict[ListID, list[AttributeEntity]] = {}
 
-        for obj in self.session.scalars(stmt):
+        for obj in self._session.scalars(stmt):
             res.setdefault(obj.list_id, []).append(attribute_model_to_entity(obj))
 
-        return res
+        return ts.MappingProxyType(res)
 
     def count_by_list(self, list_id: ListID) -> int:
         stmt = (
@@ -194,14 +230,14 @@ class AttributeRepository(BaseRepository):
             .select_from(AttributeModel)
             .where(AttributeModel.list_id == list_id)
         )
-        return self.session.scalar(stmt) or 0
+        return self._session.scalar(stmt) or 0
 
     def decrement_positions_after(self, list_id: ListID, position: Position) -> None:
         # Unique situation where we have need to decrement n positions, but all are unique
         # We use mariadbs order by which is made for this reason. Though not directly supported
         # by sqlalchemy, so we use raw sql
 
-        self.session.execute(
+        self._session.execute(
             text(
                 """
                 UPDATE attribute
@@ -217,13 +253,11 @@ class AttributeRepository(BaseRepository):
             },
         )
 
-        self.session.flush()
+        self._session.flush()
 
     def get_syn_to_attribute_by_list_id(
-        self,
-        list_id: ListID,
-        types: t.AbstractSet[AttributeType]
-    ) -> dict[AttributeSyn, AttributeEntity]:
+        self, list_id: ListID, types: t.AbstractSet[AttributeType]
+    ) -> ts.MappingProxyType[AttributeSynStr, AttributeEntity]:
         stmt = (
             select(AttributeModel, AttributeAliasModel)
             .outerjoin(
@@ -234,10 +268,10 @@ class AttributeRepository(BaseRepository):
             .where(AttributeModel.type.in_(types))
         )
 
-        res: dict[AttributeSyn, AttributeEntity] = {}
+        res: dict[AttributeSynStr, AttributeEntity] = {}
         id_to_entity: dict[AttributeID, AttributeEntity] = {}
 
-        for attr_obj, alias_obj in self.session.execute(stmt):
+        for attr_obj, alias_obj in self._session.execute(stmt):
             attr_obj: AttributeModel
             alias_obj: AttributeAliasModel | None
 
@@ -245,13 +279,66 @@ class AttributeRepository(BaseRepository):
 
             if entity is None:
                 entity = attribute_model_to_entity(attr_obj)
-                id_to_entity[attr_obj.attribute_id] = entity 
+                id_to_entity[attr_obj.attribute_id] = entity
                 res[entity.name] = entity
 
             if alias_obj is not None:
-                res[AttributeSyn(
-                    _real=alias_obj.real_alias,
-                    _norm=alias_obj.norm_alias)
+                res[
+                    AttributeSynStr(
+                        _real=alias_obj.real_alias, _norm=alias_obj.norm_alias
+                    )
                 ] = entity
 
-        return res
+        return ts.MappingProxyType(res)
+
+    def get_aliases_by_attribute_id(
+        self,
+        attribute_id: AttributeID,
+    ) -> tuple[AttributeSynStr, ...]:
+        stmt = (
+            select(AttributeAliasModel)
+            .where(AttributeAliasModel.attribute_id == attribute_id)
+            .order_by(AttributeAliasModel.index.asc())
+        )
+
+        return tuple(
+            AttributeSynStr(
+                _real=obj.real_alias,
+                _norm=obj.norm_alias,
+            )
+            for obj in self._session.scalars(stmt)
+        )
+
+    def get_grouped_aliases_by_list_id(
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[AttributeType],
+    ) -> ts.MappingProxyType[AttributeID, tuple[AttributeSynStr, ...]]:
+        stmt = (
+            select(AttributeAliasModel)
+            .join(
+                AttributeModel,
+                AttributeModel.attribute_id == AttributeAliasModel.attribute_id,
+            )
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+            )
+            .order_by(
+                AttributeModel.attribute_id.asc(), AttributeAliasModel.index.asc()
+            )
+        )
+
+        res: dict[AttributeID, list[AttributeSynStr]] = {}
+
+        for obj in self._session.scalars(stmt):
+            res.setdefault(obj.attribute_id, []).append(
+                AttributeSynStr(
+                    _real=obj.real_alias,
+                    _norm=obj.norm_alias,
+                )
+            )
+
+        return ts.MappingProxyType(
+            {attribute_id: tuple(aliases) for attribute_id, aliases in res.items()}
+        )

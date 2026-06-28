@@ -6,6 +6,7 @@ from services.attribute import AttributeQueryService, AttributeService
 from services.community import CommunityQueryService, CommunityService
 from services.list import ListQueryService, ListService
 from services.server import ServerService
+from services.task import TaskQueryService, TaskService
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,8 @@ class PublicServices:
     list_query: ListQueryService
     attribute: AttributeService
     attribute_query: AttributeQueryService
+    task: TaskService
+    task_query: TaskQueryService
 
 
 @dataclass(frozen=True)

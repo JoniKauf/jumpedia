@@ -1,6 +1,6 @@
 from discord import app_commands
 
-from domain.value_objects.community import CommunityName
+from domain.value_objects.community import CommunityNameStr
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -15,7 +15,7 @@ class ServerInterface(BaseInterface, group_name="server"):
         ctx: CommandContext,
         community_name: str,
     ) -> None:
-        community_entity = ctx.services.server.link(CommunityName(community_name))
+        community_entity = ctx.services.server.link(CommunityNameStr(community_name))
 
         await messages.success(
             ctx.interaction,

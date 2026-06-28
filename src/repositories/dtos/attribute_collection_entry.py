@@ -4,24 +4,25 @@ from domain.entities.attribute_collection_entry import AttributeCollectionEntryE
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
 from domain.value_objects.index import Index
-from domain.value_objects.task_attribute_slot import TaskAttributeSlot
+from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
 
 
 @dataclass(frozen=True, slots=True)
 class AttributeCollectionEntryInsert:
     attribute_id: AttributeID
     index: Index
-    value: TaskAttributeSlot
+    value: TaskAttributeSlotStr
 
 
 @dataclass(frozen=True, slots=True)
 class AttributeCollectionEntryAliasInsert:
     attribute_collection_entry_id: AttributeCollectionEntryID
+    index: Index
     attribute_id: AttributeID
-    alias: TaskAttributeSlot
+    alias: TaskAttributeSlotStr
 
 
 @dataclass(frozen=True, slots=True)
-class AttributeCollectionEntryWithAliases:
+class AttributeCollectionEntryEntityWithAliases:
     entry: AttributeCollectionEntryEntity
-    aliases: tuple[TaskAttributeSlot, ...]
+    aliases: tuple[TaskAttributeSlotStr, ...]

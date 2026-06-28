@@ -47,6 +47,7 @@ ESCAPES: t.Final[ts.MappingProxyType[str, str]] = ts.MappingProxyType(
     {"\\": "\\", '"': '"', "'": "'", "n": "\n"}
 )
 
+
 def lex(s: str, *, multiline_strings: bool) -> t.Generator[Token]:
     SYMBOLS_LONGEST_TO_SHORTEST: t.Final[tuple[str, ...]] = tuple(
         sorted(SYMBOLS, key=len, reverse=True)

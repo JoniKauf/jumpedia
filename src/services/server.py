@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.enums.rank import ServerRank
-from domain.value_objects.community import CommunityName
+from domain.value_objects.community import CommunityNameStr
 from repositories.community import CommunityRepository
 from repositories.server import ServerRepository
 from services.community import CommunityAccessService
@@ -19,7 +19,7 @@ class ServerService:
     _permission_service: PermissionService
     _community_access_service: CommunityAccessService
 
-    def link(self, community_name: CommunityName) -> CommunityEntity:
+    def link(self, community_name: CommunityNameStr) -> CommunityEntity:
         self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
 
         community = self._community_repo.get_by_server_id(self._ctx.server_id)

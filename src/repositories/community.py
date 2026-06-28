@@ -8,7 +8,7 @@ from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.types.community import CommunityID
 from domain.types.server import ServerID
-from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from repositories.dtos.community import CommunityInsert
 from repositories.list import list_model_to_entity
 
@@ -18,7 +18,7 @@ from .base import BaseRepository
 def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
         community_id=model.community_id,
-        name=CommunityName(_real=model.real_name, _norm=model.norm_name),
+        name=CommunityNameStr(_real=model.real_name, _norm=model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
         created=model.created,
         limits=CommunityLimits(
@@ -51,8 +51,8 @@ class CommunityRepository(BaseRepository):
             attribute_collection_entry_alias_count_max=community.limits.attribute_collection_entry_alias_count_max,
         )
 
-        self.session.add(obj)
-        self.session.flush()
+        self._session.add(obj)
+        self._session.flush()
 
         return community_model_to_entity(obj)
 
@@ -60,29 +60,29 @@ class CommunityRepository(BaseRepository):
     # READ
     # -------------------------
     def get_by_id(self, community_id: CommunityID) -> CommunityEntity | None:
-        obj = self.session.get(CommunityModel, community_id)
+        obj = self._session.get(CommunityModel, community_id)
         return None if obj is None else community_model_to_entity(obj)
 
-    def get_by_name(self, name: CommunityName) -> CommunityEntity | None:
+    def get_by_name(self, name: CommunityNameStr) -> CommunityEntity | None:
         stmt = select(CommunityModel).where(CommunityModel.norm_name == name.norm)
-        obj = self.session.scalar(stmt)
+        obj = self._session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 
-    def get_all(self) -> list[CommunityEntity]:
+    def get_all(self) -> tuple[CommunityEntity, ...]:
         stmt = select(CommunityModel)
-        objs = self.session.scalars(stmt).all()
-        return [community_model_to_entity(o) for o in objs]
+        objs = self._session.scalars(stmt).all()
+        return tuple(community_model_to_entity(o) for o in objs)
 
     # -------------------------
     # DELETE
     # -------------------------
     def delete(self, community_id: CommunityID) -> None:
-        obj = self.session.get(CommunityModel, community_id)
+        obj = self._session.get(CommunityModel, community_id)
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
 
-        self.session.delete(obj)
-        self.session.flush()
+        self._session.delete(obj)
+        self._session.flush()
 
     def get_by_server_id(self, server_id: ServerID) -> CommunityEntity | None:
         stmt = (
@@ -90,7 +90,7 @@ class CommunityRepository(BaseRepository):
             .join(ServerModel, ServerModel.community_id == CommunityModel.community_id)
             .where(ServerModel.server_id == server_id)
         )
-        obj = self.session.scalar(stmt)
+        obj = self._session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 
     def get_default_selected_list(self, community_id: CommunityID) -> ListEntity | None:
@@ -102,12 +102,12 @@ class CommunityRepository(BaseRepository):
                 .scalar_subquery()
             )
         )
-        obj = self.session.execute(stmt).scalar_one_or_none()
+        obj = self._session.execute(stmt).scalar_one_or_none()
 
         return None if obj is None else list_model_to_entity(obj)
 
     def update(self, community: CommunityEntity) -> None:
-        obj = self.session.get(CommunityModel, community.community_id)
+        obj = self._session.get(CommunityModel, community.community_id)
 
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
@@ -131,4 +131,4 @@ class CommunityRepository(BaseRepository):
             community.limits.attribute_collection_entry_alias_count_max
         )
 
-        self.session.flush()
+        self._session.flush()

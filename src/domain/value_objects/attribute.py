@@ -11,12 +11,12 @@ from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class AttributeSyn(Str):
+    class AttributeSynStr(Str):
         pass
 
 else:
-    AttributeSyn = factories.make_length_limited_str_store_type(
-        "AttributeSyn", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
+    AttributeSynStr = factories.make_length_limited_str_store_type(
+        "AttributeSynStr", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
     )
 
 

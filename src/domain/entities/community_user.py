@@ -28,7 +28,7 @@ class CommunityUserEntity(BaseEntity[CommunityUserID]):
     @property
     def community_user_id(self) -> CommunityUserID:
         return self._composite_key[0]
-    
+
     @property
     def community_id(self) -> CommunityID:
         return self._community_id

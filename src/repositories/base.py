@@ -8,4 +8,4 @@ class BaseRepository(ABC):
         if type(self) is BaseRepository:
             raise RuntimeError()
 
-        self.session = session
+        self._session = session

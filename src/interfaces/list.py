@@ -1,6 +1,6 @@
 from discord import app_commands
 
-from domain.value_objects.list import ListName
+from domain.value_objects.list import ListNameStr
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
@@ -11,7 +11,7 @@ class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, list_name: str) -> None:
-        info = ctx.services.list_query.info(ListName(list_name))
+        info = ctx.services.list_query.info(ListNameStr(list_name))
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (info.name.real.value,),
@@ -27,14 +27,14 @@ class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()
     @with_context()
     async def create(self, ctx: CommandContext, list_name: str) -> None:
-        lst = ctx.services.list.create(ListName(list_name))
+        lst = ctx.services.list.create(ListNameStr(list_name))
 
         await messages.object_created(ctx.interaction, lst)
 
     @app_commands.command()
     @with_context()
     async def nuke(self, ctx: CommandContext, list_name: str) -> None:
-        deleted = ctx.services.list.delete(ListName(list_name))
+        deleted = ctx.services.list.delete(ListNameStr(list_name))
 
         await messages.object_nuked(ctx.interaction, deleted)
 

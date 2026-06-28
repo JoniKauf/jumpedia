@@ -11,12 +11,12 @@ from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class CommunityName(Str):
+    class CommunityNameStr(Str):
         pass
 
 else:
-    CommunityName = factories.make_length_limited_str_store_type(
-        "CommunityName", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
+    CommunityNameStr = factories.make_length_limited_str_store_type(
+        "CommunityNameStr", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
     )
 
 

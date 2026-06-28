@@ -3,7 +3,6 @@ import typing as t
 from discord.ext import commands
 
 
-
 class InterfaceMeta(commands.CogMeta):
     """CogMeata subclass to enforce a group name being specified in instances of this metaclass."""
 

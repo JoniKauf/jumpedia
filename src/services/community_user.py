@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
-from domain.value_objects.community import CommunityName
+from domain.value_objects.community import CommunityNameStr
 from repositories.community_user import CommunityUserRepository
 from repositories.dtos.community_user import CommunityUserInsert
 from services.community import CommunityAccessService
@@ -62,7 +62,7 @@ class CommunityUserAccessService:
         )
 
     def get_convenient(
-        self, community_name: CommunityName | None
+        self, community_name: CommunityNameStr | None
     ) -> tuple[CommunityEntity, CommunityUserEntity]:
         community = self._community_access_service.get_convenient(community_name)
         community_user = self.get_or_create_current_with_defaults(community)

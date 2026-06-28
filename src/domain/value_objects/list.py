@@ -8,10 +8,10 @@ from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class ListName(Str):
+    class ListNameStr(Str):
         pass
 
 else:
-    ListName = factories.make_length_limited_str_store_type(
-        "ListName", CommunityLimits.LIST_NAME_LENGTH_MAX, ListEntity
+    ListNameStr = factories.make_length_limited_str_store_type(
+        "ListNameStr", CommunityLimits.LIST_NAME_LENGTH_MAX, ListEntity
     )

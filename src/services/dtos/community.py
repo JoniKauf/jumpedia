@@ -3,13 +3,13 @@ from datetime import datetime
 
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
-from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
 
 
 @dataclass(frozen=True, slots=True)
 class CommunityInfo:
-    name: CommunityName
+    name: CommunityNameStr
     default_selected_list: ListEntity | None
     created: datetime
     limits: CommunityLimits
@@ -20,7 +20,7 @@ class CommunityInfo:
 
 @dataclass(frozen=True, slots=True)
 class CommunitySummary:
-    name: CommunityName
+    name: CommunityNameStr
     created: datetime
     community_user_count: int
     list_count: int

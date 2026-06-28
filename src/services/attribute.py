@@ -9,12 +9,12 @@ from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.value_objects.attribute import AttributeSlot, AttributeSyn
-from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.index import Index
-from domain.value_objects.list import ListName
+from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
-from domain.value_objects.task_attribute_slot import TaskAttributeSlot
+from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
 from repositories.attribute import AttributeRepository
 from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
@@ -26,7 +26,10 @@ from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
-from services.dtos.attribute_collection_entry import CreateAttributeCollectionEntry
+from services.dtos.attribute_collection_entry import (
+    AttributeCollectionEntryEntityWithAliases,
+    CreateAttributeCollectionEntry,
+)
 from services.list import ListAccessService
 from services.permission import PermissionService
 
@@ -41,12 +44,12 @@ class AttributeService:
 
     def create(
         self,
-        name: AttributeSyn,
+        name: AttributeSynStr,
+        list_name: ListNameStr,
         type: t.Literal[AttributeType.TASK, AttributeType.USER],
         slot: AttributeSlot,
-        aliases: tuple[AttributeSyn, ...],
+        aliases: tuple[AttributeSynStr, ...],
         collection_entries: tuple[CreateAttributeCollectionEntry, ...],
-        list_name: ListName | None,
     ) -> AttributeEntity:
         # --- Get Data ---
         community, community_user, lst = self._list_access_service.get_convenient(
@@ -67,7 +70,7 @@ class AttributeService:
                 community.limits.list_attribute_count_max, AttributeEntity
             )
 
-        syns: tuple[AttributeSyn, ...] = (name, *aliases)
+        syns: tuple[AttributeSynStr, ...] = (name, *aliases)
 
         if len(aliases) > community.limits.attribute_alias_count_max:
             raise errors.AliasCountLimitReached(
@@ -75,7 +78,7 @@ class AttributeService:
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
-        AttributeSyn.raise_if_not_norm_unique(syns)
+        AttributeSynStr.raise_if_not_norm_unique(syns)
 
         existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(
             lst.list_id, syns
@@ -100,7 +103,7 @@ class AttributeService:
 
         # --- Validate Collection ---
         if collection_entries:
-            TaskAttributeSlot.raise_if_not_norm_unique(
+            TaskAttributeSlotStr.raise_if_not_norm_unique(
                 syn
                 for entry in collection_entries
                 for syn in (entry.value, *entry.aliases)
@@ -130,20 +133,28 @@ class AttributeService:
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
             AttributeInsert(
-                lst.list_id, name, type, AttributeKind.NONE, slot, Position(attr_count + 1)
+                lst.list_id,
+                name,
+                type,
+                AttributeKind.NONE,
+                slot,
+                Position(attr_count + 1),
             )
         )
 
         # --- Create Attribute Aliases ---
         self._attribute_repo.create_many_aliases(
-            AttributeAliasInsert(attr_entity.attribute_id, lst.list_id, alias) for alias in aliases
+            AttributeAliasInsert(attr_entity.attribute_id, Index(i), lst.list_id, alias)
+            for i, alias in enumerate(aliases)
         )
 
         # --- Create Attribute Collection ---
         if collection_entries:
-            created_entries: list[AttributeCollectionEntryEntity] = (
+            created_entries: tuple[AttributeCollectionEntryEntity, ...] = (
                 self._attribute_collection_entry_repo.create_many(
-                    AttributeCollectionEntryInsert(attr_entity.attribute_id, Index(i), entry.value)
+                    AttributeCollectionEntryInsert(
+                        attr_entity.attribute_id, Index(i), entry.value
+                    )
                     for i, entry in enumerate(collection_entries)
                 )
             )
@@ -151,9 +162,12 @@ class AttributeService:
             all_aliases: list[AttributeCollectionEntryAliasInsert] = []
 
             for i, created_entry in enumerate(created_entries):
-                for alias in collection_entries[i].aliases:
+                for i, alias in enumerate(collection_entries[i].aliases):
                     alias_insert = AttributeCollectionEntryAliasInsert(
-                        created_entry.attribute_collection_entry_id, created_entry.attribute_id, alias
+                        created_entry.attribute_collection_entry_id,
+                        Index(i),
+                        created_entry.attribute_id,
+                        alias,
                     )
 
                     all_aliases.append(alias_insert)
@@ -162,16 +176,16 @@ class AttributeService:
 
         return attr_entity
 
-    def delete(
-        self, name: AttributeSyn, list_name: ListName | None
-    ) -> DeletedAttribute:
-        _, community_user, lst, attr = self._attribute_access_service.get_convenient(
-            None, list_name, name
+    def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> DeletedAttribute:
+        _, community_user, lst = self._list_access_service.get_convenient(
+            None, list_name
         )
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.ADMINISTRATOR
         )
+
+        attr = self._attribute_access_service.get_by_list_and_name_or_raise(lst, name)
 
         self._attribute_repo.delete(attr.attribute_id)
         self._attribute_repo.decrement_positions_after(lst.list_id, attr.position)
@@ -184,38 +198,73 @@ class AttributeService:
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeQueryService:
     _attribute_repo: AttributeRepository
+    _attribute_collection_entry_repo: AttributeCollectionEntryRepository
     _community_access_service: CommunityAccessService
     _community_user_access_service: CommunityUserAccessService
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
 
-    def info(self, name: AttributeSyn, list_name: ListName | None) -> AttributeInfo:
+    def info(
+        self, syn: AttributeSynStr, list_name: ListNameStr | None
+    ) -> AttributeInfo:
         _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
-        attr = self._attribute_access_service.get_by_list_and_name_or_raise(lst, name)
+        attr = self._attribute_access_service.get_by_list_and_syn_or_raise(lst, syn)
+        aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
+        collection = (
+            self._attribute_collection_entry_repo.get_collection_by_attribute_id(
+                attr.attribute_id
+            )
+        )
 
         return AttributeInfo(
-            attr.name, lst, attr.type, attr.kind, attr.slot, attr.position
+            attr.name,
+            aliases,
+            lst,
+            attr.type,
+            attr.kind,
+            attr.slot,
+            attr.position,
+            tuple(
+                AttributeCollectionEntryEntityWithAliases(entry.entry, entry.aliases)
+                for entry in collection
+            ),
         )
 
     def summaries(
         self,
-        list_name: ListName | None,
+        list_name: ListNameStr | None,
     ) -> tuple[AttributeSummary, ...]:
         _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
-        attrs = self._attribute_repo.get_all_by_list_id(
-            lst.list_id,
+        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
+
+        attrs = self._attribute_repo.get_all_by_list_id(lst.list_id, ATTRIBUTE_TYPES)
+
+        attr_id_to_aliases = self._attribute_repo.get_grouped_aliases_by_list_id(
+            lst.list_id, ATTRIBUTE_TYPES
+        )
+        attr_id_to_collection = (
+            self._attribute_collection_entry_repo.get_grouped_collections_by_list_id(
+                lst.list_id, ATTRIBUTE_TYPES
+            )
         )
 
         return tuple(
             AttributeSummary(
                 attr.name,
+                attr_id_to_aliases[attr.attribute_id],
                 lst,
                 attr.type,
                 attr.kind,
                 attr.slot,
                 attr.position,
+                tuple(
+                    AttributeCollectionEntryEntityWithAliases(
+                        entry.entry, entry.aliases
+                    )
+                    for entry in attr_id_to_collection[attr.attribute_id]
+                ),
             )
             for attr in attrs
         )
@@ -228,7 +277,7 @@ class AttributeAccessService:
     _list_access_service: ListAccessService
 
     def get_by_list_and_name_or_raise(
-        self, lst: ListEntity, name: AttributeSyn
+        self, lst: ListEntity, name: AttributeSynStr
     ) -> AttributeEntity:
         attr = self._repo.get_by_list_id_and_name(lst.list_id, name)
 
@@ -237,15 +286,25 @@ class AttributeAccessService:
 
         return attr
 
+    def get_by_list_and_syn_or_raise(
+        self, lst: ListEntity, syn: AttributeSynStr
+    ) -> AttributeEntity:
+        attr = self._repo.get_by_list_id_and_syn(lst.list_id, syn)
+
+        if attr is None:
+            raise errors.NotFoundBySyn(syn, AttributeEntity)
+
+        return attr
+
     def get_convenient(
         self,
-        community_name: CommunityName | None,
-        list_name: ListName | None,
-        attribute_name: AttributeSyn,
+        community_name: CommunityNameStr | None,
+        list_name: ListNameStr | None,
+        attribute_syn: AttributeSynStr,
     ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, AttributeEntity]:
         community, community_user, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
-        attr = self.get_by_list_and_name_or_raise(lst, attribute_name)
+        attr = self.get_by_list_and_syn_or_raise(lst, attribute_syn)
 
         return (community, community_user, lst, attr)

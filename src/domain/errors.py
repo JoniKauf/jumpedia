@@ -58,6 +58,13 @@ class NotFoundByName(DomainError):
         self.type = type
 
 
+class NotFoundBySyn(DomainError):
+    def __init__(self, syn: Str, type: type[BaseEntity]) -> None:
+        super().__init__()
+        self.syn = syn
+        self.type = type
+
+
 class NameTooLong(DomainError):
     def __init__(self, name: Str, limit: int, type: type[BaseEntity]) -> None:
         super().__init__()
@@ -128,7 +135,6 @@ class DuplicateUniqueRequiredString(DomainError):
 class NoDefaultSelectedList(DomainError):
     def __init__(self) -> None:
         pass
-
 
 
 class InternalError(Exception):

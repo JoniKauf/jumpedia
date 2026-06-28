@@ -1,7 +1,7 @@
 from domain.entities.base import BaseEntity
 from domain.types.attribute import AttributeID
 from domain.types.attribute_collection_entry import AttributeCollectionEntryID
-from domain.value_objects.task_attribute_slot import TaskAttributeSlot
+from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
 
 
 class AttributeCollectionEntryEntity(BaseEntity[AttributeCollectionEntryID]):
@@ -9,7 +9,7 @@ class AttributeCollectionEntryEntity(BaseEntity[AttributeCollectionEntryID]):
         self,
         attribute_collection_entry_id: AttributeCollectionEntryID,
         attribute_id: AttributeID,
-        value: TaskAttributeSlot,
+        value: TaskAttributeSlotStr,
     ) -> None:
         super().__init__(attribute_collection_entry_id)
         self._attribute_id = attribute_id
@@ -18,15 +18,15 @@ class AttributeCollectionEntryEntity(BaseEntity[AttributeCollectionEntryID]):
     @property
     def attribute_collection_entry_id(self) -> AttributeCollectionEntryID:
         return self._composite_key[0]
-    
+
     @property
     def attribute_id(self) -> AttributeID:
         return self._attribute_id
 
     @property
-    def value(self) -> TaskAttributeSlot:
+    def value(self) -> TaskAttributeSlotStr:
         return self._name
 
     @value.setter
-    def value(self, value: TaskAttributeSlot) -> None:
+    def value(self, value: TaskAttributeSlotStr) -> None:
         self._name = value

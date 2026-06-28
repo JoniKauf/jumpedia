@@ -4,7 +4,7 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from domain.types.user import UserID
 from domain.value_objects.string import RealStr
-from domain.value_objects.user import UserName
+from domain.value_objects.user import UserNameStr
 from repositories.dtos.user import UserInsert
 
 from .base import BaseRepository
@@ -13,14 +13,14 @@ from .base import BaseRepository
 def _user_model_to_entity(model: UserModel) -> UserEntity:
     return UserEntity(
         user_id=model.user_id,
-        name=UserName(_real=RealStr(model.raw_name), _norm=model.norm_name),
+        name=UserNameStr(_real=RealStr(model.raw_name), _norm=model.norm_name),
         rank=MetaRank(model.power),
     )
 
 
 class UserRepository(BaseRepository):
     def get_by_id(self, user_id: UserID) -> UserEntity | None:
-        obj = self.session.get(UserModel, user_id)
+        obj = self._session.get(UserModel, user_id)
         return None if obj is None else _user_model_to_entity(obj)
 
     def create(self, user: UserInsert) -> UserEntity:
@@ -31,8 +31,8 @@ class UserRepository(BaseRepository):
             power=user.rank.value,
         )
 
-        self.session.add(obj)
-        self.session.flush()
+        self._session.add(obj)
+        self._session.flush()
 
         return _user_model_to_entity(obj)
 
@@ -40,7 +40,7 @@ class UserRepository(BaseRepository):
         self,
         user: UserEntity,
     ) -> UserEntity:
-        obj = self.session.get(UserModel, user.user_id)
+        obj = self._session.get(UserModel, user.user_id)
 
         if obj is None:
             raise errors.InternalError("Tried updating a non existant user")

@@ -1,11 +1,14 @@
 
-from dataclasses import dataclass
 import enum
-
-from interfaces.dsl.shared.lex import TokenType, Token
-from interfaces.dsl.shared.parsing import ExprNode, IdentifierNode, PushbackTokenStream, StringNode, TextNodeT
-from interfaces.dsl.shared.value_objects import Span
 import typing as t
+from dataclasses import dataclass
+
+from interfaces.dsl.shared.lex import Token, TokenType
+from interfaces.dsl.shared.parsing import (ExprNode, IdentifierNode,
+                                           PushbackTokenStream, StringNode,
+                                           TextNodeT)
+from interfaces.dsl.shared.value_objects import Span
+
 
 class BoolOpType(enum.Enum):
     AND = enum.auto()

@@ -1,12 +1,12 @@
 from domain.entities.base import BaseEntity
 from domain.enums.rank import MetaRank
 from domain.types.user import UserID
-from domain.value_objects.user import UserName
+from domain.value_objects.user import UserNameStr
 
 
 class UserEntity(BaseEntity[UserID]):
     def __init__(
-        self, user_id: UserID, name: UserName, rank: MetaRank = MetaRank.DEFAULT
+        self, user_id: UserID, name: UserNameStr, rank: MetaRank = MetaRank.DEFAULT
     ) -> None:
         super().__init__(user_id)
 
@@ -16,13 +16,13 @@ class UserEntity(BaseEntity[UserID]):
     @property
     def user_id(self) -> UserID:
         return self._composite_key[0]
-    
+
     @property
-    def name(self) -> UserName:
+    def name(self) -> UserNameStr:
         return self._name
 
     @name.setter
-    def name(self, value: UserName) -> None:
+    def name(self, value: UserNameStr) -> None:
         self._name = value
 
     @property

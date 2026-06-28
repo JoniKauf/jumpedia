@@ -132,7 +132,7 @@ async def _browse(
 
     # --- Filter, Sort and other... --
     used_attributes: set[AnyAttributeT] = set()
-    syn_to_attr: dict[NormStr, AnyAttributeT] = {} 
+    syn_to_attr: dict[NormStr, AnyAttributeT] = {}
 
     if filter or sort:
         syn_to_attr = {

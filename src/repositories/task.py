@@ -1,13 +1,17 @@
+import types as ts
+import typing as t
+
 from sqlalchemy import func, or_, select
 
-from db.models import ListModel, TaskModel, TaskAliasModel
+from db.models import ListModel, TaskAliasModel, TaskModel
+from domain import errors
 from domain.entities.task import TaskEntity
+from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.task_attribute_slot import TaskAttributeSlot
+from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
-import typing as t
 
 from .base import BaseRepository
 
@@ -16,8 +20,9 @@ def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
         model.task_id,
         model.list_id,
-        TaskAttributeSlot(_real=model.real_name, _norm=model.norm_name)
+        TaskAttributeSlotStr(_real=model.real_name, _norm=model.norm_name),
     )
+
 
 class TaskRepository(BaseRepository):
     def create(self, task: TaskInsert) -> TaskEntity:
@@ -27,17 +32,26 @@ class TaskRepository(BaseRepository):
             slot_name=task.name.real,
         )
 
-        self.session.add(obj)
-        self.session.flush()
-        
+        self._session.add(obj)
+        self._session.flush()
+
         return task_model_to_entity(obj)
 
     def get_by_id(self, task_id: int) -> TaskModel | None:
-        return self.session.get(TaskModel, task_id)
+        return self._session.get(TaskModel, task_id)
+
+    def get_all_by_list_id(self, list_id: ListID) -> tuple[TaskEntity, ...]:
+        stmt = select(TaskModel).where(TaskModel.list_id == list_id)
+        objs = self._session.scalars(stmt).all()
+        return tuple(task_model_to_entity(o) for o in objs)
 
     def count_by_list(self, list_id: ListID) -> int:
-        stmt = select(func.count()).select_from(TaskModel).where(TaskModel.list_id == list_id)
-        return self.session.scalar(stmt) or 0
+        stmt = (
+            select(func.count())
+            .select_from(TaskModel)
+            .where(TaskModel.list_id == list_id)
+        )
+        return self._session.scalar(stmt) or 0
 
     def count_by_community(self, community_id: CommunityID) -> int:
         stmt = (
@@ -47,9 +61,9 @@ class TaskRepository(BaseRepository):
             .where(ListModel.community_id == community_id)
         )
 
-        return self.session.scalar(stmt) or 0
+        return self._session.scalar(stmt) or 0
 
-    def count_grouped_by_community_id(self) -> dict[CommunityID, int]:
+    def count_grouped_by_community_id(self) -> ts.MappingProxyType[CommunityID, int]:
         stmt = (
             select(
                 ListModel.community_id,
@@ -59,10 +73,12 @@ class TaskRepository(BaseRepository):
             .group_by(ListModel.community_id)
         )
 
-        return {
-            CommunityID(community_id): count
-            for community_id, count in self.session.execute(stmt)
-        }
+        return ts.MappingProxyType(
+            {
+                CommunityID(community_id): count
+                for community_id, count in self._session.execute(stmt)
+            }
+        )
 
     def count_grouped_by_list_id(
         self,
@@ -78,12 +94,14 @@ class TaskRepository(BaseRepository):
             .group_by(TaskModel.list_id)
         )
 
-        return {ListID(list_id): count for list_id, count in self.session.execute(stmt)}
+        return {
+            ListID(list_id): count for list_id, count in self._session.execute(stmt)
+        }
 
     def get_syn_to_task_by_list_id(
         self,
         list_id: ListID,
-    ) -> dict[TaskAttributeSlot, TaskEntity]:
+    ) -> dict[TaskAttributeSlotStr, TaskEntity]:
         stmt = (
             select(TaskModel, TaskAliasModel)
             .outerjoin(
@@ -93,10 +111,10 @@ class TaskRepository(BaseRepository):
             .where(TaskModel.list_id == list_id)
         )
 
-        res: dict[TaskAttributeSlot, TaskEntity] = {}
+        res: dict[TaskAttributeSlotStr, TaskEntity] = {}
         id_to_entity: dict[TaskID, TaskEntity] = {}
 
-        for task_obj, alias_obj in self.session.execute(stmt):
+        for task_obj, alias_obj in self._session.execute(stmt):
             task_obj: TaskModel
             alias_obj: TaskAliasModel | None
 
@@ -109,20 +127,19 @@ class TaskRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    TaskAttributeSlot(
+                    TaskAttributeSlotStr(
                         _real=alias_obj.real_alias,
                         _norm=alias_obj.norm_alias,
                     )
                 ] = entity
 
         return res
-    
 
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        syns: t.Iterable[TaskAttributeSlot],
-    ) -> tuple[TaskEntity, TaskAttributeSlot] | None:
+        syns: t.Iterable[TaskAttributeSlotStr],
+    ) -> tuple[TaskEntity, TaskAttributeSlotStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
 
@@ -145,7 +162,7 @@ class TaskRepository(BaseRepository):
             .limit(1)
         )
 
-        row = self.session.execute(stmt).first()
+        row = self._session.execute(stmt).first()
 
         if row is None:
             return None
@@ -157,25 +174,24 @@ class TaskRepository(BaseRepository):
         entity = task_model_to_entity(task_obj)
 
         if task_obj.norm_name in norms:
-            syn = TaskAttributeSlot(
+            syn = TaskAttributeSlotStr(
                 _real=task_obj.real_name,
                 _norm=task_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = TaskAttributeSlot(
+            syn = TaskAttributeSlotStr(
                 _real=alias_obj.real_alias,
                 _norm=alias_obj.norm_alias,
             )
 
         return entity, syn
-    
-    def create_many_aliases(
-        self, task_aliases: t.Iterable[TaskAliasInsert]
-    ) -> None:
+
+    def create_many_aliases(self, task_aliases: t.Iterable[TaskAliasInsert]) -> None:
         objs = tuple(
             TaskAliasModel(
                 task_id=task_alias.task_id,
+                index=task_alias.index.value,
                 list_id=task_alias.list_id,
                 norm_alias=task_alias.alias.norm,
                 real_alias=task_alias.alias.real,
@@ -183,5 +199,104 @@ class TaskRepository(BaseRepository):
             for task_alias in task_aliases
         )
 
-        self.session.add_all(objs)
-        self.session.flush()
+        self._session.add_all(objs)
+        self._session.flush()
+
+    def delete(self, task_id: TaskID) -> None:
+        obj = self._session.get(TaskModel, task_id)
+
+        if obj is None:
+            raise errors.NotFoundById(TaskEntity)
+
+        self._session.delete(obj)
+        self._session.flush()
+
+    def get_by_list_id_and_name(
+        self,
+        list_id: ListID,
+        name: TaskAttributeSlotStr,
+    ) -> TaskEntity | None:
+        stmt = select(TaskModel).where(
+            TaskModel.list_id == list_id,
+            TaskModel.norm_name == name.norm,
+        )
+
+        obj = self._session.scalar(stmt)
+
+        return None if obj is None else task_model_to_entity(obj)
+
+    def get_by_list_id_and_syn(
+        self,
+        list_id: ListID,
+        syn: TaskAttributeSlotStr,
+    ) -> TaskEntity | None:
+        stmt = (
+            select(TaskModel)
+            .outerjoin(
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
+            )
+            .where(
+                TaskModel.list_id == list_id,
+                or_(
+                    TaskModel.norm_name == syn.norm,
+                    TaskAliasModel.norm_alias == syn.norm,
+                ),
+            )
+            .limit(1)
+        )
+
+        obj = self._session.scalar(stmt)
+
+        return None if obj is None else task_model_to_entity(obj)
+
+    def get_aliases_by_task_id(
+        self,
+        task_id: TaskID,
+    ) -> tuple[TaskAttributeSlotStr, ...]:
+        stmt = (
+            select(TaskAliasModel)
+            .where(TaskAliasModel.task_id == task_id)
+            .order_by(TaskAliasModel.index.asc())
+        )
+
+        return tuple(
+            TaskAttributeSlotStr(
+                _real=obj.real_alias,
+                _norm=obj.norm_alias,
+            )
+            for obj in self._session.scalars(stmt)
+        )
+
+    def get_grouped_aliases_by_list_id(
+        self,
+        list_id: ListID,
+    ) -> ts.MappingProxyType[TaskID, tuple[TaskAttributeSlotStr, ...]]:
+        stmt = (
+            select(TaskAliasModel)
+            .join(
+                TaskModel,
+                TaskModel.task_id == TaskAliasModel.task_id,
+            )
+            .where(
+                TaskModel.list_id == list_id,
+            )
+            .order_by(
+                TaskAliasModel.task_id.asc(),
+                TaskAliasModel.index.asc(),
+            )
+        )
+
+        res: dict[TaskID, list[TaskAttributeSlotStr]] = {}
+
+        for obj in self._session.scalars(stmt):
+            res.setdefault(obj.task_id, []).append(
+                TaskAttributeSlotStr(
+                    _real=obj.real_alias,
+                    _norm=obj.norm_alias,
+                )
+            )
+
+        return ts.MappingProxyType(
+            {task_id: tuple(aliases) for task_id, aliases in res.items()}
+        )

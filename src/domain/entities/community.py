@@ -3,14 +3,14 @@ from datetime import datetime
 from domain.entities.base import BaseEntity
 from domain.types.community import CommunityID
 from domain.types.list import ListID
-from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
 
 
 class CommunityEntity(BaseEntity[CommunityID]):
     def __init__(
         self,
         community_id: CommunityID,
-        name: CommunityName,
+        name: CommunityNameStr,
         default_selected_list_id: ListID | None,
         created: datetime,
         limits: CommunityLimits,
@@ -25,13 +25,13 @@ class CommunityEntity(BaseEntity[CommunityID]):
     @property
     def community_id(self) -> CommunityID:
         return self._composite_key[0]
-    
+
     @property
-    def name(self) -> CommunityName:
+    def name(self) -> CommunityNameStr:
         return self._name
 
     @name.setter
-    def name(self, value: CommunityName) -> None:
+    def name(self, value: CommunityNameStr) -> None:
         self._name = value
 
     @property

@@ -44,10 +44,9 @@ class BaseStr:
         return True
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, BaseStr):
+        if isinstance(other, type(self)):
             return self._str == other._str
-        if isinstance(other, str):
-            return self._str == other
+
         return NotImplemented
 
     def __hash__(self) -> int:
@@ -107,14 +106,16 @@ class NormStr(BaseStr):
 # Per definition in unicode 1 character map to at most 3 characters after casing operations
 UNICODE_MAX_MULTIPLE_CASING: t.Final[int] = 3
 
+
 class Str:
     """A string wrapper used inside the entire domain.
-    
+
     It holds the raw, a :class:`~RealStr` and a :class:`~NormStr` version of the wrapped string.
 
     The length is returned from the real version of the string, while equality and
     the hash is based off the norm version of the string.
     """
+
     _real: RealStr | None
     _norm: NormStr | None
 
@@ -180,7 +181,7 @@ class Str:
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.norm == value.norm
-    
+
     def __hash__(self) -> int:
         return hash(self.norm)
 

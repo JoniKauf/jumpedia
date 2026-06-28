@@ -6,9 +6,9 @@ from domain.entities.list import ListEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.user import UserID
-from domain.value_objects.community import CommunityLimits, CommunityName
-from domain.value_objects.list import ListName
-from domain.value_objects.user import UserName
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
+from domain.value_objects.list import ListNameStr
+from domain.value_objects.user import UserNameStr
 from repositories.community import CommunityRepository
 from repositories.community_user import CommunityUserRepository
 from repositories.dtos.community import CommunityInsert
@@ -36,9 +36,9 @@ class CommunityService:
 
     def create(
         self,
-        name: CommunityName,
+        name: CommunityNameStr,
         owner_id: UserID,
-        owner_name: UserName,
+        owner_name: UserNameStr,
         limits: CommunityLimits,
     ) -> CommunityEntity:
         self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR)
@@ -73,7 +73,7 @@ class CommunityService:
         )
 
         community.default_selected_list_id = self._list_service.create(
-            ListName("Main")
+            ListNameStr("Main")
         ).list_id
 
         self._community_repo.update(community)
@@ -102,7 +102,7 @@ class CommunityQueryService:
     _community_user_repo: CommunityUserRepository
     _community_access_service: CommunityAccessService
 
-    def info(self, community_name: CommunityName | None) -> CommunityInfo:
+    def info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
@@ -131,7 +131,8 @@ class CommunityQueryService:
 
     def summaries(self) -> tuple[CommunitySummary, ...]:
         id_to_community = {
-            community.community_id: community for community in self._community_repo.get_all()
+            community.community_id: community
+            for community in self._community_repo.get_all()
         }
 
         community_user_count = self._community_user_repo.count_grouped_by_community_id()
@@ -155,7 +156,7 @@ class CommunityAccessService:
     _ctx: InteractingUserContext
     _community_repo: CommunityRepository
 
-    def get_by_name_or_raise(self, name: CommunityName) -> CommunityEntity:
+    def get_by_name_or_raise(self, name: CommunityNameStr) -> CommunityEntity:
         community = self._community_repo.get_by_name(name)
 
         if community is None:
@@ -171,7 +172,7 @@ class CommunityAccessService:
 
         return community
 
-    def get_convenient(self, name: CommunityName | None) -> CommunityEntity:
+    def get_convenient(self, name: CommunityNameStr | None) -> CommunityEntity:
         return (
             self.get_current_or_raise()
             if name is None

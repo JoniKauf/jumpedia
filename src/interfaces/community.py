@@ -7,9 +7,9 @@ from discord import app_commands
 from domain.enums.rank import CommunityRank
 from domain.types.common import ID
 from domain.types.user import UserID
-from domain.value_objects.community import CommunityLimits, CommunityName
+from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
-from domain.value_objects.user import UserName
+from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
@@ -23,7 +23,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @with_context()
     async def info(self, ctx: CommandContext, community: str | None = None) -> None:
         info = ctx.services.community_query.info(
-            None if community is None else CommunityName(community)
+            None if community is None else CommunityNameStr(community)
         )
 
         data: dict[str, tuple[str, ...]] = {
@@ -68,9 +68,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
         attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
     ) -> None:
         community = ctx.services.community.create(
-            CommunityName(community_name),
+            CommunityNameStr(community_name),
             UserID(ID(community_owner.id)),
-            UserName(community_owner.name),
+            UserNameStr(community_owner.name),
             CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
@@ -93,6 +93,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
         deleted = ctx.services.community.delete()
 
         await messages.object_nuked(ctx.interaction, deleted)
+
 
 class CommunitiesInterface(BaseInterface, group_name="communities"):
     @app_commands.command()

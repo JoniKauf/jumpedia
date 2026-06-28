@@ -5,17 +5,18 @@ from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import Str
 
-
 if t.TYPE_CHECKING:
 
-    class TaskAttributeSlot(Str):
+    class TaskAttributeSlotStr(Str):
         """A string that holds a slot's value of a task attribute value.
-        
+
         It also represents the name and aliases of an attribute, because in the same way,
         they are also technically just attribute value slots.
         """
 
 else:
-    TaskAttributeSlot = factories.make_length_limited_str_store_type(
-        "TaskAttributeSlot", CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX, TaskEntity
+    TaskAttributeSlotStr = factories.make_length_limited_str_store_type(
+        "TaskAttributeSlotStr",
+        CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX,
+        TaskEntity,
     )

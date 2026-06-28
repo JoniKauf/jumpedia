@@ -15,7 +15,7 @@ from domain.types.common import ID
 from domain.types.server import ServerID
 from domain.types.user import UserID
 from domain.value_objects.string import Str
-from domain.value_objects.user import UserName
+from domain.value_objects.user import UserNameStr
 from interfaces.contexts.command import CommandContext, PublicServices
 from interfaces.message import format, messages
 from repositories.attribute import AttributeRepository
@@ -114,7 +114,7 @@ def _create_services_object(session: Session, member: discord.Member):
         user_service.get_or_create(
             UserInsert(
                 UserID(ID(member.id)),
-                UserName(member.name),
+                UserNameStr(member.name),
             )
         ),
         _get_server_rank(member),
