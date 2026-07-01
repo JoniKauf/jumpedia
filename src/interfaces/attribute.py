@@ -12,8 +12,14 @@ from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.message import messages
 from services.dtos.attribute import AttributeSummary
-from services.dtos.attribute_collection_entry import CreateAttributeCollectionEntry
+from services.dtos.attribute_collection_entry import AttributeCollectionEntryEntityWithAliases, CreateAttributeCollectionEntry
 
+
+def _collection_to_representation(collection: tuple[AttributeCollectionEntryEntityWithAliases, ...]) -> tuple[str, ...]:
+    # Python's repr of strings aligns well with our string tokens.
+    return tuple(
+        f"({item.entry.value.real.value!r}: {' '.join(repr(alias.real.value) for alias in item.aliases)})" for item in collection
+    )
 
 class AttributeInterface(BaseInterface, group_name="attribute"):
     @app_commands.command()
@@ -31,6 +37,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (attr_info.name.real.value,),
+            "Alias": tuple(syn.real.value for syn in attr_info.aliases),
             "List": (attr_info.list.name.real.value,),
             "Type": (attr_info.type.name.title(),),
             "Kind": (attr_info.kind.name.title(),),
@@ -38,6 +45,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             "Minimum Slot Count": (str(attr_info.slot.min_count),),
             "Maximum Slot Count": (str(attr_info.slot.max_count),),
             "Position": (str(attr_info.position.value),),
+            "Collection": _collection_to_representation(attr_info.collection)
         }
 
         await messages.object_info(ctx.interaction, type(attr_info), data)
@@ -108,6 +116,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((summary.name.real.value,) for summary in summaries),
+            "Alias": tuple(tuple(syn.real.value for syn in summary.aliases) for summary in summaries),
             "List": tuple((summary.list.name.real.value,) for summary in summaries),
             "Type": tuple((summary.type.name.title(),) for summary in summaries),
             "Kind": tuple((summary.kind.name.title(),) for summary in summaries),
@@ -121,6 +130,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
                 (str(summary.slot.max_count),) for summary in summaries
             ),
             "Position": tuple((str(summary.position.value),) for summary in summaries),
+            "Collection": tuple(_collection_to_representation(summary.collection) for summary in summaries)
         }
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)

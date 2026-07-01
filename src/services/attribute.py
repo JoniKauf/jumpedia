@@ -177,15 +177,13 @@ class AttributeService:
         return attr_entity
 
     def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> DeletedAttribute:
-        _, community_user, lst = self._list_access_service.get_convenient(
-            None, list_name
+        _, community_user, lst, attr = self._attribute_access_service.get_convenient(
+            None, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.ADMINISTRATOR
         )
-
-        attr = self._attribute_access_service.get_by_list_and_name_or_raise(lst, name)
 
         self._attribute_repo.delete(attr.attribute_id)
         self._attribute_repo.decrement_positions_after(lst.list_id, attr.position)
@@ -207,9 +205,8 @@ class AttributeQueryService:
     def info(
         self, syn: AttributeSynStr, list_name: ListNameStr | None
     ) -> AttributeInfo:
-        _, _, lst = self._list_access_service.get_convenient(None, list_name)
+        _, _, lst, attr = self._attribute_access_service.get_convenient(None, list_name, syn, False)
 
-        attr = self._attribute_access_service.get_by_list_and_syn_or_raise(lst, syn)
         aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
         collection = (
             self._attribute_collection_entry_repo.get_collection_by_attribute_id(
@@ -301,10 +298,11 @@ class AttributeAccessService:
         community_name: CommunityNameStr | None,
         list_name: ListNameStr | None,
         attribute_syn: AttributeSynStr,
+        attribute_only_by_name: bool
     ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, AttributeEntity]:
         community, community_user, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
-        attr = self.get_by_list_and_syn_or_raise(lst, attribute_syn)
+        attr = self.get_by_list_and_name_or_raise(lst, attribute_syn) if attribute_only_by_name else self.get_by_list_and_syn_or_raise(lst, attribute_syn)
 
         return (community, community_user, lst, attr)

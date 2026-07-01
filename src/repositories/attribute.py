@@ -91,6 +91,7 @@ class AttributeRepository(BaseRepository):
             select(AttributeModel)
             .where(AttributeModel.list_id == list_id)
             .where(AttributeModel.type.in_(types))
+            .order_by(AttributeModel.position.asc())
         )
         objs = self._session.scalars(stmt).all()
         return tuple(attribute_model_to_entity(o) for o in objs)
@@ -215,6 +216,7 @@ class AttributeRepository(BaseRepository):
             select(AttributeModel)
             .join(ListModel, ListModel.list_id == AttributeModel.list_id)
             .where(ListModel.community_id == community_id)
+            .order_by(ListModel.list_id.asc(), AttributeModel.position.asc())
         )
 
         res: dict[ListID, list[AttributeEntity]] = {}
@@ -325,7 +327,7 @@ class AttributeRepository(BaseRepository):
                 AttributeModel.type.in_(types),
             )
             .order_by(
-                AttributeModel.attribute_id.asc(), AttributeAliasModel.index.asc()
+                AttributeModel.position.asc(), AttributeAliasModel.index.asc()
             )
         )
 

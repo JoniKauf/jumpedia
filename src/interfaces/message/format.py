@@ -7,6 +7,7 @@ from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity, UserEntity
 from domain.entities.list import ListEntity
+from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, Str
@@ -14,6 +15,7 @@ from interfaces.message.layout import T, _TaggedObj
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.list import DeletedList, ListInfo, ListSummary
+from services.dtos.task import DeletedTask, TaskInfo, TaskSummary
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -37,11 +39,11 @@ def human_join(
     return f"{delimiter.join(objects_str[:-1])}{final_delimiter}{objects[-1]}"
 
 
-type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity
+type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity | TaskEntity
 
-type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo
-type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary
-type MentionableDeletedDTOT = DeletedCommunity | DeletedList | DeletedAttribute
+type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskInfo
+type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskSummary
+type MentionableDeletedDTOT = DeletedCommunity | DeletedList | DeletedAttribute | DeletedTask
 type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT

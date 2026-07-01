@@ -131,15 +131,13 @@ class TaskService:
         return task_entity
 
     def delete(self, name: TaskAttributeSlotStr, list_name: ListNameStr) -> DeletedTask:
-        _, community_user, lst = self._list_access_service.get_convenient(
-            None, list_name
+        _, community_user, lst, task = self._task_access_service.get_convenient(
+            None, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
             community_user, CommunityRank.MODERATOR
         )
-
-        task = self._task_access_service.get_by_list_and_name_or_raise(lst, name)
 
         self._task_repo.delete(task.task_id)
 
@@ -157,7 +155,7 @@ class TaskQueryService:
     def info(
         self, syn: TaskAttributeSlotStr, list_name: ListNameStr | None
     ) -> TaskInfo:
-        _, _, lst, task = self._task_access_service.get_convenient(None, list_name, syn)
+        _, _, lst, task = self._task_access_service.get_convenient(None, list_name, syn, False)
 
         ATTRIBUTE_TYPES: t.Final = {AttributeType.TASK}
 
@@ -252,10 +250,11 @@ class TaskAccessService:
         community_name: CommunityNameStr | None,
         list_name: ListNameStr | None,
         task_syn: TaskAttributeSlotStr,
+        task_only_by_name: bool
     ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, TaskEntity]:
         community, community_user, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
-        task = self.get_by_list_and_syn_or_raise(lst, task_syn)
+        task = self.get_by_list_and_name_or_raise(lst, task_syn) if task_only_by_name else self.get_by_list_and_syn_or_raise(lst, task_syn)
 
         return (community, community_user, lst, task)

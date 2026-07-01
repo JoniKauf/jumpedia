@@ -56,6 +56,9 @@ class ListService:
 
         # Create static attributes
         for i, kind in enumerate(AttributeKind):
+            if kind is AttributeKind.NONE:
+                continue
+            
             self._attribute_repo.create(
                 AttributeInsert(
                     list_id=lst.list_id,
@@ -128,7 +131,7 @@ class ListQueryService:
     def info(self, name: ListNameStr) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(None, name)
 
-        attributes = self._attribute_repo.get_all_by_list_id(lst.list_id)
+        attributes = self._attribute_repo.get_all_by_list_id(lst.list_id, AttributeType.ALL())
         task_count = self._task_repo.count_by_list(lst.list_id)
         is_default = community.default_selected_list_id == lst.list_id
 

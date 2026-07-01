@@ -25,8 +25,8 @@ class AttributeCollectionEntryEntity(BaseEntity[AttributeCollectionEntryID]):
 
     @property
     def value(self) -> TaskAttributeSlotStr:
-        return self._name
+        return self._value
 
     @value.setter
     def value(self, value: TaskAttributeSlotStr) -> None:
-        self._name = value
+        self._value = value

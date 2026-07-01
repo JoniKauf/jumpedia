@@ -30,7 +30,6 @@ class AttributeKind(enum.IntEnum):
     ALIAS = 2
     ID = 3
 
-
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
 class AttributeSlotType(enum.IntEnum):
     BOOLEAN = 1
