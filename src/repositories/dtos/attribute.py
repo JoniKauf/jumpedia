@@ -9,10 +9,10 @@ from domain.value_objects.position import Position
 
 
 @dataclass(frozen=True, slots=True)
-class AttributeInsert:
+class AttributeInsert[T: AttributeType]:
     list_id: ListID
     name: AttributeSynStr
-    type: AttributeType
+    type: T
     kind: AttributeKind
     slot: AttributeSlot
     position: Position

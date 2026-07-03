@@ -5,21 +5,28 @@ from discord import app_commands
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 from interfaces import dsl
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.message import messages
 from services.dtos.attribute import AttributeSummary
-from services.dtos.attribute_collection_entry import AttributeCollectionEntryEntityWithAliases, CreateAttributeCollectionEntry
+from services.dtos.collection_entry import (
+    CollectionEntryEntityWithAliases,
+    CreateCollectionEntry,
+)
 
 
-def _collection_to_representation(collection: tuple[AttributeCollectionEntryEntityWithAliases, ...]) -> tuple[str, ...]:
+def _collection_to_representation(
+    collection: tuple[CollectionEntryEntityWithAliases, ...],
+) -> tuple[str, ...]:
     # Python's repr of strings aligns well with our string tokens.
     return tuple(
-        f"({item.entry.value.real.value!r}: {' '.join(repr(alias.real.value) for alias in item.aliases)})" for item in collection
+        f"({str(item.entry.value)!r}: {' '.join(repr(str(alias)) for alias in item.aliases)})"
+        for item in collection
     )
+
 
 class AttributeInterface(BaseInterface, group_name="attribute"):
     @app_commands.command()
@@ -30,25 +37,25 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         attribute_name_or_alias: str,
         list_name: str | None = None,
     ) -> None:
-        attr_info = ctx.services.attribute_query.info(
+        info = ctx.services.attribute_query.info(
             AttributeSynStr(attribute_name_or_alias),
             None if list_name is None else ListNameStr(list_name),
         )
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (attr_info.name.real.value,),
-            "Alias": tuple(syn.real.value for syn in attr_info.aliases),
-            "List": (attr_info.list.name.real.value,),
-            "Type": (attr_info.type.name.title(),),
-            "Kind": (attr_info.kind.name.title(),),
-            "Slot Type": (attr_info.slot.type.name.title(),),
-            "Minimum Slot Count": (str(attr_info.slot.min_count),),
-            "Maximum Slot Count": (str(attr_info.slot.max_count),),
-            "Position": (str(attr_info.position.value),),
-            "Collection": _collection_to_representation(attr_info.collection)
+            "Name": (str(info.name),),
+            "Alias": tuple(str(syn) for syn in info.aliases),
+            "List": (str(info.list.name),),
+            "Type": (info.type.name.title(),),
+            "Kind": (info.kind.name.title(),),
+            "Slot Type": (info.slot.type.name.title(),),
+            "Minimum Slot Count": (str(info.slot.min_count),),
+            "Maximum Slot Count": (str(info.slot.max_count),),
+            "Position": (str(info.position.value),),
+            "Collection": _collection_to_representation(info.collection),
         }
 
-        await messages.object_info(ctx.interaction, type(attr_info), data)
+        await messages.object_info(ctx.interaction, type(info), data)
 
     class NonStaticAttributeTypesEnum(enum.Enum):
         TASK = AttributeType.TASK
@@ -72,13 +79,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         if aliases_dsl is not None:
             aliases = tuple(map(AttributeSynStr, (aliases_dsl)))
 
-        collection: tuple[CreateAttributeCollectionEntry, ...] = ()
+        collection: tuple[CreateCollectionEntry, ...] = ()
 
         if collection_dsl:
             collection = tuple(
-                CreateAttributeCollectionEntry(
-                    TaskAttributeSlotStr(k),
-                    tuple(TaskAttributeSlotStr(elem) for elem in v),
+                CreateCollectionEntry(
+                    FieldSlotStr(k),
+                    tuple(FieldSlotStr(elem) for elem in v),
                 )
                 for k, v in dsl.value_list.engine.eval(collection_dsl)
             )
@@ -115,9 +122,11 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
         )
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
-            "Name": tuple((summary.name.real.value,) for summary in summaries),
-            "Alias": tuple(tuple(syn.real.value for syn in summary.aliases) for summary in summaries),
-            "List": tuple((summary.list.name.real.value,) for summary in summaries),
+            "Name": tuple((str(summary.name),) for summary in summaries),
+            "Alias": tuple(
+                tuple(str(syn) for syn in summary.aliases) for summary in summaries
+            ),
+            "List": tuple((str(summary.list.name),) for summary in summaries),
             "Type": tuple((summary.type.name.title(),) for summary in summaries),
             "Kind": tuple((summary.kind.name.title(),) for summary in summaries),
             "Slot Type": tuple(
@@ -130,7 +139,10 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
                 (str(summary.slot.max_count),) for summary in summaries
             ),
             "Position": tuple((str(summary.position.value),) for summary in summaries),
-            "Collection": tuple(_collection_to_representation(summary.collection) for summary in summaries)
+            "Collection": tuple(
+                _collection_to_representation(summary.collection)
+                for summary in summaries
+            ),
         }
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)

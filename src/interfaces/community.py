@@ -1,3 +1,4 @@
+import datetime as dt
 import typing as t
 from dataclasses import asdict
 
@@ -18,6 +19,10 @@ from services.dtos.community import CommunitySummary
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
 
+def _created_to_representation(created: dt.datetime) -> str:
+    return created.strftime("%A, %Y/%m/%d %H:%M:%S")
+
+
 class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
@@ -27,17 +32,17 @@ class CommunityInterface(BaseInterface, group_name="community"):
         )
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (info.name.real.value,),
-            "Created": (info.created.strftime("%A, %Y/%m/%d %H:%M:%S"),),
+            "Name": (str(info.name),),
+            "Created": (_created_to_representation(info.created),),
             "Owners": tuple(
-                user.name.real.value
+                str(user.name)
                 for user in info.community_users
                 if user.community_rank is CommunityRank.OWNER
             ),
             "User Count": (str(len(info.community_users)),),
-            "Lists": tuple(lst.name.real.value for lst in info.lists),
+            "Lists": tuple(str(lst.name) for lst in info.lists),
             "Default Selected List": (
-                (info.default_selected_list.name.real.value,)
+                (str(info.default_selected_list.name),)
                 if info.default_selected_list
                 else ()
             ),
@@ -63,9 +68,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
         list_attribute_count_max: int = _DEFAULT_LIMITS.list_attribute_count_max,
         list_task_count_max: int = _DEFAULT_LIMITS.list_task_count_max,
         attr_alias_count_max: int = _DEFAULT_LIMITS.attribute_alias_count_max,
-        attr_task_value_slot_count_max: int = _DEFAULT_LIMITS.attribute_task_value_slot_count_max,
-        attr_coll_entry_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_count_max,
-        attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
+        attr_task_value_slot_count_max: int = _DEFAULT_LIMITS.field_slot_count_max,
+        attr_coll_entry_count_max: int = _DEFAULT_LIMITS.collection_entry_count_max,
+        attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.collection_entry_alias_count_max,
     ) -> None:
         community = ctx.services.community.create(
             CommunityNameStr(community_name),
@@ -76,9 +81,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
                 list_attribute_count_max=list_attribute_count_max,
                 list_task_count_max=list_task_count_max,
                 attribute_alias_count_max=attr_alias_count_max,
-                attribute_task_value_slot_count_max=attr_task_value_slot_count_max,
-                attribute_collection_entry_count_max=attr_coll_entry_count_max,
-                attribute_collection_entry_alias_count_max=attr_coll_entry_alias_count_max,
+                field_slot_count_max=attr_task_value_slot_count_max,
+                collection_entry_count_max=attr_coll_entry_count_max,
+                collection_entry_alias_count_max=attr_coll_entry_alias_count_max,
             ),
         )
 
@@ -102,10 +107,9 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
         summaries = ctx.services.community_query.summaries()
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
-            "Name": tuple((summary.name.real.value,) for summary in summaries),
+            "Name": tuple((str(summary.name),) for summary in summaries),
             "Created": tuple(
-                (summary.created.strftime("%A, %Y/%m/%d %H:%M:%S"),)
-                for summary in summaries
+                (_created_to_representation(summary.created),) for summary in summaries
             ),
             "User Count": tuple(
                 (str(summary.community_user_count),) for summary in summaries

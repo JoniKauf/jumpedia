@@ -19,9 +19,9 @@ from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.attribute import AttributeAliasID, AttributeID
-from domain.types.attribute_collection_entry import (
-    AttributeCollectionEntryAliasID,
-    AttributeCollectionEntryID,
+from domain.types.collection_entry import (
+    CollectionEntryAliasID,
+    CollectionEntryID,
 )
 from domain.types.common import ID
 from domain.types.community import CommunityID
@@ -81,17 +81,17 @@ class CommunityModel(BaseModel):
     attribute_alias_count_max: Mapped[int] = mapped_column(
         INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_alias_count_max
     )
-    attribute_task_value_slot_count_max: Mapped[int] = mapped_column(
+    field_slot_count_max: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.attribute_task_value_slot_count_max,
+        default=_DEFAULT_LIMITS.field_slot_count_max,
     )
-    attribute_collection_entry_count_max: Mapped[int] = mapped_column(
+    collection_entry_count_max: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.attribute_collection_entry_count_max,
+        default=_DEFAULT_LIMITS.collection_entry_count_max,
     )
-    attribute_collection_entry_alias_count_max: Mapped[int] = mapped_column(
+    collection_entry_alias_count_max: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.attribute_collection_entry_alias_count_max,
+        default=_DEFAULT_LIMITS.collection_entry_alias_count_max,
     )
 
 
@@ -266,10 +266,10 @@ class AttributeAliasModel(BaseModel):
 # --- Attribute Collection ---
 
 
-class AttributeCollectionEntryModel(BaseModel):
-    __tablename__ = "attribute_collection_entry"
+class CollectionEntryModel(BaseModel):
+    __tablename__ = "collection_entry"
 
-    attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(
+    collection_entry_id: Mapped[CollectionEntryID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
@@ -281,12 +281,12 @@ class AttributeCollectionEntryModel(BaseModel):
 
     norm_value: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
             * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_value: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -296,12 +296,12 @@ class AttributeCollectionEntryModel(BaseModel):
     )
 
 
-class AttributeCollectionEntryAliasModel(BaseModel):
-    __tablename__ = "attribute_collection_entry_alias"
+class CollectionEntryAliasModel(BaseModel):
+    __tablename__ = "collection_entry_alias"
 
-    attribute_collection_entry_id: Mapped[AttributeCollectionEntryID] = mapped_column(
+    collection_entry_id: Mapped[CollectionEntryID] = mapped_column(
         ForeignKey(
-            "attribute_collection_entry.attribute_collection_entry_id",
+            "collection_entry.collection_entry_id",
             ondelete="CASCADE",
         ),
         primary_key=True,
@@ -315,12 +315,12 @@ class AttributeCollectionEntryAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
             * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -345,12 +345,12 @@ class TaskModel(BaseModel):
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
             * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_name: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -374,12 +374,12 @@ class TaskAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
             * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     __table_args__ = (
@@ -391,8 +391,8 @@ class TaskAliasModel(BaseModel):
 # --- Static Task Values ---
 
 
-class TaskAttributeSlotModel(BaseModel):
-    __tablename__ = "task_attribute_slot"
+class FieldSlotModel(BaseModel):
+    __tablename__ = "field_slot"
 
     task_id: Mapped[TaskID] = mapped_column(
         ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
@@ -405,11 +405,11 @@ class TaskAttributeSlotModel(BaseModel):
     index: Mapped[int] = mapped_column(primary_key=True)
 
     real_slot: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     norm_slot: Mapped[NormStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * 3)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
     )
 
 
@@ -437,10 +437,10 @@ class CommunityUserTaskModel(BaseModel):
     )
 
 
-class CommunityUserTaskAttributeSlotModel(BaseModel):
-    __tablename__ = "community_user_task_attribute_slot"
+class CommunityUserFieldSlotModel(BaseModel):
+    __tablename__ = "community_user_field_slot"
 
-    community_user_task_attribute_value_id: Mapped[ID] = mapped_column(
+    community_user_field_slot_id: Mapped[ID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
@@ -448,18 +448,14 @@ class CommunityUserTaskAttributeSlotModel(BaseModel):
         ForeignKey("community_user_task.community_user_task_id", ondelete="CASCADE")
     )
 
-    attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE")
-    )
-
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     real_slot: Mapped[RealStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
 
     norm_slot: Mapped[NormStr] = mapped_column(
-        RealStrType(CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX * 3)
+        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
     )
 
     __table_args__ = (

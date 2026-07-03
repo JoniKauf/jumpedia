@@ -7,7 +7,7 @@ from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
-    class TaskAttributeSlotStr(Str):
+    class FieldSlotStr(Str):
         """A string that holds a slot's value of a task attribute value.
 
         It also represents the name and aliases of an attribute, because in the same way,
@@ -15,8 +15,8 @@ if t.TYPE_CHECKING:
         """
 
 else:
-    TaskAttributeSlotStr = factories.make_length_limited_str_store_type(
-        "TaskAttributeSlotStr",
-        CommunityLimits.ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX,
+    FieldSlotStr = factories.make_length_limited_str_store_type(
+        "FieldSlotStr",
+        CommunityLimits.FIELD_SLOT_LENGTH_MAX,
         TaskEntity,
     )

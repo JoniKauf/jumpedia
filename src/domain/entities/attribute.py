@@ -6,13 +6,13 @@ from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.position import Position
 
 
-class AttributeEntity(BaseEntity[AttributeID]):
+class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID]):
     def __init__(
         self,
         attribute_id: AttributeID,
         list_id: ListID,
         name: AttributeSynStr,
-        type: AttributeType,
+        type: T,
         kind: AttributeKind,
         slot: AttributeSlot,
         position: Position,
@@ -35,7 +35,7 @@ class AttributeEntity(BaseEntity[AttributeID]):
         return self._list_id
 
     @property
-    def type(self) -> AttributeType:
+    def type(self) -> T:
         return self._type
 
     @property
@@ -65,3 +65,9 @@ class AttributeEntity(BaseEntity[AttributeID]):
     @position.setter
     def position(self, value: Position) -> None:
         self._position = value
+
+    type StaticT = AttributeEntity[AttributeType.StaticT]
+    type TaskT = AttributeEntity[AttributeType.TaskT]
+    type UserT = AttributeEntity[AttributeType.UserT]
+
+    type AllStaticT = tuple[StaticT, StaticT, StaticT]

@@ -4,16 +4,16 @@ from domain.entities.base import BaseEntity
 from domain.types.attribute import AttributeID
 from domain.types.task import TaskID
 from domain.value_objects.index import Index
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 
 
-class TaskAttributeSlotEntity(BaseEntity[TaskID, AttributeID, Index]):
+class FieldSlotEntity(BaseEntity[TaskID, AttributeID, Index]):
     def __init__(
         self,
         task_id: TaskID,
         attribute_id: AttributeID,
         index: Index,
-        slot: TaskAttributeSlotStr,
+        slot: FieldSlotStr,
     ) -> None:
         super().__init__(task_id, attribute_id, index)
 
@@ -32,9 +32,9 @@ class TaskAttributeSlotEntity(BaseEntity[TaskID, AttributeID, Index]):
         return self._composite_key[2]
 
     @property
-    def slot(self) -> TaskAttributeSlotStr:
+    def slot(self) -> FieldSlotStr:
         return self._slot
 
     @slot.setter
-    def slot(self, value: TaskAttributeSlotStr) -> None:
+    def slot(self, value: FieldSlotStr) -> None:
         self._slot = value

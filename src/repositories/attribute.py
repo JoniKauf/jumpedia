@@ -1,25 +1,23 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import func, or_, select, text
 
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeSlot
-from domain.entities.community import CommunityEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSynStr
-from domain.value_objects.community import CommunityLimits
 from domain.value_objects.position import Position
 from domain.value_objects.string import Str
 from repositories.base import BaseRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
 
-def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity:
+def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
     return AttributeEntity(
         attribute_id=model.attribute_id,
         list_id=model.list_id,
@@ -36,7 +34,9 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity:
 
 
 class AttributeRepository(BaseRepository):
-    def create(self, attribute: AttributeInsert) -> AttributeEntity:
+    def create[T: AttributeType](
+        self, attribute: AttributeInsert[T]
+    ) -> AttributeEntity[T]:
         obj = AttributeModel(
             list_id=attribute.list_id,
             norm_name=attribute.name.norm,
@@ -84,9 +84,9 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_all_by_list_id(
-        self, list_id: ListID, types: t.AbstractSet[AttributeType]
-    ) -> tuple[AttributeEntity, ...]:
+    def get_all_by_list_id[T: AttributeType](
+        self, list_id: ListID, types: t.AbstractSet[T]
+    ) -> tuple[AttributeEntity[T], ...]:
         stmt = (
             select(AttributeModel)
             .where(AttributeModel.list_id == list_id)
@@ -94,7 +94,11 @@ class AttributeRepository(BaseRepository):
             .order_by(AttributeModel.position.asc())
         )
         objs = self._session.scalars(stmt).all()
-        return tuple(attribute_model_to_entity(o) for o in objs)
+        entities: tuple[AttributeEntity[T], ...] = tuple(
+            attribute_model_to_entity(o) for o in objs
+        )
+
+        return entities
 
     def get_by_list_id_and_name(
         self,
@@ -257,9 +261,9 @@ class AttributeRepository(BaseRepository):
 
         self._session.flush()
 
-    def get_syn_to_attribute_by_list_id(
-        self, list_id: ListID, types: t.AbstractSet[AttributeType]
-    ) -> ts.MappingProxyType[AttributeSynStr, AttributeEntity]:
+    def get_syn_to_attribute_by_list_id[T: AttributeType](
+        self, list_id: ListID, types: t.AbstractSet[T]
+    ) -> ts.MappingProxyType[AttributeSynStr, AttributeEntity[T]]:
         stmt = (
             select(AttributeModel, AttributeAliasModel)
             .outerjoin(
@@ -270,14 +274,14 @@ class AttributeRepository(BaseRepository):
             .where(AttributeModel.type.in_(types))
         )
 
-        res: dict[AttributeSynStr, AttributeEntity] = {}
-        id_to_entity: dict[AttributeID, AttributeEntity] = {}
+        res: dict[AttributeSynStr, AttributeEntity[T]] = {}
+        id_to_entity: dict[AttributeID, AttributeEntity[T]] = {}
 
         for attr_obj, alias_obj in self._session.execute(stmt):
             attr_obj: AttributeModel
             alias_obj: AttributeAliasModel | None
 
-            entity = id_to_entity.get(attr_obj.attribute_id)
+            entity: AttributeEntity[T] | None = id_to_entity.get(attr_obj.attribute_id)
 
             if entity is None:
                 entity = attribute_model_to_entity(attr_obj)
@@ -326,9 +330,7 @@ class AttributeRepository(BaseRepository):
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
             )
-            .order_by(
-                AttributeModel.position.asc(), AttributeAliasModel.index.asc()
-            )
+            .order_by(AttributeModel.position.asc(), AttributeAliasModel.index.asc())
         )
 
         res: dict[AttributeID, list[AttributeSynStr]] = {}

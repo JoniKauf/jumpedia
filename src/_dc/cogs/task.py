@@ -321,11 +321,11 @@ class TaskCog(cmds.GroupCog, group_name="task"):
         list: str,
         name: str,
         aliases: str | None = None,
-        task_attribute_value_mapping: str | None = None,
+        task_field_mapping: str | None = None,
     ) -> CoroutineType[t.Any, t.Any, t.Any]:
         list_obj = shortcuts.get_specified_or_ia_user_selected_or_default_list(ia, list)
 
-        task_obj = list_obj.create_task(name, aliases, task_attribute_value_mapping)
+        task_obj = list_obj.create_task(name, aliases, task_field_mapping)
 
         return ia.dc.followup.send(layouts.structure_created(task_obj._o))
 

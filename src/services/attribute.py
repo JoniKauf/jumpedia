@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
-from domain.entities.attribute_collection_entry import AttributeCollectionEntryEntity
+from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.community_user import CommunityUserEntity
 from domain.entities.list import ListEntity
@@ -14,21 +14,21 @@ from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
-from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
+from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
-from repositories.dtos.attribute_collection_entry import (
-    AttributeCollectionEntryAliasInsert,
-    AttributeCollectionEntryInsert,
+from repositories.dtos.collection_entry import (
+    CollectionEntryAliasInsert,
+    CollectionEntryInsert,
 )
 from services.community import CommunityAccessService
 from services.community_user import CommunityUserAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
-from services.dtos.attribute_collection_entry import (
-    AttributeCollectionEntryEntityWithAliases,
-    CreateAttributeCollectionEntry,
+from services.dtos.collection_entry import (
+    CollectionEntryEntityWithAliases,
+    CreateCollectionEntry,
 )
 from services.list import ListAccessService
 from services.permission import PermissionService
@@ -37,20 +37,20 @@ from services.permission import PermissionService
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeService:
     _attribute_repo: AttributeRepository
-    _attribute_collection_entry_repo: AttributeCollectionEntryRepository
+    _collection_entry_repo: CollectionEntryRepository
     _permission_service: PermissionService
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
 
-    def create(
+    def create[T: AttributeType.TaskT | AttributeType.UserT](
         self,
         name: AttributeSynStr,
         list_name: ListNameStr,
-        type: t.Literal[AttributeType.TASK, AttributeType.USER],
+        type: T,
         slot: AttributeSlot,
         aliases: tuple[AttributeSynStr, ...],
-        collection_entries: tuple[CreateAttributeCollectionEntry, ...],
-    ) -> AttributeEntity:
+        collection_entries: tuple[CreateCollectionEntry, ...],
+    ) -> AttributeEntity[T]:
         # --- Get Data ---
         community, community_user, lst = self._list_access_service.get_convenient(
             None, list_name
@@ -92,18 +92,18 @@ class AttributeService:
             raise errors.InitialSlotCountMustBeZero()
 
         # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
-        if slot.max_count > community.limits.attribute_task_value_slot_count_max:
+        if slot.max_count > community.limits.field_slot_count_max:
             raise errors.SlotCountDefinitionLimitExceeded(
                 slot.min_count,
                 slot.max_count,
-                CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT,
-                CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT,
-                community.limits.attribute_task_value_slot_count_max,
+                CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
+                CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
+                community.limits.field_slot_count_max,
             )
 
         # --- Validate Collection ---
         if collection_entries:
-            TaskAttributeSlotStr.raise_if_not_norm_unique(
+            FieldSlotStr.raise_if_not_norm_unique(
                 syn
                 for entry in collection_entries
                 for syn in (entry.value, *entry.aliases)
@@ -111,20 +111,20 @@ class AttributeService:
 
             if (
                 len(collection_entries)
-                > community.limits.attribute_collection_entry_count_max
+                > community.limits.collection_entry_count_max
             ):
                 raise errors.CountLimitReached(
-                    community.limits.attribute_collection_entry_count_max,
-                    AttributeCollectionEntryEntity,
+                    community.limits.collection_entry_count_max,
+                    CollectionEntryEntity,
                 )
 
             for entry in collection_entries:
                 if (
                     len(entry.aliases)
-                    > community.limits.attribute_collection_entry_alias_count_max
+                    > community.limits.collection_entry_alias_count_max
                 ):
                     raise errors.AliasCountLimitReached(
-                        community.limits.attribute_collection_entry_alias_count_max,
+                        community.limits.collection_entry_alias_count_max,
                         entry.value,
                     )
 
@@ -150,21 +150,21 @@ class AttributeService:
 
         # --- Create Attribute Collection ---
         if collection_entries:
-            created_entries: tuple[AttributeCollectionEntryEntity, ...] = (
-                self._attribute_collection_entry_repo.create_many(
-                    AttributeCollectionEntryInsert(
+            created_entries: tuple[CollectionEntryEntity, ...] = (
+                self._collection_entry_repo.create_many(
+                    CollectionEntryInsert(
                         attr_entity.attribute_id, Index(i), entry.value
                     )
                     for i, entry in enumerate(collection_entries)
                 )
             )
 
-            all_aliases: list[AttributeCollectionEntryAliasInsert] = []
+            all_aliases: list[CollectionEntryAliasInsert] = []
 
             for i, created_entry in enumerate(created_entries):
                 for i, alias in enumerate(collection_entries[i].aliases):
-                    alias_insert = AttributeCollectionEntryAliasInsert(
-                        created_entry.attribute_collection_entry_id,
+                    alias_insert = CollectionEntryAliasInsert(
+                        created_entry.collection_entry_id,
                         Index(i),
                         created_entry.attribute_id,
                         alias,
@@ -172,7 +172,7 @@ class AttributeService:
 
                     all_aliases.append(alias_insert)
 
-            self._attribute_collection_entry_repo.create_many_aliases(all_aliases)
+            self._collection_entry_repo.create_many_aliases(all_aliases)
 
         return attr_entity
 
@@ -196,7 +196,7 @@ class AttributeService:
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeQueryService:
     _attribute_repo: AttributeRepository
-    _attribute_collection_entry_repo: AttributeCollectionEntryRepository
+    _collection_entry_repo: CollectionEntryRepository
     _community_access_service: CommunityAccessService
     _community_user_access_service: CommunityUserAccessService
     _list_access_service: ListAccessService
@@ -205,11 +205,13 @@ class AttributeQueryService:
     def info(
         self, syn: AttributeSynStr, list_name: ListNameStr | None
     ) -> AttributeInfo:
-        _, _, lst, attr = self._attribute_access_service.get_convenient(None, list_name, syn, False)
+        _, _, lst, attr = self._attribute_access_service.get_convenient(
+            None, list_name, syn, False
+        )
 
         aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
         collection = (
-            self._attribute_collection_entry_repo.get_collection_by_attribute_id(
+            self._collection_entry_repo.get_collection_by_attribute_id(
                 attr.attribute_id
             )
         )
@@ -223,7 +225,7 @@ class AttributeQueryService:
             attr.slot,
             attr.position,
             tuple(
-                AttributeCollectionEntryEntityWithAliases(entry.entry, entry.aliases)
+                CollectionEntryEntityWithAliases(entry.entry, entry.aliases)
                 for entry in collection
             ),
         )
@@ -242,7 +244,7 @@ class AttributeQueryService:
             lst.list_id, ATTRIBUTE_TYPES
         )
         attr_id_to_collection = (
-            self._attribute_collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES
             )
         )
@@ -257,7 +259,7 @@ class AttributeQueryService:
                 attr.slot,
                 attr.position,
                 tuple(
-                    AttributeCollectionEntryEntityWithAliases(
+                    CollectionEntryEntityWithAliases(
                         entry.entry, entry.aliases
                     )
                     for entry in attr_id_to_collection[attr.attribute_id]
@@ -298,11 +300,15 @@ class AttributeAccessService:
         community_name: CommunityNameStr | None,
         list_name: ListNameStr | None,
         attribute_syn: AttributeSynStr,
-        attribute_only_by_name: bool
+        attribute_only_by_name: bool,
     ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, AttributeEntity]:
         community, community_user, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
-        attr = self.get_by_list_and_name_or_raise(lst, attribute_syn) if attribute_only_by_name else self.get_by_list_and_syn_or_raise(lst, attribute_syn)
+        attr = (
+            self.get_by_list_and_name_or_raise(lst, attribute_syn)
+            if attribute_only_by_name
+            else self.get_by_list_and_syn_or_raise(lst, attribute_syn)
+        )
 
         return (community, community_user, lst, attr)

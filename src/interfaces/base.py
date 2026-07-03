@@ -4,7 +4,7 @@ from discord.ext import commands
 
 
 class InterfaceMeta(commands.CogMeta):
-    """CogMeata subclass to enforce a group name being specified in instances of this metaclass."""
+    """CogMeta subclass to force a group name to be specified for all instances of this metaclass."""
 
     def __new__(
         mcls,

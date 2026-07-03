@@ -58,11 +58,11 @@ class ListService:
         for i, kind in enumerate(AttributeKind):
             if kind is AttributeKind.NONE:
                 continue
-            
+
             self._attribute_repo.create(
                 AttributeInsert(
                     list_id=lst.list_id,
-                    name=AttributeSynStr(kind.name.title()),
+                    name=AttributeSynStr(("ID", "Name", "Alias")[i]),
                     type=AttributeType.STATIC,
                     kind=kind,
                     slot=AttributeSlot(
@@ -75,7 +75,7 @@ class ListService:
                         max_count=(
                             1,
                             1,
-                            community.limits.attribute_task_value_slot_count_max,
+                            community.limits.field_slot_count_max,
                         )[i],
                     ),
                     position=Position(i + 1),
@@ -131,7 +131,9 @@ class ListQueryService:
     def info(self, name: ListNameStr) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(None, name)
 
-        attributes = self._attribute_repo.get_all_by_list_id(lst.list_id, AttributeType.ALL())
+        attributes = self._attribute_repo.get_all_by_list_id(
+            lst.list_id, AttributeType.ALL()
+        )
         task_count = self._task_repo.count_by_list(lst.list_id)
         is_default = community.default_selected_list_id == lst.list_id
 

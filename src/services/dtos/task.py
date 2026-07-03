@@ -1,35 +1,47 @@
 import types as ts
+import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.entities.list import ListEntity
+from domain.enums.attribute import AttributeType
 from domain.types.task import TaskID
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 
 
 @dataclass(frozen=True, slots=True)
 class DeletedTask:
-    name: TaskAttributeSlotStr
+    name: FieldSlotStr
     list: ListEntity
 
 
 @dataclass(frozen=True, slots=True)
 class TaskInfo:
     id: TaskID
-    name: TaskAttributeSlotStr
-    aliases: tuple[TaskAttributeSlotStr, ...]
+    name: FieldSlotStr
+    aliases: tuple[FieldSlotStr, ...]
     list: ListEntity
-    task_attribute_value_mapping: ts.MappingProxyType[
-        AttributeEntity, tuple[TaskAttributeSlotStr, ...]
+    field_mapping: ts.MappingProxyType[
+        AttributeEntity.TaskT, tuple[FieldSlotStr, ...]
+    ]
+    static_attributes: tuple[
+        AttributeEntity.StaticT, AttributeEntity.StaticT, AttributeEntity.StaticT
     ]
 
 
 @dataclass(frozen=True, slots=True)
 class TaskSummary:
     id: TaskID
-    name: TaskAttributeSlotStr
-    aliases: tuple[TaskAttributeSlotStr, ...]
+    name: FieldSlotStr
+    aliases: tuple[FieldSlotStr, ...]
     list: ListEntity
-    task_attribute_value_mapping: ts.MappingProxyType[
-        AttributeEntity, tuple[TaskAttributeSlotStr, ...]
+    field_mapping: ts.MappingProxyType[
+        AttributeEntity.TaskT, tuple[FieldSlotStr, ...]
     ]
+
+
+@dataclass(frozen=True, slots=True)
+class TaskSummariesData:
+    summaries: tuple[TaskSummary, ...]
+    static_attributes: AttributeEntity.AllStaticT
+    task_attributes: tuple[AttributeEntity.TaskT, ...]

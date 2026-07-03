@@ -112,7 +112,7 @@ class Str:
 
     It holds the raw, a :class:`~RealStr` and a :class:`~NormStr` version of the wrapped string.
 
-    The length is returned from the real version of the string, while equality and
+    The length and str(...) is returned from the real version of the string, while equality and
     the hash is based off the norm version of the string.
     """
 
@@ -173,17 +173,20 @@ class Str:
 
         return self._norm
 
-    def __len__(self):
-        return len(self.real)
-
     def _validation(self) -> None:
         pass
+
+    def __len__(self):
+        return len(self.real)
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.norm == value.norm
 
     def __hash__(self) -> int:
         return hash(self.norm)
+
+    def __str__(self) -> str:
+        return str(self)
 
     @classmethod
     def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:

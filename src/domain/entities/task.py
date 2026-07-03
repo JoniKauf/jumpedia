@@ -1,12 +1,12 @@
 from domain.entities.base import BaseEntity
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 
 
 class TaskEntity(BaseEntity[TaskID]):
     def __init__(
-        self, primary_key: TaskID, list_id: ListID, name: TaskAttributeSlotStr
+        self, primary_key: TaskID, list_id: ListID, name: FieldSlotStr
     ) -> None:
         super().__init__(primary_key)
         self._list_id = list_id
@@ -21,9 +21,9 @@ class TaskEntity(BaseEntity[TaskID]):
         return self._list_id
 
     @property
-    def name(self) -> TaskAttributeSlotStr:
+    def name(self) -> FieldSlotStr:
         return self._name
 
     @name.setter
-    def name(self, value: TaskAttributeSlotStr) -> None:
+    def name(self, value: FieldSlotStr) -> None:
         self._name = value

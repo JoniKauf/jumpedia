@@ -10,7 +10,7 @@ from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 
 from .base import BaseRepository
@@ -20,7 +20,7 @@ def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
         model.task_id,
         model.list_id,
-        TaskAttributeSlotStr(_real=model.real_name, _norm=model.norm_name),
+        FieldSlotStr(_real=model.real_name, _norm=model.norm_name),
     )
 
 
@@ -101,7 +101,7 @@ class TaskRepository(BaseRepository):
     def get_syn_to_task_by_list_id(
         self,
         list_id: ListID,
-    ) -> dict[TaskAttributeSlotStr, TaskEntity]:
+    ) -> dict[FieldSlotStr, TaskEntity]:
         stmt = (
             select(TaskModel, TaskAliasModel)
             .outerjoin(
@@ -111,7 +111,7 @@ class TaskRepository(BaseRepository):
             .where(TaskModel.list_id == list_id)
         )
 
-        res: dict[TaskAttributeSlotStr, TaskEntity] = {}
+        res: dict[FieldSlotStr, TaskEntity] = {}
         id_to_entity: dict[TaskID, TaskEntity] = {}
 
         for task_obj, alias_obj in self._session.execute(stmt):
@@ -127,7 +127,7 @@ class TaskRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    TaskAttributeSlotStr(
+                    FieldSlotStr(
                         _real=alias_obj.real_alias,
                         _norm=alias_obj.norm_alias,
                     )
@@ -138,8 +138,8 @@ class TaskRepository(BaseRepository):
     def get_by_list_id_and_any_syn(
         self,
         list_id: ListID,
-        syns: t.Iterable[TaskAttributeSlotStr],
-    ) -> tuple[TaskEntity, TaskAttributeSlotStr] | None:
+        syns: t.Iterable[FieldSlotStr],
+    ) -> tuple[TaskEntity, FieldSlotStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
 
@@ -174,13 +174,13 @@ class TaskRepository(BaseRepository):
         entity = task_model_to_entity(task_obj)
 
         if task_obj.norm_name in norms:
-            syn = TaskAttributeSlotStr(
+            syn = FieldSlotStr(
                 _real=task_obj.real_name,
                 _norm=task_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = TaskAttributeSlotStr(
+            syn = FieldSlotStr(
                 _real=alias_obj.real_alias,
                 _norm=alias_obj.norm_alias,
             )
@@ -214,7 +214,7 @@ class TaskRepository(BaseRepository):
     def get_by_list_id_and_name(
         self,
         list_id: ListID,
-        name: TaskAttributeSlotStr,
+        name: FieldSlotStr,
     ) -> TaskEntity | None:
         stmt = select(TaskModel).where(
             TaskModel.list_id == list_id,
@@ -228,7 +228,7 @@ class TaskRepository(BaseRepository):
     def get_by_list_id_and_syn(
         self,
         list_id: ListID,
-        syn: TaskAttributeSlotStr,
+        syn: FieldSlotStr,
     ) -> TaskEntity | None:
         stmt = (
             select(TaskModel)
@@ -253,7 +253,7 @@ class TaskRepository(BaseRepository):
     def get_aliases_by_task_id(
         self,
         task_id: TaskID,
-    ) -> tuple[TaskAttributeSlotStr, ...]:
+    ) -> tuple[FieldSlotStr, ...]:
         stmt = (
             select(TaskAliasModel)
             .where(TaskAliasModel.task_id == task_id)
@@ -261,7 +261,7 @@ class TaskRepository(BaseRepository):
         )
 
         return tuple(
-            TaskAttributeSlotStr(
+            FieldSlotStr(
                 _real=obj.real_alias,
                 _norm=obj.norm_alias,
             )
@@ -271,7 +271,7 @@ class TaskRepository(BaseRepository):
     def get_grouped_aliases_by_list_id(
         self,
         list_id: ListID,
-    ) -> ts.MappingProxyType[TaskID, tuple[TaskAttributeSlotStr, ...]]:
+    ) -> ts.MappingProxyType[TaskID, tuple[FieldSlotStr, ...]]:
         stmt = (
             select(TaskAliasModel)
             .join(
@@ -287,11 +287,11 @@ class TaskRepository(BaseRepository):
             )
         )
 
-        res: dict[TaskID, list[TaskAttributeSlotStr]] = {}
+        res: dict[TaskID, list[FieldSlotStr]] = {}
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.task_id, []).append(
-                TaskAttributeSlotStr(
+                FieldSlotStr(
                     _real=obj.real_alias,
                     _norm=obj.norm_alias,
                 )

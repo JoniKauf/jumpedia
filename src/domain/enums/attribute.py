@@ -10,16 +10,37 @@ class AttributeType(enum.IntEnum):
     TASK = 2
     USER = 3
 
+    type StaticT = t.Literal[AttributeType.STATIC]
+    type TaskT = t.Literal[AttributeType.TASK]
+    type UserT = t.Literal[AttributeType.USER]
+
+    @t.overload
+    def as_set(self: StaticT) -> t.AbstractSet[StaticT]:
+        return {self}
+
+    @t.overload
+    def as_set(self: TaskT) -> t.AbstractSet[TaskT]:
+        return {self}
+
+    @t.overload
+    def as_set(self: UserT) -> t.AbstractSet[UserT]:
+        return {self}
+
+    def as_set(  # pyright: ignore[reportInconsistentOverload]
+        self,
+    ) -> t.AbstractSet[t.Self]:
+        return {self}
+
     @classmethod
-    def ALL(cls) -> set[AttributeType]:
+    def ALL(cls) -> t.AbstractSet[StaticT | TaskT | UserT]:
         return {cls.STATIC, cls.TASK, cls.USER}
 
     @classmethod
-    def NON_STATIC(cls) -> set[AttributeType]:
+    def NON_STATIC(cls) -> t.AbstractSet[TaskT | UserT]:
         return {cls.TASK, cls.USER}
 
     @classmethod
-    def NON_USER(cls) -> set[AttributeType]:
+    def NON_USER(cls) -> t.AbstractSet[StaticT | TaskT]:
         return {cls.STATIC, cls.TASK}
 
 
@@ -29,6 +50,7 @@ class AttributeKind(enum.IntEnum):
     NAME = 1
     ALIAS = 2
     ID = 3
+
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
 class AttributeSlotType(enum.IntEnum):

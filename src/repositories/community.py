@@ -26,9 +26,9 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
             list_attribute_count_max=model.list_attribute_count_max,
             list_task_count_max=model.list_task_count_max,
             attribute_alias_count_max=model.attribute_alias_count_max,
-            attribute_task_value_slot_count_max=model.attribute_task_value_slot_count_max,
-            attribute_collection_entry_count_max=model.attribute_collection_entry_count_max,
-            attribute_collection_entry_alias_count_max=model.attribute_collection_entry_alias_count_max,
+            field_slot_count_max=model.field_slot_count_max,
+            collection_entry_count_max=model.collection_entry_count_max,
+            collection_entry_alias_count_max=model.collection_entry_alias_count_max,
         ),
     )
 
@@ -46,9 +46,9 @@ class CommunityRepository(BaseRepository):
             list_attribute_count_max=community.limits.list_attribute_count_max,
             list_task_count_max=community.limits.list_task_count_max,
             attribute_alias_count_max=community.limits.attribute_alias_count_max,
-            attribute_task_value_slot_count_max=community.limits.attribute_task_value_slot_count_max,
-            attribute_collection_entry_count_max=community.limits.attribute_collection_entry_count_max,
-            attribute_collection_entry_alias_count_max=community.limits.attribute_collection_entry_alias_count_max,
+            field_slot_count_max=community.limits.field_slot_count_max,
+            collection_entry_count_max=community.limits.collection_entry_count_max,
+            collection_entry_alias_count_max=community.limits.collection_entry_alias_count_max,
         )
 
         self._session.add(obj)
@@ -121,14 +121,14 @@ class CommunityRepository(BaseRepository):
         obj.list_attribute_count_max = community.limits.list_attribute_count_max
         obj.list_task_count_max = community.limits.list_task_count_max
         obj.attribute_alias_count_max = community.limits.attribute_alias_count_max
-        obj.attribute_task_value_slot_count_max = (
-            community.limits.attribute_task_value_slot_count_max
+        obj.field_slot_count_max = (
+            community.limits.field_slot_count_max
         )
-        obj.attribute_collection_entry_count_max = (
-            community.limits.attribute_collection_entry_count_max
+        obj.collection_entry_count_max = (
+            community.limits.collection_entry_count_max
         )
-        obj.attribute_collection_entry_alias_count_max = (
-            community.limits.attribute_collection_entry_alias_count_max
+        obj.collection_entry_alias_count_max = (
+            community.limits.collection_entry_alias_count_max
         )
 
         self._session.flush()

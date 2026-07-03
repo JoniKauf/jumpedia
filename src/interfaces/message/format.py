@@ -84,7 +84,7 @@ def _get_instance_name_lower(
     if isinstance(mentionable, (MetaRank, CommunityRank, ServerRank)):
         return mentionable.name.lower()
 
-    return mentionable.name.real.value
+    return str(mentionable.name)
 
 
 def type_name_body(

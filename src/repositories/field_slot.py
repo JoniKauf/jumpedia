@@ -3,111 +3,111 @@ import typing as t
 
 from sqlalchemy import select
 
-from db.models import AttributeModel, TaskAttributeSlotModel, TaskModel
-from domain.entities.task_attribute_slot import TaskAttributeSlotEntity
+from db.models import AttributeModel, FieldSlotModel, TaskModel
+from domain.entities.field_slot import FieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
 from domain.types.task import TaskID
 from domain.value_objects.index import Index
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 from repositories.base import BaseRepository
-from repositories.dtos.task_attribute_slot import TaskAttributeSlotInsert
+from repositories.dtos.field_slot import FieldSlotInsert
 
 
-def task_attribute_slot_model_to_entity(
-    model: TaskAttributeSlotModel,
-) -> TaskAttributeSlotEntity:
-    return TaskAttributeSlotEntity(
+def field_slot_model_to_entity(
+    model: FieldSlotModel,
+) -> FieldSlotEntity:
+    return FieldSlotEntity(
         task_id=model.task_id,
         attribute_id=model.attribute_id,
         index=Index(model.index),
-        slot=TaskAttributeSlotStr(_real=model.real_slot, _norm=model.norm_slot),
+        slot=FieldSlotStr(_real=model.real_slot, _norm=model.norm_slot),
     )
 
 
-class TaskAttributeSlotRepository(BaseRepository):
+class FieldSlotRepository(BaseRepository):
     def create_many(
-        self, task_attribute_slots: t.Iterable[TaskAttributeSlotInsert]
-    ) -> tuple[TaskAttributeSlotEntity, ...]:
+        self, field_slots: t.Iterable[FieldSlotInsert]
+    ) -> tuple[FieldSlotEntity, ...]:
         """Preserves order."""
         objs = tuple(
-            TaskAttributeSlotModel(
+            FieldSlotModel(
                 task_id=slot.task_id,
                 attribute_id=slot.attribute_id,
                 index=slot.index.value,
                 norm_value=slot.slot.norm,
                 real_value=slot.slot.real,
             )
-            for slot in task_attribute_slots
+            for slot in field_slots
         )
 
         self._session.add_all(objs)
         self._session.flush()
 
-        return tuple(task_attribute_slot_model_to_entity(obj) for obj in objs)
+        return tuple(field_slot_model_to_entity(obj) for obj in objs)
 
-    def get_attribute_value_mapping_by_task_id(
+    def get_field_mapping_by_task_id(
         self, task_id: TaskID, types: t.AbstractSet[AttributeType]
-    ) -> ts.MappingProxyType[AttributeID, tuple[TaskAttributeSlotEntity, ...]]:
+    ) -> ts.MappingProxyType[AttributeID, tuple[FieldSlotEntity, ...]]:
         stmt = (
-            select(TaskAttributeSlotModel)
+            select(FieldSlotModel)
             .join(
                 AttributeModel,
-                AttributeModel.attribute_id == TaskAttributeSlotModel.attribute_id,
+                AttributeModel.attribute_id == FieldSlotModel.attribute_id,
             )
             .where(
-                TaskAttributeSlotModel.task_id == task_id,
+                FieldSlotModel.task_id == task_id,
                 AttributeModel.type.in_(types),
             )
             .order_by(
-                TaskAttributeSlotModel.attribute_id.asc(),
-                TaskAttributeSlotModel.index.asc(),
+                FieldSlotModel.attribute_id.asc(),
+                FieldSlotModel.index.asc(),
             )
         )
 
-        res: dict[AttributeID, list[TaskAttributeSlotEntity]] = {}
+        res: dict[AttributeID, list[FieldSlotEntity]] = {}
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(
-                task_attribute_slot_model_to_entity(obj)
+                field_slot_model_to_entity(obj)
             )
 
         return ts.MappingProxyType({k: tuple(v) for k, v in res.items()})
 
-    def get_attribute_value_mapping_by_list_id(
+    def get_field_mapping_by_list_id(
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
     ) -> ts.MappingProxyType[
         TaskID,
-        ts.MappingProxyType[AttributeID, tuple[TaskAttributeSlotEntity, ...]],
+        ts.MappingProxyType[AttributeID, tuple[FieldSlotEntity, ...]],
     ]:
         stmt = (
-            select(TaskAttributeSlotModel)
+            select(FieldSlotModel)
             .join(
                 AttributeModel,
-                AttributeModel.attribute_id == TaskAttributeSlotModel.attribute_id,
+                AttributeModel.attribute_id == FieldSlotModel.attribute_id,
             )
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
             )
             .order_by(
-                TaskAttributeSlotModel.task_id.asc(),
-                TaskAttributeSlotModel.attribute_id.asc(),
-                TaskAttributeSlotModel.index.asc(),
+                FieldSlotModel.task_id.asc(),
+                FieldSlotModel.attribute_id.asc(),
+                FieldSlotModel.index.asc(),
             )
         )
 
         res: dict[
             TaskID,
-            dict[AttributeID, list[TaskAttributeSlotEntity]],
+            dict[AttributeID, list[FieldSlotEntity]],
         ] = {}
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(
-                task_attribute_slot_model_to_entity(obj)
+                field_slot_model_to_entity(obj)
             )
 
         return ts.MappingProxyType(

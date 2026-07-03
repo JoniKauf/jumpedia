@@ -14,11 +14,11 @@ class ListInterface(BaseInterface, group_name="list"):
         info = ctx.services.list_query.info(ListNameStr(list_name))
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (info.name.real.value,),
+            "Name": (str(info.name),),
             "Is Default Selected List": (
                 "True" if info.is_default_selected_list else "False",
             ),
-            "Attributes": tuple(attr.name.real.value for attr in info.attributes),
+            "Attributes": tuple(str(attr.name) for attr in info.attributes),
             "Task Count": (str(info.task_count),),
         }
 
@@ -46,7 +46,7 @@ class ListsInterface(BaseInterface, group_name="lists"):
         summaries = ctx.services.list_query.summaries()
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
-            "Name": tuple((summary.name.real.value,) for summary in summaries),
+            "Name": tuple((str(summary.name),) for summary in summaries),
             "Is Default Selected List": (
                 tuple(
                     ("True" if summary.is_default_selected_list else "False",)
@@ -54,7 +54,7 @@ class ListsInterface(BaseInterface, group_name="lists"):
                 )
             ),
             "Attributes": tuple(
-                tuple(attr.name.real.value for attr in summary.attributes)
+                tuple(str(attr.name) for attr in summary.attributes)
                 for summary in summaries
             ),
             "Task Count": tuple((str(summary.task_count),) for summary in summaries),

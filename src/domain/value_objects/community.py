@@ -26,14 +26,14 @@ class CommunityLimits:
     list_attribute_count_max: int
     list_task_count_max: int
     attribute_alias_count_max: int
-    attribute_task_value_slot_count_max: int
-    attribute_collection_entry_count_max: int
-    attribute_collection_entry_alias_count_max: int
+    field_slot_count_max: int
+    collection_entry_count_max: int
+    collection_entry_alias_count_max: int
 
     def __post_init__(self) -> None:
         if not (
-            CommunityLimits.ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT
-            <= self.attribute_task_value_slot_count_max
+            CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
+            <= self.field_slot_count_max
         ):
             raise ValueError("Community limit of slot count max too high")
 
@@ -50,9 +50,9 @@ class CommunityLimits:
             list_attribute_count_max=16,
             list_task_count_max=100,
             attribute_alias_count_max=8,
-            attribute_task_value_slot_count_max=32,
-            attribute_collection_entry_count_max=32,
-            attribute_collection_entry_alias_count_max=8,
+            field_slot_count_max=32,
+            collection_entry_count_max=32,
+            collection_entry_alias_count_max=8,
         )
 
     COMMUNITY_NAME_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
@@ -63,13 +63,13 @@ class CommunityLimits:
     ATTRIBUTE_SYN_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
         64  # Db needs a maximum varchar
     )
-    ATTRIBUTE_TASK_VALUE_SLOT_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
+    FIELD_SLOT_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
         255  # Db needs a maximum varchar
     )
 
-    ATTRIBUTE_TASK_VALUE_MIN_MIN_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
+    FIELD_MIN_MIN_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
         0  # minimum number min may be
     )
-    ATTRIBUTE_TASK_VALUE_MIN_MAX_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
+    FIELD_MIN_MAX_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
         1  # minimum number max may be; max must also be bigger than min
     )

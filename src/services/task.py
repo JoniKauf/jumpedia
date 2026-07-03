@@ -9,22 +9,22 @@ from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank
-from domain.value_objects.attribute import AttributeSynStr
+from domain.value_objects.attribute import AttributeEntity, AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.task_attribute_slot import TaskAttributeSlotStr
+from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
-from repositories.attribute_collection_entry import AttributeCollectionEntryRepository
+from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 from repositories.task import TaskRepository
-from repositories.task_attribute_slot import (
-    TaskAttributeSlotInsert,
-    TaskAttributeSlotRepository,
+from repositories.field_slot import (
+    FieldSlotInsert,
+    FieldSlotRepository,
 )
-from services.attribute_value_mapping import AttributeValueMappingService
+from services.field_mapping import FieldMappingService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import DeletedTask, TaskInfo, TaskSummary
+from services.dtos.task import DeletedTask, TaskInfo, TaskSummariesData, TaskSummary
 from services.list import ListAccessService
 from services.permission import PermissionService
 
@@ -36,18 +36,18 @@ class TaskService:
     _attribute_repo: AttributeRepository
     _permission_service: PermissionService
     _list_access_service: ListAccessService
-    _attribute_value_mapping_service: AttributeValueMappingService
-    _attribute_collection_entry_repo: AttributeCollectionEntryRepository
-    _task_attribute_slot_repo: TaskAttributeSlotRepository
+    _field_mapping_service: FieldMappingService
+    _collection_entry_repo: CollectionEntryRepository
+    _field_slot_repo: FieldSlotRepository
     _task_access_service: TaskAccessService
 
     def create(
         self,
-        name: TaskAttributeSlotStr,
+        name: FieldSlotStr,
         list_name: ListNameStr,
-        aliases: t.Sequence[TaskAttributeSlotStr],
-        task_attribute_value_mapping: t.Mapping[
-            AttributeSynStr, t.Sequence[TaskAttributeSlotStr]
+        aliases: t.Sequence[FieldSlotStr],
+        field_mapping: t.Mapping[
+            AttributeSynStr, t.Sequence[FieldSlotStr]
         ],
     ) -> TaskEntity:
         # --- Get Data --- #
@@ -68,15 +68,15 @@ class TaskService:
                 community.limits.list_task_count_max, TaskEntity
             )
 
-        syns: tuple[TaskAttributeSlotStr, ...] = (name, *aliases)
+        syns: tuple[FieldSlotStr, ...] = (name, *aliases)
 
-        if len(aliases) > community.limits.attribute_task_value_slot_count_max:
+        if len(aliases) > community.limits.field_slot_count_max:
             raise errors.AliasCountLimitReached(
-                community.limits.attribute_task_value_slot_count_max, name
+                community.limits.field_slot_count_max, name
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
-        TaskAttributeSlotStr.raise_if_not_norm_unique(syns)
+        FieldSlotStr.raise_if_not_norm_unique(syns)
 
         existing_same_syn = self._task_repo.get_by_list_id_and_any_syn(
             lst.list_id, syns
@@ -87,21 +87,19 @@ class TaskService:
 
         # --- Validate And Create Task Attribute Value Mapping --- #
 
-        ATTRIBUTE_TYPES: t.Final[frozenset[AttributeType]] = frozenset(
-            {AttributeType.TASK}
-        )
+        ATTRIBUTE_TYPES: t.Final= AttributeType.TASK.as_set()
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES
         )
         attr_id_to_collection = (
-            self._attribute_collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES
             )
         )
 
-        avm = self._attribute_value_mapping_service.validate_and_build(
-            task_attribute_value_mapping, syn_to_attr, attr_id_to_collection
+        avm = self._field_mapping_service.validate_and_build(
+            field_mapping, syn_to_attr, attr_id_to_collection
         )
 
         # --- Create Task ---
@@ -115,22 +113,22 @@ class TaskService:
 
         # --- Create Task Attribute Slots ---
         if avm:
-            inserts: list[TaskAttributeSlotInsert] = []
+            inserts: list[FieldSlotInsert] = []
 
             for attr, value in avm.items():
                 for i, slot in enumerate(value):
                     inserts.append(
-                        TaskAttributeSlotInsert(
+                        FieldSlotInsert(
                             task_entity.task_id, attr.attribute_id, Index(i), slot
                         )
                     )
 
             if inserts:
-                _ = self._task_attribute_slot_repo.create_many(inserts)
+                _ = self._field_slot_repo.create_many(inserts)
 
-        return task_entity
+        return CreatedTask  # TODO make dto
 
-    def delete(self, name: TaskAttributeSlotStr, list_name: ListNameStr) -> DeletedTask:
+    def delete(self, name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
         _, community_user, lst, task = self._task_access_service.get_convenient(
             None, list_name, name, True
         )
@@ -149,26 +147,35 @@ class TaskQueryService:
     _task_access_service: TaskAccessService
     _task_repo: TaskRepository
     _attribute_repo: AttributeRepository
-    _task_attribute_slot_repo: TaskAttributeSlotRepository
+    _field_slot_repo: FieldSlotRepository
     _list_access_service: ListAccessService
 
     def info(
-        self, syn: TaskAttributeSlotStr, list_name: ListNameStr | None
+        self, syn: FieldSlotStr, list_name: ListNameStr | None
     ) -> TaskInfo:
-        _, _, lst, task = self._task_access_service.get_convenient(None, list_name, syn, False)
+        _, _, lst, task = self._task_access_service.get_convenient(
+            None, list_name, syn, False
+        )
 
-        ATTRIBUTE_TYPES: t.Final = {AttributeType.TASK}
+        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
 
         id_to_attr = self._attribute_repo.get_all_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES
         )
 
         aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
-        task_attribute_value_mapping = (
-            self._task_attribute_slot_repo.get_attribute_value_mapping_by_task_id(
+        field_mapping = (
+            self._field_slot_repo.get_field_mapping_by_task_id(
                 task.task_id, ATTRIBUTE_TYPES
             )
         )
+        static_attributes = tuple(
+            self._attribute_repo.get_all_by_list_id(
+                lst.list_id, AttributeType.STATIC.as_set()
+            )
+        )
+
+        assert len(static_attributes) == 3
 
         return TaskInfo(
             task.task_id,
@@ -178,44 +185,54 @@ class TaskQueryService:
             ts.MappingProxyType(
                 {
                     id_to_attr[k]: tuple(slot.slot for slot in v)
-                    for k, v in task_attribute_value_mapping.items()
+                    for k, v in field_mapping.items()
                 }
             ),
+            static_attributes,
         )
 
-    def summaries(self, list_name: ListNameStr | None) -> tuple[TaskSummary, ...]:
+    def summaries(self, list_name: ListNameStr | None) -> TaskSummariesData:
         _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
-        ATTRIBUTE_TYPES: t.Final = {AttributeType.TASK}
-
-        id_to_attr = self._attribute_repo.get_all_by_list_id(
-            lst.list_id, ATTRIBUTE_TYPES
-        )
+        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
+        attrs = self._attribute_repo.get_all_by_list_id(lst.list_id, ATTRIBUTE_TYPES)
+        id_to_attr = {attr.attribute_id: attr for attr in attrs}
 
         tasks = self._task_repo.get_all_by_list_id(lst.list_id)
         task_id_to_aliases = self._task_repo.get_grouped_aliases_by_list_id(lst.list_id)
-        task_id_to_task_attribute_value_mapping = (
-            self._task_attribute_slot_repo.get_attribute_value_mapping_by_list_id(
+        task_id_to_field_mapping = (
+            self._field_slot_repo.get_field_mapping_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES
             )
         )
-
-        return tuple(
-            TaskSummary(
-                task.task_id,
-                task.name,
-                task_id_to_aliases[task.task_id],
-                lst,
-                ts.MappingProxyType(
-                    {
-                        id_to_attr[k]: tuple(slot.slot for slot in v)
-                        for k, v in task_id_to_task_attribute_value_mapping[
-                            task.task_id
-                        ].items()
-                    }
-                ),
+        static_attributes = tuple(
+            self._attribute_repo.get_all_by_list_id(
+                lst.list_id, AttributeType.STATIC.as_set()
             )
-            for task in tasks
+        )
+
+        assert len(static_attributes) == 3
+
+        return TaskSummariesData(
+            tuple(
+                TaskSummary(
+                    task.task_id,
+                    task.name,
+                    task_id_to_aliases[task.task_id],
+                    lst,
+                    ts.MappingProxyType(
+                        {
+                            id_to_attr[k]: tuple(slot.slot for slot in v)
+                            for k, v in task_id_to_field_mapping[
+                                task.task_id
+                            ].items()
+                        }
+                    ),
+                )
+                for task in tasks
+            ),
+            static_attributes,
+            attrs,
         )
 
 
@@ -226,7 +243,7 @@ class TaskAccessService:
     _list_access_service: ListAccessService
 
     def get_by_list_and_name_or_raise(
-        self, lst: ListEntity, name: TaskAttributeSlotStr
+        self, lst: ListEntity, name: FieldSlotStr
     ) -> TaskEntity:
         task = self._task_repo.get_by_list_id_and_name(lst.list_id, name)
 
@@ -236,7 +253,7 @@ class TaskAccessService:
         return task
 
     def get_by_list_and_syn_or_raise(
-        self, lst: ListEntity, syn: TaskAttributeSlotStr
+        self, lst: ListEntity, syn: FieldSlotStr
     ) -> TaskEntity:
         task = self._task_repo.get_by_list_id_and_syn(lst.list_id, syn)
 
@@ -249,12 +266,16 @@ class TaskAccessService:
         self,
         community_name: CommunityNameStr | None,
         list_name: ListNameStr | None,
-        task_syn: TaskAttributeSlotStr,
-        task_only_by_name: bool
+        task_syn: FieldSlotStr,
+        task_only_by_name: bool,
     ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, TaskEntity]:
         community, community_user, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
-        task = self.get_by_list_and_name_or_raise(lst, task_syn) if task_only_by_name else self.get_by_list_and_syn_or_raise(lst, task_syn)
+        task = (
+            self.get_by_list_and_name_or_raise(lst, task_syn)
+            if task_only_by_name
+            else self.get_by_list_and_syn_or_raise(lst, task_syn)
+        )
 
         return (community, community_user, lst, task)
