@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.community_user import CommunityUserEntity
+from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from services.contexts.interacting_user import InteractingUserContext
 
@@ -10,8 +11,9 @@ from services.contexts.interacting_user import InteractingUserContext
 class PermissionService:
     _ctx: InteractingUserContext
 
-    def ensure_meta_rank(self, required: MetaRank) -> None:
-        meta_rank = self._ctx.user.meta_rank
+    def ensure_meta_rank(self, required: MetaRank, user: UserEntity | None) -> None:
+        user = user or self._ctx.user
+        meta_rank = user.meta_rank
 
         if meta_rank.value < required.value:
             raise errors.NotAllowed(meta_rank, required)
@@ -20,7 +22,7 @@ class PermissionService:
         self, community_user: CommunityUserEntity, required: CommunityRank
     ) -> None:
         if (
-            not self._ctx.user.meta_rank
+            not self._ctx.user.meta_rank.value < MetaRank.ADMINISTRATOR
             and community_user.community_rank.value < required.value
         ):
             raise errors.NotAllowed(community_user.community_rank, required)
@@ -28,5 +30,8 @@ class PermissionService:
     def ensure_server_rank(self, required: ServerRank) -> None:
         server_rank = self._ctx.server_rank
 
-        if not self._ctx.user.meta_rank and server_rank.value < required.value:
+        if not self._ctx.user.meta_rank.value < MetaRank.ADMINISTRATOR and server_rank.value < required.value:
             raise errors.NotAllowed(server_rank, required)
+        
+    def ensure_community_user_can_act_for_others(self, actor_community_user: CommunityUserEntity) -> None:
+        self.ensure_community_rank(actor_community_user, CommunityRank.MODERATOR)

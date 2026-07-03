@@ -128,7 +128,7 @@ class ListQueryService:
     _community_access_service: CommunityAccessService
     _list_access_service: ListAccessService
 
-    def info(self, name: ListNameStr) -> ListInfo:
+    def get_info(self, name: ListNameStr) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(None, name)
 
         attributes = self._attribute_repo.get_all_by_list_id(
@@ -144,7 +144,7 @@ class ListQueryService:
             is_default_selected_list=is_default,
         )
 
-    def summaries(self) -> tuple[ListSummary, ...]:
+    def get_summaries(self) -> tuple[ListSummary, ...]:
         community = self._community_access_service.get_convenient(None)
 
         lists = self._list_repo.get_all_by_community(community.community_id)

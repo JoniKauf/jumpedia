@@ -109,10 +109,7 @@ class AttributeService:
                 for syn in (entry.value, *entry.aliases)
             )
 
-            if (
-                len(collection_entries)
-                > community.limits.collection_entry_count_max
-            ):
+            if len(collection_entries) > community.limits.collection_entry_count_max:
                 raise errors.CountLimitReached(
                     community.limits.collection_entry_count_max,
                     CollectionEntryEntity,
@@ -202,7 +199,7 @@ class AttributeQueryService:
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
 
-    def info(
+    def get_info(
         self, syn: AttributeSynStr, list_name: ListNameStr | None
     ) -> AttributeInfo:
         _, _, lst, attr = self._attribute_access_service.get_convenient(
@@ -210,10 +207,8 @@ class AttributeQueryService:
         )
 
         aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
-        collection = (
-            self._collection_entry_repo.get_collection_by_attribute_id(
-                attr.attribute_id
-            )
+        collection = self._collection_entry_repo.get_collection_by_attribute_id(
+            attr.attribute_id
         )
 
         return AttributeInfo(
@@ -230,7 +225,7 @@ class AttributeQueryService:
             ),
         )
 
-    def summaries(
+    def get_summaries(
         self,
         list_name: ListNameStr | None,
     ) -> tuple[AttributeSummary, ...]:
@@ -259,9 +254,7 @@ class AttributeQueryService:
                 attr.slot,
                 attr.position,
                 tuple(
-                    CollectionEntryEntityWithAliases(
-                        entry.entry, entry.aliases
-                    )
+                    CollectionEntryEntityWithAliases(entry.entry, entry.aliases)
                     for entry in attr_id_to_collection[attr.attribute_id]
                 ),
             )

@@ -32,6 +32,7 @@ from services.community import (
     CommunityQueryService,
     CommunityService,
 )
+from services.community_user import CommunityUserService
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.permission import PermissionService

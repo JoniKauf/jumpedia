@@ -69,9 +69,7 @@ class FieldSlotRepository(BaseRepository):
         res: dict[AttributeID, list[FieldSlotEntity]] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.attribute_id, []).append(
-                field_slot_model_to_entity(obj)
-            )
+            res.setdefault(obj.attribute_id, []).append(field_slot_model_to_entity(obj))
 
         return ts.MappingProxyType({k: tuple(v) for k, v in res.items()})
 

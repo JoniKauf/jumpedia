@@ -15,6 +15,7 @@ from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
 from services.dtos.community import CommunitySummary
+from services.dtos.task import UserRef
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
@@ -27,7 +28,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, community: str | None = None) -> None:
-        info = ctx.services.community_query.info(
+        info = ctx.services.community_query.get_info(
             None if community is None else CommunityNameStr(community)
         )
 
@@ -74,8 +75,10 @@ class CommunityInterface(BaseInterface, group_name="community"):
     ) -> None:
         community = ctx.services.community.create(
             CommunityNameStr(community_name),
-            UserID(ID(community_owner.id)),
-            UserNameStr(community_owner.name),
+            UserRef(
+                UserID(ID(community_owner.id)),
+                UserNameStr(community_owner.name),
+            ),
             CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
@@ -104,7 +107,7 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
-        summaries = ctx.services.community_query.summaries()
+        summaries = ctx.services.community_query.get_summaries()
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((str(summary.name),) for summary in summaries),

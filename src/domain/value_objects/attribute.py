@@ -28,11 +28,8 @@ class AttributeSlot:
 
     def __post_init__(self) -> None:
         if not (
-            CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT
-            <= self.min_count
-            <= self.max_count
-            and self.max_count
-            >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
+            CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT <= self.min_count <= self.max_count
+            and self.max_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
         ):
             raise errors.SlotCountDefinitionLimitExceeded(
                 self.min_count,

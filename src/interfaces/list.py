@@ -11,7 +11,7 @@ class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, list_name: str) -> None:
-        info = ctx.services.list_query.info(ListNameStr(list_name))
+        info = ctx.services.list_query.get_info(ListNameStr(list_name))
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (str(info.name),),
@@ -43,7 +43,7 @@ class ListsInterface(BaseInterface, group_name="lists"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
-        summaries = ctx.services.list_query.summaries()
+        summaries = ctx.services.list_query.get_summaries()
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((str(summary.name),) for summary in summaries),

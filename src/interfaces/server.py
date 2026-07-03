@@ -10,7 +10,7 @@ from interfaces.message import format, messages
 class ServerInterface(BaseInterface, group_name="server"):
     @app_commands.command()
     @with_context()
-    async def connect(
+    async def link(
         self,
         ctx: CommandContext,
         community_name: str,
@@ -25,7 +25,7 @@ class ServerInterface(BaseInterface, group_name="server"):
 
     @app_commands.command()
     @with_context()
-    async def disconnect(
+    async def unlink(
         self,
         ctx: CommandContext,
     ) -> None:

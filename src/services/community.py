@@ -19,6 +19,7 @@ from repositories.task import TaskRepository
 from services.community_user import CommunityUserAccessService, CommunityUserService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
+from services.dtos.task import UserRef
 from services.list import ListService
 from services.permission import PermissionService
 
@@ -37,8 +38,7 @@ class CommunityService:
     def create(
         self,
         name: CommunityNameStr,
-        owner_id: UserID,
-        owner_name: UserNameStr,
+        owner: UserRef,
         limits: CommunityLimits,
     ) -> CommunityEntity:
         self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR)
@@ -63,7 +63,7 @@ class CommunityService:
 
         self._community_user_service.get_or_create(
             CommunityUserInsert(
-                UserEntity(owner_id, owner_name),
+                UserEntity(owner.id, owner.name),
                 community.community_id,
                 CommunityRank.OWNER,
                 None,
@@ -102,7 +102,7 @@ class CommunityQueryService:
     _community_user_repo: CommunityUserRepository
     _community_access_service: CommunityAccessService
 
-    def info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
+    def get_info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
         community_users = self._community_user_repo.get_all_by_community_id(
@@ -129,7 +129,7 @@ class CommunityQueryService:
             task_count,
         )
 
-    def summaries(self) -> tuple[CommunitySummary, ...]:
+    def get_summaries(self) -> tuple[CommunitySummary, ...]:
         id_to_community = {
             community.community_id: community
             for community in self._community_repo.get_all()

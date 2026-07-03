@@ -26,11 +26,9 @@ def _is_number_in_range(v: int | decimal.Decimal) -> bool:
 class FieldMappingService:
     def validate_and_build[T: AttributeType](
         self,
-        field_mapping: t.Mapping[
-            AttributeSynStr, t.Sequence[FieldSlotStr]
-        ],
+        field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
         syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attr_to_collection: t.Mapping[
+        attr_id_to_collection: t.Mapping[
             AttributeID, t.Sequence[CollectionEntryEntityWithAliases]
         ],
     ) -> ts.MappingProxyType[AttributeEntity[T], tuple[FieldSlotStr, ...]]:
@@ -68,7 +66,7 @@ class FieldMappingService:
                 for slot in v
             )
 
-            collection = attr_to_collection.get(attr.attribute_id)
+            collection = attr_id_to_collection.get(attr.attribute_id)
 
             # Not None or empty
             if collection:

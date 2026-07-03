@@ -88,8 +88,7 @@ class CollectionEntryRepository(BaseRepository):
         )
 
         return tuple(
-            collection_entry_model_to_entity(obj)
-            for obj in self._session.scalars(stmt)
+            collection_entry_model_to_entity(obj) for obj in self._session.scalars(stmt)
         )
 
     def get_by_attribute_id_and_name(
@@ -137,9 +136,7 @@ class CollectionEntryRepository(BaseRepository):
                 CollectionEntryModel.attribute_id == attribute_id,
                 or_(
                     CollectionEntryModel.norm_value.in_(tuple(norm_to_store)),
-                    CollectionEntryAliasModel.norm_alias.in_(
-                        tuple(norm_to_store)
-                    ),
+                    CollectionEntryAliasModel.norm_alias.in_(tuple(norm_to_store)),
                 ),
             )
             .limit(1)
@@ -232,9 +229,7 @@ class CollectionEntryRepository(BaseRepository):
                 ordered.append(entry)
 
             if alias_obj is not None:
-                entry_aliases.setdefault(
-                    entry.collection_entry_id, []
-                ).append(
+                entry_aliases.setdefault(entry.collection_entry_id, []).append(
                     FieldSlotStr(
                         _real=alias_obj.real_alias,
                         _norm=alias_obj.norm_alias,
@@ -244,9 +239,7 @@ class CollectionEntryRepository(BaseRepository):
         return tuple(
             CollectionEntryEntityWithAliases(
                 entry=entry,
-                aliases=tuple(
-                    entry_aliases.get(entry.collection_entry_id, ())
-                ),
+                aliases=tuple(entry_aliases.get(entry.collection_entry_id, ())),
             )
             for entry in ordered
         )
@@ -255,15 +248,12 @@ class CollectionEntryRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> ts.MappingProxyType[
-        AttributeID, tuple[CollectionEntryEntityWithAliases, ...]
-    ]:
+    ) -> ts.MappingProxyType[AttributeID, tuple[CollectionEntryEntityWithAliases, ...]]:
         stmt = (
             select(CollectionEntryModel, CollectionEntryAliasModel)
             .join(
                 AttributeModel,
-                AttributeModel.attribute_id
-                == CollectionEntryModel.attribute_id,
+                AttributeModel.attribute_id == CollectionEntryModel.attribute_id,
             )
             .outerjoin(
                 CollectionEntryAliasModel,
@@ -303,9 +293,7 @@ class CollectionEntryRepository(BaseRepository):
                 grouped_entries.setdefault(entry.attribute_id, []).append(entry)
 
             if alias_obj is not None:
-                entry_aliases.setdefault(
-                    entry.collection_entry_id, []
-                ).append(
+                entry_aliases.setdefault(entry.collection_entry_id, []).append(
                     FieldSlotStr(
                         _real=alias_obj.real_alias,
                         _norm=alias_obj.norm_alias,
@@ -317,9 +305,7 @@ class CollectionEntryRepository(BaseRepository):
                 attribute_id: tuple(
                     CollectionEntryEntityWithAliases(
                         entry=entry,
-                        aliases=tuple(
-                            entry_aliases.get(entry.collection_entry_id, ())
-                        ),
+                        aliases=tuple(entry_aliases.get(entry.collection_entry_id, ())),
                     )
                     for entry in collection
                 )

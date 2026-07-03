@@ -281,8 +281,7 @@ class CollectionEntryModel(BaseModel):
 
     norm_value: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_MAX_MULTIPLE_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_value: Mapped[RealStr] = mapped_column(
@@ -315,8 +314,7 @@ class CollectionEntryAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_MAX_MULTIPLE_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(
@@ -345,8 +343,7 @@ class TaskModel(BaseModel):
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_MAX_MULTIPLE_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_name: Mapped[RealStr] = mapped_column(
@@ -374,8 +371,7 @@ class TaskAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_MAX_MULTIPLE_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_MAX_MULTIPLE_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(
@@ -416,10 +412,10 @@ class FieldSlotModel(BaseModel):
 # --- User Task ---
 
 
-class CommunityUserTaskModel(BaseModel):
-    __tablename__ = "community_user_task"
+class OwnedTaskModel(BaseModel):
+    __tablename__ = "owned_task"
 
-    community_user_task_id: Mapped[ID] = mapped_column(
+    owned_task_id: Mapped[ID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
@@ -437,15 +433,15 @@ class CommunityUserTaskModel(BaseModel):
     )
 
 
-class CommunityUserFieldSlotModel(BaseModel):
-    __tablename__ = "community_user_field_slot"
+class OwnedFieldSlotModel(BaseModel):
+    __tablename__ = "owned_field_slot"
 
-    community_user_field_slot_id: Mapped[ID] = mapped_column(
+    owned_field_slot_id: Mapped[ID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
     community_user_task_id: Mapped[ID] = mapped_column(
-        ForeignKey("community_user_task.community_user_task_id", ondelete="CASCADE")
+        ForeignKey("owned_task.owned_task_id", ondelete="CASCADE")
     )
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -460,5 +456,5 @@ class CommunityUserFieldSlotModel(BaseModel):
 
     __table_args__ = (
         *BaseModel.__table_args__,
-        UniqueConstraint("community_user_task_id", "attribute_id", "index"),
+        UniqueConstraint("owned_task_id", "attribute_id", "index"),
     )

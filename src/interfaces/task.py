@@ -3,6 +3,7 @@ from discord import app_commands
 from domain.entities.attribute import AttributeEntity
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -16,7 +17,7 @@ class TaskInterface(BaseInterface, group_name="task"):
     async def info(
         self, ctx: CommandContext, task_name_or_alias: str, list_name: str | None = None
     ) -> None:
-        info = ctx.services.task_query.info(
+        info = ctx.services.task_query.get_info(
             FieldSlotStr(task_name_or_alias),
             None if list_name is None else ListNameStr(list_name),
         )
@@ -40,21 +41,30 @@ class TaskInterface(BaseInterface, group_name="task"):
     async def create(
         self, ctx: CommandContext, task_name: str, list_name: str, aliases: str | None = None, field_mapping: str | None = None
     ) -> None:
-        task = ctx.services.task.create(FieldSlotStr(task_name), ListNameStr(list_name), aliases, field_mapping)
+        task = ctx.services.task.create(FieldSlotStr(task_name), ListNameStr(list_name), ..., ... if field_mapping or {})
+
+        await messages.object_created(ctx.interaction, task)
+
+    @app_commands.command()
+    @with_context()
+    async def nuke(self, ctx: CommandContext, task_name: str, list_name: str) -> None:
+        deleted = ctx.services.task.delete(FieldSlotStr(task_name), ListNameStr(list_name))
+
+        await messages.object_nuked(ctx.interaction, deleted)
 
     @app_commands.command()
     @with_context()
     async def give(
-        self, ctx: CommandContext, task_name_or_alias: str, list_name: str | None = None
+        self, ctx: CommandContext, task_name_or_alias: str, user: UserNameStr | None, list_name: str | None = None
     ) -> None:
-        ...
+        ctx.services.task.delete
 
 
 class TasksInterface(BaseInterface, group_name="tasks"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
-        summaries_data = ctx.services.task_query.summaries(
+        summaries_data = ctx.services.task_query.get_summaries(
             None if list_name is None else ListNameStr(list_name)
         )
 

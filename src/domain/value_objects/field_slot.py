@@ -8,10 +8,11 @@ from domain.value_objects.string import Str
 if t.TYPE_CHECKING:
 
     class FieldSlotStr(Str):
-        """A string that holds a slot's value of a task attribute value.
+        """A string that holds the a single slot of a field. A field is a value for a specific task's attribute.
 
-        It also represents the name and aliases of an attribute, because in the same way,
-        they are also technically just attribute value slots.
+        It also represents the name and aliases of a task, because in the same way,
+        they are also technically just field slots logically. Read more about
+        static attributes for more info.
         """
 
 else:

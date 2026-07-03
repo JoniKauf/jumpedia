@@ -121,12 +121,8 @@ class CommunityRepository(BaseRepository):
         obj.list_attribute_count_max = community.limits.list_attribute_count_max
         obj.list_task_count_max = community.limits.list_task_count_max
         obj.attribute_alias_count_max = community.limits.attribute_alias_count_max
-        obj.field_slot_count_max = (
-            community.limits.field_slot_count_max
-        )
-        obj.collection_entry_count_max = (
-            community.limits.collection_entry_count_max
-        )
+        obj.field_slot_count_max = community.limits.field_slot_count_max
+        obj.collection_entry_count_max = community.limits.collection_entry_count_max
         obj.collection_entry_alias_count_max = (
             community.limits.collection_entry_alias_count_max
         )

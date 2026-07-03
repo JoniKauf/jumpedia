@@ -31,10 +31,7 @@ class CommunityLimits:
     collection_entry_alias_count_max: int
 
     def __post_init__(self) -> None:
-        if not (
-            CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
-            <= self.field_slot_count_max
-        ):
+        if not (CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT <= self.field_slot_count_max):
             raise ValueError("Community limit of slot count max too high")
 
         for name, limit in self.__dataclass_fields__.items():
@@ -63,13 +60,9 @@ class CommunityLimits:
     ATTRIBUTE_SYN_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
         64  # Db needs a maximum varchar
     )
-    FIELD_SLOT_LENGTH_MAX: t.ClassVar[t.Final[int]] = (
-        255  # Db needs a maximum varchar
-    )
+    FIELD_SLOT_LENGTH_MAX: t.ClassVar[t.Final[int]] = 255  # Db needs a maximum varchar
 
-    FIELD_MIN_MIN_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
-        0  # minimum number min may be
-    )
+    FIELD_MIN_MIN_SLOT_COUNT: t.ClassVar[t.Final[int]] = 0  # minimum number min may be
     FIELD_MIN_MAX_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
         1  # minimum number max may be; max must also be bigger than min
     )

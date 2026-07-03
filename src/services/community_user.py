@@ -13,7 +13,6 @@ from services.user import UserService
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityUserService:
     _community_user_repo: CommunityUserRepository
-    _user_service: UserService
 
     def get_or_create(
         self,

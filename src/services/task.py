@@ -16,17 +16,27 @@ from domain.value_objects.list import ListNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
+from repositories.dtos.community_user import CommunityUserInsert
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
+from repositories.dtos.user import UserInsert
 from repositories.task import TaskRepository
 from repositories.field_slot import (
     FieldSlotInsert,
     FieldSlotRepository,
 )
+from services.community_user import CommunityUserService
 from services.field_mapping import FieldMappingService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import DeletedTask, TaskInfo, TaskSummariesData, TaskSummary
+from services.dtos.task import (
+    DeletedTask,
+    TaskInfo,
+    TaskSummariesData,
+    TaskSummary,
+    UserRef,
+)
 from services.list import ListAccessService
 from services.permission import PermissionService
+from services.user import UserService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -40,15 +50,15 @@ class TaskService:
     _collection_entry_repo: CollectionEntryRepository
     _field_slot_repo: FieldSlotRepository
     _task_access_service: TaskAccessService
+    _user_service: UserService
+    _community_user_service: CommunityUserService
 
     def create(
         self,
         name: FieldSlotStr,
         list_name: ListNameStr,
         aliases: t.Sequence[FieldSlotStr],
-        field_mapping: t.Mapping[
-            AttributeSynStr, t.Sequence[FieldSlotStr]
-        ],
+        field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
     ) -> TaskEntity:
         # --- Get Data --- #
         community, community_user, lst = self._list_access_service.get_convenient(
@@ -87,7 +97,7 @@ class TaskService:
 
         # --- Validate And Create Task Attribute Value Mapping --- #
 
-        ATTRIBUTE_TYPES: t.Final= AttributeType.TASK.as_set()
+        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES
@@ -126,7 +136,7 @@ class TaskService:
             if inserts:
                 _ = self._field_slot_repo.create_many(inserts)
 
-        return CreatedTask  # TODO make dto
+        return task_entity
 
     def delete(self, name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
         _, community_user, lst, task = self._task_access_service.get_convenient(
@@ -141,6 +151,48 @@ class TaskService:
 
         return DeletedTask(task.name, lst)
 
+    def give_to_user(
+        self,
+        syn: FieldSlotStr,
+        list_name: ListNameStr | None,
+        user_field_mapping: t.Mapping[AttributeSynStr, tuple[FieldSlotStr, ...]],
+        user: UserRef | None,
+    ):
+        community, actor_community_user, lst, task = (
+            self._task_access_service.get_convenient(None, list_name, syn, False)
+        )
+
+        community_user: CommunityUserEntity
+
+        if user is None or user.id == actor_community_user.user.user_id:
+            community_user = actor_community_user
+        else:
+            self._permission_service.ensure_community_user_can_act_for_others(actor_community_user)
+            
+            community_user = self._community_user_service.get_or_create(
+                CommunityUserInsert(
+                    self._user_service.get_or_create(UserInsert(user.id, user.name)),
+                    community.community_id,
+                )
+            )
+
+        del actor_community_user
+
+        ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
+
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+            lst.list_id, ATTRIBUTE_TYPES
+        )
+        attr_id_to_collection = (
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
+                lst.list_id, ATTRIBUTE_TYPES
+            )
+        )
+
+        self._field_mapping_service.validate_and_build(user_field_mapping, syn_to_attr, attr_id_to_collection)
+
+
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskQueryService:
@@ -150,9 +202,7 @@ class TaskQueryService:
     _field_slot_repo: FieldSlotRepository
     _list_access_service: ListAccessService
 
-    def info(
-        self, syn: FieldSlotStr, list_name: ListNameStr | None
-    ) -> TaskInfo:
+    def get_info(self, syn: FieldSlotStr, list_name: ListNameStr | None) -> TaskInfo:
         _, _, lst, task = self._task_access_service.get_convenient(
             None, list_name, syn, False
         )
@@ -164,10 +214,8 @@ class TaskQueryService:
         )
 
         aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
-        field_mapping = (
-            self._field_slot_repo.get_field_mapping_by_task_id(
-                task.task_id, ATTRIBUTE_TYPES
-            )
+        field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
+            task.task_id, ATTRIBUTE_TYPES
         )
         static_attributes = tuple(
             self._attribute_repo.get_all_by_list_id(
@@ -191,7 +239,7 @@ class TaskQueryService:
             static_attributes,
         )
 
-    def summaries(self, list_name: ListNameStr | None) -> TaskSummariesData:
+    def get_summaries(self, list_name: ListNameStr | None) -> TaskSummariesData:
         _, _, lst = self._list_access_service.get_convenient(None, list_name)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
@@ -200,10 +248,8 @@ class TaskQueryService:
 
         tasks = self._task_repo.get_all_by_list_id(lst.list_id)
         task_id_to_aliases = self._task_repo.get_grouped_aliases_by_list_id(lst.list_id)
-        task_id_to_field_mapping = (
-            self._field_slot_repo.get_field_mapping_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES
-            )
+        task_id_to_field_mapping = self._field_slot_repo.get_field_mapping_by_list_id(
+            lst.list_id, ATTRIBUTE_TYPES
         )
         static_attributes = tuple(
             self._attribute_repo.get_all_by_list_id(
@@ -223,9 +269,7 @@ class TaskQueryService:
                     ts.MappingProxyType(
                         {
                             id_to_attr[k]: tuple(slot.slot for slot in v)
-                            for k, v in task_id_to_field_mapping[
-                                task.task_id
-                            ].items()
+                            for k, v in task_id_to_field_mapping[task.task_id].items()
                         }
                     ),
                 )

@@ -37,7 +37,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         attribute_name_or_alias: str,
         list_name: str | None = None,
     ) -> None:
-        info = ctx.services.attribute_query.info(
+        info = ctx.services.attribute_query.get_info(
             AttributeSynStr(attribute_name_or_alias),
             None if list_name is None else ListNameStr(list_name),
         )
@@ -117,7 +117,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
-        summaries = ctx.services.attribute_query.summaries(
+        summaries = ctx.services.attribute_query.get_summaries(
             None if list_name is None else ListNameStr(list_name)
         )
 

@@ -56,10 +56,20 @@ _TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     CommunityUserEntity: ("community member", "community members"),
     CommunityEntity: ("community", "communities"),
     CommunityInfo: ("community", "communities"),
+    CommunitySummary: ("community", "communities"),
     DeletedCommunity: ("community", "communities"),
     ListEntity: ("list", "lists"),
     ListInfo: ("list", "lists"),
+    ListSummary: ("list", "lists"),
+    DeletedList: ("list", "lists"),
     AttributeEntity: ("attribute", "attributes"),
+    AttributeInfo: ("attribute", "attributes"),
+    AttributeSummary: ("attribute", "attributes"),
+    DeletedAttribute: ("attribute", "attributes"),
+    TaskEntity: ("task", "tasks"),
+    TaskInfo: ("task", "tasks"),
+    TaskSummary: ("task", "tasks"),
+    DeletedTask: ("task", "tasks"),
 }
 
 _ATTRIBUTE_TYPE_PREFIX_MAP = {
