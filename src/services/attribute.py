@@ -5,7 +5,7 @@ from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
-from domain.entities.community_user import CommunityUserEntity
+from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
@@ -23,7 +23,7 @@ from repositories.dtos.collection_entry import (
     CollectionEntryInsert,
 )
 from services.community import CommunityAccessService
-from services.community_user import CommunityUserAccessService
+from services.member import MemberAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.collection_entry import (
@@ -52,13 +52,13 @@ class AttributeService:
         collection_entries: tuple[CreateCollectionEntry, ...],
     ) -> AttributeEntity[T]:
         # --- Get Data ---
-        community, community_user, lst = self._list_access_service.get_convenient(
+        community, member, lst = self._list_access_service.get_convenient(
             None, list_name
         )
 
         # --- Verify Rank ---
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.ADMINISTRATOR
+            member, CommunityRank.ADMINISTRATOR
         )
 
         # --- Verify Limit Of Count Not Exceeded ---
@@ -174,12 +174,12 @@ class AttributeService:
         return attr_entity
 
     def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> DeletedAttribute:
-        _, community_user, lst, attr = self._attribute_access_service.get_convenient(
+        _, member, lst, attr = self._attribute_access_service.get_convenient(
             None, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.ADMINISTRATOR
+            member, CommunityRank.ADMINISTRATOR
         )
 
         self._attribute_repo.delete(attr.attribute_id)
@@ -195,7 +195,7 @@ class AttributeQueryService:
     _attribute_repo: AttributeRepository
     _collection_entry_repo: CollectionEntryRepository
     _community_access_service: CommunityAccessService
-    _community_user_access_service: CommunityUserAccessService
+    _member_access_service: MemberAccessService
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
 
@@ -294,8 +294,8 @@ class AttributeAccessService:
         list_name: ListNameStr | None,
         attribute_syn: AttributeSynStr,
         attribute_only_by_name: bool,
-    ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, AttributeEntity]:
-        community, community_user, lst = self._list_access_service.get_convenient(
+    ) -> tuple[CommunityEntity, MemberEntity, ListEntity, AttributeEntity]:
+        community, member, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
         attr = (
@@ -304,4 +304,4 @@ class AttributeAccessService:
             else self.get_by_list_and_syn_or_raise(lst, attribute_syn)
         )
 
-        return (community, community_user, lst, attr)
+        return (community, member, lst, attr)

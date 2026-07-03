@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.community import CommunityEntity
-from domain.entities.community_user import CommunityUserEntity
+from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
@@ -16,7 +16,7 @@ from domain.value_objects.list import ListNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
-from repositories.dtos.community_user import CommunityUserInsert
+from repositories.dtos.member import MemberInsert
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 from repositories.dtos.user import UserInsert
 from repositories.task import TaskRepository
@@ -24,7 +24,7 @@ from repositories.field_slot import (
     FieldSlotInsert,
     FieldSlotRepository,
 )
-from services.community_user import CommunityUserService
+from services.member import MemberService
 from services.field_mapping import FieldMappingService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.task import (
@@ -51,7 +51,7 @@ class TaskService:
     _field_slot_repo: FieldSlotRepository
     _task_access_service: TaskAccessService
     _user_service: UserService
-    _community_user_service: CommunityUserService
+    _member_service: MemberService
 
     def create(
         self,
@@ -61,13 +61,13 @@ class TaskService:
         field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
     ) -> TaskEntity:
         # --- Get Data --- #
-        community, community_user, lst = self._list_access_service.get_convenient(
+        community, member, lst = self._list_access_service.get_convenient(
             None, list_name
         )
 
         # --- Verify Rank --- #
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.HELPER
+            member, CommunityRank.HELPER
         )
 
         # --- Verify Limit Of Count Not Exceeded --- #
@@ -108,7 +108,7 @@ class TaskService:
             )
         )
 
-        avm = self._field_mapping_service.validate_and_build(
+        field_mapping = self._field_mapping_service.validate_and_build(
             field_mapping, syn_to_attr, attr_id_to_collection
         )
 
@@ -122,10 +122,10 @@ class TaskService:
         )
 
         # --- Create Task Attribute Slots ---
-        if avm:
+        if field_mapping:
             inserts: list[FieldSlotInsert] = []
 
-            for attr, value in avm.items():
+            for attr, value in field_mapping.items():
                 for i, slot in enumerate(value):
                     inserts.append(
                         FieldSlotInsert(
@@ -139,12 +139,12 @@ class TaskService:
         return task_entity
 
     def delete(self, name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
-        _, community_user, lst, task = self._task_access_service.get_convenient(
+        _, member, lst, task = self._task_access_service.get_convenient(
             None, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.MODERATOR
+            member, CommunityRank.MODERATOR
         )
 
         self._task_repo.delete(task.task_id)
@@ -158,27 +158,27 @@ class TaskService:
         user_field_mapping: t.Mapping[AttributeSynStr, tuple[FieldSlotStr, ...]],
         user: UserRef | None,
     ):
-        community, actor_community_user, lst, task = (
+        community, actor_member, lst, task = (
             self._task_access_service.get_convenient(None, list_name, syn, False)
         )
 
-        community_user: CommunityUserEntity
+        member: MemberEntity
 
-        if user is None or user.id == actor_community_user.user.user_id:
-            community_user = actor_community_user
+        if user is None or user.id == actor_member.user.user_id:
+            member = actor_member
         else:
-            self._permission_service.ensure_community_user_can_act_for_others(actor_community_user)
+            self._permission_service.ensure_member_can_act_for_others(actor_member)
             
-            community_user = self._community_user_service.get_or_create(
-                CommunityUserInsert(
+            member = self._member_service.get_or_create(
+                MemberInsert(
                     self._user_service.get_or_create(UserInsert(user.id, user.name)),
                     community.community_id,
                 )
             )
 
-        del actor_community_user
+        del actor_member
 
-        ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
+        ATTRIBUTE_TYPES: t.Final = AttributeType.MEMBER.as_set()
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES
@@ -189,7 +189,9 @@ class TaskService:
             )
         )
 
-        self._field_mapping_service.validate_and_build(user_field_mapping, syn_to_attr, attr_id_to_collection)
+        field_mapping = self._field_mapping_service.validate_and_build(user_field_mapping, syn_to_attr, attr_id_to_collection)
+
+        self._field_slot_repo
 
 
 
@@ -312,8 +314,8 @@ class TaskAccessService:
         list_name: ListNameStr | None,
         task_syn: FieldSlotStr,
         task_only_by_name: bool,
-    ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity, TaskEntity]:
-        community, community_user, lst = self._list_access_service.get_convenient(
+    ) -> tuple[CommunityEntity, MemberEntity, ListEntity, TaskEntity]:
+        community, member, lst = self._list_access_service.get_convenient(
             community_name, list_name
         )
         task = (
@@ -322,4 +324,4 @@ class TaskAccessService:
             else self.get_by_list_and_syn_or_raise(lst, task_syn)
         )
 
-        return (community, community_user, lst, task)
+        return (community, member, lst, task)

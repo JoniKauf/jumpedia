@@ -5,18 +5,16 @@ from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.user import UserNameStr
 from repositories.community import CommunityRepository
-from repositories.community_user import CommunityUserRepository
+from repositories.member import MemberRepository
 from repositories.dtos.community import CommunityInsert
-from repositories.dtos.community_user import CommunityUserInsert
+from repositories.dtos.member import MemberInsert
 from repositories.list import ListRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from services.community_user import CommunityUserAccessService, CommunityUserService
+from services.member import MemberAccessService, MemberService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.task import UserRef
@@ -31,8 +29,8 @@ class CommunityService:
     _community_repo: CommunityRepository
     _permission_service: PermissionService
     _community_access_service: CommunityAccessService
-    _community_user_access_service: CommunityUserAccessService
-    _community_user_service: CommunityUserService
+    _member_access_service: MemberAccessService
+    _member_service: MemberService
     _list_service: ListService
 
     def create(
@@ -61,8 +59,8 @@ class CommunityService:
 
         self._server_repo.link(community, self._ctx.server_id)
 
-        self._community_user_service.get_or_create(
-            CommunityUserInsert(
+        self._member_service.get_or_create(
+            MemberInsert(
                 UserEntity(owner.id, owner.name),
                 community.community_id,
                 CommunityRank.OWNER,
@@ -81,12 +79,12 @@ class CommunityService:
         return community
 
     def delete(self) -> DeletedCommunity:
-        community, community_user = self._community_user_access_service.get_convenient(
+        community, member = self._member_access_service.get_convenient(
             None
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.OWNER
+            member, CommunityRank.OWNER
         )
 
         self._community_repo.delete(community.community_id)
@@ -99,13 +97,13 @@ class CommunityQueryService:
     _community_repo: CommunityRepository
     _list_repo: ListRepository
     _task_repo: TaskRepository
-    _community_user_repo: CommunityUserRepository
+    _member_repo: MemberRepository
     _community_access_service: CommunityAccessService
 
     def get_info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
-        community_users = self._community_user_repo.get_all_by_community_id(
+        members = self._member_repo.get_all_by_community_id(
             community.community_id
         )
         lists = self._list_repo.get_all_by_community(community.community_id)
@@ -124,7 +122,7 @@ class CommunityQueryService:
             default_selected_list,
             community.created,
             community.limits,
-            tuple(community_users),
+            tuple(members),
             tuple(lists),
             task_count,
         )
@@ -135,7 +133,7 @@ class CommunityQueryService:
             for community in self._community_repo.get_all()
         }
 
-        community_user_count = self._community_user_repo.count_grouped_by_community_id()
+        member_count = self._member_repo.count_grouped_by_community_id()
         list_counts = self._list_repo.count_grouped_by_community_id()
         task_counts = self._task_repo.count_grouped_by_community_id()
 
@@ -143,7 +141,7 @@ class CommunityQueryService:
             CommunitySummary(
                 community.name,
                 community.created,
-                community_user_count.get(id, 0),
+                member_count.get(id, 0),
                 list_counts.get(id, 0),
                 task_counts.get(id, 0),
             )

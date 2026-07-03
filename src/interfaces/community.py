@@ -37,10 +37,10 @@ class CommunityInterface(BaseInterface, group_name="community"):
             "Created": (_created_to_representation(info.created),),
             "Owners": tuple(
                 str(user.name)
-                for user in info.community_users
+                for user in info.members
                 if user.community_rank is CommunityRank.OWNER
             ),
-            "User Count": (str(len(info.community_users)),),
+            "User Count": (str(len(info.members)),),
             "Lists": tuple(str(lst.name) for lst in info.lists),
             "Default Selected List": (
                 (str(info.default_selected_list.name),)
@@ -115,7 +115,7 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
                 (_created_to_representation(summary.created),) for summary in summaries
             ),
             "User Count": tuple(
-                (str(summary.community_user_count),) for summary in summaries
+                (str(summary.member_count),) for summary in summaries
             ),
             "List Count": tuple((str(summary.list_count),) for summary in summaries),
             "Total Task Count": tuple(

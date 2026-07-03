@@ -59,7 +59,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
     class NonStaticAttributeTypesEnum(enum.Enum):
         TASK = AttributeType.TASK
-        USER = AttributeType.USER
+        USER = AttributeType.MEMBER
 
     @app_commands.command()
     @with_context()

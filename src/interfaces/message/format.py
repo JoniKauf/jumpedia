@@ -5,7 +5,7 @@ from string.templatelib import Template
 from domain.entities.attribute import AttributeEntity
 from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
-from domain.entities.community_user import CommunityUserEntity, UserEntity
+from domain.entities.member import MemberEntity, UserEntity
 from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
@@ -39,7 +39,7 @@ def human_join(
     return f"{delimiter.join(objects_str[:-1])}{final_delimiter}{objects[-1]}"
 
 
-type MentionableEntityT = CommunityEntity | UserEntity | CommunityUserEntity | ListEntity | AttributeEntity | TaskEntity
+type MentionableEntityT = CommunityEntity | UserEntity | MemberEntity | ListEntity | AttributeEntity | TaskEntity
 
 type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskInfo
 type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskSummary
@@ -53,7 +53,7 @@ _TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     CommunityRank: ("community rank", "community ranks"),
     ServerRank: ("server rank", "server ranks"),
     UserEntity: ("user", "users"),
-    CommunityUserEntity: ("community member", "community members"),
+    MemberEntity: ("community member", "community members"),
     CommunityEntity: ("community", "communities"),
     CommunityInfo: ("community", "communities"),
     CommunitySummary: ("community", "communities"),
@@ -75,7 +75,7 @@ _TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
 _ATTRIBUTE_TYPE_PREFIX_MAP = {
     AttributeType.STATIC: "static",
     AttributeType.TASK: "task",
-    AttributeType.USER: "user",
+    AttributeType.MEMBER: "user",
 }
 
 

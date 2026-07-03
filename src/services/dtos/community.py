@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from domain.entities.community_user import CommunityUserEntity
+from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
@@ -13,7 +13,7 @@ class CommunityInfo:
     default_selected_list: ListEntity | None
     created: datetime
     limits: CommunityLimits
-    community_users: tuple[CommunityUserEntity, ...]
+    members: tuple[MemberEntity, ...]
     lists: tuple[ListEntity, ...]
     total_task_count: int
 
@@ -22,7 +22,7 @@ class CommunityInfo:
 class CommunitySummary:
     name: CommunityNameStr
     created: datetime
-    community_user_count: int
+    member_count: int
     list_count: int
     total_task_count: int
 

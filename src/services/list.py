@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.community import CommunityEntity
-from domain.entities.community_user import CommunityUserEntity
+from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
@@ -17,7 +17,7 @@ from repositories.dtos.list import ListInsert
 from repositories.list import ListRepository
 from repositories.task import TaskRepository
 from services.community import CommunityAccessService
-from services.community_user import CommunityUserAccessService
+from services.member import MemberAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.list import DeletedList, ListInfo, ListSummary
 from services.permission import PermissionService
@@ -28,16 +28,16 @@ class ListService:
     _list_repo: ListRepository
     _attribute_repo: AttributeRepository
     _permission_service: PermissionService
-    _community_user_access_service: CommunityUserAccessService
+    _member_access_service: MemberAccessService
     _list_access_service: ListAccessService
 
     def create(self, name: ListNameStr) -> ListEntity:
-        community, community_user = self._community_user_access_service.get_convenient(
+        community, member = self._member_access_service.get_convenient(
             None
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.ADMINISTRATOR
+            member, CommunityRank.ADMINISTRATOR
         )
 
         list_count = self._list_repo.count_by_community(community.community_id)
@@ -85,12 +85,12 @@ class ListService:
         return lst
 
     def delete(self, name: ListNameStr) -> DeletedList:
-        community, community_user, lst = self._list_access_service.get_convenient(
+        community, member, lst = self._list_access_service.get_convenient(
             None, name
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.ADMINISTRATOR
+            member, CommunityRank.ADMINISTRATOR
         )
 
         self._list_repo.delete(lst.list_id)
@@ -98,12 +98,12 @@ class ListService:
         return DeletedList(community, lst.name)
 
     def rename(self, name_before: ListNameStr, name_after: ListNameStr) -> ListEntity:
-        _, community_user, lst = self._list_access_service.get_convenient(
+        _, member, lst = self._list_access_service.get_convenient(
             None, name_before
         )
 
         self._permission_service.ensure_community_rank(
-            community_user, CommunityRank.ADMINISTRATOR
+            member, CommunityRank.ADMINISTRATOR
         )
 
         name_taken_lst = self._list_repo.get_by_community_and_name(
@@ -173,7 +173,7 @@ class ListQueryService:
 @dataclass(frozen=True, slots=True, eq=False)
 class ListAccessService:
     _list_repo: ListRepository
-    _community_user_access_service: CommunityUserAccessService
+    _member_access_service: MemberAccessService
 
     def get_by_community_and_name_or_raise(
         self, community: CommunityEntity, name: ListNameStr
@@ -186,7 +186,7 @@ class ListAccessService:
         return lst
 
     def get_by_priority(
-        self, community: CommunityEntity, community_user: CommunityUserEntity
+        self, community: CommunityEntity, member: MemberEntity
     ) -> ListEntity:
         """Get the selected list in priority order:
 
@@ -196,7 +196,7 @@ class ListAccessService:
         """
 
         selected_list_id = (
-            community_user.selected_list_id or community.default_selected_list_id
+            member.selected_list_id or community.default_selected_list_id
         )
 
         if selected_list_id is None:
@@ -210,16 +210,16 @@ class ListAccessService:
 
     def get_convenient(
         self, community_name: CommunityNameStr | None, list_name: ListNameStr | None
-    ) -> tuple[CommunityEntity, CommunityUserEntity, ListEntity]:
-        community, community_user = self._community_user_access_service.get_convenient(
+    ) -> tuple[CommunityEntity, MemberEntity, ListEntity]:
+        community, member = self._member_access_service.get_convenient(
             community_name
         )
 
         lst: ListEntity
 
         if list_name is None:
-            lst = self.get_by_priority(community, community_user)
+            lst = self.get_by_priority(community, member)
         else:
             lst = self.get_by_community_and_name_or_raise(community, list_name)
 
-        return (community, community_user, lst)
+        return (community, member, lst)

@@ -7,7 +7,7 @@ from domain.types.list import ListID
 
 
 @dataclass(frozen=True, slots=True)
-class CommunityUserInsert:
+class MemberInsert:
     user: UserEntity
     community_id: CommunityID
     rank: CommunityRank = CommunityRank.DEFAULT

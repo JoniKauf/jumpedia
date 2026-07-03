@@ -1,60 +1,60 @@
 from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
-from domain.entities.community_user import CommunityUserEntity
+from domain.entities.member import MemberEntity
 from domain.value_objects.community import CommunityNameStr
-from repositories.community_user import CommunityUserRepository
-from repositories.dtos.community_user import CommunityUserInsert
+from repositories.member import MemberRepository
+from repositories.dtos.member import MemberInsert
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.user import UserService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class CommunityUserService:
-    _community_user_repo: CommunityUserRepository
+class MemberService:
+    _member_repo: MemberRepository
 
     def get_or_create(
         self,
-        community_user: CommunityUserInsert,
+        member: MemberInsert,
         *,
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
-    ) -> CommunityUserEntity:
-        existing = self._community_user_repo.get_by_user_and_community_id(
-            community_user.user, community_user.community_id
+    ) -> MemberEntity:
+        existing = self._member_repo.get_by_user_and_community_id(
+            member.user, member.community_id
         )
 
         if existing is None:
-            return self._community_user_repo.create(community_user)
+            return self._member_repo.create(member)
 
         overwrite_any: bool = False
 
         if overwrite_rank:
-            existing.community_rank = community_user.rank
+            existing.community_rank = member.rank
             overwrite_any = True
 
         if overwrite_selected_list:
-            existing.selected_list_id = community_user.selected_list_id
+            existing.selected_list_id = member.selected_list_id
             overwrite_any = True
 
         if not overwrite_any:
             return existing
 
-        return self._community_user_repo.update(existing)
+        return self._member_repo.update(existing)
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class CommunityUserAccessService:
+class MemberAccessService:
     _ctx: InteractingUserContext
-    _community_user_repo: CommunityUserRepository
+    _member_repo: MemberRepository
     _community_access_service: CommunityAccessService
 
     def get_or_create_current_with_defaults(
         self, community: CommunityEntity
-    ) -> CommunityUserEntity:
-        return self._community_user_repo.create(
-            CommunityUserInsert(
+    ) -> MemberEntity:
+        return self._member_repo.create(
+            MemberInsert(
                 self._ctx.user,
                 community.community_id,
             )
@@ -62,8 +62,8 @@ class CommunityUserAccessService:
 
     def get_convenient(
         self, community_name: CommunityNameStr | None
-    ) -> tuple[CommunityEntity, CommunityUserEntity]:
+    ) -> tuple[CommunityEntity, MemberEntity]:
         community = self._community_access_service.get_convenient(community_name)
-        community_user = self.get_or_create_current_with_defaults(community)
+        member = self.get_or_create_current_with_defaults(community)
 
-        return (community, community_user)
+        return (community, member)

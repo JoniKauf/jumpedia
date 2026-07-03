@@ -25,7 +25,7 @@ from domain.types.collection_entry import (
 )
 from domain.types.common import ID
 from domain.types.community import CommunityID
-from domain.types.community_user import CommunityUserID
+from domain.types.member import MemberID
 from domain.types.list import ListID
 from domain.types.server import ServerID
 from domain.types.task import TaskAliasID, TaskID
@@ -158,10 +158,10 @@ class UserModel(BaseModel):
     )
 
 
-class CommunityUserModel(BaseModel):
-    __tablename__ = "community_user"
+class MemberModel(BaseModel):
+    __tablename__ = "member"
 
-    community_user_id: Mapped[CommunityUserID] = mapped_column(
+    member_id: Mapped[MemberID] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
 
@@ -225,7 +225,7 @@ class AttributeModel(BaseModel):
         CheckConstraint(
             f"(type = {AttributeType.STATIC} AND kind BETWEEN {AttributeKind.NONE + 1} AND {max(AttributeKind)}) "
             f"OR "
-            f"(type in ({AttributeType.TASK}, {AttributeType.USER}) AND kind = {AttributeKind.NONE})"
+            f"(type in ({AttributeType.TASK}, {AttributeType.MEMBER}) AND kind = {AttributeKind.NONE})"
         ),
         CheckConstraint(
             f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}"
@@ -384,9 +384,6 @@ class TaskAliasModel(BaseModel):
     )
 
 
-# --- Static Task Values ---
-
-
 class FieldSlotModel(BaseModel):
     __tablename__ = "field_slot"
 
@@ -412,15 +409,15 @@ class FieldSlotModel(BaseModel):
 # --- User Task ---
 
 
-class OwnedTaskModel(BaseModel):
-    __tablename__ = "owned_task"
+class MemberTaskModel(BaseModel):
+    __tablename__ = "user_task"
 
-    owned_task_id: Mapped[ID] = mapped_column(
+    member_task_id: Mapped[ID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
-    community_user_id: Mapped[CommunityUserID] = mapped_column(
-        ForeignKey("community_user.community_user_id", ondelete="CASCADE")
+    member_id: Mapped[MemberID] = mapped_column(
+        ForeignKey("member.member_id", ondelete="CASCADE")
     )
 
     task_id: Mapped[TaskID] = mapped_column(
@@ -429,22 +426,22 @@ class OwnedTaskModel(BaseModel):
 
     __table_args__ = (
         *BaseModel.__table_args__,
-        UniqueConstraint("community_user_id", "task_id"),
+        UniqueConstraint("member_id", "task_id"),
     )
 
 
-class OwnedFieldSlotModel(BaseModel):
-    __tablename__ = "owned_field_slot"
+class UserFieldSlotModel(BaseModel):
+    __tablename__ = "user_field_slot"
 
-    owned_field_slot_id: Mapped[ID] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True
+    user_task_id: Mapped[ID] = mapped_column(
+        BigInteger, ForeignKey("user_task.user_task_id", ondelete="CASCADE"), primary_key=True
     )
 
-    community_user_task_id: Mapped[ID] = mapped_column(
-        ForeignKey("owned_task.owned_task_id", ondelete="CASCADE")
+    attribute_id: Mapped[AttributeID] = mapped_column(
+        ForeignKey("attribute.attribute_id", ondelete="CASCADE"), primary_key=True
     )
 
-    index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)
 
     real_slot: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
@@ -452,9 +449,4 @@ class OwnedFieldSlotModel(BaseModel):
 
     norm_slot: Mapped[NormStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
-    )
-
-    __table_args__ = (
-        *BaseModel.__table_args__,
-        UniqueConstraint("owned_task_id", "attribute_id", "index"),
     )

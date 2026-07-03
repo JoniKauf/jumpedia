@@ -8,11 +8,11 @@ from functools import cached_property
 class AttributeType(enum.IntEnum):
     STATIC = 1
     TASK = 2
-    USER = 3
+    MEMBER = 3
 
     type StaticT = t.Literal[AttributeType.STATIC]
     type TaskT = t.Literal[AttributeType.TASK]
-    type UserT = t.Literal[AttributeType.USER]
+    type UserT = t.Literal[AttributeType.MEMBER]
 
     @t.overload
     def as_set(self: StaticT) -> t.AbstractSet[StaticT]:
@@ -33,11 +33,11 @@ class AttributeType(enum.IntEnum):
 
     @classmethod
     def ALL(cls) -> t.AbstractSet[StaticT | TaskT | UserT]:
-        return {cls.STATIC, cls.TASK, cls.USER}
+        return {cls.STATIC, cls.TASK, cls.MEMBER}
 
     @classmethod
     def NON_STATIC(cls) -> t.AbstractSet[TaskT | UserT]:
-        return {cls.TASK, cls.USER}
+        return {cls.TASK, cls.MEMBER}
 
     @classmethod
     def NON_USER(cls) -> t.AbstractSet[StaticT | TaskT]:

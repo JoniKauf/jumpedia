@@ -4,21 +4,21 @@ from domain.entities.base import BaseEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.community import CommunityID
-from domain.types.community_user import CommunityUserID
+from domain.types.member import MemberID
 from domain.types.list import ListID
 from domain.value_objects.string import Str
 
 
-class CommunityUserEntity(BaseEntity[CommunityUserID]):
+class MemberEntity(BaseEntity[MemberID]):
     def __init__(
         self,
-        community_user_id: CommunityUserID,
+        member_id: MemberID,
         user: UserEntity,
         community_id: CommunityID,
         rank: CommunityRank = CommunityRank.DEFAULT,
         selected_list_id: ListID | None = None,
     ) -> None:
-        super().__init__(community_user_id)
+        super().__init__(member_id)
 
         self._community_id = community_id
         self.community_rank = rank
@@ -26,7 +26,7 @@ class CommunityUserEntity(BaseEntity[CommunityUserID]):
         self.user = user
 
     @property
-    def community_user_id(self) -> CommunityUserID:
+    def member_id(self) -> MemberID:
         return self._composite_key[0]
 
     @property
