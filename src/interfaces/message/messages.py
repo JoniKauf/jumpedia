@@ -102,3 +102,13 @@ async def object_nuked(
         t"{format.type_name_for_header(type(dto))} Deleted",
         t"The {format.mention_body(dto)} has been nuked successfully! 💣",
     )
+
+
+async def object_name_edited(
+    interaction: discord.Interaction, name_before: Str, entity: format.MentionableEntityT
+) -> None:
+    await success(
+        interaction,
+        t"{format.type_name_for_header(type(entity))} Renamed",
+        t"The attribute {name_before @ format.T.FORMATTED} has been renamed to {entity.name @ format.T.FORMATTED} successfully!"
+    )

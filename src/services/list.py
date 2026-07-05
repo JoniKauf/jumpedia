@@ -48,7 +48,7 @@ class ListService:
         if existing := self._list_repo.get_by_community_and_name(
             community.community_id, name
         ):
-            raise errors.NameAlreadyTaken(name, existing)
+            raise errors.SynAlreadyTaken(existing, name, False, False)
 
         lst = self._list_repo.create(ListInsert(community.community_id, name))
 
@@ -105,7 +105,7 @@ class ListService:
         )
 
         if name_taken_lst is not None:
-            raise errors.NameAlreadyTaken(lst.name, name_taken_lst)
+            raise errors.SynAlreadyTaken(name_taken_lst, lst.name, False, False)
 
         lst.name = name_after
 

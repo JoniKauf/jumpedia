@@ -127,8 +127,10 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         new_attribute_name: str,
         list_name: str,
     ) -> None:
-        ctx.services.attribute.create
+        attr = ctx.services.attribute.edit_name(AttributeSynStr(current_attribute_name), AttributeSynStr(new_attribute_name), ListNameStr(list_name))
 
+        # TODO Make old name be correctly cased
+        await messages.object_name_edited(ctx.interaction, )
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()

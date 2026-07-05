@@ -44,7 +44,7 @@ class CommunityService:
         existing = self._community_repo.get_by_name(name)
 
         if existing is not None:
-            raise errors.NameAlreadyTaken(name, existing)
+            raise errors.SynAlreadyTaken(existing, name, False, False)
 
         existing = self._community_repo.get_by_server_id(self._ctx.server_id)
 

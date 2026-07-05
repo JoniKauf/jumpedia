@@ -114,11 +114,11 @@ class AttributeRepository(BaseRepository):
 
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_by_list_id_and_any_syn(
+    def get_first_by_list_id_and_any_syn(
         self,
         list_id: ListID,
         syns: t.Iterable[AttributeSynStr],
-        exclude: t.AbstractSet[AttributeID],
+        exclude: AttributeID | None
     ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
@@ -142,8 +142,8 @@ class AttributeRepository(BaseRepository):
             .limit(1)
         )
 
-        if exclude:
-            stmt = stmt.where(AttributeModel.attribute_id.not_in(exclude))
+        if exclude is not None:
+            stmt = stmt.where(AttributeModel.attribute_id != exclude)
 
         row = self._session.execute(stmt).first()
 
@@ -169,14 +169,14 @@ class AttributeRepository(BaseRepository):
             )
 
         return entity, syn
-
+    
     def get_by_list_id_and_syn(
         self,
         list_id: ListID,
         syn: AttributeSynStr,
-    ) -> AttributeEntity | None:
+    ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         stmt = (
-            select(AttributeModel)
+            select(AttributeModel, AttributeAliasModel)
             .outerjoin(
                 AttributeAliasModel,
                 AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
@@ -191,10 +191,31 @@ class AttributeRepository(BaseRepository):
             .limit(1)
         )
 
-        obj = self._session.scalar(stmt)
+        row = self._session.execute(stmt).first()
 
-        return None if obj is None else attribute_model_to_entity(obj)
+        if row is None:
+            return None
 
+        attr_obj, alias_obj = row
+        attr_obj: AttributeModel
+        alias_obj: AttributeAliasModel | None
+
+        entity = attribute_model_to_entity(attr_obj)
+
+        if attr_obj.norm_name == syn.norm:
+            colliding_syn = AttributeSynStr(
+                _real=attr_obj.real_name,
+                _norm=attr_obj.norm_name,
+            )
+        else:
+            assert alias_obj is not None
+            colliding_syn = AttributeSynStr(
+                _real=alias_obj.real_alias,
+                _norm=alias_obj.norm_alias,
+            )
+
+        return entity, colliding_syn
+    
     def get_by_list_id_and_alias(
         self,
         list_id: ListID,

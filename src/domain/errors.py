@@ -74,27 +74,13 @@ class NameTooLong(DomainError):
         self.limit = limit
         self.type = type
 
-
-class NameAlreadyTaken(DomainError):
-    def __init__(self, existing: BaseEntity, taken: Str) -> None:
-        super().__init__()
-        self.taken = taken
-        self.existing = existing
-
-
-class AliasAlreadyTaken(DomainError):
-    def __init__(self, existing: BaseEntity, taken: Str) -> None:
-        super().__init__()
-        self.existing = existing
-        self.taken = taken
-
-
 class SynAlreadyTaken(DomainError):
-    def __init__(self, existing: BaseEntity, taken: Str) -> None:
+    def __init__(self, existing: BaseEntity, new: Str, existing_is_alias: bool, new_is_alias: bool) -> None:
         super().__init__()
         self.existing = existing
-        self.taken = taken
-
+        self.new = new
+        self.existing_is_alias = existing_is_alias
+        self.new_is_alias = new_is_alias
 
 class NameNotDifferent(DomainError):
     def __init__(self, name: Str) -> None:
@@ -123,10 +109,11 @@ class CountLimitReached(DomainError):
 
 
 class AliasCountLimitReached(DomainError):
-    def __init__(self, limit: int, entity_name: Str) -> None:
+    def __init__(self, limit: int, entity_name: Str, aliases: tuple[Str, ...]) -> None:
         super().__init__()
         self.limit = limit
         self.entity_name = entity_name
+        self.aliases = aliases
 
 
 class SlotCountDefinitionLimitExceeded(DomainError):

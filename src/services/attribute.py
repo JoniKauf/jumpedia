@@ -76,18 +76,20 @@ class AttributeService:
 
         if len(aliases) > community.limits.attribute_alias_count_max:
             raise errors.AliasCountLimitReached(
-                community.limits.attribute_alias_count_max, name
+                community.limits.attribute_alias_count_max, name, aliases
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
         AttributeSynStr.raise_if_not_unique(syns)
 
-        existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(
-            lst.list_id, syns, set()
+        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, syns, None
         )
 
         if existing_same_syn is not None:
-            raise errors.SynAlreadyTaken(*existing_same_syn)
+            colliding_attr, colliding_syn = existing_same_syn
+
+            raise errors.SynAlreadyTaken(*existing_same_syn, colliding_attr.name != colliding_syn, colliding_syn != name)
 
         # --- Validate Slot ---
         if slot.min_count != 0:
@@ -125,6 +127,7 @@ class AttributeService:
                     raise errors.AliasCountLimitReached(
                         community.limits.collection_entry_alias_count_max,
                         entry.value,
+                        entry.aliases
                     )
 
             # Collection doesn't exist before so here we don't have to check for uniqueness across other db entries
@@ -196,7 +199,7 @@ class AttributeService:
         current_name: AttributeSynStr,
         new_name: AttributeSynStr,
         list_name: ListNameStr,
-    ) -> None:
+    ) -> AttributeEntity:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             None, list_name, current_name, True
         )
@@ -205,20 +208,25 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
+        # Exactly equal (real matches, not just norm)
         if attr.name.real == new_name.real:
             raise errors.NameNotDifferent(current_name)
 
-        existing_attr = self._attribute_repo.get_by_list_id_and_syn(
-            lst.list_id, new_name
+        existing_attr_and_syn = self._attribute_repo.get_by_list_id_and_syn(
+            lst.list_id, new_name, 
         )
 
-        # Either name is not taken yet or it is the NAME of the same attr (with possibly different casing)
-        if existing_attr is not None and not (
-            existing_attr == attr and attr.name == new_name
-        ):
-            raise errors.NameAlreadyTaken(existing_attr, new_name)
+        if existing_attr_and_syn is not None:
+            existing_attr, existing_syn = existing_attr_and_syn
+
+            # False if the current attribute has the same name but with different casing
+            if not (existing_attr == attr and attr.name == existing_syn):
+                raise errors.SynAlreadyTaken(existing_attr, new_name, existing_attr.name != existing_syn, False)
 
         self._attribute_repo.update_name(attr.attribute_id, new_name)
+        attr.name = new_name
+        
+        return attr
 
     def edit_aliases(
         self,
@@ -237,38 +245,35 @@ class AttributeService:
 
         AttributeSynStr.raise_if_not_unique(new_aliases)
 
-        if len(new_aliases) > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(
-                community.limits.attribute_alias_count_max, attr.name
-            )
-
-        aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
-
-        for a, b in zip_longest(new_aliases, aliases, fillvalue=None):
-            if a is None or b is None:
-                break
-
-            if a.real != b.real:
-                break
-        else:
+        current_aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
+    
+        if operation is Operation.COMBINE:
+            new_aliases = tuple(dict.fromkeys((*current_aliases, *new_aliases)))
+        
+        # If aliases exactly equal to existing ones (including order even tho technically unimportant)
+        if current_aliases == new_aliases:
             raise errors.AliasesNotDifferent(new_aliases)
 
-        # We exclude the current attr in the search below for collisions, because alias collisions are fine.
-        # A name collision is not fine though. Therefore we need to manually check it here.
+        if len(new_aliases) > community.limits.attribute_alias_count_max:
+            raise errors.AliasCountLimitReached(
+                community.limits.attribute_alias_count_max, attr.name, new_aliases
+            )
+        
+        # Check if name collision with current attribute
         for alias in new_aliases:
             if alias == attr.name:
-                raise errors.AliasAlreadyTaken(attr, alias)
+                raise errors.SynAlreadyTaken(attr, alias, False, True)
 
-        tup = self._attribute_repo.get_by_list_id_and_any_syn(
-            lst.list_id, new_aliases, {attr.attribute_id}
+        existing_attr_and_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, new_aliases, attr.attribute_id
         )
 
-        if tup is not None:
-            raise errors.AliasAlreadyTaken(*tup)
+        # Check syn collision for other attributes (collisions with aliases of current attr are allowed)
+        if existing_attr_and_syn is not None:
+            existing_attr, existing_syn = existing_attr_and_syn
 
-        if operation is Operation.COMBINE:
-            new_aliases = tuple(dict.fromkeys((*aliases, *new_aliases)))
-
+            raise errors.SynAlreadyTaken(existing_attr, existing_syn, existing_attr.name != existing_syn, True)
+        
         self._attribute_repo.update_aliases(
             attr.attribute_id,
             (
@@ -369,12 +374,12 @@ class AttributeAccessService:
     def get_by_list_and_syn_or_raise(
         self, lst: ListEntity, syn: AttributeSynStr
     ) -> AttributeEntity:
-        attr = self._repo.get_by_list_id_and_syn(lst.list_id, syn)
+        existing_attr_and_syn = self._repo.get_by_list_id_and_syn(lst.list_id, syn)
 
-        if attr is None:
+        if existing_attr_and_syn is None:
             raise errors.NotFoundBySyn(syn, AttributeEntity)
 
-        return attr
+        return existing_attr_and_syn[0]
 
     def get_convenient(
         self,

@@ -69,9 +69,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
         list_attribute_count_max: int = _DEFAULT_LIMITS.list_attribute_count_max,
         list_task_count_max: int = _DEFAULT_LIMITS.list_task_count_max,
         attr_alias_count_max: int = _DEFAULT_LIMITS.attribute_alias_count_max,
-        attr_task_value_slot_count_max: int = _DEFAULT_LIMITS.field_slot_count_max,
-        attr_coll_entry_count_max: int = _DEFAULT_LIMITS.collection_entry_count_max,
-        attr_coll_entry_alias_count_max: int = _DEFAULT_LIMITS.collection_entry_alias_count_max,
+        field_slot_count_max: int = _DEFAULT_LIMITS.field_slot_count_max,
+        collection_entry_count_max: int = _DEFAULT_LIMITS.collection_entry_count_max,
+        collection_entry_alias_count_max: int = _DEFAULT_LIMITS.collection_entry_alias_count_max,
     ) -> None:
         community = ctx.services.community.create(
             CommunityNameStr(community_name),
@@ -84,9 +84,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
                 list_attribute_count_max=list_attribute_count_max,
                 list_task_count_max=list_task_count_max,
                 attribute_alias_count_max=attr_alias_count_max,
-                field_slot_count_max=attr_task_value_slot_count_max,
-                collection_entry_count_max=attr_coll_entry_count_max,
-                collection_entry_alias_count_max=attr_coll_entry_alias_count_max,
+                field_slot_count_max=field_slot_count_max,
+                collection_entry_count_max=collection_entry_count_max,
+                collection_entry_alias_count_max=collection_entry_alias_count_max,
             ),
         )
 
