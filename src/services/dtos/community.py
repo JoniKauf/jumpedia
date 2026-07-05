@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
 

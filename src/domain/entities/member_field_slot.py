@@ -2,26 +2,25 @@ from typing import Any
 
 from domain.entities.base import BaseEntity
 from domain.types.attribute import AttributeID
+from domain.types.member_task import MemberTaskID
 from domain.types.task import TaskID
-from domain.value_objects.index import Index
 from domain.value_objects.field_slot import FieldSlotStr
-from src.domain.types.user_task import UserTaskID
+from domain.value_objects.index import Index
 
 
-class UserFieldSlotEntity(BaseEntity[UserTaskID, AttributeID, Index]):
+class MemberFieldSlotEntity(BaseEntity[MemberTaskID, AttributeID, Index]):
     def __init__(
         self,
-        user_task_id: UserTaskID,
+        member_task_id: MemberTaskID,
         attribute_id: AttributeID,
         index: Index,
         slot: FieldSlotStr,
     ) -> None:
-        super().__init__(user_task_id, attribute_id, index)
-
+        super().__init__(member_task_id, attribute_id, index)
         self.slot = slot
 
     @property
-    def task_id(self) -> UserTaskID:
+    def member_task_id(self) -> MemberTaskID:
         return self._composite_key[0]
 
     @property

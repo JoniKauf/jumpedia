@@ -15,7 +15,7 @@ from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
 from services.dtos.community import CommunitySummary
-from services.dtos.task import UserRef
+from services.dtos.user import UserRef
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
@@ -114,9 +114,7 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
             "Created": tuple(
                 (_created_to_representation(summary.created),) for summary in summaries
             ),
-            "User Count": tuple(
-                (str(summary.member_count),) for summary in summaries
-            ),
+            "User Count": tuple((str(summary.member_count),) for summary in summaries),
             "List Count": tuple((str(summary.list_count),) for summary in summaries),
             "Total Task Count": tuple(
                 (str(summary.total_task_count),) for summary in summaries

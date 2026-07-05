@@ -43,9 +43,3 @@ class TaskSummariesData:
     summaries: tuple[TaskSummary, ...]
     static_attributes: AttributeEntity.AllStaticT
     task_attributes: tuple[AttributeEntity.TaskT, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class UserRef:
-    id: UserID
-    name: UserNameStr

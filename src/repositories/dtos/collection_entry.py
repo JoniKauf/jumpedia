@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionEntryID
-from domain.value_objects.index import Index
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.index import Index
 
 
 @dataclass(frozen=True, slots=True)

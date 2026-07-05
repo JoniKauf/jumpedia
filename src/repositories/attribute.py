@@ -1,7 +1,7 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain import errors
@@ -118,6 +118,7 @@ class AttributeRepository(BaseRepository):
         self,
         list_id: ListID,
         syns: t.Iterable[AttributeSynStr],
+        exclude: t.AbstractSet[AttributeID],
     ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
@@ -140,6 +141,9 @@ class AttributeRepository(BaseRepository):
             )
             .limit(1)
         )
+
+        if exclude:
+            stmt = stmt.where(AttributeModel.attribute_id.not_in(exclude))
 
         row = self._session.execute(stmt).first()
 
@@ -346,3 +350,44 @@ class AttributeRepository(BaseRepository):
         return ts.MappingProxyType(
             {attribute_id: tuple(aliases) for attribute_id, aliases in res.items()}
         )
+
+    def update_name(
+        self,
+        attribute_id: AttributeID,
+        name: AttributeSynStr,
+    ) -> None:
+        obj = self._session.get(AttributeModel, attribute_id)
+
+        if obj is None:
+            raise errors.NotFoundById(AttributeEntity)
+
+        obj.real_name = name.real
+        obj.norm_name = name.norm
+
+        self._session.flush()
+
+    def update_aliases(
+        self,
+        attribute_id: AttributeID,
+        aliases: t.Iterable[AttributeAliasInsert],
+    ) -> None:
+        self._session.execute(
+            delete(AttributeAliasModel).where(
+                AttributeAliasModel.attribute_id == attribute_id,
+            )
+        )
+
+        objs = tuple(
+            AttributeAliasModel(
+                attribute_id=attribute_id,
+                list_id=alias.list_id,
+                real_alias=alias.alias.real,
+                norm_alias=alias.alias.norm,
+            )
+            for alias in aliases
+        )
+
+        if objs:
+            self._session.add_all(objs)
+
+        self._session.flush()

@@ -4,13 +4,13 @@ from discord import app_commands
 
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
-from domain.value_objects.list import ListNameStr
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.list import ListNameStr
 from interfaces import dsl
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.message import messages
+from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
 from services.dtos.collection_entry import (
     CollectionEntryEntityWithAliases,
@@ -57,9 +57,15 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.object_info(ctx.interaction, type(info), data)
 
-    class NonStaticAttributeTypesEnum(enum.Enum):
-        TASK = AttributeType.TASK
-        USER = AttributeType.MEMBER
+    NonStaticAttributeTypesEnum = enum.Enum(
+        "NonStaticAttributeTypesEnum",
+        [
+            (format.ATTRIBUTE_TYPE_PREFIX_MAP[attr_type].title(), attr_type)
+            for attr_type in AttributeType
+            if attr_type is not AttributeType.STATIC
+        ]
+        + [],  # Pyright is happy with this enum inside a type annotation only if we add a "+ []"
+    )
 
     @app_commands.command()
     @with_context()
@@ -111,6 +117,17 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         )
 
         await messages.object_nuked(ctx.interaction, deleted)
+
+    @app_commands.command()
+    @with_context()
+    async def edit_name(
+        self,
+        ctx: CommandContext,
+        current_attribute_name: str,
+        new_attribute_name: str,
+        list_name: str,
+    ) -> None:
+        ctx.services.attribute.create
 
 
 class AttributesInterface(BaseInterface, group_name="attributes"):

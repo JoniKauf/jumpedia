@@ -3,11 +3,7 @@ import typing as t
 
 from sqlalchemy import func, or_, select
 
-from db.models import (
-    CollectionEntryAliasModel,
-    CollectionEntryModel,
-    AttributeModel,
-)
+from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntryModel
 from domain import errors
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeType

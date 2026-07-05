@@ -52,7 +52,7 @@ async def object_info(
 
     await info(
         interaction,
-        t"{format.type_name_header(info_dto_type)} Info",
+        t"{format.type_name_for_header(info_dto_type)} Info",
         t"{'\n'.join(links) @ T.RAW}",
     )
 
@@ -62,13 +62,13 @@ async def object_browse(
     summary_dto_type: type[format.MentionableSummaryDTOT],
     data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
-    header = t"{format.type_name_header(summary_dto_type)} Browsed"
+    header = t"{format.type_name_for_header(summary_dto_type)} Browsed"
 
     if not data:
         return await info(
             interaction,
             header,
-            t"No {format.type_name_body(summary_dto_type)} with the specified criteria could be found!",
+            t"No {format.type_name_for_body(summary_dto_type)} with the specified criteria could be found!",
         )
 
     links = pastee.table_to_pastee_strings(tuple(data), data.values())
@@ -79,7 +79,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {count @ T.EMBED} {format.type_name_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}",
+        t"A total of {count @ T.EMBED} {format.type_name_for_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}",
     )
 
 
@@ -89,8 +89,8 @@ async def object_created(
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_header(type(entity))} Created",
-        t"The {format.mention_body(entity)} has successfully been created!",
+        t"{format.type_name_for_header(type(entity))} Created",
+        t"The {format.mention_body(entity)} has been created successfully!",
     )
 
 
@@ -99,6 +99,6 @@ async def object_nuked(
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_header(type(dto))} Deleted",
-        t"The {format.mention_body(dto)} has successfully been nuked! 💣",
+        t"{format.type_name_for_header(type(dto))} Deleted",
+        t"The {format.mention_body(dto)} has been nuked successfully! 💣",
     )

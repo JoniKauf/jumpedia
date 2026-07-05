@@ -20,9 +20,9 @@ from interfaces.contexts.command import CommandContext, PublicServices
 from interfaces.message import format, messages
 from repositories.attribute import AttributeRepository
 from repositories.community import CommunityRepository
-from repositories.member import MemberRepository
 from repositories.dtos.user import UserInsert
 from repositories.list import ListRepository
+from repositories.member import MemberRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
 from repositories.user import UserRepository
@@ -32,11 +32,11 @@ from services.community import (
     CommunityQueryService,
     CommunityService,
 )
-from services.member import MemberService
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
+from services.member import MemberExistenceService
 from services.permission import PermissionService
-from services.user import UserService
+from services.user import UserExistenceService
 
 if t.TYPE_CHECKING:
     from interfaces.base import BaseInterface
@@ -107,12 +107,14 @@ def _create_services_object(session: Session, member: discord.Member):
     attribute_repo = AttributeRepository(session)
     task_repo = TaskRepository(session)
 
-    user_service = UserService(user_repo)
+    user_existence_service = UserExistenceService(user_repo)
 
-    member_service = MemberService(member_repo, user_service)
+    member_existence_service = MemberExistenceService(
+        member_repo, user_existence_service
+    )
 
     interacting_user_ctx = InteractingUserContext(
-        user_service.get_or_create(
+        user_existence_service.get_or_create(
             UserInsert(
                 UserID(ID(member.id)),
                 UserNameStr(member.name),
@@ -124,7 +126,7 @@ def _create_services_object(session: Session, member: discord.Member):
 
     permission_service = PermissionService(interacting_user_ctx)
     community_access_service = CommunityAccessService(
-        interacting_user_ctx, community_repo, member_service
+        interacting_user_ctx, community_repo, member_existence_service
     )
     community_query_service = CommunityQueryService(
         interacting_user_ctx,
@@ -142,7 +144,7 @@ def _create_services_object(session: Session, member: discord.Member):
         community_repo,
         community_access_service,
         permission_service,
-        member_service,
+        member_existence_service,
         list_service,
         server_repo,
     )

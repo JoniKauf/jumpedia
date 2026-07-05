@@ -5,8 +5,8 @@ from string.templatelib import Template
 from domain.entities.attribute import AttributeEntity
 from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
-from domain.entities.member import MemberEntity, UserEntity
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity, UserEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
@@ -48,7 +48,7 @@ type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | Mentionabl
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
 
-_TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
+TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     MetaRank: ("meta rank", "meta ranks"),
     CommunityRank: ("community rank", "community ranks"),
     ServerRank: ("server rank", "server ranks"),
@@ -72,45 +72,51 @@ _TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     DeletedTask: ("task", "tasks"),
 }
 
-_ATTRIBUTE_TYPE_PREFIX_MAP = {
+ATTRIBUTE_TYPE_PREFIX_MAP = {
     AttributeType.STATIC: "static",
     AttributeType.TASK: "task",
-    AttributeType.MEMBER: "user",
+    AttributeType.USER: "user",
 }
 
 
-def _get_type_name_lower(mentionable_type: type[MentionableT], singular: bool) -> str:
-    type_str = _TYPE_MAP[mentionable_type]
+def get_type_name_lower(
+    mentionable: MentionableT | type[MentionableT], singular: bool
+) -> str:
+    mentionable_type = (
+        mentionable if isinstance(mentionable, type) else type(mentionable)
+    )
 
-    if isinstance(mentionable_type, AttributeEntity):
-        type_str = f"{_ATTRIBUTE_TYPE_PREFIX_MAP[mentionable_type.type]} {type_str}"
+    type_str = TYPE_MAP[mentionable_type]
+
+    if isinstance(mentionable, AttributeEntity):
+        type_str = f"{ATTRIBUTE_TYPE_PREFIX_MAP[mentionable.type]} {type_str}"
 
     return type_str[not singular]
 
 
-def _get_instance_name_lower(
+def get_instance_name(
     mentionable: MentionableT,
 ) -> str:
     if isinstance(mentionable, (MetaRank, CommunityRank, ServerRank)):
-        return mentionable.name.lower()
+        return mentionable.name.title()
 
     return str(mentionable.name)
 
 
-def type_name_body(
-    mentionable_type: type[MentionableT], singular: bool = True
+def type_name_for_body(
+    mentionable: MentionableT | type[MentionableT], singular: bool = True
 ) -> _TaggedObj:
-    return _get_type_name_lower(mentionable_type, singular) @ T.RAW
+    return get_type_name_lower(mentionable, singular) @ T.RAW
 
 
-def type_name_header(
+def type_name_for_header(
     mentionable_type: type[MentionableT], singular: bool = True
 ) -> _TaggedObj:
-    return _get_type_name_lower(mentionable_type, singular).title() @ T.RAW
+    return get_type_name_lower(mentionable_type, singular).title() @ T.RAW
 
 
 def mention_body(mentionable: MentionableT, singular: bool = True) -> _TaggedObj:
     return (
-        f"{_get_type_name_lower(type(mentionable), singular)} "
-        f"``{_get_instance_name_lower(mentionable)}``"
+        f"{get_type_name_lower(type(mentionable), singular)} "
+        f"``{get_instance_name(mentionable)}``"
     ) @ T.DEFAULT

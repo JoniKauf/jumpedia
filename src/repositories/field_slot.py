@@ -9,8 +9,8 @@ from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.index import Index
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.field_slot import FieldSlotInsert
 

@@ -8,17 +8,17 @@ from domain.enums.rank import CommunityRank, MetaRank
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
 from repositories.community import CommunityRepository
-from repositories.member import MemberRepository
 from repositories.dtos.community import CommunityInsert
 from repositories.dtos.member import MemberInsert
 from repositories.list import ListRepository
+from repositories.member import MemberRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
-from services.member import MemberAccessService, MemberService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
-from services.dtos.task import UserRef
+from services.dtos.user import UserRef
 from services.list import ListService
+from services.member import MemberAccessService, MemberExistenceService
 from services.permission import PermissionService
 
 
@@ -30,7 +30,7 @@ class CommunityService:
     _permission_service: PermissionService
     _community_access_service: CommunityAccessService
     _member_access_service: MemberAccessService
-    _member_service: MemberService
+    _member_existence_service: MemberExistenceService
     _list_service: ListService
 
     def create(
@@ -39,7 +39,7 @@ class CommunityService:
         owner: UserRef,
         limits: CommunityLimits,
     ) -> CommunityEntity:
-        self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR)
+        self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR, None)
 
         existing = self._community_repo.get_by_name(name)
 
@@ -59,7 +59,7 @@ class CommunityService:
 
         self._server_repo.link(community, self._ctx.server_id)
 
-        self._member_service.get_or_create(
+        self._member_existence_service.get_or_create(
             MemberInsert(
                 UserEntity(owner.id, owner.name),
                 community.community_id,
@@ -79,13 +79,9 @@ class CommunityService:
         return community
 
     def delete(self) -> DeletedCommunity:
-        community, member = self._member_access_service.get_convenient(
-            None
-        )
+        community, member = self._member_access_service.get_convenient(None)
 
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.OWNER
-        )
+        self._permission_service.ensure_community_rank(member, CommunityRank.OWNER)
 
         self._community_repo.delete(community.community_id)
 
@@ -103,9 +99,7 @@ class CommunityQueryService:
     def get_info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
-        members = self._member_repo.get_all_by_community_id(
-            community.community_id
-        )
+        members = self._member_repo.get_all_by_community_id(community.community_id)
         lists = self._list_repo.get_all_by_community(community.community_id)
         task_count = self._task_repo.count_by_community(community.community_id)
 

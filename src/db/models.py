@@ -19,14 +19,12 @@ from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.types.attribute import AttributeAliasID, AttributeID
-from domain.types.collection_entry import (
-    CollectionEntryAliasID,
-    CollectionEntryID,
-)
+from domain.types.collection_entry import CollectionEntryAliasID, CollectionEntryID
 from domain.types.common import ID
 from domain.types.community import CommunityID
-from domain.types.member import MemberID
 from domain.types.list import ListID
+from domain.types.member import MemberID
+from domain.types.member_task import MemberTaskID
 from domain.types.server import ServerID
 from domain.types.task import TaskAliasID, TaskID
 from domain.types.user import UserID
@@ -153,7 +151,7 @@ class UserModel(BaseModel):
     __table_args__ = (
         *BaseModel.__table_args__,
         CheckConstraint(
-            f"power BETWEEN {min(r.value for r in MetaRank)} AND {max(r.value for r in MetaRank)}"
+            f"power BETWEEN {min(r for r in MetaRank)} AND {max(r for r in MetaRank)}"
         ),
     )
 
@@ -225,7 +223,7 @@ class AttributeModel(BaseModel):
         CheckConstraint(
             f"(type = {AttributeType.STATIC} AND kind BETWEEN {AttributeKind.NONE + 1} AND {max(AttributeKind)}) "
             f"OR "
-            f"(type in ({AttributeType.TASK}, {AttributeType.MEMBER}) AND kind = {AttributeKind.NONE})"
+            f"(type in ({AttributeType.TASK}, {AttributeType.USER}) AND kind = {AttributeKind.NONE})"
         ),
         CheckConstraint(
             f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}"
@@ -412,7 +410,7 @@ class FieldSlotModel(BaseModel):
 class MemberTaskModel(BaseModel):
     __tablename__ = "user_task"
 
-    member_task_id: Mapped[ID] = mapped_column(
+    member_task_id: Mapped[MemberTaskID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
@@ -430,11 +428,13 @@ class MemberTaskModel(BaseModel):
     )
 
 
-class UserFieldSlotModel(BaseModel):
-    __tablename__ = "user_field_slot"
+class MemberFieldSlotModel(BaseModel):
+    __tablename__ = "member_field_slot"
 
-    user_task_id: Mapped[ID] = mapped_column(
-        BigInteger, ForeignKey("user_task.user_task_id", ondelete="CASCADE"), primary_key=True
+    member_task_id: Mapped[MemberTaskID] = mapped_column(
+        BigInteger,
+        ForeignKey("member_task.member_task_id", ondelete="CASCADE"),
+        primary_key=True,
     )
 
     attribute_id: Mapped[AttributeID] = mapped_column(

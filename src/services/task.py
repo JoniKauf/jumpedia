@@ -4,44 +4,30 @@ from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.community import CommunityEntity
-from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank
-from domain.value_objects.attribute import AttributeEntity, AttributeSynStr
+from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
+from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
-from repositories.dtos.member import MemberInsert
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
-from repositories.dtos.user import UserInsert
+from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
-from repositories.field_slot import (
-    FieldSlotInsert,
-    FieldSlotRepository,
-)
-from services.member import MemberService
-from services.field_mapping import FieldMappingService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import (
-    DeletedTask,
-    TaskInfo,
-    TaskSummariesData,
-    TaskSummary,
-    UserRef,
-)
+from services.dtos.task import DeletedTask, TaskInfo, TaskSummariesData, TaskSummary
+from services.field_mapping import FieldMappingService
 from services.list import ListAccessService
 from services.permission import PermissionService
-from services.user import UserService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskService:
-    _ctx: InteractingUserContext
     _task_repo: TaskRepository
     _attribute_repo: AttributeRepository
     _permission_service: PermissionService
@@ -50,8 +36,6 @@ class TaskService:
     _collection_entry_repo: CollectionEntryRepository
     _field_slot_repo: FieldSlotRepository
     _task_access_service: TaskAccessService
-    _user_service: UserService
-    _member_service: MemberService
 
     def create(
         self,
@@ -66,9 +50,7 @@ class TaskService:
         )
 
         # --- Verify Rank --- #
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.HELPER
-        )
+        self._permission_service.ensure_community_rank(member, CommunityRank.HELPER)
 
         # --- Verify Limit Of Count Not Exceeded --- #
         task_count = self._task_repo.count_by_list(lst.list_id)
@@ -86,7 +68,7 @@ class TaskService:
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
-        FieldSlotStr.raise_if_not_norm_unique(syns)
+        FieldSlotStr.raise_if_not_unique(syns)
 
         existing_same_syn = self._task_repo.get_by_list_id_and_any_syn(
             lst.list_id, syns
@@ -108,9 +90,11 @@ class TaskService:
             )
         )
 
-        field_mapping = self._field_mapping_service.validate_and_build(
+        fm = self._field_mapping_service.validate_and_build(
             field_mapping, syn_to_attr, attr_id_to_collection
         )
+
+        del field_mapping
 
         # --- Create Task ---
         task_entity = self._task_repo.create(TaskInsert(lst.list_id, name))
@@ -122,11 +106,11 @@ class TaskService:
         )
 
         # --- Create Task Attribute Slots ---
-        if field_mapping:
+        if fm:
             inserts: list[FieldSlotInsert] = []
 
-            for attr, value in field_mapping.items():
-                for i, slot in enumerate(value):
+            for attr, field in fm.items():
+                for i, slot in enumerate(field):
                     inserts.append(
                         FieldSlotInsert(
                             task_entity.task_id, attr.attribute_id, Index(i), slot
@@ -143,57 +127,11 @@ class TaskService:
             None, list_name, name, True
         )
 
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.MODERATOR
-        )
+        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
         self._task_repo.delete(task.task_id)
 
         return DeletedTask(task.name, lst)
-
-    def give_to_user(
-        self,
-        syn: FieldSlotStr,
-        list_name: ListNameStr | None,
-        user_field_mapping: t.Mapping[AttributeSynStr, tuple[FieldSlotStr, ...]],
-        user: UserRef | None,
-    ):
-        community, actor_member, lst, task = (
-            self._task_access_service.get_convenient(None, list_name, syn, False)
-        )
-
-        member: MemberEntity
-
-        if user is None or user.id == actor_member.user.user_id:
-            member = actor_member
-        else:
-            self._permission_service.ensure_member_can_act_for_others(actor_member)
-            
-            member = self._member_service.get_or_create(
-                MemberInsert(
-                    self._user_service.get_or_create(UserInsert(user.id, user.name)),
-                    community.community_id,
-                )
-            )
-
-        del actor_member
-
-        ATTRIBUTE_TYPES: t.Final = AttributeType.MEMBER.as_set()
-
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
-            lst.list_id, ATTRIBUTE_TYPES
-        )
-        attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES
-            )
-        )
-
-        field_mapping = self._field_mapping_service.validate_and_build(user_field_mapping, syn_to_attr, attr_id_to_collection)
-
-        self._field_slot_repo
-
-
 
 
 @dataclass(frozen=True, slots=True, eq=False)

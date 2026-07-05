@@ -8,9 +8,7 @@ from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
-from repositories.dtos.collection_entry import (
-    CollectionEntryEntityWithAliases,
-)
+from repositories.dtos.collection_entry import CollectionEntryEntityWithAliases
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
 NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1

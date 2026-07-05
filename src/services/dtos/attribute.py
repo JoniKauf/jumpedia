@@ -7,9 +7,7 @@ from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.position import Position
-from services.dtos.collection_entry import (
-    CollectionEntryEntityWithAliases,
-)
+from services.dtos.collection_entry import CollectionEntryEntityWithAliases
 
 
 @dataclass(frozen=True, slots=True)

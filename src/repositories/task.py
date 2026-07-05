@@ -6,7 +6,6 @@ from sqlalchemy import func, or_, select
 from db.models import ListModel, TaskAliasModel, TaskModel
 from domain import errors
 from domain.entities.task import TaskEntity
-from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
@@ -18,9 +17,9 @@ from .base import BaseRepository
 
 def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
-        model.task_id,
-        model.list_id,
-        FieldSlotStr(_real=model.real_name, _norm=model.norm_name),
+        task_id=model.task_id,
+        list_id=model.list_id,
+        name=FieldSlotStr(_real=model.real_name, _norm=model.norm_name),
     )
 
 

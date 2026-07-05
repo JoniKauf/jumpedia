@@ -13,9 +13,6 @@ class CommunityRank(enum.IntEnum):
     HIGHEST = OWNER
     DEFAULT = LOWEST
 
-    def __bool__(self) -> bool:
-        return bool(self.value)
-
 
 @enum.verify(enum.CONTINUOUS)
 class MetaRank(enum.IntEnum):
@@ -27,9 +24,6 @@ class MetaRank(enum.IntEnum):
     HIGHEST = JONIKAUF
     DEFAULT = LOWEST
 
-    def __bool__(self) -> bool:
-        return bool(self.value)
-
 
 @enum.verify(enum.CONTINUOUS)
 class ServerRank(enum.IntEnum):
@@ -40,9 +34,6 @@ class ServerRank(enum.IntEnum):
     LOWEST = USER
     HIGHEST = OWNER
     DEFAULT = LOWEST
-
-    def __bool__(self) -> bool:
-        return bool(self.value)
 
 
 type AnyRankT = MetaRank | CommunityRank | ServerRank

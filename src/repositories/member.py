@@ -13,9 +13,7 @@ from repositories.base import BaseRepository
 from repositories.dtos.member import MemberInsert
 
 
-def _member_model_to_entity(
-    model: MemberModel, user: UserEntity
-) -> MemberEntity:
+def _member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntity:
     return MemberEntity(
         member_id=model.member_id,
         user=user,
@@ -40,7 +38,7 @@ class MemberRepository(BaseRepository):
         obj = MemberModel(
             user_id=member.user.user_id,
             community_id=member.community_id,
-            power=member.rank.value,
+            power=member.rank,
             selected_list_id=member.selected_list_id,
         )
 
@@ -72,9 +70,7 @@ class MemberRepository(BaseRepository):
             {community_id: count for community_id, count in self._session.execute(stmt)}
         )
 
-    def get_all_by_community_id(
-        self, community_id: int
-    ) -> tuple[MemberEntity, ...]:
+    def get_all_by_community_id(self, community_id: int) -> tuple[MemberEntity, ...]:
         stmt = (
             select(MemberModel, UserModel)
             .join(UserModel, UserModel.user_id == MemberModel.user_id)

@@ -1,6 +1,8 @@
 import typing as t
 from string.templatelib import Template
 
+from domain.entities.member import MemberEntity
+from domain.entities.task import TaskEntity
 from domain.enums.rank import AnyRankT
 from domain.value_objects.attribute import AttributeSlot
 
@@ -74,10 +76,17 @@ class NameTooLong(DomainError):
 
 
 class NameAlreadyTaken(DomainError):
-    def __init__(self, name: Str, existing: BaseEntity) -> None:
+    def __init__(self, existing: BaseEntity, taken: Str) -> None:
         super().__init__()
-        self.name = name
+        self.taken = taken
         self.existing = existing
+
+
+class AliasAlreadyTaken(DomainError):
+    def __init__(self, existing: BaseEntity, taken: Str) -> None:
+        super().__init__()
+        self.existing = existing
+        self.taken = taken
 
 
 class SynAlreadyTaken(DomainError):
@@ -85,6 +94,18 @@ class SynAlreadyTaken(DomainError):
         super().__init__()
         self.existing = existing
         self.taken = taken
+
+
+class NameNotDifferent(DomainError):
+    def __init__(self, name: Str) -> None:
+        super().__init__()
+        self.name = name
+
+
+class AliasesNotDifferent(DomainError):
+    def __init__(self, aliases: tuple[Str, ...]) -> None:
+        super().__init__()
+        self.aliases = aliases
 
 
 class ServerAlreadyConnectedToACommunity(DomainError):
@@ -135,6 +156,19 @@ class DuplicateUniqueRequiredString(DomainError):
 class NoDefaultSelectedList(DomainError):
     def __init__(self) -> None:
         pass
+
+
+class MemberDoesNotHaveTask(DomainError):
+    def __init__(self, member: MemberEntity) -> None:
+        super().__init__()
+        self.member = member
+
+
+class MemberAlreadyHasTask(DomainError):
+    def __init__(self, member: MemberEntity, task: TaskEntity) -> None:
+        super().__init__()
+        self.member = member
+        self.task = task
 
 
 class InternalError(Exception):

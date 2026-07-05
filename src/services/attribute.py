@@ -1,20 +1,22 @@
 import typing as t
 from dataclasses import dataclass
+from itertools import zip_longest
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
-from domain.entities.member import MemberEntity
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.operation import Operation
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
+from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
-from domain.value_objects.field_slot import FieldSlotStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
@@ -23,7 +25,6 @@ from repositories.dtos.collection_entry import (
     CollectionEntryInsert,
 )
 from services.community import CommunityAccessService
-from services.member import MemberAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.collection_entry import (
@@ -31,6 +32,7 @@ from services.dtos.collection_entry import (
     CreateCollectionEntry,
 )
 from services.list import ListAccessService
+from services.member import MemberAccessService
 from services.permission import PermissionService
 
 
@@ -78,10 +80,10 @@ class AttributeService:
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
-        AttributeSynStr.raise_if_not_norm_unique(syns)
+        AttributeSynStr.raise_if_not_unique(syns)
 
         existing_same_syn = self._attribute_repo.get_by_list_id_and_any_syn(
-            lst.list_id, syns
+            lst.list_id, syns, set()
         )
 
         if existing_same_syn is not None:
@@ -103,7 +105,7 @@ class AttributeService:
 
         # --- Validate Collection ---
         if collection_entries:
-            FieldSlotStr.raise_if_not_norm_unique(
+            FieldSlotStr.raise_if_not_unique(
                 syn
                 for entry in collection_entries
                 for syn in (entry.value, *entry.aliases)
@@ -187,6 +189,92 @@ class AttributeService:
 
         return DeletedAttribute(
             attr.name, lst, attr.type, attr.kind, attr.slot, attr.position
+        )
+
+    def edit_name(
+        self,
+        current_name: AttributeSynStr,
+        new_name: AttributeSynStr,
+        list_name: ListNameStr,
+    ) -> None:
+        _, member, lst, attr = self._attribute_access_service.get_convenient(
+            None, list_name, current_name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        if attr.name.real == new_name.real:
+            raise errors.NameNotDifferent(current_name)
+
+        existing_attr = self._attribute_repo.get_by_list_id_and_syn(
+            lst.list_id, new_name
+        )
+
+        # Either name is not taken yet or it is the NAME of the same attr (with possibly different casing)
+        if existing_attr is not None and not (
+            existing_attr == attr and attr.name == new_name
+        ):
+            raise errors.NameAlreadyTaken(existing_attr, new_name)
+
+        self._attribute_repo.update_name(attr.attribute_id, new_name)
+
+    def edit_aliases(
+        self,
+        name: AttributeSynStr,
+        new_aliases: tuple[AttributeSynStr, ...],
+        list_name: ListNameStr,
+        operation: Operation,
+    ) -> None:
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
+            None, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        AttributeSynStr.raise_if_not_unique(new_aliases)
+
+        if len(new_aliases) > community.limits.attribute_alias_count_max:
+            raise errors.AliasCountLimitReached(
+                community.limits.attribute_alias_count_max, attr.name
+            )
+
+        aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
+
+        for a, b in zip_longest(new_aliases, aliases, fillvalue=None):
+            if a is None or b is None:
+                break
+
+            if a.real != b.real:
+                break
+        else:
+            raise errors.AliasesNotDifferent(new_aliases)
+
+        # We exclude the current attr in the search below for collisions, because alias collisions are fine.
+        # A name collision is not fine though. Therefore we need to manually check it here.
+        for alias in new_aliases:
+            if alias == attr.name:
+                raise errors.AliasAlreadyTaken(attr, alias)
+
+        tup = self._attribute_repo.get_by_list_id_and_any_syn(
+            lst.list_id, new_aliases, {attr.attribute_id}
+        )
+
+        if tup is not None:
+            raise errors.AliasAlreadyTaken(*tup)
+
+        if operation is Operation.COMBINE:
+            new_aliases = tuple(dict.fromkeys((*aliases, *new_aliases)))
+
+        self._attribute_repo.update_aliases(
+            attr.attribute_id,
+            (
+                AttributeAliasInsert(attr.attribute_id, Index(i), lst.list_id, alias)
+                for i, alias in enumerate(new_aliases)
+            ),
         )
 
 

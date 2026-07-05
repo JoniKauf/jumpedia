@@ -28,7 +28,7 @@ class UserRepository(BaseRepository):
             user_id=user.id,
             norm_name=user.name.norm,
             raw_name=user.name.raw,
-            power=user.rank.value,
+            power=user.rank,
         )
 
         self._session.add(obj)
@@ -47,6 +47,6 @@ class UserRepository(BaseRepository):
 
         obj.raw_name = user.name.raw
         obj.norm_name = user.name.norm
-        obj.power = user.meta_rank.value
+        obj.power = user.meta_rank
 
         return _user_model_to_entity(obj)

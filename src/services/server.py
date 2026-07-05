@@ -20,7 +20,9 @@ class ServerService:
     _community_access_service: CommunityAccessService
 
     def link(self, community_name: CommunityNameStr) -> CommunityEntity:
-        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
+        self._permission_service.ensure_server_rank(
+            required_server_rank=ServerRank.ADMINISTRATOR
+        )
 
         community = self._community_repo.get_by_server_id(self._ctx.server_id)
 
@@ -34,7 +36,9 @@ class ServerService:
         return community
 
     def unlink(self) -> CommunityEntity:
-        self._permission_service.ensure_server_rank(ServerRank.ADMINISTRATOR)
+        self._permission_service.ensure_server_rank(
+            required_server_rank=ServerRank.ADMINISTRATOR
+        )
 
         community = self._community_access_service.get_current_or_raise()
 

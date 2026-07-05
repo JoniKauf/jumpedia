@@ -180,7 +180,10 @@ class Str:
         return len(self.real)
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, type(self)) and self.norm == value.norm
+        if not isinstance(value, type(self)):
+            return NotImplemented
+
+        return self.norm == value.norm
 
     def __hash__(self) -> int:
         return hash(self.norm)
@@ -211,7 +214,7 @@ class Str:
         )
 
     @classmethod
-    def raise_if_not_norm_unique(cls, iterable: t.Iterable[t.Self]) -> None:
+    def raise_if_not_unique(cls, iterable: t.Iterable[t.Self]) -> None:
         seen: dict[NormStr, t.Self] = {}
 
         for elem in iterable:

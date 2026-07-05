@@ -5,8 +5,11 @@ import discord
 from services.attribute import AttributeQueryService, AttributeService
 from services.community import CommunityQueryService, CommunityService
 from services.list import ListQueryService, ListService
+from services.member import MemberService
+from services.member_task import MemberTaskService
 from services.server import ServerService
 from services.task import TaskQueryService, TaskService
+from services.user import UserService
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,9 @@ class PublicServices:
     attribute_query: AttributeQueryService
     task: TaskService
     task_query: TaskQueryService
+    member_task: MemberTaskService
+    user: UserService
+    member: MemberService
 
 
 @dataclass(frozen=True)

@@ -5,10 +5,8 @@ from domain.value_objects.field_slot import FieldSlotStr
 
 
 class TaskEntity(BaseEntity[TaskID]):
-    def __init__(
-        self, primary_key: TaskID, list_id: ListID, name: FieldSlotStr
-    ) -> None:
-        super().__init__(primary_key)
+    def __init__(self, task_id: TaskID, list_id: ListID, name: FieldSlotStr) -> None:
+        super().__init__(task_id)
         self._list_id = list_id
         self.name = name
 

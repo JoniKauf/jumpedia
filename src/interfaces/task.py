@@ -1,14 +1,18 @@
+import discord
 from discord import app_commands
 
 from domain.entities.attribute import AttributeEntity
-from domain.value_objects.list import ListNameStr
+from domain.types.common import ID
+from domain.types.user import UserID
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.message import messages
+from interfaces.message import format, messages
 from services.dtos.task import TaskSummary
+from services.dtos.user import UserRef
 
 
 class TaskInterface(BaseInterface, group_name="task"):
@@ -55,9 +59,35 @@ class TaskInterface(BaseInterface, group_name="task"):
     @app_commands.command()
     @with_context()
     async def give(
-        self, ctx: CommandContext, task_name_or_alias: str, user: UserNameStr | None, list_name: str | None = None
+        self, ctx: CommandContext, task_name_or_alias: str, user_field_mapping: str | None = None, user: discord.User | None = None, list_name: str | None = None
     ) -> None:
-        ctx.services.task.delete
+        member, task = ctx.services.member_task.give_to_user(
+            FieldSlotStr(task_name_or_alias),
+            None if list_name is None else ListNameStr(list_name),
+            user_field_mapping,
+            None if user is None else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"Task Given",
+            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!"
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def take(self, ctx: CommandContext, task_name_or_alias: str, user: discord.User | None = None, list_name: str | None = None) -> None:
+        member, task = ctx.services.member_task.take_from_user(
+            FieldSlotStr(task_name_or_alias),
+            None if list_name is None else ListNameStr(list_name),
+            None if user is None else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"Task Taken",
+            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!"
+        )
 
 
 class TasksInterface(BaseInterface, group_name="tasks"):
