@@ -199,7 +199,7 @@ class AttributeService:
         current_name: AttributeSynStr,
         new_name: AttributeSynStr,
         list_name: ListNameStr,
-    ) -> AttributeEntity:
+    ) -> AttributeSynStr:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             None, list_name, current_name, True
         )
@@ -224,9 +224,8 @@ class AttributeService:
                 raise errors.SynAlreadyTaken(existing_attr, new_name, existing_attr.name != existing_syn, False)
 
         self._attribute_repo.update_name(attr.attribute_id, new_name)
-        attr.name = new_name
         
-        return attr
+        return attr.name
 
     def edit_aliases(
         self,
@@ -234,7 +233,7 @@ class AttributeService:
         new_aliases: tuple[AttributeSynStr, ...],
         list_name: ListNameStr,
         operation: Operation,
-    ) -> None:
+    ) -> AttributeEntity:
         community, member, lst, attr = self._attribute_access_service.get_convenient(
             None, list_name, name, True
         )
@@ -248,7 +247,7 @@ class AttributeService:
         current_aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
     
         if operation is Operation.COMBINE:
-            new_aliases = tuple(dict.fromkeys((*current_aliases, *new_aliases)))
+            new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
         
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if current_aliases == new_aliases:
@@ -281,6 +280,8 @@ class AttributeService:
                 for i, alias in enumerate(new_aliases)
             ),
         )
+
+        return attr
 
 
 @dataclass(frozen=True, slots=True, eq=False)

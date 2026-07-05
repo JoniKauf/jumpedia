@@ -51,7 +51,7 @@ class MemberRepository(BaseRepository):
         self,
         member: MemberEntity,
     ) -> MemberEntity:
-        obj = self._session.get(MemberModel, member.member_id)
+        obj = self._session.get(MemberModel, member.id)
 
         if obj is None:
             raise errors.InternalError("Tried updating a non existant member")

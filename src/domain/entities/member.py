@@ -20,10 +20,10 @@ class MemberEntity(BaseEntity[MemberID]):
     ) -> None:
         super().__init__(member_id)
 
+        self._user = user
         self._community_id = community_id
         self.community_rank = rank
         self.selected_list_id = selected_list_id
-        self.user = user
 
     @property
     def member_id(self) -> MemberID:
@@ -52,10 +52,6 @@ class MemberEntity(BaseEntity[MemberID]):
     @property
     def user(self) -> UserEntity:
         return self._user
-
-    @user.setter
-    def user(self, value: UserEntity) -> None:
-        self._user = value
 
     @property
     def name(self) -> Str:

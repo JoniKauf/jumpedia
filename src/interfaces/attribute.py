@@ -2,6 +2,7 @@ import enum
 
 from discord import app_commands
 
+from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -10,6 +11,7 @@ from interfaces import dsl
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
+from interfaces.enums.operation import OperationInterfaceEnum
 from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
 from services.dtos.collection_entry import (
@@ -123,14 +125,30 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     async def edit_name(
         self,
         ctx: CommandContext,
-        current_attribute_name: str,
+        attribute_name: str,
         new_attribute_name: str,
         list_name: str,
     ) -> None:
-        attr = ctx.services.attribute.edit_name(AttributeSynStr(current_attribute_name), AttributeSynStr(new_attribute_name), ListNameStr(list_name))
+        after = AttributeSynStr(new_attribute_name)
+        before = ctx.services.attribute.edit_name(AttributeSynStr(attribute_name), after, ListNameStr(list_name))
 
-        # TODO Make old name be correctly cased
-        await messages.object_name_edited(ctx.interaction, )
+        await messages.object_name_edited(ctx.interaction, AttributeEntity, before, after)
+
+    @app_commands.command()
+    @with_context()
+    async def edit_aliases(
+        self,
+        ctx: CommandContext,
+        attribute_name: str,
+        new_attribute_aliases: str,
+        list_name: str,
+        operation: OperationInterfaceEnum
+    ) -> None:
+        after = tuple(AttributeSynStr(alias) for alias in dsl.value_list.engine.eval(new_attribute_aliases))
+        attr = ctx.services.attribute.edit_aliases(AttributeSynStr(attribute_name), after, ListNameStr(list_name), operation.value)
+
+        await messages.object_aliases_edited(ctx.interaction, attr)
+        
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()

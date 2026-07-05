@@ -5,6 +5,7 @@ from string.templatelib import Template
 import discord
 
 from domain.entities.base import BaseEntity
+from domain.enums.operation import Operation
 from domain.errors import Str
 from infrastructure import pastee
 from interfaces.message import format, layout
@@ -105,10 +106,19 @@ async def object_nuked(
 
 
 async def object_name_edited(
-    interaction: discord.Interaction, name_before: Str, entity: format.MentionableEntityT
+    interaction: discord.Interaction, entity_type: type[format.MentionableEntityT], before: Str, after: Str
+) -> None:
+    await success(
+        interaction,
+        t"{format.type_name_for_header(entity_type)} Renamed",
+        t"The {format.type_name_for_body(entity_type)} {before @ format.T.FORMATTED} has been renamed to {after @ format.T.FORMATTED} successfully!"
+    )
+
+async def object_aliases_edited(
+    interaction: discord.Interaction, entity: format.MentionableEntityT
 ) -> None:
     await success(
         interaction,
         t"{format.type_name_for_header(type(entity))} Renamed",
-        t"The attribute {name_before @ format.T.FORMATTED} has been renamed to {entity.name @ format.T.FORMATTED} successfully!"
+        t"The aliases of the {format.mention_body(entity)} have been edited successfully!\n"
     )

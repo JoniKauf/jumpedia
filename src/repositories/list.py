@@ -84,7 +84,7 @@ class ListRepository(BaseRepository):
         self._session.flush()
 
     def update(self, list: ListEntity) -> None:
-        obj = self._session.get(ListModel, list.list_id)
+        obj = self._session.get(ListModel, list.id)
 
         if obj is None:
             raise errors.NotFoundById(ListEntity)

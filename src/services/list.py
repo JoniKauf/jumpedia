@@ -93,25 +93,23 @@ class ListService:
 
         return DeletedList(community, lst.name)
 
-    def rename(self, name_before: ListNameStr, name_after: ListNameStr) -> ListEntity:
-        _, member, lst = self._list_access_service.get_convenient(None, name_before)
+    def edit_name(self, current_name: ListNameStr, new_name: ListNameStr) -> ListNameStr:
+        _, member, lst = self._list_access_service.get_convenient(None, current_name)
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
         )
 
         name_taken_lst = self._list_repo.get_by_community_and_name(
-            lst.community_id, name_after
+            lst.community_id, new_name
         )
 
         if name_taken_lst is not None:
             raise errors.SynAlreadyTaken(name_taken_lst, lst.name, False, False)
 
-        lst.name = name_after
-
         self._list_repo.update(lst)
 
-        return lst
+        return lst.name
 
 
 @dataclass(frozen=True, slots=True, eq=False)

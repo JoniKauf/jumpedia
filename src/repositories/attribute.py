@@ -11,6 +11,7 @@ from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSynStr
+from domain.value_objects.index import Index
 from domain.value_objects.position import Position
 from domain.value_objects.string import Str
 from repositories.base import BaseRepository
@@ -401,6 +402,7 @@ class AttributeRepository(BaseRepository):
         objs = tuple(
             AttributeAliasModel(
                 attribute_id=attribute_id,
+                index=alias.index.value,
                 list_id=alias.list_id,
                 real_alias=alias.alias.real,
                 norm_alias=alias.alias.norm,

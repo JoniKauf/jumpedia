@@ -12,7 +12,7 @@ from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors import AnyRankT, Str
 from interfaces.message.layout import T, _TaggedObj
-from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute, EditedAttributeName
+from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.list import DeletedList, ListInfo, ListSummary
 from services.dtos.task import DeletedTask, TaskInfo, TaskSummary
@@ -44,8 +44,7 @@ type MentionableEntityT = CommunityEntity | UserEntity | MemberEntity | ListEnti
 type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskInfo
 type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskSummary
 type MentionableDeletedDTOT = DeletedCommunity | DeletedList | DeletedAttribute | DeletedTask
-type MentionableEditedNameDTOT = EditedAttributeName
-type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT | MentionableEditedNameDTOT
+type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
 
@@ -67,7 +66,6 @@ TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     AttributeInfo: ("attribute", "attributes"),
     AttributeSummary: ("attribute", "attributes"),
     DeletedAttribute: ("attribute", "attributes"),
-    EditedAttributeName: ("attribute", "attributes"),
     TaskEntity: ("task", "tasks"),
     TaskInfo: ("task", "tasks"),
     TaskSummary: ("task", "tasks"),

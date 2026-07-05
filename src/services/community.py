@@ -72,7 +72,7 @@ class CommunityService:
 
         community.default_selected_list_id = self._list_service.create(
             ListNameStr("Main")
-        ).list_id
+        ).id
 
         self._community_repo.update(community)
 
@@ -107,7 +107,7 @@ class CommunityQueryService:
 
         if community.default_selected_list_id is not None:
             for lst in lists:
-                if lst.list_id == community.default_selected_list_id:
+                if lst.id == community.default_selected_list_id:
                     default_selected_list = lst
                     break
 

@@ -8,6 +8,7 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
+from domain.enums.operation import Operation
 from domain.enums.rank import CommunityRank
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
@@ -64,18 +65,21 @@ class TaskService:
 
         if len(aliases) > community.limits.field_slot_count_max:
             raise errors.AliasCountLimitReached(
-                community.limits.field_slot_count_max, name
+                community.limits.field_slot_count_max, name, tuple(aliases)
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
         FieldSlotStr.raise_if_not_unique(syns)
 
-        existing_same_syn = self._task_repo.get_by_list_id_and_any_syn(
-            lst.list_id, syns
+        existing_same_syn = self._task_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, syns, None
         )
 
         if existing_same_syn is not None:
-            raise errors.SynAlreadyTaken(*existing_same_syn)
+            colliding_task, colliding_syn = existing_same_syn
+
+            raise errors.SynAlreadyTaken(*existing_same_syn, colliding_task.name != colliding_syn, colliding_syn != name)
+
 
         # --- Validate And Create Task Attribute Value Mapping --- #
 
@@ -132,7 +136,90 @@ class TaskService:
         self._task_repo.delete(task.task_id)
 
         return DeletedTask(task.name, lst)
+    
+    def edit_name(self, current_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr) -> FieldSlotStr:
+        _, member, lst, task = self._task_access_service.get_convenient(
+            None, list_name, current_name, True
+        )
 
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.MODERATOR
+        )
+
+        # Exactly equal (real matches, not just norm)
+        if task.name.real == new_name.real:
+            raise errors.NameNotDifferent(current_name)
+
+        existing_task_and_syn = self._task_repo.get_by_list_id_and_syn(
+            lst.list_id, new_name, 
+        )
+
+        if existing_task_and_syn is not None:
+            existing_task, existing_syn = existing_task_and_syn
+
+            # False if the current task has the same name but with different casing
+            if not (existing_task == task and task.name == existing_syn):
+                raise errors.SynAlreadyTaken(existing_task, new_name, existing_task.name != existing_syn, False)
+
+        self._task_repo.update_name(task.task_id, new_name)
+        
+        return task.name
+
+    def edit_aliases(
+        self,
+        name: FieldSlotStr,
+        new_aliases: tuple[FieldSlotStr, ...],
+        list_name: ListNameStr,
+        operation: Operation,
+    ) -> TaskEntity:
+        community, member, lst, task = self._task_access_service.get_convenient(
+            None, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.MODERATOR
+        )
+
+        FieldSlotStr.raise_if_not_unique(new_aliases)
+
+        current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
+    
+        if operation is Operation.COMBINE:
+            new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
+        
+        # If aliases exactly equal to existing ones (including order even tho technically unimportant)
+        if current_aliases == new_aliases:
+            raise errors.AliasesNotDifferent(new_aliases)
+
+        if len(new_aliases) > community.limits.field_slot_count_max:
+            raise errors.AliasCountLimitReached(
+                community.limits.field_slot_count_max, task.name, new_aliases
+            )
+        
+        # Check if name collision with current task
+        for alias in new_aliases:
+            if alias == task.name:
+                raise errors.SynAlreadyTaken(task, alias, False, True)
+
+        existing_task_and_syn = self._task_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, new_aliases, task.task_id
+        )
+
+        # Check syn collision for other tasks (collisions with aliases of current task are allowed)
+        if existing_task_and_syn is not None:
+            existing_task, existing_syn = existing_task_and_syn
+
+            raise errors.SynAlreadyTaken(existing_task, existing_syn, existing_task.name != existing_syn, True)
+        
+        self._task_repo.update_aliases(
+            task.task_id,
+            (
+                TaskAliasInsert(task.task_id, Index(i), lst.list_id, alias)
+                for i, alias in enumerate(new_aliases)
+            ),
+        )
+
+        return task
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskQueryService:
@@ -239,12 +326,12 @@ class TaskAccessService:
     def get_by_list_and_syn_or_raise(
         self, lst: ListEntity, syn: FieldSlotStr
     ) -> TaskEntity:
-        task = self._task_repo.get_by_list_id_and_syn(lst.list_id, syn)
+        tup = self._task_repo.get_by_list_id_and_syn(lst.list_id, syn)
 
-        if task is None:
+        if tup is None:
             raise errors.NotFoundBySyn(syn, TaskEntity)
 
-        return task
+        return tup[0]
 
     def get_convenient(
         self,

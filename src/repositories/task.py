@@ -1,7 +1,7 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from db.models import ListModel, TaskAliasModel, TaskModel
 from domain import errors
@@ -10,6 +10,7 @@ from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.index import Index
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 
 from .base import BaseRepository
@@ -134,10 +135,11 @@ class TaskRepository(BaseRepository):
 
         return res
 
-    def get_by_list_id_and_any_syn(
+    def get_first_by_list_id_and_any_syn(
         self,
         list_id: ListID,
         syns: t.Iterable[FieldSlotStr],
+        exclude: TaskID | None
     ) -> tuple[TaskEntity, FieldSlotStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
@@ -160,6 +162,9 @@ class TaskRepository(BaseRepository):
             )
             .limit(1)
         )
+
+        if exclude is not None:
+            stmt = stmt.where(TaskModel.task_id != exclude)
 
         row = self._session.execute(stmt).first()
 
@@ -228,9 +233,9 @@ class TaskRepository(BaseRepository):
         self,
         list_id: ListID,
         syn: FieldSlotStr,
-    ) -> TaskEntity | None:
+    ) -> tuple[TaskEntity, FieldSlotStr] | None:
         stmt = (
-            select(TaskModel)
+            select(TaskModel, TaskAliasModel)
             .outerjoin(
                 TaskAliasModel,
                 TaskAliasModel.task_id == TaskModel.task_id,
@@ -245,9 +250,30 @@ class TaskRepository(BaseRepository):
             .limit(1)
         )
 
-        obj = self._session.scalar(stmt)
+        row = self._session.execute(stmt).first()
 
-        return None if obj is None else task_model_to_entity(obj)
+        if row is None:
+            return None
+
+        task_obj, alias_obj = row
+        task_obj: TaskModel
+        alias_obj: TaskAliasModel | None
+
+        entity = task_model_to_entity(task_obj)
+
+        if task_obj.norm_name == syn.norm:
+            colliding_syn = FieldSlotStr(
+                _real=task_obj.real_name,
+                _norm=task_obj.norm_name,
+            )
+        else:
+            assert alias_obj is not None
+            colliding_syn = FieldSlotStr(
+                _real=alias_obj.real_alias,
+                _norm=alias_obj.norm_alias,
+            )
+
+        return entity, colliding_syn
 
     def get_aliases_by_task_id(
         self,
@@ -299,3 +325,45 @@ class TaskRepository(BaseRepository):
         return ts.MappingProxyType(
             {task_id: tuple(aliases) for task_id, aliases in res.items()}
         )
+
+    def update_name(
+        self,
+        task_id: TaskID,
+        name: FieldSlotStr,
+    ) -> None:
+        obj = self._session.get(TaskModel, task_id)
+
+        if obj is None:
+            raise errors.NotFoundById(TaskEntity)
+
+        obj.real_name = name.real
+        obj.norm_name = name.norm
+
+        self._session.flush()
+
+    def update_aliases(
+        self,
+        task_id: TaskID,
+        aliases: t.Iterable[TaskAliasInsert],
+    ) -> None:
+        self._session.execute(
+            delete(TaskAliasModel).where(
+                TaskAliasModel.task_id == task_id,
+            )
+        )
+
+        objs = tuple(
+            TaskAliasModel(
+                task_id=task_id,
+                index=alias.index.value,
+                list_id=alias.list_id,
+                real_alias=alias.alias.real,
+                norm_alias=alias.alias.norm,
+            )
+            for alias in aliases
+        )
+
+        if objs:
+            self._session.add_all(objs)
+
+        self._session.flush()

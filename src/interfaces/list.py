@@ -1,5 +1,6 @@
 from discord import app_commands
 
+from domain.entities.list import ListEntity
 from domain.value_objects.list import ListNameStr
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
@@ -38,7 +39,14 @@ class ListInterface(BaseInterface, group_name="list"):
 
         await messages.object_nuked(ctx.interaction, deleted)
 
+    @app_commands.command()
+    @with_context()
+    async def edit_name(self, ctx: CommandContext, list_name: str, new_list_name: str) -> None:
+        after = ListNameStr(new_list_name)
+        before = ctx.services.list.edit_name(ListNameStr(list_name), after)
 
+        await messages.object_name_edited(ctx.interaction, ListEntity, before, after)
+        
 class ListsInterface(BaseInterface, group_name="lists"):
     @app_commands.command()
     @with_context()

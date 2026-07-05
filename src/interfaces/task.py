@@ -2,14 +2,17 @@ import discord
 from discord import app_commands
 
 from domain.entities.attribute import AttributeEntity
+from domain.entities.task import TaskEntity
 from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
+from interfaces import dsl
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
+from interfaces.enums.operation import OperationInterfaceEnum
 from interfaces.message import format, messages
 from services.dtos.task import TaskSummary
 from services.dtos.user import UserRef
@@ -89,6 +92,35 @@ class TaskInterface(BaseInterface, group_name="task"):
             t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!"
         )
 
+    @app_commands.command()
+    @with_context()
+    async def edit_name(
+        self,
+        ctx: CommandContext,
+        task_name: str,
+        new_task_name: str,
+        list_name: str,
+    ) -> None:
+        after = FieldSlotStr(new_task_name)
+        before = ctx.services.task.edit_name(FieldSlotStr(task_name), after, ListNameStr(list_name))
+
+        await messages.object_name_edited(ctx.interaction, TaskEntity, before, after)
+    
+    @app_commands.command()
+    @with_context()
+    async def edit_aliases(
+        self,
+        ctx: CommandContext,
+        task_name: str,
+        new_task_aliases: str,
+        list_name: str,
+        operation: OperationInterfaceEnum
+    ) -> None:
+        after = tuple(FieldSlotStr(alias) for alias in dsl.value_list.engine.eval(new_task_aliases))
+        task = ctx.services.task.edit_aliases(FieldSlotStr(task_name), after, ListNameStr(list_name), operation.value)
+
+        await messages.object_aliases_edited(ctx.interaction, task)
+        
 
 class TasksInterface(BaseInterface, group_name="tasks"):
     @app_commands.command()

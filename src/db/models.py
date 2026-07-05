@@ -18,19 +18,17 @@ from db.base import BaseModel
 from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.attribute import AttributeAliasID, AttributeID
-from domain.types.collection_entry import CollectionEntryAliasID, CollectionEntryID
-from domain.types.common import ID
+from domain.types.attribute import AttributeID
+from domain.types.collection_entry import CollectionEntryID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
 from domain.types.server import ServerID
-from domain.types.task import TaskAliasID, TaskID
+from domain.types.task import TaskID
 from domain.types.user import UserID
 from domain.value_objects import string
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.index import Index
 from domain.value_objects.string import NormStr, RealStr
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
