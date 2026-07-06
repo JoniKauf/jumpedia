@@ -3,11 +3,11 @@ import enum
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsl.shared.lex import Token, TokenType
-from interfaces.dsl.shared.parsing import (ExprNode, IdentifierNode,
+from interfaces.dsls.shared.lex import Token, TokenType
+from interfaces.dsls.shared.parsing import (ExprNode, IdentifierNode,
                                            PushbackTokenStream, StringNode,
                                            TextNodeT)
-from interfaces.dsl.shared.value_objects import Span
+from interfaces.dsls.shared.value_objects import Span
 
 
 class BoolOpType(enum.Enum):

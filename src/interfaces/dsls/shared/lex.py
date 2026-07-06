@@ -3,7 +3,7 @@ import types as ts
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsl.shared.value_objects import Span
+from interfaces.dsls.shared.value_objects import Span
 
 
 class TokenType(enum.Enum):

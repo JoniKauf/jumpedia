@@ -1,5 +1,5 @@
-from interfaces.dsl.list import parse
-from interfaces.dsl.shared import lex, parsing
+from interfaces.dsls.list import parse
+from interfaces.dsls.shared import lex, parsing
 
 
 def eval(s: str) -> list[str]:

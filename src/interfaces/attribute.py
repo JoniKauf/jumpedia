@@ -7,7 +7,7 @@ from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
-from interfaces import dsl
+from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -95,7 +95,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
                     FieldSlotStr(k),
                     tuple(FieldSlotStr(elem) for elem in v),
                 )
-                for k, v in dsl.list.engine.eval(collection_dsl)
+                for k, v in dsls.list.engine.eval(collection_dsl)
             )
 
         attr = ctx.services.attribute.create(
@@ -150,7 +150,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     ) -> None:
         after = tuple(
             AttributeSynStr(alias)
-            for alias in dsl.list.engine.eval(new_attribute_aliases)
+            for alias in dsls.list.engine.eval(new_attribute_aliases)
         )
         attr = ctx.services.attribute.edit_aliases(
             AttributeSynStr(attribute_name),

@@ -9,7 +9,7 @@ from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
-from interfaces import dsl
+from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -61,7 +61,7 @@ class TaskInterface(BaseInterface, group_name="task"):
                 ()
                 if aliases is None
                 else tuple(
-                    FieldSlotStr(alias) for alias in dsl.list.engine.eval(aliases)
+                    FieldSlotStr(alias) for alias in dsls.list.engine.eval(aliases)
                 )
             ),
             (
@@ -69,7 +69,7 @@ class TaskInterface(BaseInterface, group_name="task"):
                 if field_mapping is None
                 else {
                     AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
-                    for k, v in dsl.mapping.engine.eval(field_mapping).items()
+                    for k, v in dsls.mapping.engine.eval(field_mapping).items()
                 }
             ),
         )
@@ -103,7 +103,7 @@ class TaskInterface(BaseInterface, group_name="task"):
                 if user_field_mapping is None
                 else {
                     AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
-                    for k, v in dsl.mapping.engine.eval(user_field_mapping).items()
+                    for k, v in dsls.mapping.engine.eval(user_field_mapping).items()
                 }
             ),
             (
@@ -171,7 +171,7 @@ class TaskInterface(BaseInterface, group_name="task"):
         operation: OperationInterfaceEnum,
     ) -> None:
         after = tuple(
-            FieldSlotStr(alias) for alias in dsl.list.engine.eval(new_task_aliases)
+            FieldSlotStr(alias) for alias in dsls.list.engine.eval(new_task_aliases)
         )
         task = ctx.services.task.edit_aliases(
             FieldSlotStr(task_name), after, ListNameStr(list_name), operation.value
