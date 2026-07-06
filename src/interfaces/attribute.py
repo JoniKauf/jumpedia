@@ -4,6 +4,7 @@ from discord import app_commands
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.sentinels.default import DEFAULT
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
@@ -29,7 +30,6 @@ def _collection_to_representation(
         for item in collection
     )
 
-
 class AttributeInterface(BaseInterface, group_name="attribute"):
     @app_commands.command()
     @with_context()
@@ -41,7 +41,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     ) -> None:
         info = ctx.services.attribute_query.get_info(
             AttributeSynStr(attribute_name_or_alias),
-            None if list_name is None else ListNameStr(list_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
         data: dict[str, tuple[str, ...]] = {
@@ -79,24 +79,18 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         type: NonStaticAttributeTypesEnum,
         slot_type: AttributeSlotType,
         max_slot_count: int,
-        aliases_dsl: str | None = None,
-        collection_dsl: str | None = None,
+        aliases_dsl_list: str,
+        collection_dsl_mapping: str,
     ) -> None:
-        aliases: tuple[AttributeSynStr, ...] = ()
+        aliases: tuple[AttributeSynStr, ...] = tuple(AttributeSynStr(alias) for alias in dsls.list.engine.eval(aliases_dsl_list))
 
-        if aliases_dsl is not None:
-            aliases = tuple(map(AttributeSynStr, (aliases_dsl)))
-
-        collection: tuple[CreateCollectionEntry, ...] = ()
-
-        if collection_dsl:
-            collection = tuple(
-                CreateCollectionEntry(
-                    FieldSlotStr(k),
-                    tuple(FieldSlotStr(elem) for elem in v),
-                )
-                for k, v in dsls.list.engine.eval(collection_dsl)
+        collection: tuple[CreateCollectionEntry, ...] = tuple(
+            CreateCollectionEntry(
+                FieldSlotStr(k),
+                tuple(FieldSlotStr(elem) for elem in v),
             )
+            for k, v in dsls.mapping.engine.eval(collection_dsl_mapping)
+        )
 
         attr = ctx.services.attribute.create(
             AttributeSynStr(attribute_name),
@@ -144,13 +138,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         self,
         ctx: CommandContext,
         attribute_name: str,
-        new_attribute_aliases: str,
+        new_attribute_aliases_dsl_list: str,
         list_name: str,
         operation: OperationInterfaceEnum,
     ) -> None:
         after = tuple(
             AttributeSynStr(alias)
-            for alias in dsls.list.engine.eval(new_attribute_aliases)
+            for alias in dsls.list.engine.eval(new_attribute_aliases_dsl_list)
         )
         attr = ctx.services.attribute.edit_aliases(
             AttributeSynStr(attribute_name),
@@ -181,8 +175,15 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         await messages.success(
             ctx.interaction,
             t"{format.type_name_for_header(AttributeEntity)} Min And Max Slot Count Edited",
-            t"The min and max slot count for the {format.mention_body(attr)} has been set to {attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!",
+            t"The min and max slot count for the {format.mention_body(attr)} has been set to " +
+            t"{attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!" +
+            (t"" if attr.type is AttributeType.TASK else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!")
         )
+
+    @app_commands.command()
+    @with_context()
+    async def edit_collection(self, ctx: CommandContext, attribute_name: str, new_collection_dsl_mapping: str) -> None:
+        
 
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
@@ -190,7 +191,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
     @with_context()
     async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
         summaries = ctx.services.attribute_query.get_summaries(
-            None if list_name is None else ListNameStr(list_name)
+            DEFAULT if list_name is None else ListNameStr(list_name)
         )
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -218,3 +219,15 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
         }
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)
+
+
+    @app_commands.command()
+    @with_context()
+    async def edit_position_order(self, ctx: CommandContext, all_attribute_names_dsl_list: str, list_name: str) -> None:
+        lst = ctx.services.attribute.edit_position_order(tuple(AttributeSynStr(name) for name in dsls.list.engine.eval(all_attribute_names_dsl_list)), ListNameStr(list_name))
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(AttributeEntity, False)} Position Order Edited",
+            t"The positions and therefore the order of all {format.type_name_for_body(AttributeEntity, False)} of the {format.mention_body(lst)} has been edited successfully!"
+        )

@@ -7,6 +7,7 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
+from domain.sentinels.default import DEFAULT
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
 from repositories.community import CommunityRepository
@@ -84,7 +85,7 @@ class CommunityService:
         return community
 
     def delete(self) -> DeletedCommunity:
-        community, member = self._member_access_service.get_convenient(None)
+        community, member = self._member_access_service.get_convenient(DEFAULT)
 
         self._permission_service.ensure_community_rank(member, CommunityRank.OWNER)
 
@@ -112,11 +113,11 @@ class CommunityService:
         lst: ListEntity | None
 
         if list_name is None:
-            community, member = self._member_access_service.get_convenient(None)
+            community, member = self._member_access_service.get_convenient(DEFAULT)
             lst = None
         else:
             community, member, lst = self._list_access_service.get_convenient(
-                None, list_name
+                DEFAULT, list_name
             )
 
         self._permission_service.ensure_community_rank(
@@ -138,7 +139,7 @@ class CommunityQueryService:
     _member_repo: MemberRepository
     _community_access_service: CommunityAccessService
 
-    def get_info(self, community_name: CommunityNameStr | None) -> CommunityInfo:
+    def get_info(self, community_name: CommunityNameStr | DEFAULT) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
         members = self._member_repo.get_all_by_community_id(community.community_id)
@@ -206,9 +207,9 @@ class CommunityAccessService:
 
         return community
 
-    def get_convenient(self, name: CommunityNameStr | None) -> CommunityEntity:
+    def get_convenient(self, name: CommunityNameStr | DEFAULT) -> CommunityEntity:
         return (
             self.get_current_or_raise()
-            if name is None
+            if name is DEFAULT
             else self.get_by_name_or_raise(name)
         )

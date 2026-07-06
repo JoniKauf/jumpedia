@@ -8,6 +8,7 @@ from discord import app_commands
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.enums.rank import CommunityRank
+from domain.sentinels.default import DEFAULT
 from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
@@ -32,7 +33,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
     @with_context()
     async def info(self, ctx: CommandContext, community: str | None = None) -> None:
         info = ctx.services.community_query.get_info(
-            None if community is None else CommunityNameStr(community)
+            DEFAULT if community is None else CommunityNameStr(community)
         )
 
         data: dict[str, tuple[str, ...]] = {

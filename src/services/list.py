@@ -6,7 +6,7 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.types.common import ID
+from domain.sentinels.default import DEFAULT
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.list import ListNameStr
@@ -17,7 +17,6 @@ from repositories.dtos.list import ListInsert
 from repositories.list import ListRepository
 from repositories.task import TaskRepository
 from services.community import CommunityAccessService
-from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.list import DeletedList, ListInfo, ListSummary
 from services.member import MemberAccessService
 from services.permission import PermissionService
@@ -32,7 +31,7 @@ class ListService:
     _list_access_service: ListAccessService
 
     def create(self, name: ListNameStr) -> ListEntity:
-        community, member = self._member_access_service.get_convenient(None)
+        community, member = self._member_access_service.get_convenient(DEFAULT)
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
@@ -83,7 +82,7 @@ class ListService:
         return lst
 
     def delete(self, name: ListNameStr) -> DeletedList:
-        community, member, lst = self._list_access_service.get_convenient(None, name)
+        community, member, lst = self._list_access_service.get_convenient(DEFAULT, name)
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
@@ -96,7 +95,7 @@ class ListService:
     def edit_name(
         self, current_name: ListNameStr, new_name: ListNameStr
     ) -> ListNameStr:
-        _, member, lst = self._list_access_service.get_convenient(None, current_name)
+        _, member, lst = self._list_access_service.get_convenient(DEFAULT, current_name)
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
@@ -123,7 +122,7 @@ class ListQueryService:
     _list_access_service: ListAccessService
 
     def get_info(self, name: ListNameStr) -> ListInfo:
-        community, _, lst = self._list_access_service.get_convenient(None, name)
+        community, _, lst = self._list_access_service.get_convenient(DEFAULT, name)
 
         attributes = self._attribute_repo.get_all_by_list_id(
             lst.list_id, AttributeType.ALL()
@@ -139,7 +138,7 @@ class ListQueryService:
         )
 
     def get_summaries(self) -> tuple[ListSummary, ...]:
-        community = self._community_access_service.get_convenient(None)
+        community = self._community_access_service.get_convenient(DEFAULT)
 
         lists = self._list_repo.get_all_by_community(community.community_id)
 
@@ -201,13 +200,15 @@ class ListAccessService:
         return lst
 
     def get_convenient(
-        self, community_name: CommunityNameStr | None, list_name: ListNameStr | None
+        self,
+        community_name: CommunityNameStr | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
     ) -> tuple[CommunityEntity, MemberEntity, ListEntity]:
         community, member = self._member_access_service.get_convenient(community_name)
 
         lst: ListEntity
 
-        if list_name is None:
+        if list_name is DEFAULT:
             lst = self.get_by_priority(community, member)
         else:
             lst = self.get_by_community_and_name_or_raise(community, list_name)

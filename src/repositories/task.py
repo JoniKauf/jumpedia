@@ -63,7 +63,7 @@ class TaskRepository(BaseRepository):
 
         return self._session.scalar(stmt) or 0
 
-    def count_grouped_by_community_id(self) -> ts.MappingProxyType[CommunityID, int]:
+    def count_grouped_by_community_id(self) -> frozendict[CommunityID, int]:
         stmt = (
             select(
                 ListModel.community_id,
@@ -73,7 +73,7 @@ class TaskRepository(BaseRepository):
             .group_by(ListModel.community_id)
         )
 
-        return ts.MappingProxyType(
+        return frozendict(
             {
                 CommunityID(community_id): count
                 for community_id, count in self._session.execute(stmt)
@@ -293,7 +293,7 @@ class TaskRepository(BaseRepository):
     def get_grouped_aliases_by_list_id(
         self,
         list_id: ListID,
-    ) -> ts.MappingProxyType[TaskID, tuple[FieldSlotStr, ...]]:
+    ) -> frozendict[TaskID, tuple[FieldSlotStr, ...]]:
         stmt = (
             select(TaskAliasModel)
             .join(
@@ -319,9 +319,7 @@ class TaskRepository(BaseRepository):
                 )
             )
 
-        return ts.MappingProxyType(
-            {task_id: tuple(aliases) for task_id, aliases in res.items()}
-        )
+        return frozendict({task_id: tuple(aliases) for task_id, aliases in res.items()})
 
     def update_name(
         self,

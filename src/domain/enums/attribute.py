@@ -14,6 +14,10 @@ class AttributeType(enum.IntEnum):
     type TaskT = t.Literal[AttributeType.TASK]
     type UserT = t.Literal[AttributeType.USER]
 
+    type NonUserT = StaticT | TaskT
+    type NonStaticT = TaskT | UserT
+    type AllT = StaticT | TaskT | UserT
+
     @t.overload
     def as_set(self: StaticT) -> t.AbstractSet[StaticT]:
         return {self}
@@ -32,7 +36,7 @@ class AttributeType(enum.IntEnum):
         return {self}
 
     @classmethod
-    def ALL(cls) -> t.AbstractSet[StaticT | TaskT | UserT]:
+    def ALL(cls) -> t.AbstractSet[AllT]:
         return {cls.STATIC, cls.TASK, cls.USER}
 
     @classmethod
@@ -59,8 +63,8 @@ class AttributeSlotType(enum.IntEnum):
     DECIMAL = 3
     STRING = 4
 
-    @cached_property
-    def type(self) -> type:
+    @property
+    def type(self) -> type[SlotTypeT]:
         match self:
             case AttributeSlotType.BOOLEAN:
                 return bool
@@ -72,3 +76,5 @@ class AttributeSlotType(enum.IntEnum):
                 return str
             case _:
                 t.assert_never(self)
+
+    type SlotTypeT = bool | int | decimal.Decimal | str

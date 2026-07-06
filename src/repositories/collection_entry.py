@@ -244,7 +244,9 @@ class CollectionEntryRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> ts.MappingProxyType[AttributeID, tuple[CollectionEntryEntityWithAliases, ...]]:
+    ) -> frozendict[AttributeID, tuple[CollectionEntryEntityWithAliases, ...]]:
+        assert AttributeType.STATIC not in types
+
         stmt = (
             select(CollectionEntryModel, CollectionEntryAliasModel)
             .join(
@@ -296,7 +298,7 @@ class CollectionEntryRepository(BaseRepository):
                     )
                 )
 
-        return ts.MappingProxyType(
+        return frozendict(
             {
                 attribute_id: tuple(
                     CollectionEntryEntityWithAliases(

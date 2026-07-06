@@ -9,19 +9,13 @@ from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.dtos.collection_entry import CollectionEntryEntityWithAliases
-
-NUMBER_MAX: t.Final[int] = 2**63 - 1
-NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1
-DECIMAL_PRECISION: t.Final[int] = 9  # <- adjust as needed
-DECIMAL_SCALE: t.Final[decimal.Decimal] = decimal.Decimal(f"1e-{DECIMAL_PRECISION}")
-
-
-def _is_number_in_range(v: int | decimal.Decimal) -> bool:
-    return NUMBER_MIN <= v <= NUMBER_MAX
+from services.slot_type_service import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class FieldMappingService:
+    _slot_type_service: SlotTypeService
+
     def validate_and_build[T: AttributeType](
         self,
         field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
@@ -29,7 +23,7 @@ class FieldMappingService:
         attr_id_to_collection: t.Mapping[
             AttributeID, t.Sequence[CollectionEntryEntityWithAliases]
         ],
-    ) -> ts.MappingProxyType[AttributeEntity[T], tuple[FieldSlotStr, ...]]:
+    ) -> frozendict[AttributeEntity[T], tuple[FieldSlotStr, ...]]:
         attrs_sorted = sorted(
             set(syn_to_attr.values()), key=lambda attr: attr.position.value
         )
@@ -60,7 +54,7 @@ class FieldMappingService:
                 raise ValueError("attr max count overflow")
 
             v = tuple(
-                self._validate_and_normalize_slot_with_attribute_type(slot, attr)
+                self._slot_type_service.validate_and_normalize(slot, attr.slot.type)
                 for slot in v
             )
 
@@ -91,50 +85,4 @@ class FieldMappingService:
 
             avm[attr] = v
 
-        return ts.MappingProxyType(avm)
-
-    def _validate_and_normalize_slot_with_attribute_type(
-        self, slot: FieldSlotStr, attr: AttributeEntity
-    ) -> FieldSlotStr:
-        match attr.slot.type:
-            case AttributeSlotType.STRING:
-                return slot
-
-            case AttributeSlotType.BOOLEAN:
-                s = str(slot).lower()
-
-                if s == "false":
-                    return FieldSlotStr("False")
-                if s == "true":
-                    return FieldSlotStr("True")
-
-                raise ValueError("Invalid Slot Str Error")
-
-            case AttributeSlotType.INTEGER:
-                try:
-                    n = int(str(slot))
-                except Exception:
-                    raise ValueError("Invalid Slot Str Error")
-
-                if not _is_number_in_range(n):
-                    raise ValueError("Invalid Slot Str Error")
-
-                return FieldSlotStr(str(n))
-
-            case AttributeSlotType.DECIMAL:
-                try:
-                    n = decimal.Decimal(str(slot))
-                except decimal.InvalidOperation:
-                    raise ValueError("Invalid Slot Str Error")
-
-                try:
-                    n = n.quantize(DECIMAL_SCALE, rounding=decimal.ROUND_DOWN)
-                except decimal.InvalidOperation:
-                    raise ValueError("Invalid Slot Str Error")
-
-                if not _is_number_in_range(n):
-                    raise ValueError("Invalid Slot Str Error")
-
-                return FieldSlotStr(format(n, "f"))
-
-        t.assert_never(attr)
+        return frozendict(avm)

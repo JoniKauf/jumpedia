@@ -51,7 +51,7 @@ class MemberRepository(BaseRepository):
         self,
         member: MemberEntity,
     ) -> MemberEntity:
-        obj = self._session.get(MemberModel, member.id)
+        obj = self._session.get(MemberModel, member.member_id)
 
         if obj is None:
             raise errors.InternalError("Tried updating a non existant member")
@@ -61,13 +61,16 @@ class MemberRepository(BaseRepository):
 
         return _member_model_to_entity(obj, member.user)
 
-    def count_grouped_by_community_id(self) -> ts.MappingProxyType[CommunityID, int]:
+    def count_grouped_by_community_id(self) -> frozendict[CommunityID, int]:
         stmt = select(MemberModel.community_id, func.count()).group_by(
             MemberModel.community_id
         )
 
-        return ts.MappingProxyType(
-            {community_id: count for community_id, count in self._session.execute(stmt)}
+        return frozendict(
+            {
+                community_id: count
+                for community_id, count in self._session.execute(stmt)
+            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
         )
 
     def get_all_by_community_id(self, community_id: int) -> tuple[MemberEntity, ...]:

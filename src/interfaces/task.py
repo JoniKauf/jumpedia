@@ -3,6 +3,7 @@ from discord import app_commands
 
 from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
+from domain.sentinels.default import DEFAULT
 from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.attribute import AttributeSynStr
@@ -15,8 +16,30 @@ from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.enums.operation import OperationInterfaceEnum
 from interfaces.message import format, messages
-from services.dtos.task import TaskSummary
 from services.dtos.user import UserRef
+
+
+def _field_mapping_input_to_value(
+    s: str | None,
+) -> frozendict[AttributeSynStr, tuple[FieldSlotStr, ...]]:
+    return (
+        frozendict()
+        if s is None
+        else frozendict(
+            {
+                AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
+                for k, v in dsls.mapping.engine.eval(s).items()
+            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+        )
+    )
+
+
+def _aliases_input_to_value(s: str | None) -> tuple[FieldSlotStr, ...]:
+    return (
+        ()
+        if s is None
+        else tuple(FieldSlotStr(alias) for alias in dsls.list.engine.eval(s))
+    )
 
 
 class TaskInterface(BaseInterface, group_name="task"):
@@ -27,7 +50,7 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         info = ctx.services.task_query.get_info(
             FieldSlotStr(task_name_or_alias),
-            None if list_name is None else ListNameStr(list_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
         data: dict[str, tuple[str, ...]] = {
@@ -57,21 +80,8 @@ class TaskInterface(BaseInterface, group_name="task"):
         task = ctx.services.task.create(
             FieldSlotStr(task_name),
             ListNameStr(list_name),
-            (
-                ()
-                if aliases is None
-                else tuple(
-                    FieldSlotStr(alias) for alias in dsls.list.engine.eval(aliases)
-                )
-            ),
-            (
-                {}
-                if field_mapping is None
-                else {
-                    AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
-                    for k, v in dsls.mapping.engine.eval(field_mapping).items()
-                }
-            ),
+            _aliases_input_to_value(aliases),
+            _field_mapping_input_to_value(field_mapping),
         )
 
         await messages.object_created(ctx.interaction, task)
@@ -97,17 +107,10 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         member, task = ctx.services.member_task.give_to_user(
             FieldSlotStr(task_name_or_alias),
-            None if list_name is None else ListNameStr(list_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+            (_field_mapping_input_to_value(user_field_mapping)),
             (
-                {}
-                if user_field_mapping is None
-                else {
-                    AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
-                    for k, v in dsls.mapping.engine.eval(user_field_mapping).items()
-                }
-            ),
-            (
-                None
+                DEFAULT
                 if user is None
                 else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
             ),
@@ -130,9 +133,9 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         member, task = ctx.services.member_task.take_from_user(
             FieldSlotStr(task_name_or_alias),
-            None if list_name is None else ListNameStr(list_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
             (
-                None
+                DEFAULT
                 if user is None
                 else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
             ),
@@ -183,15 +186,22 @@ class TaskInterface(BaseInterface, group_name="task"):
 class TasksInterface(BaseInterface, group_name="tasks"):
     @app_commands.command()
     @with_context()
-    async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
+    async def browse(
+        self,
+        ctx: CommandContext,
+        sort_dsl: str | None = None,
+        list_name: str | None = None,
+    ) -> None:
         summaries_data = ctx.services.task_query.get_summaries(
-            None if list_name is None else ListNameStr(list_name)
+            DEFAULT if list_name is None else ListNameStr(list_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
         summaries = summaries_data.summaries
 
         pre_data: dict[
-            AttributeEntity.StaticT | AttributeEntity.TaskT, tuple[tuple[str, ...], ...]
+            AttributeEntity.OfTypeStaticT | AttributeEntity.OfTypeTaskT,
+            tuple[tuple[str, ...], ...],
         ] = {
             summaries_data.static_attributes[0]: tuple(
                 (str(summary.id),) for summary in summaries

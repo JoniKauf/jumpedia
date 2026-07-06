@@ -17,6 +17,7 @@ class TokenType(enum.Enum):
     GT = enum.auto()
     GTE = enum.auto()
     PLUS = enum.auto()
+    MINUS = enum.auto()
     COLON = enum.auto()
     COMMA = enum.auto()
 
@@ -27,6 +28,7 @@ SYMBOLS: dict[str, TokenType] = {
     ":": TokenType.COLON,
     ",": TokenType.COMMA,
     "+": TokenType.PLUS,
+    "-": TokenType.MINUS,
     "<": TokenType.LT,
     "<=": TokenType.LTE,
     ">": TokenType.GT,
@@ -43,7 +45,7 @@ class Token:
 
 NONE_TOKEN = Token(TokenType.NONE, Span(-1, -1), "")
 QUOTES: t.Final[frozenset[str]] = frozenset("'" + '"')
-ESCAPES: t.Final[ts.MappingProxyType[str, str]] = ts.MappingProxyType(
+ESCAPES: t.Final[frozendict[str, str]] = frozendict(
     {"\\": "\\", '"': '"', "'": "'", "n": "\n"}
 )
 

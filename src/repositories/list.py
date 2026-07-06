@@ -62,12 +62,12 @@ class ListRepository(BaseRepository):
         )
         return self._session.scalar(stmt) or 0
 
-    def count_grouped_by_community_id(self) -> ts.MappingProxyType[CommunityID, int]:
+    def count_grouped_by_community_id(self) -> frozendict[CommunityID, int]:
         stmt = select(ListModel.community_id, func.count()).group_by(
             ListModel.community_id
         )
 
-        return ts.MappingProxyType(
+        return frozendict(
             {
                 CommunityID(community_id): count
                 for community_id, count in self._session.execute(stmt)

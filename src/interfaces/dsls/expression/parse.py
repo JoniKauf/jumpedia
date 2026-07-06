@@ -1,18 +1,22 @@
-
 import enum
 import typing as t
 from dataclasses import dataclass
 
 from interfaces.dsls.shared.lex import Token, TokenType
-from interfaces.dsls.shared.parsing import (ExprNode, IdentifierNode,
-                                           PushbackTokenStream, StringNode,
-                                           TextNodeT)
+from interfaces.dsls.shared.parsing import (
+    ExprNode,
+    IdentifierNode,
+    PushbackTokenStream,
+    StringNode,
+    TextNodeT,
+)
 from interfaces.dsls.shared.value_objects import Span
 
 
 class BoolOpType(enum.Enum):
     AND = enum.auto()
     OR = enum.auto()
+
 
 class BinOpType(enum.Enum):
     IS = enum.auto()
@@ -23,8 +27,9 @@ class BinOpType(enum.Enum):
     GTE = enum.auto()
     ADD = enum.auto()
 
-class KeywordType(enum.Enum):
-    
+
+class KeywordType(enum.Enum): ...
+
 
 @dataclass(frozen=True, slots=True)
 class BinOp(ExprNode):
@@ -32,16 +37,19 @@ class BinOp(ExprNode):
     left: ExprNode
     right: ExprNode
 
+
 @dataclass(frozen=True, slots=True)
 class BoolOp(ExprNode):
     type: BoolOpType
     elements: tuple[ExprNode, ...]
+
 
 @dataclass(frozen=True, slots=True)
 class ConditionalExpr(ExprNode):
     condition: ExprNode
     true_value: ExprNode
     false_value: ExprNode
+
 
 def parse(tokens: t.Iterable[Token], max_depth: int) -> ExprNode:
     stream = PushbackTokenStream(tokens)
@@ -54,6 +62,7 @@ def parse(tokens: t.Iterable[Token], max_depth: int) -> ExprNode:
         raise ParseError(f"Unexpected token {tok}")
 
     return result
+
 
 def _try_consume_keyword(
     tokens: PushbackTokenStream,
@@ -82,7 +91,7 @@ class _Parser:
         try:
             if self.depth > self.max_depth:
                 raise ParseError
-            
+
             return self.parse_or(tokens)
         finally:
             self.depth -= 1
@@ -92,20 +101,14 @@ class _Parser:
 
         tok = tokens.peek()
 
-        if (
-            tok.type == TokenType.IDENT
-            and tok.value == "if"
-        ):
+        if tok.type == TokenType.IDENT and tok.value == "if":
             tokens.pop()
 
             condition = self.parse_or(tokens)
 
             else_tok = tokens.pop()
 
-            if (
-                else_tok.type != TokenType.IDENT
-                or else_tok.value != "else"
-            ):
+            if else_tok.type != TokenType.IDENT or else_tok.value != "else":
                 raise ParseError("Expected 'else'")
 
             false_value = self.parse_conditional(tokens)
@@ -130,8 +133,11 @@ class _Parser:
 
         assert len(elements) > 1
 
-        return BoolOp(Span(elements[0].span.begin, elements[-1].span.end), BoolOpType.OR, tuple(elements))
-
+        return BoolOp(
+            Span(elements[0].span.begin, elements[-1].span.end),
+            BoolOpType.OR,
+            tuple(elements),
+        )
 
     def parse_and(self, tokens: PushbackTokenStream) -> ExprNode:
         elements: list[ExprNode] = [self.parse_comparison(tokens)]
@@ -144,14 +150,21 @@ class _Parser:
 
         assert len(elements) > 1
 
-        return BoolOp(Span(elements[0].span.begin, elements[-1].span.end), BoolOpType.AND, tuple(elements))
-
+        return BoolOp(
+            Span(elements[0].span.begin, elements[-1].span.end),
+            BoolOpType.AND,
+            tuple(elements),
+        )
 
     def parse_comparison(self, tokens: PushbackTokenStream) -> ExprNode:
         left = self.parse_additive(tokens)
 
         if _try_consume_keyword(tokens, "is"):
-            op_type = BinOpType.IS_NOT if _try_consume_keyword(tokens, "not") else BinOpType.IS
+            op_type = (
+                BinOpType.IS_NOT
+                if _try_consume_keyword(tokens, "not")
+                else BinOpType.IS
+            )
 
             right = self.parse_atom(tokens)
 
@@ -164,10 +177,15 @@ class _Parser:
 
         tok = tokens.peek()
 
-        for tok_type, bin_op_type in ((TokenType.LT, BinOpType.LT),( TokenType.LTE, BinOpType.LTE), (TokenType.GT, BinOpType.GT), (TokenType.GTE, BinOpType.GTE)):
+        for tok_type, bin_op_type in (
+            (TokenType.LT, BinOpType.LT),
+            (TokenType.LTE, BinOpType.LTE),
+            (TokenType.GT, BinOpType.GT),
+            (TokenType.GTE, BinOpType.GTE),
+        ):
             if tok.type != tok_type:
                 continue
-            
+
             tokens.pop()
             right = self.parse_atom(tokens)
 
@@ -179,7 +197,7 @@ class _Parser:
             )
 
         return left
-    
+
     def parse_additive(self, tokens: PushbackTokenStream) -> ExprNode:
         left = self.parse_atom(tokens)
 

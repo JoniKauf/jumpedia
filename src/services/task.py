@@ -1,30 +1,38 @@
-import types as ts
+import functools
 import typing as t
 from dataclasses import dataclass
 
 from domain import errors
+from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeType
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.operation import Operation
 from domain.enums.rank import CommunityRank
+from domain.sentinels.default import DEFAULT
+from domain.types.attribute import AttributeID
+from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from repositories.attribute import AttributeRepository
-from repositories.collection_entry import CollectionEntryRepository
+from repositories.collection_entry import (
+    CollectionEntryEntityWithAliases,
+    CollectionEntryRepository,
+)
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import DeletedTask, TaskInfo, TaskSummariesData, TaskSummary
+from services.dtos.task import DeletedTask, TaskInfo
 from services.field_mapping import FieldMappingService
 from services.list import ListAccessService
 from services.permission import PermissionService
+from services.slot_type_service import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -47,7 +55,7 @@ class TaskService:
     ) -> TaskEntity:
         # --- Get Data --- #
         community, member, lst = self._list_access_service.get_convenient(
-            None, list_name
+            DEFAULT, list_name
         )
 
         # --- Verify Rank --- #
@@ -131,7 +139,7 @@ class TaskService:
 
     def delete(self, name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
         _, member, lst, task = self._task_access_service.get_convenient(
-            None, list_name, name, True
+            DEFAULT, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
@@ -144,7 +152,7 @@ class TaskService:
         self, current_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr
     ) -> FieldSlotStr:
         _, member, lst, task = self._task_access_service.get_convenient(
-            None, list_name, current_name, True
+            DEFAULT, list_name, current_name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
@@ -179,7 +187,7 @@ class TaskService:
         operation: Operation,
     ) -> TaskEntity:
         community, member, lst, task = self._task_access_service.get_convenient(
-            None, list_name, name, True
+            DEFAULT, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
@@ -188,8 +196,28 @@ class TaskService:
 
         current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
 
-        if operation is Operation.COMBINE:
-            new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
+        if operation in (Operation.COMBINE_OVERRIDE_ON_COLLISION, Operation.COMBINE_ERROR_ON_COLLISION):
+            intersection = set(new_aliases).intersection(current_aliases)
+            
+            if not intersection:
+                new_aliases = (*current_aliases, *new_aliases)
+            elif operation is Operation.COMBINE_ERROR_ON_COLLISION:
+                raise ValueError("Error collision")
+            else:
+                # Combine while preserving order and original placement on collision and placing new ones right
+                alias_to_idx: dict[FieldSlotStr, int] = {}
+                i = 0
+
+                for alias in (*current_aliases, *new_aliases):
+                    try:
+                        idx = alias_to_idx.pop(alias)  # Always pop so on collision new key replaces old key (if key exists, key object doesn't change)
+                    except KeyError:
+                        idx = i
+                        i += 1
+                    
+                    alias_to_idx[alias] = idx
+                    
+                new_aliases = tuple(alias for alias, _ in sorted(alias_to_idx.items(), key=lambda item: item[1]))
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if current_aliases == new_aliases:
@@ -235,10 +263,12 @@ class TaskQueryService:
     _attribute_repo: AttributeRepository
     _field_slot_repo: FieldSlotRepository
     _list_access_service: ListAccessService
+    _collection_entry_repo: CollectionEntryRepository
+    _slot_type_service: SlotTypeService
 
-    def get_info(self, syn: FieldSlotStr, list_name: ListNameStr | None) -> TaskInfo:
+    def get_info(self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT) -> TaskInfo:
         _, _, lst, task = self._task_access_service.get_convenient(
-            None, list_name, syn, False
+            DEFAULT, list_name, syn, False
         )
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
@@ -264,54 +294,215 @@ class TaskQueryService:
             task.name,
             aliases,
             lst,
-            ts.MappingProxyType(
+            frozendict(
                 {
                     id_to_attr[k]: tuple(slot.slot for slot in v)
                     for k, v in field_mapping.items()
-                }
+                }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
             ),
             static_attributes,
         )
 
-    def get_summaries(self, list_name: ListNameStr | None) -> TaskSummariesData:
-        _, _, lst = self._list_access_service.get_convenient(None, list_name)
+    def get_summaries(
+        self,
+        sorts: tuple[tuple[AttributeSynStr, bool], ...],
+        list_name: ListNameStr | DEFAULT,
+    ) -> tuple[tuple[tuple[FieldSlotStr, ...], ...], ...]:
+        _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
-        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
-        attrs = self._attribute_repo.get_all_by_list_id(lst.list_id, ATTRIBUTE_TYPES)
-        id_to_attr = {attr.attribute_id: attr for attr in attrs}
+        tasks: tuple[TaskEntity, ...] = self._task_repo.get_all_by_list_id(lst.list_id)
 
-        tasks = self._task_repo.get_all_by_list_id(lst.list_id)
-        task_id_to_aliases = self._task_repo.get_grouped_aliases_by_list_id(lst.list_id)
-        task_id_to_field_mapping = self._field_slot_repo.get_field_mapping_by_list_id(
-            lst.list_id, ATTRIBUTE_TYPES
+        ATTRIBUTES_TYPES: t.Final = AttributeType.NON_USER()
+
+        SYN_TO_ATTR: t.Final = self._attribute_repo.get_syn_to_attribute_by_list_id(
+            lst.list_id, ATTRIBUTES_TYPES
         )
-        static_attributes = tuple(
-            self._attribute_repo.get_all_by_list_id(
-                lst.list_id, AttributeType.STATIC.as_set()
+        ATTRS_SORTED: t.Final = tuple(
+            sorted(set(SYN_TO_ATTR.values()), key=lambda attr: attr.position.value)
+        )
+
+        TASK_ID_TO_STATIC_FIELD_MAPPING: t.Final[dict[
+            TaskID, dict[AttributeID, tuple[FieldSlotStr, ...]]
+        ]] = {}
+        TASK_ID_TO_ALIASES: t.Final = self._task_repo.get_grouped_aliases_by_list_id(lst.list_id)
+
+        for attr in ATTRS_SORTED:
+            if attr.type is not AttributeType.STATIC:
+                continue
+
+            match attr.kind:
+                case AttributeKind.ID:
+                    for task in tasks:
+                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
+                            attr.attribute_id
+                        ] = (FieldSlotStr(str(task.task_id)),)
+
+                case AttributeKind.NAME:
+                    for task in tasks:
+                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
+                            attr.attribute_id
+                        ] = (task.name,)
+
+                case AttributeKind.ALIAS:
+                    for task in tasks:
+                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
+                            attr.attribute_id
+                        ] = TASK_ID_TO_ALIASES.get(task.task_id, ())
+
+                case _:
+                    assert attr.kind is not AttributeKind.NONE
+                    t.assert_never(attr.kind)
+
+        TASK_ID_TO_TASK_FIELD_MAPPING: t.Final = {
+            task_id: {
+                attr_id: tuple(slot.slot for slot in field)
+                for attr_id, field in mapping.items()
+            }
+            for task_id, mapping in self._field_slot_repo.get_task_field_mapping_by_list_id(
+                lst.list_id
+            ).items()
+        }
+
+        TASK_ID_TO_FIELD_MAPPING: t.Final = {
+            task.task_id: TASK_ID_TO_STATIC_FIELD_MAPPING.get(task.task_id, {})
+            | TASK_ID_TO_TASK_FIELD_MAPPING.get(task.task_id, {})
+            for task in tasks
+        }
+
+        del TASK_ID_TO_STATIC_FIELD_MAPPING, TASK_ID_TO_TASK_FIELD_MAPPING
+
+        attr_id_to_collection = (
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
+                lst.list_id, AttributeType.TASK.as_set()
             )
         )
 
-        assert len(static_attributes) == 3
-
-        return TaskSummariesData(
-            tuple(
-                TaskSummary(
-                    task.task_id,
-                    task.name,
-                    task_id_to_aliases[task.task_id],
-                    lst,
-                    ts.MappingProxyType(
-                        {
-                            id_to_attr[k]: tuple(slot.slot for slot in v)
-                            for k, v in task_id_to_field_mapping[task.task_id].items()
-                        }
-                    ),
-                )
-                for task in tasks
-            ),
-            static_attributes,
-            attrs,
+        tasks = tuple(
+            self._sort(
+                sorts,
+                tasks,
+                TASK_ID_TO_FIELD_MAPPING,
+                SYN_TO_ATTR,
+                attr_id_to_collection,
+            )
         )
+
+        return tuple(
+            tuple(TASK_ID_TO_FIELD_MAPPING[task.task_id].get(attr.attribute_id, ()) for attr in ATTRS_SORTED)
+            for task in tasks
+        )
+
+    def _sort[T: AttributeEntity.OfTypeNotUserT | AttributeEntity.OfAnyTypeT](
+        self,
+        sorts: tuple[tuple[AttributeSynStr, bool], ...],
+        tasks: tuple[TaskEntity, ...],
+        task_id_to_field_mapping: t.Mapping[
+            TaskID, t.Mapping[AttributeID, tuple[FieldSlotStr, ...]]
+        ],
+        syn_to_attr: t.Mapping[AttributeSynStr, T],
+        attr_id_to_collection: t.Mapping[
+            AttributeID, tuple[CollectionEntryEntityWithAliases, ...]
+        ],
+    ) -> list[TaskEntity]:
+        # --- Normalize Sorts As Much As Possible --- #
+        normed_sorts: list[tuple[T, bool]] = []
+
+        for sort in sorts:
+            syn, asc = sort
+            attr = syn_to_attr[syn]
+
+            cur = (attr, asc)
+
+            # Only pure logical normalization we can perform is when 2 exact sorts are in a row
+            if normed_sorts and normed_sorts[-1] == cur:
+                continue
+
+            normed_sorts.append(cur)
+
+            # Short circuit by means of data knowledge
+            if attr.slot_unique_across_list:
+                break
+
+        del sorts
+
+        # --- Validate And Set Final Sorts --- #
+        if len(normed_sorts) > 20:
+            raise ValueError("Can at max only have 20 sorting keys")
+        
+        if not normed_sorts:
+            name_attr: AttributeEntity.OfTypeStaticT
+
+            for attr in syn_to_attr.values():
+                if attr.kind is AttributeKind.NAME:
+                    name_attr = attr  # type: ignore
+                    break
+            else:
+                raise ValueError("Data error, no name attribute found!!!")
+
+            normed_sorts = [(name_attr, True)]  # type: ignore
+
+        # --- Gather Sorting Data --- #
+        task_to_sort_value: dict[TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]] = {}
+        attr_id_to_collection_entry_syn_to_collection_index: dict[
+            AttributeID, dict[FieldSlotStr, int]
+        ] = {
+            attr: {
+                syn: i
+                for i, entry in enumerate(coll)
+                for syn in (entry.entry.value, *entry.aliases)
+            }
+            for attr, coll in attr_id_to_collection.items()
+        }
+
+        for task in tasks:
+            result: list[tuple[AttributeSlotType.SlotTypeT, ...]] = []
+
+            for attr, _ in normed_sorts:
+                syn_to_collection_entry_idx = (
+                    attr_id_to_collection_entry_syn_to_collection_index.get(
+                        attr.attribute_id, {}
+                    )
+                )
+
+                # Collection exists for given attr
+                if syn_to_collection_entry_idx:
+                    result.append(
+                        tuple(
+                            syn_to_collection_entry_idx[slot]
+                            for slot in task_id_to_field_mapping.get(
+                                task.task_id, {}
+                            ).get(attr.attribute_id, ())
+                        )
+                    )
+                else:
+                    result.append(
+                        tuple(
+                            self._slot_type_service.convert_to_type(
+                                slot, attr.slot.type, _validate=False
+                            )
+                            for slot in task_id_to_field_mapping.get(
+                                task.task_id, {}
+                            ).get(attr.attribute_id, ())
+                        )
+                    )
+
+            task_to_sort_value[task] = result
+
+        # --- Apply Sort --- #
+        def compare_tasks(a: TaskEntity, b: TaskEntity) -> int:
+            values_a = task_to_sort_value[a]
+            values_b = task_to_sort_value[b]
+
+            for va, vb, (_, asc) in zip(values_a, values_b, normed_sorts):
+                if va < vb:
+                    return -1 if asc else 1
+
+                if va > vb:
+                    return 1 if asc else -1
+
+            return 0
+
+        return sorted(tasks, key=functools.cmp_to_key(compare_tasks))
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -342,8 +533,8 @@ class TaskAccessService:
 
     def get_convenient(
         self,
-        community_name: CommunityNameStr | None,
-        list_name: ListNameStr | None,
+        community_name: CommunityNameStr | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
         task_syn: FieldSlotStr,
         task_only_by_name: bool,
     ) -> tuple[CommunityEntity, MemberEntity, ListEntity, TaskEntity]:

@@ -33,25 +33,19 @@ def create_database(
         exit()
         return
 
-    c.raw_execute(
-        f"""
+    c.raw_execute(f"""
         CREATE DATABASE {conn_data["db"]}
         CHARACTER SET utf8mb4 
         COLLATE utf8mb4_bin
-    """
-    )
+    """)
 
-    c.raw_execute(
-        f"""
+    c.raw_execute(f"""
         CREATE USER '{conn_data['user']}'@'%' IDENTIFIED BY '{conn_data['password'].replace("'", "''")}';
-        """
-    )
+        """)
 
-    c.raw_execute(
-        f"""
+    c.raw_execute(f"""
         GRANT SELECT, INSERT, UPDATE, DELETE ON `{conn_data['db']}`.* TO '{conn_data['user']}'@'%'
-        """
-    )
+        """)
 
     from structures import attribute
     from structures.attribute.slot_str import SLOT_TYPES
@@ -60,8 +54,7 @@ def create_database(
     c.raw_execute(f"""USE {conn_data['db']}""")
 
     try:
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.Community} (
                 {db.Community.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.Community.norm_name} VARCHAR({j.limits['community_name_length_max']}) UNIQUE NOT NULL,
@@ -69,11 +62,9 @@ def create_database(
                 {db.Community.default_selected_list_id} INT UNSIGNED DEFAULT NULL,
                 {db.Community.limits} JSON NOT NULL
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.Server} (
                 {db.Server.id} BIGINT UNSIGNED PRIMARY KEY,
                 {db.Server.community_id} INT UNSIGNED NOT NULL,
@@ -82,11 +73,9 @@ def create_database(
                     REFERENCES {db.Community}({db.Community.id.unqualified})
                     ON DELETE CASCADE
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.List} (
                 {db.List.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.List.community_id} INT UNSIGNED NOT NULL,
@@ -99,32 +88,26 @@ def create_database(
 
                 UNIQUE ({db.List.community_id.unqualified}, {db.List.norm_name.unqualified})
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             ALTER TABLE {db.Community}
             ADD CONSTRAINT fk_community_default_list
             FOREIGN KEY ({db.Community.default_selected_list_id.unqualified})
                 REFERENCES {db.List}({db.List.id.unqualified})
                 ON DELETE SET NULL
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.JumpediaUser} (
                 {db.JumpediaUser.id} BIGINT UNSIGNED PRIMARY KEY,
                 {db.JumpediaUser.norm_name} VARCHAR({32}) NOT NULL,
                 {db.JumpediaUser.raw_name} VARCHAR({32}) NOT NULL,
                 {db.JumpediaUser.power} INT NOT NULL
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.CommunityUser} (
                 {db.CommunityUser.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.CommunityUser.community_id} INT UNSIGNED NOT NULL,
@@ -142,11 +125,9 @@ def create_database(
                     REFERENCES {db.List}({db.List.id.unqualified})
                     ON DELETE SET NULL
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.Attribute} (
                 {db.Attribute.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.Attribute.list_id} INT UNSIGNED NOT NULL,
@@ -171,11 +152,9 @@ def create_database(
                 CHECK ({db.Attribute.kind.unqualified} IS NULL OR {db.Attribute.kind.unqualified} <= {max(Kind._value2member_map_)}),
                 CHECK ({db.Attribute.slot_type.unqualified} < {len(SLOT_TYPES)})
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.AttributeAlias} (
                 {db.AttributeAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.AttributeAlias.attribute_id} INT UNSIGNED NOT NULL,
@@ -195,13 +174,11 @@ def create_database(
 
                 CHECK ({db.AttributeAlias.attribute_type_id.unqualified} < {len(attribute.ALL_ATTRIBUTE_TYPES)})
             )
-        """
-        )
+        """)
 
         from structures.attribute import slot_str
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.AttributeCollectionEntry} (
                 {db.AttributeCollectionEntry.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.AttributeCollectionEntry.attribute_id} INT UNSIGNED NOT NULL,
@@ -222,11 +199,9 @@ def create_database(
                     {db.AttributeCollectionEntry.index.unqualified}
                 )
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.AttributeCollectionEntryAlias} (
                 {db.AttributeCollectionEntryAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.AttributeCollectionEntryAlias.attribute_id} INT UNSIGNED NOT NULL,
@@ -246,11 +221,9 @@ def create_database(
                     {db.AttributeCollectionEntryAlias.norm_alias.unqualified}
                 )
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.Task} (
                 {db.Task.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.Task.list_id} INT UNSIGNED NOT NULL,
@@ -263,11 +236,9 @@ def create_database(
 
                 UNIQUE ({db.Task.list_id.unqualified}, {db.Task.norm_name.unqualified})
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.TaskAlias} (
                 {db.TaskAlias.id} INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.TaskAlias.task_id} INT UNSIGNED NOT NULL,
@@ -285,11 +256,9 @@ def create_database(
 
                 UNIQUE ({db.TaskAlias.list_id.unqualified}, {db.TaskAlias.norm_alias.unqualified})
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.TaskAttributeValue} (
                 {db.TaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
                 {db.TaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
@@ -314,11 +283,9 @@ def create_database(
                     REFERENCES {db.Attribute}({db.Attribute.id.unqualified})
                     ON DELETE CASCADE
             )
-        """
-        )
+        """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.CommunityUserTask} (
                 {db.CommunityUserTask.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.CommunityUserTask.list_id} INT UNSIGNED NOT NULL,
@@ -341,11 +308,9 @@ def create_database(
                     {db.CommunityUserTask.community_user_id.unqualified}
                 )
             )
-            """
-        )
+            """)
 
-        c.raw_execute(
-            f"""
+        c.raw_execute(f"""
             CREATE TABLE {db.CommunityUserTaskAttributeValue} (
                 {db.CommunityUserTaskAttributeValue.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 {db.CommunityUserTaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
@@ -385,8 +350,7 @@ def create_database(
                     {db.CommunityUserTaskAttributeValue.index.unqualified}
                 )
             )
-        """
-        )
+        """)
     except Exception:
         print("Error! Dropping database in 5 seconds...")
         time.sleep(5)

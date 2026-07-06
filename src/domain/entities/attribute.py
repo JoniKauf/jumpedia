@@ -4,6 +4,7 @@ from domain.types.attribute import AttributeID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.position import Position
+import typing as t
 
 
 class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID]):
@@ -66,8 +67,17 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
     def position(self, value: Position) -> None:
         self._position = value
 
-    type StaticT = AttributeEntity[AttributeType.StaticT]
-    type TaskT = AttributeEntity[AttributeType.TaskT]
-    type UserT = AttributeEntity[AttributeType.UserT]
+    @property
+    def slot_unique_across_list(self) -> bool:
+        return self.type is AttributeType.STATIC
 
-    type AllStaticT = tuple[StaticT, StaticT, StaticT]
+    type OfTypeStaticT = AttributeEntity[AttributeType.StaticT]
+    type OfTypeTaskT = AttributeEntity[AttributeType.TaskT]
+    type OfTypeUserT = AttributeEntity[AttributeType.UserT]
+
+    type OfTypeNotUserT = AttributeEntity[AttributeType.StaticT | AttributeType.TaskT]
+    type OfTypeNotStaticT = AttributeEntity[AttributeType.TaskT | AttributeType.UserT]
+
+    type OfAnyTypeT = AttributeEntity[AttributeType.AllT]
+
+    type AllStaticT = tuple[OfTypeStaticT, OfTypeStaticT, OfTypeStaticT]

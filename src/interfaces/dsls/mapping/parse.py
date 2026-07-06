@@ -13,32 +13,42 @@ class ValueListNode(ExprNode):
 
 
 @dataclass(frozen=True, slots=True)
-class ValueToValueListMappingItemNode(ExprNode):
+class MappingItemNode(ExprNode):
     key: TextNodeT
     value: ValueListNode
 
 
 @dataclass(frozen=True, slots=True)
-class ValueToValueListMappingNode(ExprNode):
-    items: tuple[ValueToValueListMappingItemNode, ...]
+class MappingNode(ExprNode):
+    items: tuple[MappingItemNode, ...]
 
 
-def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
+def parse(tokens: t.Iterable[Token]) -> MappingNode:
     stream = PushbackTokenStream(tokens)
 
-    unique_res: dict[str, ValueToValueListMappingItemNode] = {}
+    unique_res: dict[str, MappingItemNode] = {}
 
     first_tok = stream.peek()
     with_parens: bool
 
-    if first_tok.type is TokenType.LPAREN:
-        with_parens = True
-    elif first_tok.type in (TokenType.STRING, TokenType.IDENT):
-        with_parens = False
-    elif first_tok.type is TokenType.NONE:
-        raise ValueError("Empty")
-    else:
-        raise ValueError("Expected parenthesis or key as first token")
+    match first_tok.type:
+        case TokenType.LPAREN:
+            with_parens = True
+        case TokenType.STRING | TokenType.IDENT:
+            with_parens = False
+
+            if first_tok.type is TokenType.IDENT and first_tok.value == '_':
+                stream.pop()
+
+                if stream.peek().type is TokenType.NONE:
+                    return MappingNode(first_tok.span, ())
+
+                stream.push(first_tok)
+                
+        case TokenType.NONE:
+            raise ValueError("Empty")
+        case _:
+            raise ValueError("Expected parenthesis or key as first token")
 
     # At least one iteration/dict entry guaranteed
     while stream.peek().type is not TokenType.NONE:
@@ -120,13 +130,13 @@ def parse(tokens: t.Iterable[Token]) -> ValueToValueListMappingNode:
         if key_str in unique_res:
             raise ValueError("Non unique keys")
 
-        unique_res[key_str] = ValueToValueListMappingItemNode(
+        unique_res[key_str] = MappingItemNode(
             Span(begin, end), key, value_list
         )
 
     all_items = tuple(unique_res.values())
     assert all_items
 
-    return ValueToValueListMappingNode(
+    return MappingNode(
         Span(all_items[0].span.begin, all_items[-1].span.end), all_items
     )

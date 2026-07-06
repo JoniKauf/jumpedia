@@ -8,6 +8,7 @@ from domain.entities.member import MemberEntity
 from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
+from domain.sentinels.default import DEFAULT
 from domain.types.member import MemberID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
@@ -45,12 +46,12 @@ class MemberTaskService:
     def give_to_user(
         self,
         syn: FieldSlotStr,
-        list_name: ListNameStr | None,
+        list_name: ListNameStr | DEFAULT,
         user_field_mapping: t.Mapping[AttributeSynStr, tuple[FieldSlotStr, ...]],
-        target_user: UserRef | None,
+        target_user: UserRef | DEFAULT,
     ) -> tuple[MemberEntity, TaskEntity]:
         _, actor_member, lst, task = self._task_access_service.get_convenient(
-            None, list_name, syn, False
+            DEFAULT, list_name, syn, False
         )
 
         target_member = self._member_access_service.get_target_member_if_actor_member_is_permitted_to_act_for_others(
@@ -107,11 +108,11 @@ class MemberTaskService:
     def take_from_user(
         self,
         syn: FieldSlotStr,
-        list_name: ListNameStr | None,
-        target_user: UserRef | None,
+        list_name: ListNameStr | DEFAULT,
+        target_user: UserRef | DEFAULT,
     ) -> tuple[MemberEntity, TaskEntity]:
         _, actor_member, _, task = self._task_access_service.get_convenient(
-            None, list_name, syn, False
+            DEFAULT, list_name, syn, False
         )
 
         target_member = self._member_access_service.get_target_member_if_actor_member_is_permitted_to_act_for_others(
@@ -140,11 +141,11 @@ class MemberTaskAccessService:
 
     def get_convenient(
         self,
-        community_name: CommunityNameStr | None,
-        list_name: ListNameStr | None,
+        community_name: CommunityNameStr | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
         task_syn: FieldSlotStr,
         task_only_by_name: bool,
-        target_member_id: MemberID | None,
+        target_member_id: MemberID | DEFAULT,
     ) -> tuple[
         CommunityEntity, MemberEntity, ListEntity, TaskEntity, MemberTaskEntity | None
     ]:
@@ -153,7 +154,8 @@ class MemberTaskAccessService:
         )
 
         member_task = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member_id or member.member_id, task.task_id
+            member.member_id if target_member_id is DEFAULT else target_member_id,
+            task.task_id,
         )
 
         return (community, member, lst, task, member_task)

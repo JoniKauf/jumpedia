@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from domain.entities.community import CommunityEntity
 from domain.entities.member import MemberEntity
 from domain.enums.rank import CommunityRank
+from domain.sentinels.default import DEFAULT
 from domain.value_objects.community import CommunityNameStr
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert
@@ -27,7 +28,7 @@ class MemberService:
         user: UserRef,
         community_rank: CommunityRank,
     ) -> MemberEntity:
-        community, actor_member = self._member_access_service.get_convenient(None)
+        community, actor_member = self._member_access_service.get_convenient(DEFAULT)
 
         target_member = self._member_existence_service.get_or_create(
             MemberInsert(
@@ -61,10 +62,10 @@ class MemberAccessService:
     _permission_service: PermissionService
 
     def get_target_member_if_actor_member_is_permitted_to_act_for_others(
-        self, actor_member: MemberEntity, target_user: UserRef | None
+        self, actor_member: MemberEntity, target_user: UserRef | DEFAULT
     ) -> MemberEntity:
         # Target user is actor
-        if target_user is None or target_user.id == actor_member.user.user_id:
+        if target_user is DEFAULT or target_user.id == actor_member.user.user_id:
             return actor_member
 
         # Awlays create users eagerly
@@ -94,7 +95,7 @@ class MemberAccessService:
         )
 
     def get_convenient(
-        self, community_name: CommunityNameStr | None
+        self, community_name: CommunityNameStr | DEFAULT
     ) -> tuple[CommunityEntity, MemberEntity]:
         community = self._community_access_service.get_convenient(community_name)
         member = self.get_or_create_current_with_defaults(community)

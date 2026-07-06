@@ -49,7 +49,7 @@ class MemberFieldSlotRepository(BaseRepository):
 
     def get_field_mapping_by_member_task_id(
         self, member_task_id: MemberTaskID, types: t.AbstractSet[AttributeType]
-    ) -> ts.MappingProxyType[AttributeID, tuple[MemberFieldSlotEntity, ...]]:
+    ) -> frozendict[AttributeID, tuple[MemberFieldSlotEntity, ...]]:
         stmt = (
             select(MemberFieldSlotModel)
             .join(
@@ -73,15 +73,15 @@ class MemberFieldSlotRepository(BaseRepository):
                 member_field_slot_model_to_entity(obj)
             )
 
-        return ts.MappingProxyType({k: tuple(v) for k, v in res.items()})
+        return frozendict({k: tuple(v) for k, v in res.items()})
 
     def get_field_mapping_by_list_id(
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> ts.MappingProxyType[
+    ) -> frozendict[
         MemberTaskID,
-        ts.MappingProxyType[AttributeID, tuple[MemberFieldSlotEntity, ...]],
+        frozendict[AttributeID, tuple[MemberFieldSlotEntity, ...]],
     ]:
         stmt = (
             select(MemberFieldSlotModel)
@@ -110,9 +110,9 @@ class MemberFieldSlotRepository(BaseRepository):
                 obj.attribute_id, []
             ).append(member_field_slot_model_to_entity(obj))
 
-        return ts.MappingProxyType(
+        return frozendict(
             {
-                task_id: ts.MappingProxyType(
+                task_id: frozendict(
                     {attr_id: tuple(slots) for attr_id, slots in attr_map.items()}
                 )
                 for task_id, attr_map in res.items()

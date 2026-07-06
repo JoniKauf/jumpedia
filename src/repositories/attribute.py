@@ -1,7 +1,7 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import case, delete, func, or_, select, text, update
 
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain import errors
@@ -241,7 +241,7 @@ class AttributeRepository(BaseRepository):
     def get_grouped_by_list_id(
         self,
         community_id: CommunityID,
-    ) -> ts.MappingProxyType[ListID, list[AttributeEntity]]:
+    ) -> frozendict[ListID, list[AttributeEntity]]:
         stmt = (
             select(AttributeModel)
             .join(ListModel, ListModel.list_id == AttributeModel.list_id)
@@ -254,7 +254,9 @@ class AttributeRepository(BaseRepository):
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.list_id, []).append(attribute_model_to_entity(obj))
 
-        return ts.MappingProxyType(res)
+        return frozendict(
+            res
+        )  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
 
     def count_by_list(self, list_id: ListID) -> int:
         stmt = (
@@ -270,15 +272,13 @@ class AttributeRepository(BaseRepository):
         # by sqlalchemy, so we use raw sql
 
         self._session.execute(
-            text(
-                """
+            text("""
                 UPDATE attribute
                 SET position = position - 1
                 WHERE list_id = :list_id
                 AND position > :position
                 ORDER BY position ASC
-                """
-            ),
+                """),
             {
                 "list_id": list_id,
                 "position": position.value,
@@ -289,7 +289,7 @@ class AttributeRepository(BaseRepository):
 
     def get_syn_to_attribute_by_list_id[T: AttributeType](
         self, list_id: ListID, types: t.AbstractSet[T]
-    ) -> ts.MappingProxyType[AttributeSynStr, AttributeEntity[T]]:
+    ) -> frozendict[AttributeSynStr, AttributeEntity[T]]:
         stmt = (
             select(AttributeModel, AttributeAliasModel)
             .outerjoin(
@@ -321,7 +321,9 @@ class AttributeRepository(BaseRepository):
                     )
                 ] = entity
 
-        return ts.MappingProxyType(res)
+        return frozendict(
+            res
+        )  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
 
     def get_aliases_by_attribute_id(
         self,
@@ -345,7 +347,7 @@ class AttributeRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> ts.MappingProxyType[AttributeID, tuple[AttributeSynStr, ...]]:
+    ) -> frozendict[AttributeID, tuple[AttributeSynStr, ...]]:
         stmt = (
             select(AttributeAliasModel)
             .join(
@@ -369,8 +371,10 @@ class AttributeRepository(BaseRepository):
                 )
             )
 
-        return ts.MappingProxyType(
-            {attribute_id: tuple(aliases) for attribute_id, aliases in res.items()}
+        return frozendict(
+            {
+                attribute_id: tuple(aliases) for attribute_id, aliases in res.items()
+            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
         )
 
     def update_name(
@@ -425,5 +429,39 @@ class AttributeRepository(BaseRepository):
 
         obj.min_slot_count = min_slot_count
         obj.max_slot_count = max_slot_count
+
+        self._session.flush()
+
+    def update_positions(
+        self,
+        list_id: ListID,
+        all_ordered_attribute_ids: tuple[AttributeID, ...],
+    ) -> None:
+        offset = len(all_ordered_attribute_ids)
+
+        # 1) move everything out of UNIQUE range
+        self._session.execute(
+            update(AttributeModel)
+            .where(AttributeModel.list_id == list_id)
+            .values(position=AttributeModel.position + offset)
+        )
+
+        # 2) assign final positions in one batch (CASE update)
+        position_case = case(
+            {
+                attr_id: pos
+                for pos, attr_id in enumerate(all_ordered_attribute_ids, start=1)
+            },
+            value=AttributeModel.attribute_id,
+        )
+
+        self._session.execute(
+            update(AttributeModel)
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.attribute_id.in_(all_ordered_attribute_ids),
+            )
+            .values(position=position_case)
+        )
 
         self._session.flush()

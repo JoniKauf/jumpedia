@@ -205,7 +205,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     )
                 except errors.DomainError as e:
                     await _handle_domain_error(interaction, e)
-                except (errors.InternalError, Exception):
+                except errors.InternalError, Exception:
                     await messages.error(
                         interaction,
                         t"Unhandled",

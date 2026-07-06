@@ -89,7 +89,7 @@ async def on_app_command_error(
 
     try:
         await interaction.response.defer()
-    except (HTTPException, InteractionResponded):
+    except HTTPException, InteractionResponded:
         pass
 
     await interaction.followup.send(str(e), **msg_kwargs)

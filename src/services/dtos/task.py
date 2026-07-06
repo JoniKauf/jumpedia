@@ -23,23 +23,9 @@ class TaskInfo:
     name: FieldSlotStr
     aliases: tuple[FieldSlotStr, ...]
     list: ListEntity
-    field_mapping: ts.MappingProxyType[AttributeEntity.TaskT, tuple[FieldSlotStr, ...]]
+    field_mapping: frozendict[AttributeEntity.OfTypeTaskT, tuple[FieldSlotStr, ...]]
     static_attributes: tuple[
-        AttributeEntity.StaticT, AttributeEntity.StaticT, AttributeEntity.StaticT
+        AttributeEntity.OfTypeStaticT,
+        AttributeEntity.OfTypeStaticT,
+        AttributeEntity.OfTypeStaticT,
     ]
-
-
-@dataclass(frozen=True, slots=True)
-class TaskSummary:
-    id: TaskID
-    name: FieldSlotStr
-    aliases: tuple[FieldSlotStr, ...]
-    list: ListEntity
-    field_mapping: ts.MappingProxyType[AttributeEntity.TaskT, tuple[FieldSlotStr, ...]]
-
-
-@dataclass(frozen=True, slots=True)
-class TaskSummariesData:
-    summaries: tuple[TaskSummary, ...]
-    static_attributes: AttributeEntity.AllStaticT
-    task_attributes: tuple[AttributeEntity.TaskT, ...]

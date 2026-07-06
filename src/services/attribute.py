@@ -1,6 +1,5 @@
 import typing as t
 from dataclasses import dataclass
-from itertools import zip_longest
 
 from domain import errors
 from domain.entities.attribute import AttributeEntity
@@ -12,6 +11,7 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.operation import Operation
 from domain.enums.rank import CommunityRank
+from domain.sentinels.default import DEFAULT
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -54,79 +54,26 @@ class AttributeService:
         type: T,
         slot: AttributeSlot,
         aliases: tuple[AttributeSynStr, ...],
-        collection_entries: tuple[CreateCollectionEntry, ...],
+        collection: tuple[CreateCollectionEntry, ...],
     ) -> AttributeEntity[T]:
-        # --- Get Data ---
         community, member, lst = self._list_access_service.get_convenient(
-            None, list_name
+            DEFAULT, list_name
         )
 
-        # --- Verify Rank ---
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
         )
 
-        # --- Verify Limit Of Count Not Exceeded ---
-        # pos starts at 1 so max_pos == count
         attr_count = self._attribute_repo.count_by_list(lst.list_id)
+        coll: tuple[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]], ...] = tuple((entry.value, entry.aliases) for entry in collection)
 
-        if attr_count >= community.limits.list_attribute_count_max:
-            raise errors.CountLimitReached(
-                community.limits.list_attribute_count_max, AttributeEntity
-            )
+        del collection
 
-        syns: tuple[AttributeSynStr, ...] = (name, *aliases)
+        self._validate_basic_community_limits(name, aliases, coll, community, attr_count)
 
-        if len(aliases) > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(
-                community.limits.attribute_alias_count_max, name, aliases
-            )
+        self._validate_syn_uniqueness(name, aliases, lst, coll)
 
-        # --- Verify Syn Uniquness Across Each Other And Across All Attributes ---
-        AttributeSynStr.raise_if_not_unique(syns)
-
-        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
-            lst.list_id, syns, None
-        )
-
-        if existing_same_syn is not None:
-            colliding_attr, colliding_syn = existing_same_syn
-
-            raise errors.SynAlreadyTaken(
-                *existing_same_syn,
-                colliding_attr.name != colliding_syn,
-                colliding_syn != name,
-            )
-
-        # --- Validate Slot ---
         self._validate_slot(slot, community, True)
-
-        # --- Validate Collection ---
-        if collection_entries:
-            FieldSlotStr.raise_if_not_unique(
-                syn
-                for entry in collection_entries
-                for syn in (entry.value, *entry.aliases)
-            )
-
-            if len(collection_entries) > community.limits.collection_entry_count_max:
-                raise errors.CountLimitReached(
-                    community.limits.collection_entry_count_max,
-                    CollectionEntryEntity,
-                )
-
-            for entry in collection_entries:
-                if (
-                    len(entry.aliases)
-                    > community.limits.collection_entry_alias_count_max
-                ):
-                    raise errors.AliasCountLimitReached(
-                        community.limits.collection_entry_alias_count_max,
-                        entry.value,
-                        entry.aliases,
-                    )
-
-            # Collection doesn't exist before so here we don't have to check for uniqueness across other db entries
 
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
@@ -147,20 +94,20 @@ class AttributeService:
         )
 
         # --- Create Attribute Collection ---
-        if collection_entries:
+        if coll:
             created_entries: tuple[CollectionEntryEntity, ...] = (
                 self._collection_entry_repo.create_many(
                     CollectionEntryInsert(
-                        attr_entity.attribute_id, Index(i), entry.value
+                        attr_entity.attribute_id, Index(i), slot
                     )
-                    for i, entry in enumerate(collection_entries)
+                    for i, (slot, _) in enumerate(coll)
                 )
             )
 
             all_aliases: list[CollectionEntryAliasInsert] = []
 
             for i, created_entry in enumerate(created_entries):
-                for i, alias in enumerate(collection_entries[i].aliases):
+                for i, alias in enumerate(coll[i][1]):
                     alias_insert = CollectionEntryAliasInsert(
                         created_entry.collection_entry_id,
                         Index(i),
@@ -174,9 +121,63 @@ class AttributeService:
 
         return attr_entity
 
+    def _validate_basic_community_limits(self, name: AttributeSynStr, all_aliases_of_attr: tuple[AttributeSynStr, ...], entire_collection: tuple[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]], ...], community: CommunityEntity, list_attr_count: int) -> None:
+        if list_attr_count >= community.limits.list_attribute_count_max:
+            raise errors.CountLimitReached(
+                community.limits.list_attribute_count_max, AttributeEntity
+            )
+
+        if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
+            raise errors.AliasCountLimitReached(
+                community.limits.attribute_alias_count_max, name, all_aliases_of_attr
+            )
+
+        if entire_collection:
+            if len(entire_collection) > community.limits.collection_entry_count_max:
+                raise errors.CountLimitReached(
+                        community.limits.collection_entry_count_max,
+                        CollectionEntryEntity,
+                    )
+    
+            for entry, aliases in entire_collection:
+                if (
+                    len(aliases)
+                    > community.limits.collection_entry_alias_count_max
+                ):
+                    raise errors.AliasCountLimitReached(
+                        community.limits.collection_entry_alias_count_max,
+                        entry,
+                        aliases,
+                    )
+
+    def _validate_syn_uniqueness(self, name: AttributeSynStr, all_aliases_of_attr: tuple[AttributeSynStr, ...], lst: ListEntity, entire_collection: tuple[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]], ...]):
+        SYNS: t.Final[tuple[AttributeSynStr, ...]] = (name, *all_aliases_of_attr)
+
+        AttributeSynStr.raise_if_not_unique(SYNS)
+
+        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, SYNS, None
+        )
+
+        if existing_same_syn is not None:
+            colliding_attr, colliding_syn = existing_same_syn
+
+            raise errors.SynAlreadyTaken(
+                *existing_same_syn,
+                colliding_attr.name != colliding_syn,
+                colliding_syn != name,
+            )
+
+        if entire_collection:
+            FieldSlotStr.raise_if_not_unique(
+                syn
+                for entry in entire_collection
+                for syn in (entry[0], *entry[1])
+            )
+
     def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> DeletedAttribute:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
-            None, list_name, name, True
+            DEFAULT, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
@@ -197,7 +198,7 @@ class AttributeService:
         list_name: ListNameStr,
     ) -> AttributeSynStr:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
-            None, list_name, current_name, True
+            DEFAULT, list_name, current_name, True
         )
 
         self._permission_service.ensure_community_rank(
@@ -234,7 +235,7 @@ class AttributeService:
         operation: Operation,
     ) -> AttributeEntity:
         community, member, lst, attr = self._attribute_access_service.get_convenient(
-            None, list_name, name, True
+            DEFAULT, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
@@ -247,8 +248,28 @@ class AttributeService:
             attr.attribute_id
         )
 
-        if operation is Operation.COMBINE:
-            new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
+        if operation in (Operation.COMBINE_OVERRIDE_ON_COLLISION, Operation.COMBINE_ERROR_ON_COLLISION):
+            intersection = set(new_aliases).intersection(current_aliases)
+            
+            if not intersection:
+                new_aliases = (*current_aliases, *new_aliases)
+            elif operation is Operation.COMBINE_ERROR_ON_COLLISION:
+                raise ValueError("Error collision")
+            else:
+                # Combine while preserving order and original placement on collision and placing new ones right
+                alias_to_idx: dict[AttributeSynStr, int] = {}
+                i = 0
+
+                for alias in (*current_aliases, *new_aliases):
+                    try:
+                        idx = alias_to_idx.pop(alias)  # Always pop so on collision new key replaces old key (if key exists, key object doesn't change)
+                    except KeyError:
+                        idx = i
+                        i += 1
+                    
+                    alias_to_idx[alias] = idx
+                    
+                new_aliases = tuple(alias for alias, _ in sorted(alias_to_idx.items(), key=lambda item: item[1]))
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if current_aliases == new_aliases:
@@ -294,15 +315,15 @@ class AttributeService:
         max_slot_count: int,
     ) -> AttributeEntity:
         community, member, _, attr = self._attribute_access_service.get_convenient(
-            None, list_name, name, True
+            DEFAULT, list_name, name, True
         )
-
-        if attr.type is AttributeType.STATIC:
-            raise ValueError("Cannot change slot count for static attributes")
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
         )
+
+        if attr.type is AttributeType.STATIC:
+            raise ValueError("Cannot change slot count for static attributes")
 
         slot = AttributeSlot(attr.slot.type, min_slot_count, max_slot_count)
 
@@ -338,6 +359,44 @@ class AttributeService:
 
         return attr
 
+    def edit_position_order(
+        self, attribute_names: tuple[AttributeSynStr, ...], list_name: ListNameStr
+    ) -> ListEntity:
+        _, member, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        name_to_attr = {
+            attr.name: attr
+            for attr in self._attribute_repo.get_all_by_list_id(
+                lst.list_id, AttributeType.ALL()
+            )
+        }
+        new_order: list[AttributeEntity] = []
+        seen: set[AttributeEntity] = set()
+
+        for name in attribute_names:
+            attr = name_to_attr[name]
+
+            if attr in seen:
+                raise ValueError("Attribute specified more than once")
+
+            new_order.append(attr)
+            seen.add(attr)
+
+        assert len(new_order) <= len(name_to_attr)
+
+        if len(new_order) < len(name_to_attr):
+            raise ValueError("Missing attrs")
+
+        self._attribute_repo.update_positions(
+            lst.list_id, tuple(attr.attribute_id for attr in new_order)
+        )
+
+        return lst
+
     def _validate_slot(
         self, slot: AttributeSlot, community: CommunityEntity, creating_attribute: bool
     ) -> None:
@@ -365,10 +424,10 @@ class AttributeQueryService:
     _attribute_access_service: AttributeAccessService
 
     def get_info(
-        self, syn: AttributeSynStr, list_name: ListNameStr | None
+        self, syn: AttributeSynStr, list_name: ListNameStr | DEFAULT
     ) -> AttributeInfo:
         _, _, lst, attr = self._attribute_access_service.get_convenient(
-            None, list_name, syn, False
+            DEFAULT, list_name, syn, False
         )
 
         aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
@@ -392,9 +451,9 @@ class AttributeQueryService:
 
     def get_summaries(
         self,
-        list_name: ListNameStr | None,
+        list_name: ListNameStr | DEFAULT,
     ) -> tuple[AttributeSummary, ...]:
-        _, _, lst = self._list_access_service.get_convenient(None, list_name)
+        _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
 
@@ -455,8 +514,8 @@ class AttributeAccessService:
 
     def get_convenient(
         self,
-        community_name: CommunityNameStr | None,
-        list_name: ListNameStr | None,
+        community_name: CommunityNameStr | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
         attribute_syn: AttributeSynStr,
         attribute_only_by_name: bool,
     ) -> tuple[CommunityEntity, MemberEntity, ListEntity, AttributeEntity]:

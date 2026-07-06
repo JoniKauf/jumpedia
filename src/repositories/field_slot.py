@@ -50,7 +50,7 @@ class FieldSlotRepository(BaseRepository):
 
     def get_field_mapping_by_task_id(
         self, task_id: TaskID, types: t.AbstractSet[AttributeType]
-    ) -> ts.MappingProxyType[AttributeID, tuple[FieldSlotEntity, ...]]:
+    ) -> frozendict[AttributeID, tuple[FieldSlotEntity, ...]]:
         stmt = (
             select(FieldSlotModel)
             .join(
@@ -72,15 +72,14 @@ class FieldSlotRepository(BaseRepository):
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(field_slot_model_to_entity(obj))
 
-        return ts.MappingProxyType({k: tuple(v) for k, v in res.items()})
+        return frozendict({k: tuple(v) for k, v in res.items()})
 
-    def get_field_mapping_by_list_id(
+    def get_task_field_mapping_by_list_id(
         self,
         list_id: ListID,
-        types: t.AbstractSet[AttributeType],
-    ) -> ts.MappingProxyType[
+    ) -> frozendict[
         TaskID,
-        ts.MappingProxyType[AttributeID, tuple[FieldSlotEntity, ...]],
+        frozendict[AttributeID, tuple[FieldSlotEntity, ...]],
     ]:
         stmt = (
             select(FieldSlotModel)
@@ -90,7 +89,6 @@ class FieldSlotRepository(BaseRepository):
             )
             .where(
                 AttributeModel.list_id == list_id,
-                AttributeModel.type.in_(types),
             )
             .order_by(
                 FieldSlotModel.task_id.asc(),
@@ -109,9 +107,9 @@ class FieldSlotRepository(BaseRepository):
                 field_slot_model_to_entity(obj)
             )
 
-        return ts.MappingProxyType(
+        return frozendict(
             {
-                task_id: ts.MappingProxyType(
+                task_id: frozendict(
                     {attr_id: tuple(slots) for attr_id, slots in attr_map.items()}
                 )
                 for task_id, attr_map in res.items()
@@ -121,7 +119,7 @@ class FieldSlotRepository(BaseRepository):
     def get_grouped_by_task(
         self,
         attribute_id: AttributeID,
-    ) -> ts.MappingProxyType[TaskEntity, tuple[FieldSlotStr, ...]]:
+    ) -> frozendict[TaskEntity, tuple[FieldSlotStr, ...]]:
         stmt = (
             select(TaskModel, FieldSlotModel)
             .join(
@@ -156,4 +154,4 @@ class FieldSlotRepository(BaseRepository):
                 )
             )
 
-        return ts.MappingProxyType({task: tuple(slots) for task, slots in res.items()})
+        return frozendict({task: tuple(slots) for task, slots in res.items()})
