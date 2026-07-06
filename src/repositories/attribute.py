@@ -119,7 +119,7 @@ class AttributeRepository(BaseRepository):
         self,
         list_id: ListID,
         syns: t.Iterable[AttributeSynStr],
-        exclude: AttributeID | None
+        exclude: AttributeID | None,
     ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}
@@ -170,7 +170,7 @@ class AttributeRepository(BaseRepository):
             )
 
         return entity, syn
-    
+
     def get_by_list_id_and_syn(
         self,
         list_id: ListID,
@@ -216,7 +216,7 @@ class AttributeRepository(BaseRepository):
             )
 
         return entity, colliding_syn
-    
+
     def get_by_list_id_and_alias(
         self,
         list_id: ListID,
@@ -412,5 +412,18 @@ class AttributeRepository(BaseRepository):
 
         if objs:
             self._session.add_all(objs)
+
+        self._session.flush()
+
+    def update_min_and_max_slot_count(
+        self, attribute_id: AttributeID, min_slot_count: int, max_slot_count: int
+    ) -> None:
+        obj = self._session.get(AttributeModel, attribute_id)
+
+        if obj is None:
+            raise errors.NotFoundById(AttributeEntity)
+
+        obj.min_slot_count = min_slot_count
+        obj.max_slot_count = max_slot_count
 
         self._session.flush()

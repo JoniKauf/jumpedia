@@ -93,7 +93,9 @@ class ListService:
 
         return DeletedList(community, lst.name)
 
-    def edit_name(self, current_name: ListNameStr, new_name: ListNameStr) -> ListNameStr:
+    def edit_name(
+        self, current_name: ListNameStr, new_name: ListNameStr
+    ) -> ListNameStr:
         _, member, lst = self._list_access_service.get_convenient(None, current_name)
 
         self._permission_service.ensure_community_rank(

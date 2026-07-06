@@ -1,8 +1,10 @@
+import typing as t
 from dataclasses import dataclass
 
 from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
@@ -17,7 +19,7 @@ from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.user import UserRef
-from services.list import ListService
+from services.list import ListAccessService, ListService
 from services.member import MemberAccessService, MemberExistenceService
 from services.permission import PermissionService
 
@@ -31,6 +33,7 @@ class CommunityService:
     _community_access_service: CommunityAccessService
     _member_access_service: MemberAccessService
     _member_existence_service: MemberExistenceService
+    _list_access_service: ListAccessService
     _list_service: ListService
 
     def create(
@@ -70,11 +73,13 @@ class CommunityService:
             overwrite_selected_list=True,
         )
 
-        community.default_selected_list_id = self._list_service.create(
+        default_selected_list_id = self._list_service.create(
             ListNameStr("Main")
-        ).id
+        ).list_id
 
-        self._community_repo.update(community)
+        self._community_repo.update_default_selected_list_id(
+            community.community_id, default_selected_list_id
+        )
 
         return community
 
@@ -86,6 +91,43 @@ class CommunityService:
         self._community_repo.delete(community.community_id)
 
         return DeletedCommunity(community.name, community.created, community.limits)
+
+    @t.overload
+    def edit_default_selected_list(
+        self, list_name: ListNameStr
+    ) -> tuple[CommunityEntity, ListEntity]:
+        pass
+
+    @t.overload
+    def edit_default_selected_list(
+        self, list_name: None
+    ) -> tuple[CommunityEntity, None]:
+        pass
+
+    def edit_default_selected_list(
+        self, list_name: ListNameStr | None
+    ) -> tuple[CommunityEntity, ListEntity | None]:
+        community: CommunityEntity
+        member: MemberEntity
+        lst: ListEntity | None
+
+        if list_name is None:
+            community, member = self._member_access_service.get_convenient(None)
+            lst = None
+        else:
+            community, member, lst = self._list_access_service.get_convenient(
+                None, list_name
+            )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        self._community_repo.update_default_selected_list_id(
+            community.community_id, None if lst is None else lst.list_id
+        )
+
+        return community, lst
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -107,7 +149,7 @@ class CommunityQueryService:
 
         if community.default_selected_list_id is not None:
             for lst in lists:
-                if lst.id == community.default_selected_list_id:
+                if lst.list_id == community.default_selected_list_id:
                     default_selected_list = lst
                     break
 

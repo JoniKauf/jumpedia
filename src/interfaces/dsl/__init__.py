@@ -1,1 +1,1 @@
-from interfaces.dsl import value_list, value_to_value_list_mapping
+from interfaces.dsl import list, mapping

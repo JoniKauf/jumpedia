@@ -5,6 +5,7 @@ from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.rank import AnyRankT
 from domain.value_objects.attribute import AttributeSlot
+from domain.value_objects.field_slot import FieldSlotStr
 
 if t.TYPE_CHECKING:
     from domain.entities.base import BaseEntity
@@ -74,13 +75,21 @@ class NameTooLong(DomainError):
         self.limit = limit
         self.type = type
 
+
 class SynAlreadyTaken(DomainError):
-    def __init__(self, existing: BaseEntity, new: Str, existing_is_alias: bool, new_is_alias: bool) -> None:
+    def __init__(
+        self,
+        existing: BaseEntity,
+        new: Str,
+        existing_is_alias: bool,
+        new_is_alias: bool,
+    ) -> None:
         super().__init__()
         self.existing = existing
         self.new = new
         self.existing_is_alias = existing_is_alias
         self.new_is_alias = new_is_alias
+
 
 class NameNotDifferent(DomainError):
     def __init__(self, name: Str) -> None:
@@ -156,6 +165,22 @@ class MemberAlreadyHasTask(DomainError):
         super().__init__()
         self.member = member
         self.task = task
+
+
+class TasksDoNotMatchMinOrMaxSlotCountCriteria(DomainError):
+    def __init__(
+        self,
+        min_slot_count: int,
+        max_slot_count: int,
+        invalid: dict[TaskEntity, tuple[FieldSlotStr, ...]],
+    ) -> None:
+        super().__init__()
+        self.min_slot_count = min_slot_count
+        self.max_slot_count = max_slot_count
+        self.invalid = invalid
+
+
+# --- Internal Errors --- #
 
 
 class InternalError(Exception):

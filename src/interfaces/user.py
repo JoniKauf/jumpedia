@@ -35,8 +35,8 @@ class UserInterface(BaseInterface, group_name="user"):
 
         await messages.success(
             ctx.interaction,
-            t"Meta Rank Set",
-            t"The meta rank of the {format.mention_body(target_user)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
+            t"{format.type_name_for_header(MetaRank)} Set",
+            t"The {format.type_name_for_body(MetaRank)} of the {format.mention_body(target_user)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
         )
 
     CommunityRanksEnum = enum.Enum(
@@ -59,6 +59,6 @@ class UserInterface(BaseInterface, group_name="user"):
 
         await messages.success(
             ctx.interaction,
-            t"Meta Rank Set",
-            t"The meta rank of the {format.mention_body(target_member)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
+            t"{format.type_name_for_header(CommunityRank)} Set",
+            t"The {format.type_name_for_body(CommunityRank)} of the {format.mention_body(target_member)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
         )

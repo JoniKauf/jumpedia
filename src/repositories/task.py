@@ -136,10 +136,7 @@ class TaskRepository(BaseRepository):
         return res
 
     def get_first_by_list_id_and_any_syn(
-        self,
-        list_id: ListID,
-        syns: t.Iterable[FieldSlotStr],
-        exclude: TaskID | None
+        self, list_id: ListID, syns: t.Iterable[FieldSlotStr], exclude: TaskID | None
     ) -> tuple[TaskEntity, FieldSlotStr] | None:
         syns = tuple(syns)
         norms = {syn.norm for syn in syns}

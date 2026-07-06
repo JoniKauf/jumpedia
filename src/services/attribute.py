@@ -8,6 +8,7 @@ from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
+from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.operation import Operation
 from domain.enums.rank import CommunityRank
@@ -24,6 +25,7 @@ from repositories.dtos.collection_entry import (
     CollectionEntryAliasInsert,
     CollectionEntryInsert,
 )
+from repositories.field_slot import FieldSlotRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
@@ -43,6 +45,7 @@ class AttributeService:
     _permission_service: PermissionService
     _list_access_service: ListAccessService
     _attribute_access_service: AttributeAccessService
+    _field_slot_repo: FieldSlotRepository
 
     def create[T: AttributeType.TaskT | AttributeType.UserT](
         self,
@@ -89,21 +92,14 @@ class AttributeService:
         if existing_same_syn is not None:
             colliding_attr, colliding_syn = existing_same_syn
 
-            raise errors.SynAlreadyTaken(*existing_same_syn, colliding_attr.name != colliding_syn, colliding_syn != name)
+            raise errors.SynAlreadyTaken(
+                *existing_same_syn,
+                colliding_attr.name != colliding_syn,
+                colliding_syn != name,
+            )
 
         # --- Validate Slot ---
-        if slot.min_count != 0:
-            raise errors.InitialSlotCountMustBeZero()
-
-        # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
-        if slot.max_count > community.limits.field_slot_count_max:
-            raise errors.SlotCountDefinitionLimitExceeded(
-                slot.min_count,
-                slot.max_count,
-                CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
-                CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
-                community.limits.field_slot_count_max,
-            )
+        self._validate_slot(slot, community, True)
 
         # --- Validate Collection ---
         if collection_entries:
@@ -127,7 +123,7 @@ class AttributeService:
                     raise errors.AliasCountLimitReached(
                         community.limits.collection_entry_alias_count_max,
                         entry.value,
-                        entry.aliases
+                        entry.aliases,
                     )
 
             # Collection doesn't exist before so here we don't have to check for uniqueness across other db entries
@@ -213,7 +209,8 @@ class AttributeService:
             raise errors.NameNotDifferent(current_name)
 
         existing_attr_and_syn = self._attribute_repo.get_by_list_id_and_syn(
-            lst.list_id, new_name, 
+            lst.list_id,
+            new_name,
         )
 
         if existing_attr_and_syn is not None:
@@ -221,10 +218,12 @@ class AttributeService:
 
             # False if the current attribute has the same name but with different casing
             if not (existing_attr == attr and attr.name == existing_syn):
-                raise errors.SynAlreadyTaken(existing_attr, new_name, existing_attr.name != existing_syn, False)
+                raise errors.SynAlreadyTaken(
+                    existing_attr, new_name, existing_attr.name != existing_syn, False
+                )
 
         self._attribute_repo.update_name(attr.attribute_id, new_name)
-        
+
         return attr.name
 
     def edit_aliases(
@@ -244,11 +243,13 @@ class AttributeService:
 
         AttributeSynStr.raise_if_not_unique(new_aliases)
 
-        current_aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
-    
+        current_aliases = self._attribute_repo.get_aliases_by_attribute_id(
+            attr.attribute_id
+        )
+
         if operation is Operation.COMBINE:
             new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
-        
+
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if current_aliases == new_aliases:
             raise errors.AliasesNotDifferent(new_aliases)
@@ -257,7 +258,7 @@ class AttributeService:
             raise errors.AliasCountLimitReached(
                 community.limits.attribute_alias_count_max, attr.name, new_aliases
             )
-        
+
         # Check if name collision with current attribute
         for alias in new_aliases:
             if alias == attr.name:
@@ -271,8 +272,10 @@ class AttributeService:
         if existing_attr_and_syn is not None:
             existing_attr, existing_syn = existing_attr_and_syn
 
-            raise errors.SynAlreadyTaken(existing_attr, existing_syn, existing_attr.name != existing_syn, True)
-        
+            raise errors.SynAlreadyTaken(
+                existing_attr, existing_syn, existing_attr.name != existing_syn, True
+            )
+
         self._attribute_repo.update_aliases(
             attr.attribute_id,
             (
@@ -282,6 +285,74 @@ class AttributeService:
         )
 
         return attr
+
+    def edit_min_and_max_slot_count(
+        self,
+        name: AttributeSynStr,
+        list_name: ListNameStr,
+        min_slot_count: int,
+        max_slot_count: int,
+    ) -> AttributeEntity:
+        community, member, _, attr = self._attribute_access_service.get_convenient(
+            None, list_name, name, True
+        )
+
+        if attr.type is AttributeType.STATIC:
+            raise ValueError("Cannot change slot count for static attributes")
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        slot = AttributeSlot(attr.slot.type, min_slot_count, max_slot_count)
+
+        del min_slot_count, max_slot_count
+
+        self._validate_slot(slot, community, False)
+
+        # Task fields are entirely in control for staff team. Enforce that all fields must fit first before allowing change.
+        if attr.type is AttributeType.TASK:
+            task_to_slots = self._field_slot_repo.get_grouped_by_task(attr.attribute_id)
+
+            invalid_tasks: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
+
+            for task, slots in task_to_slots.items():
+                if len(slots) < slot.min_count or len(slots) > slot.max_count:
+                    invalid_tasks[task] = slots
+
+            if invalid_tasks:
+                raise errors.TasksDoNotMatchMinOrMaxSlotCountCriteria(
+                    slot.min_count, slot.max_count, invalid_tasks
+                )
+
+        else:
+            # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
+            # Keep it as a soft limit and staff can safely change it afterwards.
+            pass
+
+        self._attribute_repo.update_min_and_max_slot_count(
+            attr.attribute_id, slot.min_count, slot.max_count
+        )
+
+        attr.slot = slot
+
+        return attr
+
+    def _validate_slot(
+        self, slot: AttributeSlot, community: CommunityEntity, creating_attribute: bool
+    ) -> None:
+        if creating_attribute and slot.min_count != 0:
+            raise errors.InitialSlotCountMustBeZero()
+
+        # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
+        if slot.max_count > community.limits.field_slot_count_max:
+            raise errors.SlotCountDefinitionLimitExceeded(
+                slot.min_count,
+                slot.max_count,
+                CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
+                CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
+                community.limits.field_slot_count_max,
+            )
 
 
 @dataclass(frozen=True, slots=True, eq=False)

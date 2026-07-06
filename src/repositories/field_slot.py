@@ -9,10 +9,11 @@ from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
 from domain.types.task import TaskID
-from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
 from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.field_slot import FieldSlotInsert
+from repositories.task import task_model_to_entity
 
 
 def field_slot_model_to_entity(
@@ -116,3 +117,43 @@ class FieldSlotRepository(BaseRepository):
                 for task_id, attr_map in res.items()
             }
         )
+
+    def get_grouped_by_task(
+        self,
+        attribute_id: AttributeID,
+    ) -> ts.MappingProxyType[TaskEntity, tuple[FieldSlotStr, ...]]:
+        stmt = (
+            select(TaskModel, FieldSlotModel)
+            .join(
+                FieldSlotModel,
+                FieldSlotModel.task_id == TaskModel.task_id,
+            )
+            .where(FieldSlotModel.attribute_id == attribute_id)
+            .order_by(
+                TaskModel.task_id.asc(),
+                FieldSlotModel.index.asc(),
+            )
+        )
+
+        tasks: dict[TaskID, TaskEntity] = {}
+        res: dict[TaskEntity, list[FieldSlotStr]] = {}
+
+        for task_obj, slot_obj in self._session.execute(stmt):
+            task_obj: TaskModel
+            slot_obj: FieldSlotModel
+
+            task = tasks.get(task_obj.task_id)
+
+            if task is None:
+                task = task_model_to_entity(task_obj)
+                tasks[task_obj.task_id] = task
+                res[task] = []
+
+            res[task].append(
+                FieldSlotStr(
+                    _real=slot_obj.real_slot,
+                    _norm=slot_obj.norm_slot,
+                )
+            )
+
+        return ts.MappingProxyType({task: tuple(slots) for task, slots in res.items()})

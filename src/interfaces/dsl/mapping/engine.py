@@ -1,5 +1,5 @@
+from interfaces.dsl.mapping import parse
 from interfaces.dsl.shared import lex, parsing
-from interfaces.dsl.value_to_value_list_mapping import parse
 
 
 def eval(s: str) -> dict[str, list[str]]:

@@ -95,7 +95,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
                     FieldSlotStr(k),
                     tuple(FieldSlotStr(elem) for elem in v),
                 )
-                for k, v in dsl.value_list.engine.eval(collection_dsl)
+                for k, v in dsl.list.engine.eval(collection_dsl)
             )
 
         attr = ctx.services.attribute.create(
@@ -130,9 +130,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         list_name: str,
     ) -> None:
         after = AttributeSynStr(new_attribute_name)
-        before = ctx.services.attribute.edit_name(AttributeSynStr(attribute_name), after, ListNameStr(list_name))
+        before = ctx.services.attribute.edit_name(
+            AttributeSynStr(attribute_name), after, ListNameStr(list_name)
+        )
 
-        await messages.object_name_edited(ctx.interaction, AttributeEntity, before, after)
+        await messages.object_name_edited(
+            ctx.interaction, AttributeEntity, before, after
+        )
 
     @app_commands.command()
     @with_context()
@@ -142,13 +146,44 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         attribute_name: str,
         new_attribute_aliases: str,
         list_name: str,
-        operation: OperationInterfaceEnum
+        operation: OperationInterfaceEnum,
     ) -> None:
-        after = tuple(AttributeSynStr(alias) for alias in dsl.value_list.engine.eval(new_attribute_aliases))
-        attr = ctx.services.attribute.edit_aliases(AttributeSynStr(attribute_name), after, ListNameStr(list_name), operation.value)
+        after = tuple(
+            AttributeSynStr(alias)
+            for alias in dsl.list.engine.eval(new_attribute_aliases)
+        )
+        attr = ctx.services.attribute.edit_aliases(
+            AttributeSynStr(attribute_name),
+            after,
+            ListNameStr(list_name),
+            operation.value,
+        )
 
         await messages.object_aliases_edited(ctx.interaction, attr)
-        
+
+    @app_commands.command()
+    @with_context()
+    async def edit_min_and_max_slot_count(
+        self,
+        ctx: CommandContext,
+        attribute_name: str,
+        list_name: str,
+        min_slot_count: int,
+        max_slot_count: int,
+    ) -> None:
+        attr = ctx.services.attribute.edit_min_and_max_slot_count(
+            AttributeSynStr(attribute_name),
+            ListNameStr(list_name),
+            min_slot_count,
+            max_slot_count,
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(AttributeEntity)} Min And Max Slot Count Edited",
+            t"The min and max slot count for the {format.mention_body(attr)} has been set to {attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!",
+        )
+
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()

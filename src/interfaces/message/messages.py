@@ -106,13 +106,17 @@ async def object_nuked(
 
 
 async def object_name_edited(
-    interaction: discord.Interaction, entity_type: type[format.MentionableEntityT], before: Str, after: Str
+    interaction: discord.Interaction,
+    entity_type: type[format.MentionableEntityT],
+    before: Str,
+    after: Str,
 ) -> None:
     await success(
         interaction,
         t"{format.type_name_for_header(entity_type)} Renamed",
-        t"The {format.type_name_for_body(entity_type)} {before @ format.T.FORMATTED} has been renamed to {after @ format.T.FORMATTED} successfully!"
+        t"The {format.type_name_for_body(entity_type)} {before @ format.T.FORMATTED} has been renamed to {after @ format.T.FORMATTED} successfully!",
     )
+
 
 async def object_aliases_edited(
     interaction: discord.Interaction, entity: format.MentionableEntityT
@@ -120,5 +124,5 @@ async def object_aliases_edited(
     await success(
         interaction,
         t"{format.type_name_for_header(type(entity))} Renamed",
-        t"The aliases of the {format.mention_body(entity)} have been edited successfully!\n"
+        t"The aliases of the {format.mention_body(entity)} have been edited successfully!\n",
     )

@@ -5,6 +5,7 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
 from domain.types.common import ID
 from domain.types.user import UserID
+from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
@@ -46,50 +47,101 @@ class TaskInterface(BaseInterface, group_name="task"):
     @app_commands.command()
     @with_context()
     async def create(
-        self, ctx: CommandContext, task_name: str, list_name: str, aliases: str | None = None, field_mapping: str | None = None
+        self,
+        ctx: CommandContext,
+        task_name: str,
+        list_name: str,
+        aliases: str | None = None,
+        field_mapping: str | None = None,
     ) -> None:
-        task = ctx.services.task.create(FieldSlotStr(task_name), ListNameStr(list_name), ..., ... if field_mapping or {})
+        task = ctx.services.task.create(
+            FieldSlotStr(task_name),
+            ListNameStr(list_name),
+            (
+                ()
+                if aliases is None
+                else tuple(
+                    FieldSlotStr(alias) for alias in dsl.list.engine.eval(aliases)
+                )
+            ),
+            (
+                {}
+                if field_mapping is None
+                else {
+                    AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
+                    for k, v in dsl.mapping.engine.eval(field_mapping).items()
+                }
+            ),
+        )
 
         await messages.object_created(ctx.interaction, task)
 
     @app_commands.command()
     @with_context()
     async def nuke(self, ctx: CommandContext, task_name: str, list_name: str) -> None:
-        deleted = ctx.services.task.delete(FieldSlotStr(task_name), ListNameStr(list_name))
+        deleted = ctx.services.task.delete(
+            FieldSlotStr(task_name), ListNameStr(list_name)
+        )
 
         await messages.object_nuked(ctx.interaction, deleted)
 
     @app_commands.command()
     @with_context()
     async def give(
-        self, ctx: CommandContext, task_name_or_alias: str, user_field_mapping: str | None = None, user: discord.User | None = None, list_name: str | None = None
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        user_field_mapping: str | None = None,
+        user: discord.User | None = None,
+        list_name: str | None = None,
     ) -> None:
         member, task = ctx.services.member_task.give_to_user(
             FieldSlotStr(task_name_or_alias),
             None if list_name is None else ListNameStr(list_name),
-            user_field_mapping,
-            None if user is None else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            (
+                {}
+                if user_field_mapping is None
+                else {
+                    AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
+                    for k, v in dsl.mapping.engine.eval(user_field_mapping).items()
+                }
+            ),
+            (
+                None
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
         )
 
         await messages.success(
             ctx.interaction,
-            t"Task Given",
-            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!"
+            t"{format.type_name_for_header(TaskEntity)} Given",
+            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!",
         )
 
     @app_commands.command()
     @with_context()
-    async def take(self, ctx: CommandContext, task_name_or_alias: str, user: discord.User | None = None, list_name: str | None = None) -> None:
+    async def take(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
         member, task = ctx.services.member_task.take_from_user(
             FieldSlotStr(task_name_or_alias),
             None if list_name is None else ListNameStr(list_name),
-            None if user is None else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            (
+                None
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
         )
 
         await messages.success(
             ctx.interaction,
-            t"Task Taken",
-            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!"
+            t"{format.type_name_for_header(TaskEntity)} Taken",
+            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!",
         )
 
     @app_commands.command()
@@ -102,10 +154,12 @@ class TaskInterface(BaseInterface, group_name="task"):
         list_name: str,
     ) -> None:
         after = FieldSlotStr(new_task_name)
-        before = ctx.services.task.edit_name(FieldSlotStr(task_name), after, ListNameStr(list_name))
+        before = ctx.services.task.edit_name(
+            FieldSlotStr(task_name), after, ListNameStr(list_name)
+        )
 
         await messages.object_name_edited(ctx.interaction, TaskEntity, before, after)
-    
+
     @app_commands.command()
     @with_context()
     async def edit_aliases(
@@ -114,13 +168,17 @@ class TaskInterface(BaseInterface, group_name="task"):
         task_name: str,
         new_task_aliases: str,
         list_name: str,
-        operation: OperationInterfaceEnum
+        operation: OperationInterfaceEnum,
     ) -> None:
-        after = tuple(FieldSlotStr(alias) for alias in dsl.value_list.engine.eval(new_task_aliases))
-        task = ctx.services.task.edit_aliases(FieldSlotStr(task_name), after, ListNameStr(list_name), operation.value)
+        after = tuple(
+            FieldSlotStr(alias) for alias in dsl.list.engine.eval(new_task_aliases)
+        )
+        task = ctx.services.task.edit_aliases(
+            FieldSlotStr(task_name), after, ListNameStr(list_name), operation.value
+        )
 
         await messages.object_aliases_edited(ctx.interaction, task)
-        
+
 
 class TasksInterface(BaseInterface, group_name="tasks"):
     @app_commands.command()
@@ -146,10 +204,7 @@ class TasksInterface(BaseInterface, group_name="tasks"):
             ),
             **{
                 attr: tuple(
-                    tuple(
-                        str(elem)
-                        for elem in summary.field_mapping.get(attr, ())
-                    )
+                    tuple(str(elem) for elem in summary.field_mapping.get(attr, ()))
                     for summary in summaries
                 )
                 for attr in summaries_data.task_attributes

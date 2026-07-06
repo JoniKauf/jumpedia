@@ -7,6 +7,7 @@ from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.types.community import CommunityID
+from domain.types.list import ListID
 from domain.types.server import ServerID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from repositories.dtos.community import CommunityInsert
@@ -106,25 +107,14 @@ class CommunityRepository(BaseRepository):
 
         return None if obj is None else list_model_to_entity(obj)
 
-    def update(self, community: CommunityEntity) -> None:
-        obj = self._session.get(CommunityModel, community.community_id)
+    def update_default_selected_list_id(
+        self, community_id: CommunityID, default_selected_list_id: ListID | None
+    ) -> None:
+        obj = self._session.get(CommunityModel, community_id)
 
         if obj is None:
             raise errors.NotFoundById(CommunityEntity)
 
-        obj.norm_name = community.name.norm
-        obj.real_name = community.name.real
-
-        obj.default_selected_list_id = community.default_selected_list_id
-
-        obj.community_list_count_max = community.limits.community_list_count_max
-        obj.list_attribute_count_max = community.limits.list_attribute_count_max
-        obj.list_task_count_max = community.limits.list_task_count_max
-        obj.attribute_alias_count_max = community.limits.attribute_alias_count_max
-        obj.field_slot_count_max = community.limits.field_slot_count_max
-        obj.collection_entry_count_max = community.limits.collection_entry_count_max
-        obj.collection_entry_alias_count_max = (
-            community.limits.collection_entry_alias_count_max
-        )
+        obj.default_selected_list_id = default_selected_list_id
 
         self._session.flush()

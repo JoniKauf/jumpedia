@@ -78,8 +78,11 @@ class TaskService:
         if existing_same_syn is not None:
             colliding_task, colliding_syn = existing_same_syn
 
-            raise errors.SynAlreadyTaken(*existing_same_syn, colliding_task.name != colliding_syn, colliding_syn != name)
-
+            raise errors.SynAlreadyTaken(
+                *existing_same_syn,
+                colliding_task.name != colliding_syn,
+                colliding_syn != name,
+            )
 
         # --- Validate And Create Task Attribute Value Mapping --- #
 
@@ -136,22 +139,23 @@ class TaskService:
         self._task_repo.delete(task.task_id)
 
         return DeletedTask(task.name, lst)
-    
-    def edit_name(self, current_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr) -> FieldSlotStr:
+
+    def edit_name(
+        self, current_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr
+    ) -> FieldSlotStr:
         _, member, lst, task = self._task_access_service.get_convenient(
             None, list_name, current_name, True
         )
 
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.MODERATOR
-        )
+        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
         # Exactly equal (real matches, not just norm)
         if task.name.real == new_name.real:
             raise errors.NameNotDifferent(current_name)
 
         existing_task_and_syn = self._task_repo.get_by_list_id_and_syn(
-            lst.list_id, new_name, 
+            lst.list_id,
+            new_name,
         )
 
         if existing_task_and_syn is not None:
@@ -159,10 +163,12 @@ class TaskService:
 
             # False if the current task has the same name but with different casing
             if not (existing_task == task and task.name == existing_syn):
-                raise errors.SynAlreadyTaken(existing_task, new_name, existing_task.name != existing_syn, False)
+                raise errors.SynAlreadyTaken(
+                    existing_task, new_name, existing_task.name != existing_syn, False
+                )
 
         self._task_repo.update_name(task.task_id, new_name)
-        
+
         return task.name
 
     def edit_aliases(
@@ -176,17 +182,15 @@ class TaskService:
             None, list_name, name, True
         )
 
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.MODERATOR
-        )
+        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
         FieldSlotStr.raise_if_not_unique(new_aliases)
 
         current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
-    
+
         if operation is Operation.COMBINE:
             new_aliases = tuple(dict.fromkeys((*new_aliases, *current_aliases)))
-        
+
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if current_aliases == new_aliases:
             raise errors.AliasesNotDifferent(new_aliases)
@@ -195,7 +199,7 @@ class TaskService:
             raise errors.AliasCountLimitReached(
                 community.limits.field_slot_count_max, task.name, new_aliases
             )
-        
+
         # Check if name collision with current task
         for alias in new_aliases:
             if alias == task.name:
@@ -209,8 +213,10 @@ class TaskService:
         if existing_task_and_syn is not None:
             existing_task, existing_syn = existing_task_and_syn
 
-            raise errors.SynAlreadyTaken(existing_task, existing_syn, existing_task.name != existing_syn, True)
-        
+            raise errors.SynAlreadyTaken(
+                existing_task, existing_syn, existing_task.name != existing_syn, True
+            )
+
         self._task_repo.update_aliases(
             task.task_id,
             (
@@ -220,6 +226,7 @@ class TaskService:
         )
 
         return task
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskQueryService:

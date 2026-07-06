@@ -5,15 +5,18 @@ from dataclasses import asdict
 import discord
 from discord import app_commands
 
+from domain.entities.community import CommunityEntity
+from domain.entities.list import ListEntity
 from domain.enums.rank import CommunityRank
 from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
 from domain.value_objects.user import UserNameStr
+from interfaces.attribute import ListNameStr
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
-from interfaces.message import messages
+from interfaces.message import format, messages
 from services.dtos.community import CommunitySummary
 from services.dtos.user import UserRef
 
@@ -101,6 +104,23 @@ class CommunityInterface(BaseInterface, group_name="community"):
         deleted = ctx.services.community.delete()
 
         await messages.object_nuked(ctx.interaction, deleted)
+
+    @app_commands.command()
+    @with_context()
+    async def edit_default_selected_list(
+        self, ctx: CommandContext, list_name: str | None = None
+    ) -> None:
+        community, lst = ctx.services.community.edit_default_selected_list(
+            None if list_name is None else ListNameStr(list_name)
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"Default Selected {format.type_name_for_header(ListEntity)} Edited",
+            t"The default selected {format.type_name_for_body(ListEntity)} of the {format.mention_body(community)} has been "
+            + (t"unsed" if lst is None else t"changed to {format.mention_body(lst)}")
+            + t" successfully!",
+        )
 
 
 class CommunitiesInterface(BaseInterface, group_name="communities"):

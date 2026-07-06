@@ -60,7 +60,7 @@ class MemberTaskService:
         del actor_member
 
         existing_member_task = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member.id, task.id
+            target_member.member_id, task.task_id
         )
 
         if existing_member_task is not None:
@@ -69,11 +69,11 @@ class MemberTaskService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
-            lst.id, ATTRIBUTE_TYPES
+            lst.list_id, ATTRIBUTE_TYPES
         )
         attr_id_to_collection = (
             self._collection_entry_repo.get_grouped_collections_by_list_id(
-                lst.id, ATTRIBUTE_TYPES
+                lst.list_id, ATTRIBUTE_TYPES
             )
         )
 
@@ -82,7 +82,7 @@ class MemberTaskService:
         )
 
         member_task = self._member_task_repo.create(
-            MemberTaskInsert(target_member.id, task.id)
+            MemberTaskInsert(target_member.member_id, task.task_id)
         )
 
         if ufm:
@@ -92,7 +92,7 @@ class MemberTaskService:
                 for i, slot in enumerate(field):
                     inserts.append(
                         MemberFieldSlotInsert(
-                            member_task.id,
+                            member_task.member_task_id,
                             attr.attribute_id,
                             Index(i),
                             slot,
@@ -121,13 +121,13 @@ class MemberTaskService:
         del actor_member
 
         existing_target_member = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member.id, task.id
+            target_member.member_id, task.task_id
         )
 
         if existing_target_member is None:
             raise errors.MemberDoesNotHaveTask(target_member)
 
-        self._member_task_repo.delete(existing_target_member.id)
+        self._member_task_repo.delete(existing_target_member.member_task_id)
 
         return target_member, task
 
@@ -153,7 +153,7 @@ class MemberTaskAccessService:
         )
 
         member_task = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member_id or member.id, task.id
+            target_member_id or member.member_id, task.task_id
         )
 
         return (community, member, lst, task, member_task)

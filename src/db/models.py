@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -399,6 +400,17 @@ class FieldSlotModel(BaseModel):
 
     norm_slot: Mapped[NormStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
+    )
+
+    __table_args__ = (
+        *BaseModel.__table_args__,
+        # Index for looking up all task slots for a given attribute
+        Index(
+            "ix_field_slot_attribute_task_index",
+            "attribute_id",
+            "task_id",
+            "index",
+        ),
     )
 
 
