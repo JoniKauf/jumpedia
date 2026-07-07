@@ -14,7 +14,7 @@ from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.enums.operation import OperationInterfaceEnum
+from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum
 from interfaces.message import format, messages
 from services.dtos.user import UserRef
 
@@ -171,13 +171,13 @@ class TaskInterface(BaseInterface, group_name="task"):
         task_name: str,
         new_task_aliases: str,
         list_name: str,
-        operation: OperationInterfaceEnum,
+        edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
         after = tuple(
             FieldSlotStr(alias) for alias in dsls.list.engine.eval(new_task_aliases)
         )
         task = ctx.services.task.edit_aliases(
-            FieldSlotStr(task_name), after, ListNameStr(list_name), operation.value
+            FieldSlotStr(task_name), after, ListNameStr(list_name), edit_mode.value
         )
 
         await messages.object_aliases_edited(ctx.interaction, task)

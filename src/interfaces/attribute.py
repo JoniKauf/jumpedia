@@ -5,6 +5,7 @@ from discord import app_commands
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
+from domain.types.collection_entry import CollectionT
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
@@ -12,12 +13,11 @@ from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.enums.operation import OperationInterfaceEnum
+from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum
 from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
 from services.dtos.collection_entry import (
     CollectionEntryEntityWithAliases,
-    CreateCollectionEntry,
 )
 
 
@@ -84,8 +84,8 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     ) -> None:
         aliases: tuple[AttributeSynStr, ...] = tuple(AttributeSynStr(alias) for alias in dsls.list.engine.eval(aliases_dsl_list))
 
-        collection: tuple[CreateCollectionEntry, ...] = tuple(
-            CreateCollectionEntry(
+        collection: CollectionT = tuple(
+            (
                 FieldSlotStr(k),
                 tuple(FieldSlotStr(elem) for elem in v),
             )
@@ -140,7 +140,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         attribute_name: str,
         new_attribute_aliases_dsl_list: str,
         list_name: str,
-        operation: OperationInterfaceEnum,
+        edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
         after = tuple(
             AttributeSynStr(alias)
@@ -150,7 +150,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             AttributeSynStr(attribute_name),
             after,
             ListNameStr(list_name),
-            operation.value,
+            edit_mode.value,
         )
 
         await messages.object_aliases_edited(ctx.interaction, attr)

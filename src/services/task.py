@@ -9,7 +9,7 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
-from domain.enums.operation import Operation
+from domain.enums.edit_mode import AliasEditMode
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
@@ -29,6 +29,7 @@ from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.task import DeletedTask, TaskInfo
+from services.edit_mode import EditModeService
 from services.field_mapping import FieldMappingService
 from services.list import ListAccessService
 from services.permission import PermissionService
@@ -45,6 +46,7 @@ class TaskService:
     _collection_entry_repo: CollectionEntryRepository
     _field_slot_repo: FieldSlotRepository
     _task_access_service: TaskAccessService
+    _edit_mode_service: EditModeService
 
     def create(
         self,
@@ -184,7 +186,7 @@ class TaskService:
         name: FieldSlotStr,
         new_aliases: tuple[FieldSlotStr, ...],
         list_name: ListNameStr,
-        operation: Operation,
+        edit_mode: AliasEditMode,
     ) -> TaskEntity:
         community, member, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, name, True
@@ -196,32 +198,13 @@ class TaskService:
 
         current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
 
-        if operation in (Operation.COMBINE_OVERRIDE_ON_COLLISION, Operation.COMBINE_ERROR_ON_COLLISION):
-            intersection = set(new_aliases).intersection(current_aliases)
-            
-            if not intersection:
-                new_aliases = (*current_aliases, *new_aliases)
-            elif operation is Operation.COMBINE_ERROR_ON_COLLISION:
-                raise ValueError("Error collision")
-            else:
-                # Combine while preserving order and original placement on collision and placing new ones right
-                alias_to_idx: dict[FieldSlotStr, int] = {}
-                i = 0
-
-                for alias in (*current_aliases, *new_aliases):
-                    try:
-                        idx = alias_to_idx.pop(alias)  # Always pop so on collision new key replaces old key (if key exists, key object doesn't change)
-                    except KeyError:
-                        idx = i
-                        i += 1
-                    
-                    alias_to_idx[alias] = idx
-                    
-                new_aliases = tuple(alias for alias, _ in sorted(alias_to_idx.items(), key=lambda item: item[1]))
+        new_aliases = self._edit_mode_service.handle_alias_edit(edit_mode, current_aliases, new_aliases)
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
-        if current_aliases == new_aliases:
+        if all(a.real == b.real for a, b in zip(current_aliases, new_aliases)):
             raise errors.AliasesNotDifferent(new_aliases)
+
+        del current_aliases
 
         if len(new_aliases) > community.limits.field_slot_count_max:
             raise errors.AliasCountLimitReached(
@@ -443,13 +426,14 @@ class TaskQueryService:
 
         # --- Gather Sorting Data --- #
         task_to_sort_value: dict[TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]] = {}
-        attr_id_to_collection_entry_syn_to_collection_index: dict[
+
+        # TODO: Could be optimized to only fetch collection entry values excluding aliases 
+        attr_id_to_collection_value_to_collection_index: dict[
             AttributeID, dict[FieldSlotStr, int]
         ] = {
             attr: {
-                syn: i
-                for i, entry in enumerate(coll)
-                for syn in (entry.entry.value, *entry.aliases)
+                entry_with_aliases.entry.value: i
+                for i, entry_with_aliases in enumerate(coll)
             }
             for attr, coll in attr_id_to_collection.items()
         }
@@ -459,16 +443,19 @@ class TaskQueryService:
 
             for attr, _ in normed_sorts:
                 syn_to_collection_entry_idx = (
-                    attr_id_to_collection_entry_syn_to_collection_index.get(
+                    attr_id_to_collection_value_to_collection_index.get(
                         attr.attribute_id, {}
                     )
                 )
 
                 # Collection exists for given attr
                 if syn_to_collection_entry_idx:
+                    # It is possible that a slot does not match any collection value in case that
+                    # a user attribute's collection is edited and staff did not yet fix the users'
+                    # data.
                     result.append(
                         tuple(
-                            syn_to_collection_entry_idx[slot]
+                            syn_to_collection_entry_idx.get(slot, -1)
                             for slot in task_id_to_field_mapping.get(
                                 task.task_id, {}
                             ).get(attr.attribute_id, ())

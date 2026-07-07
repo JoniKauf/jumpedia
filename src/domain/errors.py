@@ -4,6 +4,7 @@ from string.templatelib import Template
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.rank import AnyRankT
+from domain.types.collection_entry import CollectionT
 from domain.value_objects.attribute import AttributeSlot
 from domain.value_objects.field_slot import FieldSlotStr
 
@@ -102,6 +103,10 @@ class AliasesNotDifferent(DomainError):
         super().__init__()
         self.aliases = aliases
 
+class CollectionNotDifferent(DomainError):
+    def __init__(self, collection: CollectionT) -> None:
+        super().__init__()
+        self.collection = collection
 
 class ServerAlreadyConnectedToACommunity(DomainError):
     def __init__(self, server_id: int, community: CommunityEntity) -> None:

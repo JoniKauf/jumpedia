@@ -1,7 +1,7 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from db.models import AttributeModel, FieldSlotModel, TaskModel
 from domain.entities.field_slot import FieldSlotEntity
@@ -47,6 +47,18 @@ class FieldSlotRepository(BaseRepository):
         self._session.flush()
 
         return tuple(field_slot_model_to_entity(obj) for obj in objs)
+
+    def replace_all_by_attribute_id(
+        self,
+        attribute_id: AttributeID,
+        field_slots: t.Iterable[FieldSlotInsert],
+    ) -> tuple[FieldSlotEntity, ...]:
+        self._session.execute(
+            delete(FieldSlotModel).where(
+                FieldSlotModel.attribute_id == attribute_id
+            )
+        )
+        return self.create_many(field_slots)
 
     def get_field_mapping_by_task_id(
         self, task_id: TaskID, types: t.AbstractSet[AttributeType]

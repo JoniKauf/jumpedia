@@ -5,7 +5,7 @@ from string.templatelib import Template
 import discord
 
 from domain.entities.base import BaseEntity
-from domain.enums.operation import Operation
+from domain.enums.edit_mode import AliasEditMode
 from domain.errors import Str
 from infrastructure import pastee
 from interfaces.message import format, layout
