@@ -1,22 +1,17 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntryModel
 from domain import errors
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionEntryID
+from domain.types.collection_entry import CollectionEntryID, CollectionT, FrozenCollectionT
 from domain.types.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.base import BaseRepository
-from repositories.dtos.collection_entry import (
-    CollectionEntryAliasInsert,
-    CollectionEntryEntityWithAliases,
-    CollectionEntryInsert,
-)
 
 
 def collection_entry_model_to_entity(
@@ -30,39 +25,42 @@ def collection_entry_model_to_entity(
 
 
 class CollectionEntryRepository(BaseRepository):
-    def create_many(
-        self, entries: t.Iterable[CollectionEntryInsert]
-    ) -> tuple[CollectionEntryEntity, ...]:
-        """Preserves order."""
-        objs = tuple(
-            CollectionEntryModel(
-                attribute_id=entry.attribute_id,
-                index=entry.index.value,
-                norm_value=entry.value.norm,
-                real_value=entry.value.real,
-            )
-            for entry in entries
-        )
-
-        self._session.add_all(objs)
-        self._session.flush()
-
-        return tuple(collection_entry_model_to_entity(obj) for obj in objs)
-
-    def create_many_aliases(
-        self, entry_aliases: t.Iterable[CollectionEntryAliasInsert]
+    def create_collection(
+        self,
+        attribute_id: AttributeID,
+        collection: CollectionT,
     ) -> None:
-        objs = tuple(
-            CollectionEntryAliasModel(
-                attribute_id=entry_alias.attribute_id,
-                index=entry_alias.index.value,
-                norm_alias=entry_alias.alias.norm,
-                real_alias=entry_alias.alias.real,
+        entry_objs = tuple(
+            CollectionEntryModel(
+                attribute_id=attribute_id,
+                index=i,
+                norm_value=value.norm,
+                real_value=value.real,
             )
-            for entry_alias in entry_aliases
+            for i, (value, _) in enumerate(collection)
         )
 
-        self._session.add_all(objs)
+        if not entry_objs:
+            return
+        
+        self._session.add_all(entry_objs)
+        self._session.flush()  # For collection_entry_id update
+
+        alias_objs = tuple(
+            CollectionEntryAliasModel(
+                collection_entry_id=entry_obj.collection_entry_id,
+                index=j,
+                attribute_id=attribute_id,
+                norm_alias=alias.norm,
+                real_alias=alias.real,
+            )
+            for entry_obj, (_, aliases) in zip(entry_objs, collection, strict=True)
+            for j, alias in enumerate(aliases)
+        )
+
+        if alias_objs:
+            self._session.add_all(alias_objs)
+
         self._session.flush()
 
     def get_by_id(
@@ -182,7 +180,7 @@ class CollectionEntryRepository(BaseRepository):
     def get_collection_by_attribute_id(
         self,
         attribute_id: AttributeID,
-    ) -> tuple[CollectionEntryEntityWithAliases, ...]:
+    ) -> FrozenCollectionT:
         stmt = (
             select(
                 CollectionEntryModel,
@@ -233,10 +231,8 @@ class CollectionEntryRepository(BaseRepository):
                 )
 
         return tuple(
-            CollectionEntryEntityWithAliases(
-                entry=entry,
-                aliases=tuple(entry_aliases.get(entry.collection_entry_id, ())),
-            )
+            (entry.value,
+            tuple(entry_aliases.get(entry.collection_entry_id, ())))
             for entry in ordered
         )
 
@@ -244,7 +240,7 @@ class CollectionEntryRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> frozendict[AttributeID, tuple[CollectionEntryEntityWithAliases, ...]]:
+    ) -> frozendict[AttributeID, FrozenCollectionT]:
         assert AttributeType.STATIC not in types
 
         stmt = (
@@ -301,12 +297,28 @@ class CollectionEntryRepository(BaseRepository):
         return frozendict(
             {
                 attribute_id: tuple(
-                    CollectionEntryEntityWithAliases(
-                        entry=entry,
-                        aliases=tuple(entry_aliases.get(entry.collection_entry_id, ())),
+                    (
+                        entry.value,
+                        tuple(entry_aliases.get(entry.collection_entry_id, ())),
                     )
                     for entry in collection
                 )
                 for attribute_id, collection in grouped_entries.items()
             }
         )
+
+    def replace_collection(
+        self,
+        attribute_id: AttributeID,
+        collection: CollectionT
+    ) -> None:
+        """Replaces the entire collection of an attribute. Preserves entry order."""
+
+        self._session.execute(
+            delete(CollectionEntryModel).where(
+                CollectionEntryModel.attribute_id == attribute_id,
+            )
+        )
+
+        self.create_collection(attribute_id, collection)
+

@@ -4,8 +4,9 @@
 from dataclasses import dataclass
 import itertools
 
-from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
+from domain.enums.edit_mode import AliasEditMode, CollectionEditMode, FieldMappingEditMode
 from domain.types.collection_entry import CollectionT
+from domain.types.field_mapping import IDFieldMappingT
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
 import typing as t
@@ -39,6 +40,23 @@ class EditModeService:
         FieldSlotStr.raise_if_not_unique(syn for coll in (current, new) for entry in coll for syn in (entry[0], *entry[1]))
 
         return (*current, *new)
+
+    def handle_field_mapping_edit(self, edit_mode: FieldMappingEditMode, current: IDFieldMappingT, new: IDFieldMappingT) -> IDFieldMappingT:
+        if edit_mode is FieldMappingEditMode.REPLACE:
+            return new
+
+        current = {k: v for k, v in current.items() if v}
+        new = {k: v for k, v in current.items() if v}
+
+        if current.keys().isdisjoint(new.keys()):
+            return current | new
+
+        if edit_mode is FieldMappingEditMode.COMBINE_ERROR_ON_COLLISION:
+            raise ValueError("Intersecting")
+
+        t.assert_type(edit_mode, t.Literal[FieldMappingEditMode.COMBINE_OVERRIDE_ON_COLLISION])
+
+        return current | new
 
     def _unique_and_preserve_order_and_preserve_first_seen_idx[T: Str](self, iterables: t.Iterable[t.Iterable[T]]) -> t.Iterable[T]:
         # Combine while preserving order and original placement on collision and placing new ones right

@@ -12,7 +12,7 @@ from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
-from domain.types.collection_entry import CollectionT
+from domain.types.collection_entry import CollectionT, FrozenCollectionT
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -22,18 +22,11 @@ from domain.value_objects.position import Position
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
-from repositories.dtos.collection_entry import (
-    CollectionEntryAliasInsert,
-    CollectionEntryInsert,
-)
 from repositories.dtos.field_slot import FieldSlotInsert
 from repositories.field_slot import FieldSlotRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
-from services.dtos.collection_entry import (
-    CollectionEntryEntityWithAliases,
-)
 from services.edit_mode import EditModeService
 from services.list import ListAccessService
 from services.member import MemberAccessService
@@ -98,30 +91,7 @@ class AttributeService:
         )
 
         # --- Create Attribute Collection ---
-        if collection:
-            created_entries: tuple[CollectionEntryEntity, ...] = (
-                self._collection_entry_repo.create_many(
-                    CollectionEntryInsert(
-                        attr_entity.attribute_id, Index(i), entry[0]
-                    )
-                    for i, entry in enumerate(collection)
-                )
-            )
-
-            all_aliases: list[CollectionEntryAliasInsert] = []
-
-            for i, created_entry in enumerate(created_entries):
-                for i, alias in enumerate(collection[i][1]):
-                    alias_insert = CollectionEntryAliasInsert(
-                        created_entry.collection_entry_id,
-                        Index(i),
-                        created_entry.attribute_id,
-                        alias,
-                    )
-
-                    all_aliases.append(alias_insert)
-
-            self._collection_entry_repo.create_many_aliases(all_aliases)
+        self._collection_entry_repo.create_collection(attr_entity.attribute_id, collection)
 
         return attr_entity
 
@@ -255,7 +225,7 @@ class AttributeService:
         new_aliases = self._edit_mode_service.handle_alias_edit(edit_mode, current_aliases, new_aliases)
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
-        if all(a.real == b.real for a, b in zip(current_aliases, new_aliases)):
+        if AttributeSynStr.sequences_requal(current_aliases, new_aliases):
             raise errors.AliasesNotDifferent(new_aliases)
 
         del current_aliases
@@ -382,21 +352,21 @@ class AttributeService:
 
         return lst
 
-    def edit_collection(self, name: AttributeSynStr, list_name: ListNameStr, new_collection: CollectionT, edit_mode: CollectionEditMode) -> None:
-        community, member, lst, attr = self._attribute_access_service.get_convenient(DEFAULT, list_name, name, True)
+    def edit_collection(self, name: AttributeSynStr, list_name: ListNameStr, new_collection: CollectionT, edit_mode: CollectionEditMode) -> AttributeEntity:
+        community, member, _, attr = self._attribute_access_service.get_convenient(DEFAULT, list_name, name, True)
 
         self._permission_service.ensure_community_rank(member, CommunityRank.ADMINISTRATOR)
 
         if attr.type is AttributeType.STATIC:
             raise ValueError("Cannot change collection for static attributes")
         
-        current_collection: CollectionT = tuple((entry.entry.value, entry.aliases) for entry in self._collection_entry_repo.get_collection_by_attribute_id(attr.attribute_id))
+        current_collection: FrozenCollectionT = self._collection_entry_repo.get_collection_by_attribute_id(attr.attribute_id)
 
         new_collection = self._edit_mode_service.handle_collection_edit(edit_mode, current_collection, new_collection)
 
         self._validate_collection_syn_uniqueness(new_collection)
 
-        if all(a[0].real == b[0].real and all(a.real == b.real for a, b in zip(a[1], b[1])) for a, b in zip(current_collection, new_collection)):
+        if FieldSlotStr.sequences_requal(tuple(v for v, _ in current_collection), tuple(v for v, _ in new_collection)) and all(FieldSlotStr.sequences_requal(a, b) for (_, a), (_, b) in zip(current_collection, new_collection)):
             raise errors.CollectionNotDifferent(new_collection)
 
         del current_collection
@@ -437,13 +407,9 @@ class AttributeService:
             # Keep it as a soft limit and staff can safely change it afterwards.
             t.assert_type(attr.type, AttributeType.UserT)
 
-        self._collection_entry_repo.replace
-            
-            
+        self._collection_entry_repo.replace_collection(attr.attribute_id, new_collection)
 
-            
-
-
+        return attr
             
             
     def _validate_slot(
@@ -492,10 +458,7 @@ class AttributeQueryService:
             attr.kind,
             attr.slot,
             attr.position,
-            tuple(
-                CollectionEntryEntityWithAliases(entry.entry, entry.aliases)
-                for entry in collection
-            ),
+            collection,
         )
 
     def get_summaries(
@@ -526,10 +489,7 @@ class AttributeQueryService:
                 attr.kind,
                 attr.slot,
                 attr.position,
-                tuple(
-                    CollectionEntryEntityWithAliases(entry.entry, entry.aliases)
-                    for entry in attr_id_to_collection[attr.attribute_id]
-                ),
+                attr_id_to_collection[attr.attribute_id]
             )
             for attr in attrs
         )

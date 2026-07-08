@@ -123,7 +123,7 @@ class CountLimitReached(DomainError):
 
 
 class AliasCountLimitReached(DomainError):
-    def __init__(self, limit: int, entity_name: Str, aliases: tuple[Str, ...]) -> None:
+    def __init__(self, limit: int, entity_name: Str, aliases: t.Sequence[Str]) -> None:
         super().__init__()
         self.limit = limit
         self.entity_name = entity_name

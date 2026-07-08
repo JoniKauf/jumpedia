@@ -78,7 +78,7 @@ class MemberTaskService:
             )
         )
 
-        ufm = self._field_mapping_service.validate_and_build(
+        ufm = self._field_mapping_service.build_raw(
             user_field_mapping, syn_to_attr, attr_id_to_collection
         )
 

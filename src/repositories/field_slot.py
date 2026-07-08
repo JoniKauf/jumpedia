@@ -7,6 +7,7 @@ from db.models import AttributeModel, FieldSlotModel, TaskModel
 from domain.entities.field_slot import FieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
+from domain.types.field_mapping import EntityFrozenFieldMappingT, IDFrozenFieldMappingT
 from domain.types.list import ListID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
@@ -14,17 +15,6 @@ from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.field_slot import FieldSlotInsert
 from repositories.task import task_model_to_entity
-
-
-def field_slot_model_to_entity(
-    model: FieldSlotModel,
-) -> FieldSlotEntity:
-    return FieldSlotEntity(
-        task_id=model.task_id,
-        attribute_id=model.attribute_id,
-        index=Index(model.index),
-        slot=FieldSlotStr(_real=model.real_slot, _norm=model.norm_slot),
-    )
 
 
 class FieldSlotRepository(BaseRepository):
@@ -58,11 +48,12 @@ class FieldSlotRepository(BaseRepository):
                 FieldSlotModel.attribute_id == attribute_id
             )
         )
+
         return self.create_many(field_slots)
 
     def get_field_mapping_by_task_id(
         self, task_id: TaskID, types: t.AbstractSet[AttributeType]
-    ) -> frozendict[AttributeID, tuple[FieldSlotEntity, ...]]:
+    ) -> IDFrozenFieldMappingT:
         stmt = (
             select(FieldSlotModel)
             .join(
@@ -79,10 +70,10 @@ class FieldSlotRepository(BaseRepository):
             )
         )
 
-        res: dict[AttributeID, list[FieldSlotEntity]] = {}
+        res: dict[AttributeID, list[FieldSlotStr]] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.attribute_id, []).append(field_slot_model_to_entity(obj))
+            res.setdefault(obj.attribute_id, []).append(FieldSlotStr(_real=obj.real_slot, _norm=obj.norm_slot))
 
         return frozendict({k: tuple(v) for k, v in res.items()})
 
@@ -91,7 +82,7 @@ class FieldSlotRepository(BaseRepository):
         list_id: ListID,
     ) -> frozendict[
         TaskID,
-        frozendict[AttributeID, tuple[FieldSlotEntity, ...]],
+        IDFrozenFieldMappingT,
     ]:
         stmt = (
             select(FieldSlotModel)
@@ -111,13 +102,11 @@ class FieldSlotRepository(BaseRepository):
 
         res: dict[
             TaskID,
-            dict[AttributeID, list[FieldSlotEntity]],
+            dict[AttributeID, list[FieldSlotStr]],
         ] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(
-                field_slot_model_to_entity(obj)
-            )
+            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(FieldSlotStr(_real=obj.real_slot, _norm=obj.norm_slot))
 
         return frozendict(
             {

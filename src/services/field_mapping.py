@@ -4,42 +4,56 @@ import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
-from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
+from domain.types.collection_entry import CollectionT
+from domain.types.field_mapping import EntityFieldMappingT, EntityFrozenFieldMappingT, IDFieldMappingT, RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
-from repositories.dtos.collection_entry import CollectionEntryEntityWithAliases
-from services.slot_type_service import SlotTypeService
+from services.slot_type import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class FieldMappingService:
     _slot_type_service: SlotTypeService
 
-    def validate_and_build[T: AttributeType](
+    def build_raw[T: AttributeType](
         self,
-        field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
+        field_mapping: RawFieldMappingT,
         syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[
-            AttributeID, t.Sequence[CollectionEntryEntityWithAliases]
+            AttributeID, CollectionT
         ],
-    ) -> frozendict[AttributeEntity[T], tuple[FieldSlotStr, ...]]:
-        attrs_sorted = sorted(
-            set(syn_to_attr.values()), key=lambda attr: attr.position.value
-        )
+    ) -> EntityFrozenFieldMappingT[T]:
+        unchecked_field_mapping = self._try_convert_syns_to_attr_ids(field_mapping, syn_to_attr)
 
-        avm: dict[AttributeEntity[T], tuple[FieldSlotStr, ...]] = {}
+        return self.build(unchecked_field_mapping, frozenset(syn_to_attr.values()), attr_id_to_collection)
+
+    def _try_convert_syns_to_attr_ids(self, field_mapping: RawFieldMappingT, syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity]) -> IDFieldMappingT:
+        unchecked_field_mapping: IDFieldMappingT = {}
 
         for attr_syn, value in field_mapping.items():
             attr = syn_to_attr[attr_syn]
 
-            if attr in avm:
+            if attr in unchecked_field_mapping:
                 raise ValueError("Attr mentioned more than once")
 
-            avm[attr] = tuple(value)
+            unchecked_field_mapping[attr.attribute_id] = tuple(value)
 
-        for attr in attrs_sorted:
-            v: tuple[FieldSlotStr, ...] | None = avm.get(attr)
+        return unchecked_field_mapping
+
+    def build[T: AttributeType](
+        self, 
+        unchecked_field_mapping: IDFieldMappingT,
+        attributes: t.AbstractSet[AttributeEntity[T]], 
+        attr_id_to_collection: t.Mapping[
+            AttributeID, CollectionT
+        ], 
+    ) -> EntityFrozenFieldMappingT[T]:
+        res: dict[AttributeEntity[T], tuple[FieldSlotStr, ...]] = {}
+
+        for attr in attributes:
+            v = unchecked_field_mapping.get(attr.attribute_id)
 
             if v is None:
                 if attr.slot.min_count > 0:
@@ -63,11 +77,11 @@ class FieldMappingService:
             # Not None or empty
             if collection:
                 syn_to_value: dict[FieldSlotStr, FieldSlotStr] = {
-                    syn: entry_with_aliases.entry.value
+                    syn: entry_with_aliases[0]
                     for entry_with_aliases in collection
                     for syn in (
-                        entry_with_aliases.entry.value,
-                        *entry_with_aliases.aliases,
+                        entry_with_aliases[0],
+                        *entry_with_aliases[1],
                     )
                 }
 
@@ -83,6 +97,6 @@ class FieldMappingService:
 
                 v = tuple(collectionified_v)
 
-            avm[attr] = v
+            res[attr] = v
 
-        return frozendict(avm)
+        return frozendict(res)

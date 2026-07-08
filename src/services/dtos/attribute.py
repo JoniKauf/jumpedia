@@ -4,11 +4,10 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.types.collection_entry import FrozenCollectionT
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.position import Position
-from services.dtos.collection_entry import CollectionEntryEntityWithAliases
-
 
 @dataclass(frozen=True, slots=True)
 class AttributeInfo:
@@ -19,7 +18,7 @@ class AttributeInfo:
     kind: AttributeKind
     slot: AttributeSlot
     position: Position
-    collection: tuple[CollectionEntryEntityWithAliases, ...]
+    collection: FrozenCollectionT
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +30,7 @@ class AttributeSummary:
     kind: AttributeKind
     slot: AttributeSlot
     position: Position
-    collection: tuple[CollectionEntryEntityWithAliases, ...]
+    collection: FrozenCollectionT
 
 
 @dataclass(frozen=True, slots=True)

@@ -28,7 +28,7 @@ class DoubleBacktickError(ValueError):
     pass
 
 
-class BaseStr:
+class BaseSingleStr:
     _str: str
 
     def __str__(self) -> str:
@@ -57,7 +57,7 @@ class BaseStr:
         return self._str
 
 
-class RealStr(BaseStr):
+class RealStr(BaseSingleStr):
     """String wrapper to sanitize a string."""
 
     def __init__(self, s: str, *, _validate: bool = True) -> None:
@@ -77,7 +77,7 @@ class RealStr(BaseStr):
         self._str = s
 
 
-class NormStr(BaseStr):
+class NormStr(BaseSingleStr):
     """String wrapper to normalize a :class:`~RealStr`."""
 
     @t.overload
@@ -191,6 +191,12 @@ class Str:
     def __str__(self) -> str:
         return str(self)
 
+    def requal(self, value: object) -> bool:
+        if not isinstance(value, type(self)):
+            return NotImplemented
+
+        return self.real == value.real
+    
     @classmethod
     def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, Str] = {}
@@ -224,3 +230,9 @@ class Str:
                 seen[elem.norm] = elem
             else:
                 raise errors.DuplicateUniqueRequiredString(existing, elem)
+
+    @classmethod
+    def sequences_requal(cls, a: t.Sequence[t.Self], b: t.Sequence[t.Self], /) -> bool:
+        """Return True if the two specified sequences are exactly equal (their real part)."""
+
+        return len(a) == len(b) and all(aa.real == bb.real for aa, bb in zip(a, b))

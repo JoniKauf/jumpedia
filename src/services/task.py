@@ -9,10 +9,12 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
-from domain.enums.edit_mode import AliasEditMode
+from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
+from domain.types.collection_entry import CollectionT
+from domain.types.field_mapping import RawFieldMappingT
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
@@ -21,7 +23,6 @@ from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import (
-    CollectionEntryEntityWithAliases,
     CollectionEntryRepository,
 )
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
@@ -33,7 +34,7 @@ from services.edit_mode import EditModeService
 from services.field_mapping import FieldMappingService
 from services.list import ListAccessService
 from services.permission import PermissionService
-from services.slot_type_service import SlotTypeService
+from services.slot_type import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -50,10 +51,10 @@ class TaskService:
 
     def create(
         self,
-        name: FieldSlotStr,
+        task_name: FieldSlotStr,
         list_name: ListNameStr,
         aliases: t.Sequence[FieldSlotStr],
-        field_mapping: t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]],
+        field_mapping: RawFieldMappingT,
     ) -> TaskEntity:
         # --- Get Data --- #
         community, member, lst = self._list_access_service.get_convenient(
@@ -71,11 +72,11 @@ class TaskService:
                 community.limits.list_task_count_max, TaskEntity
             )
 
-        syns: tuple[FieldSlotStr, ...] = (name, *aliases)
+        syns: tuple[FieldSlotStr, ...] = (task_name, *aliases)
 
         if len(aliases) > community.limits.field_slot_count_max:
             raise errors.AliasCountLimitReached(
-                community.limits.field_slot_count_max, name, tuple(aliases)
+                community.limits.field_slot_count_max, task_name, tuple(aliases)
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
@@ -91,7 +92,7 @@ class TaskService:
             raise errors.SynAlreadyTaken(
                 *existing_same_syn,
                 colliding_task.name != colliding_syn,
-                colliding_syn != name,
+                colliding_syn != task_name,
             )
 
         # --- Validate And Create Task Attribute Value Mapping --- #
@@ -107,14 +108,14 @@ class TaskService:
             )
         )
 
-        fm = self._field_mapping_service.validate_and_build(
+        fm = self._field_mapping_service.build_raw(
             field_mapping, syn_to_attr, attr_id_to_collection
         )
 
         del field_mapping
 
         # --- Create Task ---
-        task_entity = self._task_repo.create(TaskInsert(lst.list_id, name))
+        task_entity = self._task_repo.create(TaskInsert(lst.list_id, task_name))
 
         # --- Create Task Aliases ---
         self._task_repo.create_many_aliases(
@@ -139,9 +140,9 @@ class TaskService:
 
         return task_entity
 
-    def delete(self, name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
+    def delete(self, task_name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
         _, member, lst, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, name, True
+            DEFAULT, list_name, task_name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
@@ -151,17 +152,17 @@ class TaskService:
         return DeletedTask(task.name, lst)
 
     def edit_name(
-        self, current_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr
+        self, new_name: FieldSlotStr, task_name: FieldSlotStr, list_name: ListNameStr
     ) -> FieldSlotStr:
         _, member, lst, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, current_name, True
+            DEFAULT, list_name, task_name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
         # Exactly equal (real matches, not just norm)
         if task.name.real == new_name.real:
-            raise errors.NameNotDifferent(current_name)
+            raise errors.NameNotDifferent(task_name)
 
         existing_task_and_syn = self._task_repo.get_by_list_id_and_syn(
             lst.list_id,
@@ -183,13 +184,13 @@ class TaskService:
 
     def edit_aliases(
         self,
-        name: FieldSlotStr,
         new_aliases: tuple[FieldSlotStr, ...],
-        list_name: ListNameStr,
         edit_mode: AliasEditMode,
+        task_name: FieldSlotStr,
+        list_name: ListNameStr,
     ) -> TaskEntity:
         community, member, lst, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, name, True
+            DEFAULT, list_name, task_name, True
         )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
@@ -201,7 +202,7 @@ class TaskService:
         new_aliases = self._edit_mode_service.handle_alias_edit(edit_mode, current_aliases, new_aliases)
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
-        if all(a.real == b.real for a, b in zip(current_aliases, new_aliases)):
+        if FieldSlotStr.sequences_requal(current_aliases, new_aliases):
             raise errors.AliasesNotDifferent(new_aliases)
 
         del current_aliases
@@ -237,6 +238,50 @@ class TaskService:
         )
 
         return task
+
+    def edit_field_mapping(
+        self,
+        new_field_mapping: RawFieldMappingT,
+        edit_mode: FieldMappingEditMode,
+        task_name: FieldSlotStr,
+        list_name: ListNameStr,
+    ) -> None:
+        community, member, lst, task = self._task_access_service.get_convenient(DEFAULT, list_name, task_name, True)
+
+        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
+
+        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
+
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+            lst.list_id, ATTRIBUTE_TYPES
+        )
+        attr_id_to_collection = (
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
+                lst.list_id, ATTRIBUTE_TYPES
+            )
+        )
+
+        new_fm = {attr.attribute_id: v for attr, v in self._field_mapping_service.build_raw(new_field_mapping, syn_to_attr, attr_id_to_collection).items()}
+
+        del new_field_mapping
+        
+        current_fm = self._field_slot_repo.get_field_mapping_by_task_id(task.task_id, ATTRIBUTE_TYPES)
+        new_fm = self._edit_mode_service.handle_field_mapping_edit(edit_mode, current_fm, new_fm)
+
+        del current_fm
+
+        new_fm = self._field_mapping_service.build(new_fm, frozenset(syn_to_attr.values()), attr_id_to_collection)
+
+        # TODO set
+
+
+        
+
+        
+
+        
+
+        
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -279,7 +324,7 @@ class TaskQueryService:
             lst,
             frozendict(
                 {
-                    id_to_attr[k]: tuple(slot.slot for slot in v)
+                    id_to_attr[k]: v
                     for k, v in field_mapping.items()
                 }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
             ),
@@ -338,7 +383,7 @@ class TaskQueryService:
 
         TASK_ID_TO_TASK_FIELD_MAPPING: t.Final = {
             task_id: {
-                attr_id: tuple(slot.slot for slot in field)
+                attr_id: field
                 for attr_id, field in mapping.items()
             }
             for task_id, mapping in self._field_slot_repo.get_task_field_mapping_by_list_id(
@@ -377,14 +422,14 @@ class TaskQueryService:
 
     def _sort[T: AttributeEntity.OfTypeNotUserT | AttributeEntity.OfAnyTypeT](
         self,
-        sorts: tuple[tuple[AttributeSynStr, bool], ...],
-        tasks: tuple[TaskEntity, ...],
+        sorts: t.Sequence[tuple[AttributeSynStr, bool]],
+        tasks: t.Sequence[TaskEntity],
         task_id_to_field_mapping: t.Mapping[
             TaskID, t.Mapping[AttributeID, tuple[FieldSlotStr, ...]]
         ],
         syn_to_attr: t.Mapping[AttributeSynStr, T],
         attr_id_to_collection: t.Mapping[
-            AttributeID, tuple[CollectionEntryEntityWithAliases, ...]
+            AttributeID, CollectionT
         ],
     ) -> list[TaskEntity]:
         # --- Normalize Sorts As Much As Possible --- #
@@ -432,7 +477,7 @@ class TaskQueryService:
             AttributeID, dict[FieldSlotStr, int]
         ] = {
             attr: {
-                entry_with_aliases.entry.value: i
+                entry_with_aliases[0]: i
                 for i, entry_with_aliases in enumerate(coll)
             }
             for attr, coll in attr_id_to_collection.items()
