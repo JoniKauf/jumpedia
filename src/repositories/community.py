@@ -19,7 +19,7 @@ from .base import BaseRepository
 def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
         community_id=model.community_id,
-        name=CommunityNameStr(_real=model.real_name, _norm=model.norm_name),
+        name=CommunityNameStr._create(model.real_name, model.norm_name),
         default_selected_list_id=model.default_selected_list_id,
         created=model.created,
         limits=CommunityLimits(
@@ -35,9 +35,6 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
 
 
 class CommunityRepository(BaseRepository):
-    # -------------------------
-    # CREATE
-    # -------------------------
     def create(self, community: CommunityInsert) -> CommunityEntity:
         obj = CommunityModel(
             norm_name=community.name.norm,
@@ -56,13 +53,6 @@ class CommunityRepository(BaseRepository):
         self._session.flush()
 
         return community_model_to_entity(obj)
-
-    # -------------------------
-    # READ
-    # -------------------------
-    def get_by_id(self, community_id: CommunityID) -> CommunityEntity | None:
-        obj = self._session.get(CommunityModel, community_id)
-        return None if obj is None else community_model_to_entity(obj)
 
     def get_by_name(self, name: CommunityNameStr) -> CommunityEntity | None:
         stmt = select(CommunityModel).where(CommunityModel.norm_name == name.norm)
@@ -118,3 +108,10 @@ class CommunityRepository(BaseRepository):
         obj.default_selected_list_id = default_selected_list_id
 
         self._session.flush()
+
+    def lock(self, community_id: int) -> None:
+        self._session.execute(
+            select(CommunityModel)
+            .where(CommunityModel.community_id == community_id)
+            .with_for_update()
+        )

@@ -35,7 +35,7 @@ from services.community import (
 from services.contexts.interacting_user import InteractingUserContext
 from services.list import ListService
 from services.member import MemberExistenceService
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 from services.user import UserExistenceService
 
 if t.TYPE_CHECKING:

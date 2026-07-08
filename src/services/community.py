@@ -22,7 +22,7 @@ from services.dtos.community import CommunityInfo, CommunitySummary, DeletedComm
 from services.dtos.user import UserRef
 from services.list import ListAccessService, ListService
 from services.member import MemberAccessService, MemberExistenceService
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)

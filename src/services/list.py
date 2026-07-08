@@ -19,7 +19,7 @@ from repositories.task import TaskRepository
 from services.community import CommunityAccessService
 from services.dtos.list import DeletedList, ListInfo, ListSummary
 from services.member import MemberAccessService
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)

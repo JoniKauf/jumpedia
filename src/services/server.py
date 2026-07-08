@@ -8,7 +8,7 @@ from repositories.community import CommunityRepository
 from repositories.server import ServerRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)

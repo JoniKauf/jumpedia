@@ -13,7 +13,7 @@ from .base import BaseRepository
 def _user_model_to_entity(model: UserModel) -> UserEntity:
     return UserEntity(
         user_id=model.user_id,
-        name=UserNameStr(_real=RealStr(model.raw_name), _norm=model.norm_name),
+        name=UserNameStr._create(RealStr(model.raw_name), model.norm_name),
         rank=MetaRank(model.power),
     )
 

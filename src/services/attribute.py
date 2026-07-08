@@ -27,10 +27,10 @@ from repositories.field_slot import FieldSlotRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
-from services.edit_mode import EditModeService
+from services.internal.edit_mode import EditModeService
 from services.list import ListAccessService
 from services.member import MemberAccessService
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)

@@ -1,36 +1,30 @@
+import itertools
 import types as ts
 import typing as t
 
-from sqlalchemy import select
+from certifi import where
+from sqlalchemy import delete, select
 
-from db.models import AttributeModel, MemberFieldSlotModel
+from db.models import AttributeModel, MemberFieldSlotModel, MemberTaskModel
 from domain.entities.member_field_slot import MemberFieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
+from domain.types.field_mapping import IDFrozenFieldMappingT
 from domain.types.list import ListID
+from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
+from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 
 
-def member_field_slot_model_to_entity(
-    model: MemberFieldSlotModel,
-) -> MemberFieldSlotEntity:
-    return MemberFieldSlotEntity(
-        member_task_id=model.member_task_id,
-        attribute_id=model.attribute_id,
-        index=Index(model.index),
-        slot=FieldSlotStr(_real=model.real_slot, _norm=model.norm_slot),
-    )
-
 
 class MemberFieldSlotRepository(BaseRepository):
     def create_many(
         self, member_field_slots: t.Iterable[MemberFieldSlotInsert]
-    ) -> tuple[MemberFieldSlotEntity, ...]:
-        """Preserves order."""
+    ) -> None:
         objs = tuple(
             MemberFieldSlotModel(
                 member_task_id=slot.member_task_id,
@@ -45,20 +39,15 @@ class MemberFieldSlotRepository(BaseRepository):
         self._session.add_all(objs)
         self._session.flush()
 
-        return tuple(member_field_slot_model_to_entity(obj) for obj in objs)
-
-    def get_field_mapping_by_member_task_id(
-        self, member_task_id: MemberTaskID, types: t.AbstractSet[AttributeType]
-    ) -> frozendict[AttributeID, tuple[MemberFieldSlotEntity, ...]]:
+    def get_field_mapping_by_member_id_and_task_id(
+        self, member_id: MemberID, task_id: TaskID
+    ) -> IDFrozenFieldMappingT:
         stmt = (
             select(MemberFieldSlotModel)
-            .join(
-                AttributeModel,
-                AttributeModel.attribute_id == MemberFieldSlotModel.attribute_id,
-            )
+            .join(MemberTaskModel)
             .where(
-                MemberFieldSlotModel.member_task_id == member_task_id,
-                AttributeModel.type.in_(types),
+                MemberTaskModel.member_id == member_id,
+                MemberTaskModel.task_id == task_id,
             )
             .order_by(
                 MemberFieldSlotModel.attribute_id.asc(),
@@ -66,22 +55,17 @@ class MemberFieldSlotRepository(BaseRepository):
             )
         )
 
-        res: dict[AttributeID, list[MemberFieldSlotEntity]] = {}
+        return frozendict(
+            (k, tuple(FieldSlotStr._create(obj.real_slot, obj.norm_slot) for obj in g)) for
+            k, g in itertools.groupby(self._session.scalars(stmt), lambda obj: obj.attribute_id)
+        )
 
-        for obj in self._session.scalars(stmt):
-            res.setdefault(obj.attribute_id, []).append(
-                member_field_slot_model_to_entity(obj)
-            )
-
-        return frozendict({k: tuple(v) for k, v in res.items()})
-
-    def get_field_mapping_by_list_id(
+    def get_grouped_member_field_mapping_by_list_id(
         self,
         list_id: ListID,
-        types: t.AbstractSet[AttributeType],
     ) -> frozendict[
         MemberTaskID,
-        frozendict[AttributeID, tuple[MemberFieldSlotEntity, ...]],
+        frozendict[AttributeID, tuple[FieldSlotStr, ...]],
     ]:
         stmt = (
             select(MemberFieldSlotModel)
@@ -91,7 +75,6 @@ class MemberFieldSlotRepository(BaseRepository):
             )
             .where(
                 AttributeModel.list_id == list_id,
-                AttributeModel.type.in_(types),
             )
             .order_by(
                 MemberFieldSlotModel.member_task_id.asc(),
@@ -99,22 +82,39 @@ class MemberFieldSlotRepository(BaseRepository):
                 MemberFieldSlotModel.index.asc(),
             )
         )
-
-        res: dict[
-            MemberTaskID,
-            dict[AttributeID, list[MemberFieldSlotEntity]],
-        ] = {}
-
-        for obj in self._session.scalars(stmt):
-            res.setdefault(obj.member_task_id, {}).setdefault(
-                obj.attribute_id, []
-            ).append(member_field_slot_model_to_entity(obj))
-
+        
         return frozendict(
-            {
-                task_id: frozendict(
-                    {attr_id: tuple(slots) for attr_id, slots in attr_map.items()}
-                )
-                for task_id, attr_map in res.items()
-            }
+            (
+                task_id,
+                frozendict(
+                    (
+                        attr_id,
+                        tuple(
+                            FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+                            for obj in attr_group
+                        ),
+                    )
+                    for attr_id, attr_group in itertools.groupby(
+                        task_group,
+                        lambda obj: obj.attribute_id,
+                    )
+                ),
+            )
+            for task_id, task_group in itertools.groupby(
+                self._session.scalars(stmt),
+                lambda obj: obj.member_task_id,
+            )
         )
+
+    def replace_all_by_member_task_id(
+        self,
+        member_task_id: MemberTaskID,
+        member_field_slots: t.Iterable[MemberFieldSlotInsert],
+    ) -> None:
+        stmt = (
+            delete(MemberFieldSlotModel)
+            .where(MemberFieldSlotModel.member_task_id == member_task_id)
+        )
+
+        self._session.execute(stmt)
+        self.create_many(member_field_slots)

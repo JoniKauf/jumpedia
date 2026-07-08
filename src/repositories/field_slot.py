@@ -20,7 +20,7 @@ from repositories.task import task_model_to_entity
 class FieldSlotRepository(BaseRepository):
     def create_many(
         self, field_slots: t.Iterable[FieldSlotInsert]
-    ) -> tuple[FieldSlotEntity, ...]:
+    ) -> None:
         """Preserves order."""
         objs = tuple(
             FieldSlotModel(
@@ -36,20 +36,31 @@ class FieldSlotRepository(BaseRepository):
         self._session.add_all(objs)
         self._session.flush()
 
-        return tuple(field_slot_model_to_entity(obj) for obj in objs)
-
     def replace_all_by_attribute_id(
         self,
         attribute_id: AttributeID,
         field_slots: t.Iterable[FieldSlotInsert],
-    ) -> tuple[FieldSlotEntity, ...]:
+    ) -> None:
         self._session.execute(
             delete(FieldSlotModel).where(
                 FieldSlotModel.attribute_id == attribute_id
             )
         )
 
-        return self.create_many(field_slots)
+        self.create_many(field_slots)
+
+    def replace_all_by_task_id(
+        self,
+        task_id: TaskID,
+        field_slots: t.Iterable[FieldSlotInsert],
+    ) -> None:
+        self._session.execute(
+            delete(FieldSlotModel).where(
+                FieldSlotModel.task_id == task_id
+            )
+        )
+
+        self.create_many(field_slots)
 
     def get_field_mapping_by_task_id(
         self, task_id: TaskID, types: t.AbstractSet[AttributeType]
@@ -73,7 +84,7 @@ class FieldSlotRepository(BaseRepository):
         res: dict[AttributeID, list[FieldSlotStr]] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.attribute_id, []).append(FieldSlotStr(_real=obj.real_slot, _norm=obj.norm_slot))
+            res.setdefault(obj.attribute_id, []).append(FieldSlotStr._create(obj.real_slot, obj.norm_slot))
 
         return frozendict({k: tuple(v) for k, v in res.items()})
 
@@ -106,7 +117,7 @@ class FieldSlotRepository(BaseRepository):
         ] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(FieldSlotStr(_real=obj.real_slot, _norm=obj.norm_slot))
+            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(FieldSlotStr._create(obj.real_slot, obj.norm_slot))
 
         return frozendict(
             {
@@ -149,9 +160,9 @@ class FieldSlotRepository(BaseRepository):
                 res[task] = []
 
             res[task].append(
-                FieldSlotStr(
-                    _real=slot_obj.real_slot,
-                    _norm=slot_obj.norm_slot,
+                FieldSlotStr._create(
+                    slot_obj.real_slot,
+                    slot_obj.norm_slot,
                 )
             )
 

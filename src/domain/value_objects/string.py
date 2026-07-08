@@ -116,44 +116,34 @@ class Str:
     the hash is based off the norm version of the string.
     """
 
+    _raw: str
     _real: RealStr | None
     _norm: NormStr | None
 
-    @t.overload
-    def __init__(self, s: str) -> None:
-        pass
-
-    @t.overload
-    def __init__(self, *, _real: RealStr, _norm: NormStr) -> None:
-        pass
-
     def __init__(
         self,
-        s: str | None = None,
-        *,
-        _real: RealStr | None = None,
-        _norm: NormStr | None = None,
+        s: str
     ) -> None:
-        if s is not None:
-            assert _real is None
-            assert _norm is None
+        self._raw = s
+        self._real = None
+        self._norm = None
 
-            self._raw = s
-            self._real = None
-            self._norm = None
-            self._from_db = False
+        self._validation()
 
-            self._validation()
-        else:
-            assert _real is not None
-            assert _norm is not None
+    @classmethod
+    def _create(
+        cls,
+        real: RealStr,
+        norm: NormStr,
+    ) -> t.Self:
+        """Create an instance of this :class:`~Str` but skip all forms of validation. Only use previously validated input!"""
+        obj = cls.__new__(cls)
 
-            self._raw = _real._str
-            self._real = _real
-            self._norm = _norm
-            self._from_db = True
+        obj._raw = real._str
+        obj._real = real
+        obj._norm = norm
 
-        self._norm_equality = True
+        return obj
 
     @property
     def raw(self) -> str:
@@ -162,7 +152,7 @@ class Str:
     @property
     def real(self) -> RealStr:
         if self._real is None:
-            self._real = RealStr(self._raw, _validate=(not self._from_db))
+            self._real = RealStr(self._raw)
 
         return self._real
 
@@ -191,7 +181,7 @@ class Str:
     def __str__(self) -> str:
         return str(self)
 
-    def requal(self, value: object) -> bool:
+    def requals(self, value: object) -> bool:
         if not isinstance(value, type(self)):
             return NotImplemented
 
@@ -216,7 +206,7 @@ class Str:
 
         # Dict order is preserved
         return tuple(
-            cls(_real=store.real, _norm=store.norm) for store in mapping.values()
+            cls._create(store.real, store.norm) for store in mapping.values()
         )
 
     @classmethod

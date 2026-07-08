@@ -22,7 +22,7 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
     return AttributeEntity(
         attribute_id=model.attribute_id,
         list_id=model.list_id,
-        name=AttributeSynStr(_real=model.real_name, _norm=model.norm_name),
+        name=AttributeSynStr._create(model.real_name, model.norm_name),
         type=AttributeType(model.type),
         kind=AttributeKind(model.kind),
         slot=AttributeSlot(
@@ -158,15 +158,15 @@ class AttributeRepository(BaseRepository):
         entity = attribute_model_to_entity(attr_obj)
 
         if attr_obj.norm_name in norms:
-            syn = AttributeSynStr(
-                _real=attr_obj.real_name,
-                _norm=attr_obj.norm_name,
+            syn = AttributeSynStr._create(
+                attr_obj.real_name,
+                attr_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = AttributeSynStr(
-                _real=alias_obj.real_alias,
-                _norm=alias_obj.norm_alias,
+            syn = AttributeSynStr._create(
+                alias_obj.real_alias,
+                alias_obj.norm_alias,
             )
 
         return entity, syn
@@ -204,15 +204,15 @@ class AttributeRepository(BaseRepository):
         entity = attribute_model_to_entity(attr_obj)
 
         if attr_obj.norm_name == syn.norm:
-            colliding_syn = AttributeSynStr(
-                _real=attr_obj.real_name,
-                _norm=attr_obj.norm_name,
+            colliding_syn = AttributeSynStr._create(
+                attr_obj.real_name,
+                attr_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            colliding_syn = AttributeSynStr(
-                _real=alias_obj.real_alias,
-                _norm=alias_obj.norm_alias,
+            colliding_syn = AttributeSynStr._create(
+                alias_obj.real_alias,
+                alias_obj.norm_alias,
             )
 
         return entity, colliding_syn
@@ -316,8 +316,8 @@ class AttributeRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    AttributeSynStr(
-                        _real=alias_obj.real_alias, _norm=alias_obj.norm_alias
+                    AttributeSynStr._create(
+                        alias_obj.real_alias, alias_obj.norm_alias
                     )
                 ] = entity
 
@@ -336,9 +336,9 @@ class AttributeRepository(BaseRepository):
         )
 
         return tuple(
-            AttributeSynStr(
-                _real=obj.real_alias,
-                _norm=obj.norm_alias,
+            AttributeSynStr._create(
+                obj.real_alias,
+                obj.norm_alias,
             )
             for obj in self._session.scalars(stmt)
         )
@@ -365,16 +365,16 @@ class AttributeRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(
-                AttributeSynStr(
-                    _real=obj.real_alias,
-                    _norm=obj.norm_alias,
+                AttributeSynStr._create(
+                    obj.real_alias,
+                    obj.norm_alias,
                 )
             )
 
         return frozendict(
             {
                 attribute_id: tuple(aliases) for attribute_id, aliases in res.items()
-            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+            }
         )
 
     def update_name(

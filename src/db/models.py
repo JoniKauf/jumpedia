@@ -67,28 +67,25 @@ class CommunityModel(BaseModel):
     )
 
     community_list_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.community_list_count_max
+        INTEGER(unsigned=True)
     )
     list_attribute_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_attribute_count_max
+        INTEGER(unsigned=True)
     )
     list_task_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.list_task_count_max
+        INTEGER(unsigned=True)
     )
     attribute_alias_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True), default=_DEFAULT_LIMITS.attribute_alias_count_max
+        INTEGER(unsigned=True)
     )
     field_slot_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.field_slot_count_max,
+        INTEGER(unsigned=True)
     )
     collection_entry_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.collection_entry_count_max,
+        INTEGER(unsigned=True)
     )
     collection_entry_alias_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True),
-        default=_DEFAULT_LIMITS.collection_entry_alias_count_max,
+        INTEGER(unsigned=True)
     )
 
 

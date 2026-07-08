@@ -20,7 +20,7 @@ def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
         task_id=model.task_id,
         list_id=model.list_id,
-        name=FieldSlotStr(_real=model.real_name, _norm=model.norm_name),
+        name=FieldSlotStr._create(model.real_name, model.norm_name),
     )
 
 
@@ -127,9 +127,9 @@ class TaskRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    FieldSlotStr(
-                        _real=alias_obj.real_alias,
-                        _norm=alias_obj.norm_alias,
+                    FieldSlotStr._create(
+                        alias_obj.real_alias,
+                        alias_obj.norm_alias,
                     )
                 ] = entity
 
@@ -175,15 +175,15 @@ class TaskRepository(BaseRepository):
         entity = task_model_to_entity(task_obj)
 
         if task_obj.norm_name in norms:
-            syn = FieldSlotStr(
-                _real=task_obj.real_name,
-                _norm=task_obj.norm_name,
+            syn = FieldSlotStr._create(
+                task_obj.real_name,
+                task_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = FieldSlotStr(
-                _real=alias_obj.real_alias,
-                _norm=alias_obj.norm_alias,
+            syn = FieldSlotStr._create(
+                alias_obj.real_alias,
+                alias_obj.norm_alias,
             )
 
         return entity, syn
@@ -259,15 +259,15 @@ class TaskRepository(BaseRepository):
         entity = task_model_to_entity(task_obj)
 
         if task_obj.norm_name == syn.norm:
-            colliding_syn = FieldSlotStr(
-                _real=task_obj.real_name,
-                _norm=task_obj.norm_name,
+            colliding_syn = FieldSlotStr._create(
+                task_obj.real_name,
+                task_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            colliding_syn = FieldSlotStr(
-                _real=alias_obj.real_alias,
-                _norm=alias_obj.norm_alias,
+            colliding_syn = FieldSlotStr._create(
+                alias_obj.real_alias,
+                alias_obj.norm_alias,
             )
 
         return entity, colliding_syn
@@ -283,9 +283,9 @@ class TaskRepository(BaseRepository):
         )
 
         return tuple(
-            FieldSlotStr(
-                _real=obj.real_alias,
-                _norm=obj.norm_alias,
+            FieldSlotStr._create(
+                obj.real_alias,
+                obj.norm_alias,
             )
             for obj in self._session.scalars(stmt)
         )
@@ -313,9 +313,9 @@ class TaskRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.task_id, []).append(
-                FieldSlotStr(
-                    _real=obj.real_alias,
-                    _norm=obj.norm_alias,
+                FieldSlotStr._create(
+                    obj.real_alias,
+                    obj.norm_alias,
                 )
             )
 

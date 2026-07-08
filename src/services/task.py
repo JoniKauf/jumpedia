@@ -14,7 +14,7 @@ from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import RawFieldMappingT
+from domain.types.field_mapping import EntityFrozenFieldMappingT, RawFieldMappingT
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
@@ -30,11 +30,11 @@ from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.task import DeletedTask, TaskInfo
-from services.edit_mode import EditModeService
-from services.field_mapping import FieldMappingService
+from services.internal.edit_mode import EditModeService
+from services.internal.field_mapping import FieldMappingService
 from services.list import ListAccessService
-from services.permission import PermissionService
-from services.slot_type import SlotTypeService
+from services.internal.permission import PermissionService
+from services.internal.slot_type import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -245,8 +245,8 @@ class TaskService:
         edit_mode: FieldMappingEditMode,
         task_name: FieldSlotStr,
         list_name: ListNameStr,
-    ) -> None:
-        community, member, lst, task = self._task_access_service.get_convenient(DEFAULT, list_name, task_name, True)
+    ) -> EntityFrozenFieldMappingT[AttributeType.TaskT]:
+        _, member, lst, task = self._task_access_service.get_convenient(DEFAULT, list_name, task_name, True)
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
@@ -261,23 +261,11 @@ class TaskService:
             )
         )
 
-        new_fm = {attr.attribute_id: v for attr, v in self._field_mapping_service.build_raw(new_field_mapping, syn_to_attr, attr_id_to_collection).items()}
+        new_fm = self._field_mapping_service.build_edit(edit_mode, self._field_slot_repo.get_field_mapping_by_task_id(task.task_id, ATTRIBUTE_TYPES), new_field_mapping, syn_to_attr, attr_id_to_collection)
 
-        del new_field_mapping
+        self._field_slot_repo.replace_all_by_task_id(task.task_id, (FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot) for attr, field in new_fm.items() for i, slot in enumerate(field)))
         
-        current_fm = self._field_slot_repo.get_field_mapping_by_task_id(task.task_id, ATTRIBUTE_TYPES)
-        new_fm = self._edit_mode_service.handle_field_mapping_edit(edit_mode, current_fm, new_fm)
-
-        del current_fm
-
-        new_fm = self._field_mapping_service.build(new_fm, frozenset(syn_to_attr.values()), attr_id_to_collection)
-
-        # TODO set
-
-
-        
-
-        
+        return new_fm
 
         
 
@@ -420,44 +408,41 @@ class TaskQueryService:
             for task in tasks
         )
 
-    def _sort[T: AttributeEntity.OfTypeNotUserT | AttributeEntity.OfAnyTypeT](
+    def _sort[T: AttributeType](
         self,
         sorts: t.Sequence[tuple[AttributeSynStr, bool]],
         tasks: t.Sequence[TaskEntity],
         task_id_to_field_mapping: t.Mapping[
             TaskID, t.Mapping[AttributeID, tuple[FieldSlotStr, ...]]
         ],
-        syn_to_attr: t.Mapping[AttributeSynStr, T],
+        syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[
             AttributeID, CollectionT
         ],
     ) -> list[TaskEntity]:
         # --- Normalize Sorts As Much As Possible --- #
-        normed_sorts: list[tuple[T, bool]] = []
+        optimized_sorts: list[tuple[AttributeEntity[T], bool]] = []
+        seen: set[AttributeEntity[T]] = set()
 
         for sort in sorts:
             syn, asc = sort
             attr = syn_to_attr[syn]
 
-            cur = (attr, asc)
-
-            # Only pure logical normalization we can perform is when 2 exact sorts are in a row
-            if normed_sorts and normed_sorts[-1] == cur:
+            # Remove duplicate attrs because unnecessary
+            if attr in seen:
                 continue
 
-            normed_sorts.append(cur)
+            seen.add(attr)
 
-            # Short circuit by means of data knowledge
+            optimized_sorts.append((attr, asc))
+
+            # Short circuit when we know last sort results in unique data
             if attr.slot_unique_across_list:
                 break
 
         del sorts
-
-        # --- Validate And Set Final Sorts --- #
-        if len(normed_sorts) > 20:
-            raise ValueError("Can at max only have 20 sorting keys")
         
-        if not normed_sorts:
+        if not optimized_sorts:
             name_attr: AttributeEntity.OfTypeStaticT
 
             for attr in syn_to_attr.values():
@@ -467,7 +452,7 @@ class TaskQueryService:
             else:
                 raise ValueError("Data error, no name attribute found!!!")
 
-            normed_sorts = [(name_attr, True)]  # type: ignore
+            optimized_sorts = [(name_attr, True)]  # type: ignore
 
         # --- Gather Sorting Data --- #
         task_to_sort_value: dict[TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]] = {}
@@ -486,7 +471,7 @@ class TaskQueryService:
         for task in tasks:
             result: list[tuple[AttributeSlotType.SlotTypeT, ...]] = []
 
-            for attr, _ in normed_sorts:
+            for attr, _ in optimized_sorts:
                 syn_to_collection_entry_idx = (
                     attr_id_to_collection_value_to_collection_index.get(
                         attr.attribute_id, {}
@@ -525,7 +510,7 @@ class TaskQueryService:
             values_a = task_to_sort_value[a]
             values_b = task_to_sort_value[b]
 
-            for va, vb, (_, asc) in zip(values_a, values_b, normed_sorts):
+            for va, vb, (_, asc) in zip(values_a, values_b, optimized_sorts):
                 if va < vb:
                     return -1 if asc else 1
 

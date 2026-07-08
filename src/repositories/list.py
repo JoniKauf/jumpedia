@@ -17,7 +17,7 @@ def list_model_to_entity(model: ListModel) -> ListEntity:
     return ListEntity(
         list_id=model.list_id,
         community_id=model.community_id,
-        name=ListNameStr(_real=model.real_name, _norm=model.norm_name),
+        name=ListNameStr._create(model.real_name, model.norm_name),
     )
 
 
@@ -84,7 +84,7 @@ class ListRepository(BaseRepository):
         self._session.flush()
 
     def update(self, list: ListEntity) -> None:
-        obj = self._session.get(ListModel, list.id)
+        obj = self._session.get(ListModel, list.list_id)
 
         if obj is None:
             raise errors.NotFoundById(ListEntity)

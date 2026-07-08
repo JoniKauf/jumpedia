@@ -5,7 +5,7 @@ from domain.enums.rank import MetaRank
 from repositories.dtos.user import UserInsert
 from repositories.user import UserRepository
 from services.dtos.user import UserRef
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)

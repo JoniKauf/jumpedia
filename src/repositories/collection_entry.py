@@ -20,7 +20,7 @@ def collection_entry_model_to_entity(
     return CollectionEntryEntity(
         model.collection_entry_id,
         model.attribute_id,
-        FieldSlotStr(_real=model.real_value, _norm=model.norm_value),
+        FieldSlotStr._create(model.real_value, model.norm_value),
     )
 
 
@@ -224,9 +224,9 @@ class CollectionEntryRepository(BaseRepository):
 
             if alias_obj is not None:
                 entry_aliases.setdefault(entry.collection_entry_id, []).append(
-                    FieldSlotStr(
-                        _real=alias_obj.real_alias,
-                        _norm=alias_obj.norm_alias,
+                    FieldSlotStr._create(
+                        alias_obj.real_alias,
+                        alias_obj.norm_alias,
                     )
                 )
 
@@ -288,9 +288,9 @@ class CollectionEntryRepository(BaseRepository):
 
             if alias_obj is not None:
                 entry_aliases.setdefault(entry.collection_entry_id, []).append(
-                    FieldSlotStr(
-                        _real=alias_obj.real_alias,
-                        _norm=alias_obj.norm_alias,
+                    FieldSlotStr._create(
+                        alias_obj.real_alias,
+                        alias_obj.norm_alias,
                     )
                 )
 

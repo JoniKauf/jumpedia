@@ -5,35 +5,39 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeType
+from domain.enums.edit_mode import FieldMappingEditMode
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionT
 from domain.types.field_mapping import EntityFieldMappingT, EntityFrozenFieldMappingT, IDFieldMappingT, RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
-from services.slot_type import SlotTypeService
+from repositories.field_slot import FieldSlotRepository
+from services.internal.edit_mode import EditModeService
+from services.internal.slot_type import SlotTypeService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class FieldMappingService:
     _slot_type_service: SlotTypeService
+    _edit_mode_service: EditModeService
 
     def build_raw[T: AttributeType](
         self,
         field_mapping: RawFieldMappingT,
-        syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
+        syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[
             AttributeID, CollectionT
         ],
     ) -> EntityFrozenFieldMappingT[T]:
-        unchecked_field_mapping = self._try_convert_syns_to_attr_ids(field_mapping, syn_to_attr)
+        unchecked_field_mapping = self._try_convert_syns_to_attr_ids(field_mapping, syn_to_attribute)
 
-        return self.build(unchecked_field_mapping, frozenset(syn_to_attr.values()), attr_id_to_collection)
+        return self.build(unchecked_field_mapping, frozenset(syn_to_attribute.values()), attr_id_to_collection)
 
-    def _try_convert_syns_to_attr_ids(self, field_mapping: RawFieldMappingT, syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity]) -> IDFieldMappingT:
+    def _try_convert_syns_to_attr_ids(self, field_mapping: RawFieldMappingT, syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity]) -> IDFieldMappingT:
         unchecked_field_mapping: IDFieldMappingT = {}
 
         for attr_syn, value in field_mapping.items():
-            attr = syn_to_attr[attr_syn]
+            attr = syn_to_attribute[attr_syn]
 
             if attr in unchecked_field_mapping:
                 raise ValueError("Attr mentioned more than once")
@@ -68,7 +72,7 @@ class FieldMappingService:
                 raise ValueError("attr max count overflow")
 
             v = tuple(
-                self._slot_type_service.validate_and_normalize(slot, attr.slot.type)
+                self._slot_type_service.convert_to_slot_typed(slot, attr.slot.type)
                 for slot in v
             )
 
@@ -100,3 +104,17 @@ class FieldMappingService:
             res[attr] = v
 
         return frozendict(res)
+
+    def build_edit[T: AttributeType](self, edit_mode: FieldMappingEditMode, current_field_mapping: IDFieldMappingT, new_field_mapping: RawFieldMappingT, syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]], attribute_id_to_collection: t.Mapping[AttributeID, CollectionT]) -> EntityFrozenFieldMappingT[T]:
+        # Build the new mapping to see if even valid on its own
+        new_fm = {attr.attribute_id: v for attr, v in self.build_raw(new_field_mapping, syn_to_attribute, attribute_id_to_collection).items()}
+        
+        del new_field_mapping
+
+        # Edit the new mapping with the current
+        new_fm = self._edit_mode_service.handle_field_mapping_edit(edit_mode, current_field_mapping, new_fm)
+
+        del current_field_mapping
+
+        # Rebuild combined mapping to see if end result is valid
+        return self.build(new_fm, frozenset(syn_to_attribute.values()), attribute_id_to_collection)

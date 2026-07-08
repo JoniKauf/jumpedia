@@ -18,7 +18,7 @@ def _is_number_in_range(v: int | decimal.Decimal) -> bool:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotTypeService:
-    def validate_and_normalize(
+    def convert_to_slot_typed(
         self, slot: FieldSlotStr, type: AttributeSlotType
     ) -> FieldSlotStr:
         match type:
@@ -68,7 +68,7 @@ class SlotTypeService:
         self, slot: FieldSlotStr, type: AttributeSlotType, *, _validate: bool = True
     ) -> AttributeSlotType.SlotTypeT:
         if _validate:
-            slot = self.validate_and_normalize(slot, type)
+            slot = self.convert_to_slot_typed(slot, type)
 
         match type:
             case AttributeSlotType.BOOLEAN:

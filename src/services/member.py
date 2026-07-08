@@ -11,7 +11,7 @@ from repositories.member import MemberRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
-from services.permission import PermissionService
+from services.internal.permission import PermissionService
 from services.user import UserExistenceService
 
 

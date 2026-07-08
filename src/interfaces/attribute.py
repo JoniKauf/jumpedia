@@ -13,20 +13,17 @@ from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum
+from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum, CollectionEditModeInterfaceEnum, FieldMappingEditModeInterfaceEnum
 from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
-from services.dtos.collection_entry import (
-    CollectionEntryEntityWithAliases,
-)
 
 
 def _collection_to_representation(
-    collection: tuple[CollectionEntryEntityWithAliases, ...],
+    collection: CollectionT,
 ) -> tuple[str, ...]:
     # Python's repr of strings aligns well with our string tokens.
     return tuple(
-        f"({str(item.entry.value)!r}: {' '.join(repr(str(alias)) for alias in item.aliases)})"
+        f"({str(item[0])!r}: {' '.join(repr(str(alias)) for alias in item[1])})"
         for item in collection
     )
 
@@ -120,8 +117,8 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         self,
         ctx: CommandContext,
         attribute_name: str,
-        new_attribute_name: str,
         list_name: str,
+        new_attribute_name: str,
     ) -> None:
         after = AttributeSynStr(new_attribute_name)
         before = ctx.services.attribute.edit_name(
@@ -138,8 +135,8 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         self,
         ctx: CommandContext,
         attribute_name: str,
-        new_attribute_aliases_dsl_list: str,
         list_name: str,
+        new_attribute_aliases_dsl_list: str,
         edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
         after = tuple(
@@ -182,8 +179,16 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
     @app_commands.command()
     @with_context()
-    async def edit_collection(self, ctx: CommandContext, attribute_name: str, new_collection_dsl_mapping: str) -> None:
+    async def edit_collection(self, ctx: CommandContext, attribute_name: str, list_name: ListNameStr, new_collection_dsl_mapping: str, edit_mode: CollectionEditModeInterfaceEnum) -> None:
+        new_collection: CollectionT = tuple(
+            (
+                FieldSlotStr(k),
+                tuple(FieldSlotStr(elem) for elem in v),
+            )
+            for k, v in dsls.mapping.engine.eval(new_collection_dsl_mapping)
+        )
         
+        ctx.services.attribute.edit_collection(AttributeSynStr(attribute_name), list_name, new_collection, edit_mode.value)
 
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
