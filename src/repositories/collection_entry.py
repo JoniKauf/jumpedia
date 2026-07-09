@@ -8,7 +8,11 @@ from domain import errors
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionEntryID, CollectionT, FrozenCollectionT
+from domain.types.collection_entry import (
+    CollectionEntryID,
+    CollectionT,
+    FrozenCollectionT,
+)
 from domain.types.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.base import BaseRepository
@@ -42,7 +46,7 @@ class CollectionEntryRepository(BaseRepository):
 
         if not entry_objs:
             return
-        
+
         self._session.add_all(entry_objs)
         self._session.flush()  # For collection_entry_id update
 
@@ -231,8 +235,7 @@ class CollectionEntryRepository(BaseRepository):
                 )
 
         return tuple(
-            (entry.value,
-            tuple(entry_aliases.get(entry.collection_entry_id, ())))
+            (entry.value, tuple(entry_aliases.get(entry.collection_entry_id, ())))
             for entry in ordered
         )
 
@@ -308,9 +311,7 @@ class CollectionEntryRepository(BaseRepository):
         )
 
     def replace_collection(
-        self,
-        attribute_id: AttributeID,
-        collection: CollectionT
+        self, attribute_id: AttributeID, collection: CollectionT
     ) -> None:
         """Replaces the entire collection of an attribute. Preserves entry order."""
 
@@ -321,4 +322,3 @@ class CollectionEntryRepository(BaseRepository):
         )
 
         self.create_collection(attribute_id, collection)
-

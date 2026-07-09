@@ -9,7 +9,7 @@ from db.models import AttributeModel, MemberFieldSlotModel, MemberTaskModel
 from domain.entities.member_field_slot import MemberFieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
-from domain.types.field_mapping import IDFrozenFieldMappingT
+from domain.types.field_mapping import FieldMappingIDFrozenT
 from domain.types.list import ListID
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
@@ -18,7 +18,6 @@ from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
-
 
 
 class MemberFieldSlotRepository(BaseRepository):
@@ -41,7 +40,7 @@ class MemberFieldSlotRepository(BaseRepository):
 
     def get_field_mapping_by_member_id_and_task_id(
         self, member_id: MemberID, task_id: TaskID
-    ) -> IDFrozenFieldMappingT:
+    ) -> FieldMappingIDFrozenT:
         stmt = (
             select(MemberFieldSlotModel)
             .join(MemberTaskModel)
@@ -56,8 +55,10 @@ class MemberFieldSlotRepository(BaseRepository):
         )
 
         return frozendict(
-            (k, tuple(FieldSlotStr._create(obj.real_slot, obj.norm_slot) for obj in g)) for
-            k, g in itertools.groupby(self._session.scalars(stmt), lambda obj: obj.attribute_id)
+            (k, tuple(FieldSlotStr._create(obj.real_slot, obj.norm_slot) for obj in g))
+            for k, g in itertools.groupby(
+                self._session.scalars(stmt), lambda obj: obj.attribute_id
+            )
         )
 
     def get_grouped_member_field_mapping_by_list_id(
@@ -82,7 +83,7 @@ class MemberFieldSlotRepository(BaseRepository):
                 MemberFieldSlotModel.index.asc(),
             )
         )
-        
+
         return frozendict(
             (
                 task_id,
@@ -111,9 +112,8 @@ class MemberFieldSlotRepository(BaseRepository):
         member_task_id: MemberTaskID,
         member_field_slots: t.Iterable[MemberFieldSlotInsert],
     ) -> None:
-        stmt = (
-            delete(MemberFieldSlotModel)
-            .where(MemberFieldSlotModel.member_task_id == member_task_id)
+        stmt = delete(MemberFieldSlotModel).where(
+            MemberFieldSlotModel.member_task_id == member_task_id
         )
 
         self._session.execute(stmt)

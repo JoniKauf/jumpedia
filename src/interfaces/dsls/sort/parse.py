@@ -1,6 +1,6 @@
-from token import MINUS
 import typing as t
 from dataclasses import dataclass
+from token import MINUS
 
 from interfaces.dsls.shared import parsing
 from interfaces.dsls.shared.lex import Token, TokenType

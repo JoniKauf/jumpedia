@@ -14,7 +14,10 @@ from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum
+from interfaces.enums.edit_mode import (
+    AliasEditModeInterfaceEnum,
+    FieldMappingEditModeInterfaceEnum,
+)
 from interfaces.message import format, messages
 from services.dtos.user import UserRef
 
@@ -29,7 +32,7 @@ def _field_mapping_input_to_value(
             {
                 AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
                 for k, v in dsls.mapping.engine.eval(s).items()
-            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+            }
         )
     )
 
@@ -53,19 +56,14 @@ class TaskInterface(BaseInterface, group_name="task"):
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
-        data: dict[str, tuple[str, ...]] = {
-            str(info.static_attributes[0].name): (str(info.id),),
-            str(info.static_attributes[1].name): (str(info.name),),
-            str(info.static_attributes[2].name): tuple(
-                str(alias) for alias in info.aliases
-            ),
-            **{
-                str(attr.name): tuple(str(elem) for elem in v)
-                for attr, v in info.field_mapping.items()
+        await messages.object_info(
+            ctx.interaction,
+            TaskEntity,
+            {
+                str(attr.name): tuple(str(slot) for slot in field)
+                for attr, field in info.items()
             },
-        }
-
-        await messages.object_info(ctx.interaction, type(info), data)
+        )
 
     @app_commands.command()
     @with_context()
@@ -74,8 +72,8 @@ class TaskInterface(BaseInterface, group_name="task"):
         ctx: CommandContext,
         task_name: str,
         list_name: str,
-        aliases: str | None = None,
-        field_mapping: str | None = None,
+        aliases: str,
+        field_mapping: str,
     ) -> None:
         task = ctx.services.task.create(
             FieldSlotStr(task_name),
@@ -149,6 +147,35 @@ class TaskInterface(BaseInterface, group_name="task"):
 
     @app_commands.command()
     @with_context()
+    async def update(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        new_user_field_mapping: str,
+        edit_mode: FieldMappingEditModeInterfaceEnum,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        member, task = ctx.services.member_task.edit_member_field_mapping(
+            _field_mapping_input_to_value(new_user_field_mapping),
+            edit_mode.value,
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
+            FieldSlotStr(task_name_or_alias),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(type(task))} Updated",
+            t"The {format.mention_body(task)} of the {format.mention_body(member)} successfully!"
+        )
+
+    @app_commands.command()
+    @with_context()
     async def edit_name(
         self,
         ctx: CommandContext,
@@ -177,7 +204,7 @@ class TaskInterface(BaseInterface, group_name="task"):
             FieldSlotStr(alias) for alias in dsls.list.engine.eval(new_task_aliases)
         )
         task = ctx.services.task.edit_aliases(
-            FieldSlotStr(task_name), after, ListNameStr(list_name), edit_mode.value
+            after, edit_mode.value, FieldSlotStr(task_name), ListNameStr(list_name)
         )
 
         await messages.object_aliases_edited(ctx.interaction, task)
@@ -192,40 +219,25 @@ class TasksInterface(BaseInterface, group_name="tasks"):
         sort_dsl: str | None = None,
         list_name: str | None = None,
     ) -> None:
-        summaries_data = ctx.services.task_query.get_summaries(
-            DEFAULT if list_name is None else ListNameStr(list_name),
+        summaries = ctx.services.task_query.get_summaries(
+            (
+                ()
+                if sort_dsl is None
+                else tuple(
+                    (AttributeSynStr(sort), asc)
+                    for sort, asc in dsls.sort.engine.eval(sort_dsl)
+                )
+            ),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
-        summaries = summaries_data.summaries
-
-        pre_data: dict[
-            AttributeEntity.OfTypeStaticT | AttributeEntity.OfTypeTaskT,
-            tuple[tuple[str, ...], ...],
-        ] = {
-            summaries_data.static_attributes[0]: tuple(
-                (str(summary.id),) for summary in summaries
-            ),
-            summaries_data.static_attributes[1]: tuple(
-                (str(summary.name),) for summary in summaries
-            ),
-            summaries_data.static_attributes[2]: tuple(
-                tuple(str(alias) for alias in summary.aliases) for summary in summaries
-            ),
-            **{
-                attr: tuple(
-                    tuple(str(elem) for elem in summary.field_mapping.get(attr, ()))
-                    for summary in summaries
+        await messages.object_browse(
+            ctx.interaction,
+            TaskEntity,
+            {
+                str(attr.name): tuple(
+                    tuple(str(slot) for slot in field) for field in fields
                 )
-                for attr in summaries_data.task_attributes
+                for attr, fields in summaries.items()
             },
-        }
-
-        data: dict[str, tuple[tuple[str, ...], ...]] = {
-            str(attr.name): v
-            for attr, v in sorted(
-                pre_data.items(), key=lambda item: item[0].position.value
-            )
-        }
-
-        await messages.object_browse(ctx.interaction, TaskSummary, data)
+        )

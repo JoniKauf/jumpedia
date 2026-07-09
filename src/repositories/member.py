@@ -67,10 +67,7 @@ class MemberRepository(BaseRepository):
         )
 
         return frozendict(
-            {
-                community_id: count
-                for community_id, count in self._session.execute(stmt)
-            }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+            {community_id: count for community_id, count in self._session.execute(stmt)}
         )
 
     def get_all_by_community_id(self, community_id: int) -> tuple[MemberEntity, ...]:

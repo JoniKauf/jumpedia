@@ -37,14 +37,14 @@ def parse(tokens: t.Iterable[Token]) -> MappingNode:
         case TokenType.STRING | TokenType.IDENT:
             with_parens = False
 
-            if first_tok.type is TokenType.IDENT and first_tok.value == '_':
+            if first_tok.type is TokenType.IDENT and first_tok.value == "_":
                 stream.pop()
 
                 if stream.peek().type is TokenType.NONE:
                     return MappingNode(first_tok.span, ())
 
                 stream.push(first_tok)
-                
+
         case TokenType.NONE:
             raise ValueError("Empty")
         case _:
@@ -130,13 +130,9 @@ def parse(tokens: t.Iterable[Token]) -> MappingNode:
         if key_str in unique_res:
             raise ValueError("Non unique keys")
 
-        unique_res[key_str] = MappingItemNode(
-            Span(begin, end), key, value_list
-        )
+        unique_res[key_str] = MappingItemNode(Span(begin, end), key, value_list)
 
     all_items = tuple(unique_res.values())
     assert all_items
 
-    return MappingNode(
-        Span(all_items[0].span.begin, all_items[-1].span.end), all_items
-    )
+    return MappingNode(Span(all_items[0].span.begin, all_items[-1].span.end), all_items)

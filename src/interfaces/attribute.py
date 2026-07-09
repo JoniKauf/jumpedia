@@ -13,7 +13,11 @@ from interfaces import dsls
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
-from interfaces.enums.edit_mode import AliasEditModeInterfaceEnum, CollectionEditModeInterfaceEnum, FieldMappingEditModeInterfaceEnum
+from interfaces.enums.edit_mode import (
+    AliasEditModeInterfaceEnum,
+    CollectionEditModeInterfaceEnum,
+    FieldMappingEditModeInterfaceEnum,
+)
 from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
 
@@ -26,6 +30,7 @@ def _collection_to_representation(
         f"({str(item[0])!r}: {' '.join(repr(str(alias)) for alias in item[1])})"
         for item in collection
     )
+
 
 class AttributeInterface(BaseInterface, group_name="attribute"):
     @app_commands.command()
@@ -79,7 +84,9 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         aliases_dsl_list: str,
         collection_dsl_mapping: str,
     ) -> None:
-        aliases: tuple[AttributeSynStr, ...] = tuple(AttributeSynStr(alias) for alias in dsls.list.engine.eval(aliases_dsl_list))
+        aliases: tuple[AttributeSynStr, ...] = tuple(
+            AttributeSynStr(alias) for alias in dsls.list.engine.eval(aliases_dsl_list)
+        )
 
         collection: CollectionT = tuple(
             (
@@ -172,14 +179,25 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         await messages.success(
             ctx.interaction,
             t"{format.type_name_for_header(AttributeEntity)} Min And Max Slot Count Edited",
-            t"The min and max slot count for the {format.mention_body(attr)} has been set to " +
-            t"{attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!" +
-            (t"" if attr.type is AttributeType.TASK else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!")
+            t"The min and max slot count for the {format.mention_body(attr)} has been set to "
+            + t"{attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!"
+            + (
+                t""
+                if attr.type is AttributeType.TASK
+                else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
+            ),
         )
 
     @app_commands.command()
     @with_context()
-    async def edit_collection(self, ctx: CommandContext, attribute_name: str, list_name: ListNameStr, new_collection_dsl_mapping: str, edit_mode: CollectionEditModeInterfaceEnum) -> None:
+    async def edit_collection(
+        self,
+        ctx: CommandContext,
+        attribute_name: str,
+        list_name: ListNameStr,
+        new_collection_dsl_mapping: str,
+        edit_mode: CollectionEditModeInterfaceEnum,
+    ) -> None:
         new_collection: CollectionT = tuple(
             (
                 FieldSlotStr(k),
@@ -187,8 +205,21 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             )
             for k, v in dsls.mapping.engine.eval(new_collection_dsl_mapping)
         )
-        
-        ctx.services.attribute.edit_collection(AttributeSynStr(attribute_name), list_name, new_collection, edit_mode.value)
+
+        attr = ctx.services.attribute.edit_collection(
+            AttributeSynStr(attribute_name), list_name, new_collection, edit_mode.value
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(AttributeEntity)} Collection Edited",
+            t"The collection for the {format.mention_body(attr)} has been set to edit successfully!"
+            + (
+                t""
+                if attr.type is AttributeType.TASK
+                else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
+            ),
+        )
 
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
@@ -225,14 +256,21 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)
 
-
     @app_commands.command()
     @with_context()
-    async def edit_position_order(self, ctx: CommandContext, all_attribute_names_dsl_list: str, list_name: str) -> None:
-        lst = ctx.services.attribute.edit_position_order(tuple(AttributeSynStr(name) for name in dsls.list.engine.eval(all_attribute_names_dsl_list)), ListNameStr(list_name))
+    async def edit_position_order(
+        self, ctx: CommandContext, all_attribute_names_dsl_list: str, list_name: str
+    ) -> None:
+        lst = ctx.services.attribute.edit_position_order(
+            tuple(
+                AttributeSynStr(name)
+                for name in dsls.list.engine.eval(all_attribute_names_dsl_list)
+            ),
+            ListNameStr(list_name),
+        )
 
         await messages.success(
             ctx.interaction,
             t"{format.type_name_for_header(AttributeEntity, False)} Position Order Edited",
-            t"The positions and therefore the order of all {format.type_name_for_body(AttributeEntity, False)} of the {format.mention_body(lst)} has been edited successfully!"
+            t"The positions and therefore the order of all {format.type_name_for_body(AttributeEntity, False)} of the {format.mention_body(lst)} has been edited successfully!",
         )

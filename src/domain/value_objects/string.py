@@ -56,23 +56,28 @@ class BaseSingleStr:
     def value(self) -> str:
         return self._str
 
+    @classmethod
+    def _create(cls, s: str) -> t.Self:
+        """Create an instance of this :class:`~t.Self` but skip all forms of validation. Only use previously validated input!"""
+        self = super().__new__(cls)
+        self._str = s
+
+        return self
+
 
 class RealStr(BaseSingleStr):
     """String wrapper to sanitize a string."""
 
-    def __init__(self, s: str, *, _validate: bool = True) -> None:
-        super().__init__()
+    def __init__(self, s: str) -> None:
+        s = _replace_whitespace_groups(s, " ", True)
+        s = _replace_bad_chars(s)
+        s = "".join(c for c in s if c.isprintable())
 
-        if _validate:
-            s = _replace_whitespace_groups(s, " ", True)
-            s = _replace_bad_chars(s)
-            s = "".join(c for c in s if c.isprintable())
+        if not s:
+            raise EmptyStringError()
 
-            if not s:
-                raise EmptyStringError()
-
-            if "``" in s:
-                raise DoubleBacktickError()
+        if "``" in s:
+            raise DoubleBacktickError()
 
         self._str = s
 
@@ -80,23 +85,7 @@ class RealStr(BaseSingleStr):
 class NormStr(BaseSingleStr):
     """String wrapper to normalize a :class:`~RealStr`."""
 
-    @t.overload
-    def __init__(self, s: str, *, _validate: bool = True) -> None:
-        pass
-
-    @t.overload
-    def __init__(self, s: RealStr) -> None:
-        pass
-
-    def __init__(self, s: str | RealStr, *, _validate: bool = True) -> None:
-        super().__init__()
-
-        if not _validate:
-            assert isinstance(s, str)
-            self._str = s
-
-            return
-
+    def __init__(self, s: str | RealStr) -> None:
         if isinstance(s, str):
             s = RealStr(s)
 
@@ -120,10 +109,7 @@ class Str:
     _real: RealStr | None
     _norm: NormStr | None
 
-    def __init__(
-        self,
-        s: str
-    ) -> None:
+    def __init__(self, s: str) -> None:
         self._raw = s
         self._real = None
         self._norm = None
@@ -136,14 +122,14 @@ class Str:
         real: RealStr,
         norm: NormStr,
     ) -> t.Self:
-        """Create an instance of this :class:`~Str` but skip all forms of validation. Only use previously validated input!"""
-        obj = cls.__new__(cls)
+        """Create an instance of this :class:`~t.Self` but skip all forms of validation. Only use previously validated input!"""
+        self = cls.__new__(cls)
 
-        obj._raw = real._str
-        obj._real = real
-        obj._norm = norm
+        self._raw = real._str
+        self._real = real
+        self._norm = norm
 
-        return obj
+        return self
 
     @property
     def raw(self) -> str:
@@ -179,14 +165,14 @@ class Str:
         return hash(self.norm)
 
     def __str__(self) -> str:
-        return str(self)
+        return str(self.real)
 
     def requals(self, value: object) -> bool:
         if not isinstance(value, type(self)):
             return NotImplemented
 
         return self.real == value.real
-    
+
     @classmethod
     def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
         mapping: dict[NormStr, Str] = {}
@@ -205,9 +191,7 @@ class Str:
             mapping[store.norm] = store
 
         # Dict order is preserved
-        return tuple(
-            cls._create(store.real, store.norm) for store in mapping.values()
-        )
+        return tuple(cls._create(store.real, store.norm) for store in mapping.values())
 
     @classmethod
     def raise_if_not_unique(cls, iterable: t.Iterable[t.Self]) -> None:

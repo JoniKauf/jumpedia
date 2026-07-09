@@ -103,10 +103,12 @@ class AliasesNotDifferent(DomainError):
         super().__init__()
         self.aliases = aliases
 
+
 class CollectionNotDifferent(DomainError):
     def __init__(self, collection: CollectionT) -> None:
         super().__init__()
         self.collection = collection
+
 
 class ServerAlreadyConnectedToACommunity(DomainError):
     def __init__(self, server_id: int, community: CommunityEntity) -> None:

@@ -1,10 +1,10 @@
-from dataclasses import dataclass
 import decimal
+import typing as t
+from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.value_objects.field_slot import FieldSlotStr
-import typing as t
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
 NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1

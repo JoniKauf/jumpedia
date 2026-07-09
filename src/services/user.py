@@ -4,12 +4,14 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from repositories.dtos.user import UserInsert
 from repositories.user import UserRepository
+from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
 from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class UserService:
+    _ctx: InteractingUserContext
     _permission_service: PermissionService
     _user_repo: UserRepository
     _user_existence_server: UserExistenceService
@@ -28,7 +30,6 @@ class UserService:
         self._user_repo.update(target_user)
 
         return target_user
-
 
 @dataclass(frozen=True, slots=True, eq=False)
 class UserExistenceService:

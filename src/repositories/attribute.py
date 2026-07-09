@@ -85,7 +85,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_all_by_list_id[T: AttributeType](
+    def get_all_by_list_id_ordered_by_position[T: AttributeType](
         self, list_id: ListID, types: t.AbstractSet[T]
     ) -> tuple[AttributeEntity[T], ...]:
         stmt = (
@@ -238,7 +238,7 @@ class AttributeRepository(BaseRepository):
 
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_grouped_by_list_id(
+    def get_grouped_by_list_id_ordered_by_position(
         self,
         community_id: CommunityID,
     ) -> frozendict[ListID, list[AttributeEntity]]:
@@ -254,9 +254,7 @@ class AttributeRepository(BaseRepository):
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.list_id, []).append(attribute_model_to_entity(obj))
 
-        return frozendict(
-            res
-        )  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+        return frozendict(res)
 
     def count_by_list(self, list_id: ListID) -> int:
         stmt = (
@@ -316,14 +314,10 @@ class AttributeRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    AttributeSynStr._create(
-                        alias_obj.real_alias, alias_obj.norm_alias
-                    )
+                    AttributeSynStr._create(alias_obj.real_alias, alias_obj.norm_alias)
                 ] = entity
 
-        return frozendict(
-            res
-        )  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
+        return frozendict(res)
 
     def get_aliases_by_attribute_id(
         self,
@@ -343,7 +337,7 @@ class AttributeRepository(BaseRepository):
             for obj in self._session.scalars(stmt)
         )
 
-    def get_grouped_aliases_by_list_id(
+    def get_grouped_aliases_by_list_id_ordered_by_pos(
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
@@ -372,9 +366,7 @@ class AttributeRepository(BaseRepository):
             )
 
         return frozendict(
-            {
-                attribute_id: tuple(aliases) for attribute_id, aliases in res.items()
-            }
+            {attribute_id: tuple(aliases) for attribute_id, aliases in res.items()}
         )
 
     def update_name(

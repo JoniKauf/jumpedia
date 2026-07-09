@@ -37,8 +37,19 @@ class CommunityLimits:
         for name, limit in self.__dataclass_fields__.items():
             limit: int
 
-            if not (0 <= limit <= 2 * 32 - 1):
-                raise ValueError(f"{name} out of bounds ({limit})")
+            if name is "list_task_count_max":
+                if not (0 <= limit <= 2**31 - 1):
+                    raise ValueError
+            else:
+                if not (0 <= limit <= 255):
+                    raise ValueError(f"{name} out of bounds ({limit})")
+
+        if self.list_attribute_count_max > 127:
+            raise RuntimeError(
+                "Attribute count MUST be lower than half of max of "
+                "TINYINT (255) because twice the space is needed for "
+                "editing their position (temporarily all are offset)"
+            )
 
     @classmethod
     def default(cls) -> t.Self:

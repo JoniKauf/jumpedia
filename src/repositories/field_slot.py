@@ -7,7 +7,7 @@ from db.models import AttributeModel, FieldSlotModel, TaskModel
 from domain.entities.field_slot import FieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
-from domain.types.field_mapping import EntityFrozenFieldMappingT, IDFrozenFieldMappingT
+from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingIDFrozenT
 from domain.types.list import ListID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
@@ -18,9 +18,7 @@ from repositories.task import task_model_to_entity
 
 
 class FieldSlotRepository(BaseRepository):
-    def create_many(
-        self, field_slots: t.Iterable[FieldSlotInsert]
-    ) -> None:
+    def create_many(self, field_slots: t.Iterable[FieldSlotInsert]) -> None:
         """Preserves order."""
         objs = tuple(
             FieldSlotModel(
@@ -42,9 +40,7 @@ class FieldSlotRepository(BaseRepository):
         field_slots: t.Iterable[FieldSlotInsert],
     ) -> None:
         self._session.execute(
-            delete(FieldSlotModel).where(
-                FieldSlotModel.attribute_id == attribute_id
-            )
+            delete(FieldSlotModel).where(FieldSlotModel.attribute_id == attribute_id)
         )
 
         self.create_many(field_slots)
@@ -55,26 +51,15 @@ class FieldSlotRepository(BaseRepository):
         field_slots: t.Iterable[FieldSlotInsert],
     ) -> None:
         self._session.execute(
-            delete(FieldSlotModel).where(
-                FieldSlotModel.task_id == task_id
-            )
+            delete(FieldSlotModel).where(FieldSlotModel.task_id == task_id)
         )
 
         self.create_many(field_slots)
 
-    def get_field_mapping_by_task_id(
-        self, task_id: TaskID, types: t.AbstractSet[AttributeType]
-    ) -> IDFrozenFieldMappingT:
+    def get_field_mapping_by_task_id(self, task_id: TaskID) -> FieldMappingIDFrozenT:
         stmt = (
             select(FieldSlotModel)
-            .join(
-                AttributeModel,
-                AttributeModel.attribute_id == FieldSlotModel.attribute_id,
-            )
-            .where(
-                FieldSlotModel.task_id == task_id,
-                AttributeModel.type.in_(types),
-            )
+            .where(FieldSlotModel.task_id == task_id)
             .order_by(
                 FieldSlotModel.attribute_id.asc(),
                 FieldSlotModel.index.asc(),
@@ -84,7 +69,9 @@ class FieldSlotRepository(BaseRepository):
         res: dict[AttributeID, list[FieldSlotStr]] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.attribute_id, []).append(FieldSlotStr._create(obj.real_slot, obj.norm_slot))
+            res.setdefault(obj.attribute_id, []).append(
+                FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+            )
 
         return frozendict({k: tuple(v) for k, v in res.items()})
 
@@ -93,7 +80,7 @@ class FieldSlotRepository(BaseRepository):
         list_id: ListID,
     ) -> frozendict[
         TaskID,
-        IDFrozenFieldMappingT,
+        FieldMappingIDFrozenT,
     ]:
         stmt = (
             select(FieldSlotModel)
@@ -117,7 +104,9 @@ class FieldSlotRepository(BaseRepository):
         ] = {}
 
         for obj in self._session.scalars(stmt):
-            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(FieldSlotStr._create(obj.real_slot, obj.norm_slot))
+            res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(
+                FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+            )
 
         return frozendict(
             {

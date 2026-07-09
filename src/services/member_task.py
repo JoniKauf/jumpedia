@@ -10,7 +10,7 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
 from domain.sentinels.default import DEFAULT
-from domain.types.field_mapping import EntityFrozenFieldMappingT, RawFieldMappingT
+from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingRawT
 from domain.types.member import MemberID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
@@ -54,7 +54,7 @@ class MemberTaskService:
             actor_member, target_user
         )
 
-        del actor_member
+        del actor_member, target_user
 
         existing_member_task = self._member_task_repo.get_by_member_id_and_task_id(
             target_member.member_id, task.task_id
@@ -103,19 +103,19 @@ class MemberTaskService:
 
     def take_from_user(
         self,
-        syn: FieldSlotStr,
+        task_syn: FieldSlotStr,
         list_name: ListNameStr | DEFAULT,
         target_user: UserRef | DEFAULT,
     ) -> tuple[MemberEntity, TaskEntity]:
         _, actor_member, _, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, syn, False
+            DEFAULT, list_name, task_syn, False
         )
 
         target_member = self._member_access_service.get_target_member_if_actor_member_is_permitted_to_act_for_others(
             actor_member, target_user
         )
 
-        del actor_member
+        del actor_member, target_user
 
         existing_target_member = self._member_task_repo.get_by_member_id_and_task_id(
             target_member.member_id, task.task_id
@@ -130,19 +130,21 @@ class MemberTaskService:
 
     def edit_member_field_mapping(
         self,
-        new_member_field_mapping: RawFieldMappingT,
+        new_member_field_mapping: FieldMappingRawT,
         edit_mode: FieldMappingEditMode,
         target_user: UserRef | DEFAULT,
-        task_name: FieldSlotStr,
-        list_name: ListNameStr,
-    ) -> EntityFrozenFieldMappingT[AttributeType.UserT]:
-        _, actor_member, lst, task = self._task_access_service.get_convenient(DEFAULT, list_name, task_name, True)
+        task_syn: FieldSlotStr,
+        list_name: ListNameStr | DEFAULT,
+    ) -> tuple[MemberEntity, TaskEntity]:
+        _, actor_member, lst, task = self._task_access_service.get_convenient(
+            DEFAULT, list_name, task_syn, False
+        )
 
         target_member = self._member_access_service.get_target_member_if_actor_member_is_permitted_to_act_for_others(
             actor_member, target_user
         )
 
-        del actor_member
+        del actor_member, target_user
 
         member_task = self._member_task_repo.get_by_member_id_and_task_id(
             target_member.member_id, task.task_id
@@ -150,7 +152,7 @@ class MemberTaskService:
 
         if member_task is None:
             raise errors.MemberDoesNotHaveTask(target_member)
-        
+
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
@@ -162,14 +164,30 @@ class MemberTaskService:
             )
         )
 
-        new_mfm = self._field_mapping_service.build_edit(edit_mode, self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(target_member.member_id, task.task_id), new_member_field_mapping, syn_to_attr, attr_id_to_collection)
+        new_mfm = self._field_mapping_service.build_edit(
+            edit_mode,
+            self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(
+                target_member.member_id, task.task_id
+            ),
+            new_member_field_mapping,
+            syn_to_attr,
+            attr_id_to_collection,
+        )
 
         del new_member_field_mapping
-        
-        self._member_field_slot_repo.replace_all_by_member_task_id(member_task.member_task_id, (MemberFieldSlotInsert(member_task.member_task_id, attr.attribute_id, Index(i), slot) for attr, field in new_mfm.items() for i, slot in enumerate(field)))
 
-        return new_mfm
-    
+        self._member_field_slot_repo.replace_all_by_member_task_id(
+            member_task.member_task_id,
+            (
+                MemberFieldSlotInsert(
+                    member_task.member_task_id, attr.attribute_id, Index(i), slot
+                )
+                for attr, field in new_mfm.items()
+                for i, slot in enumerate(field)
+            ),
+        )
+
+        return target_member, task
 
 
 @dataclass(frozen=True, slots=True, eq=False)

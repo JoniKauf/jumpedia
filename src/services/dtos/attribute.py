@@ -9,6 +9,7 @@ from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
 from domain.value_objects.position import Position
 
+
 @dataclass(frozen=True, slots=True)
 class AttributeInfo:
     name: AttributeSynStr

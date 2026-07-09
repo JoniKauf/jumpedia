@@ -6,11 +6,14 @@ from domain.types.attribute import AttributeID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 
+type FieldMappingRawT = t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]]
 
-type RawFieldMappingT = t.Mapping[AttributeSynStr, t.Sequence[FieldSlotStr]]
+type FieldMappingEntityT[T: AttributeType = AttributeType.AllT] = t.Mapping[
+    AttributeEntity[T], t.Sequence[FieldSlotStr]
+]
+type FieldMappingEntityFrozenT[T: AttributeType = AttributeType.AllT] = frozendict[
+    AttributeEntity[T], tuple[FieldSlotStr, ...]
+]
 
-type EntityFieldMappingT[T: AttributeType = AttributeType.AllT] = t.Mapping[AttributeEntity[T], t.Sequence[FieldSlotStr]]
-type EntityFrozenFieldMappingT[T: AttributeType = AttributeType.AllT] = frozendict[AttributeEntity[T], tuple[FieldSlotStr, ...]]
-
-type IDFieldMappingT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
-type IDFrozenFieldMappingT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
+type FieldMappingIDT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
+type FieldMappingIDFrozenT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]

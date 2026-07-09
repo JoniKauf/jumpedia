@@ -18,8 +18,8 @@ from repositories.list import ListRepository
 from repositories.task import TaskRepository
 from services.community import CommunityAccessService
 from services.dtos.list import DeletedList, ListInfo, ListSummary
-from services.member import MemberAccessService
 from services.internal.permission import PermissionService
+from services.member import MemberAccessService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -124,7 +124,7 @@ class ListQueryService:
     def get_info(self, name: ListNameStr) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(DEFAULT, name)
 
-        attributes = self._attribute_repo.get_all_by_list_id(
+        attributes = self._attribute_repo.get_all_by_list_id_ordered_by_position(
             lst.list_id, AttributeType.ALL()
         )
         task_count = self._task_repo.count_by_list(lst.list_id)
@@ -142,8 +142,10 @@ class ListQueryService:
 
         lists = self._list_repo.get_all_by_community(community.community_id)
 
-        attributes_by_list = self._attribute_repo.get_grouped_by_list_id(
-            community.community_id
+        attributes_by_list = (
+            self._attribute_repo.get_grouped_by_list_id_ordered_by_position(
+                community.community_id
+            )
         )
 
         task_counts = self._task_repo.count_grouped_by_list_id(

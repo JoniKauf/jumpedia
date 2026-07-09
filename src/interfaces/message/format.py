@@ -1,21 +1,18 @@
-import enum
 import typing as t
-from string.templatelib import Template
 
 from domain.entities.attribute import AttributeEntity
-from domain.entities.base import BaseEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity, UserEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
-from domain.errors import AnyRankT, Str
+from domain.errors import AnyRankT
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.list import DeletedList, ListInfo, ListSummary
-from services.dtos.task import DeletedTask, TaskInfo, TaskSummary
+from services.dtos.task import DeletedTask
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -41,8 +38,8 @@ def human_join(
 
 type MentionableEntityT = CommunityEntity | UserEntity | MemberEntity | ListEntity | AttributeEntity | TaskEntity
 
-type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskInfo
-type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskSummary
+type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskEntity
+type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskEntity
 type MentionableDeletedDTOT = DeletedCommunity | DeletedList | DeletedAttribute | DeletedTask
 type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionableDeletedDTOT
 
@@ -67,8 +64,6 @@ TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     AttributeSummary: ("attribute", "attributes"),
     DeletedAttribute: ("attribute", "attributes"),
     TaskEntity: ("task", "tasks"),
-    TaskInfo: ("task", "tasks"),
-    TaskSummary: ("task", "tasks"),
     DeletedTask: ("task", "tasks"),
 }
 

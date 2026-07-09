@@ -14,27 +14,26 @@ from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import EntityFrozenFieldMappingT, RawFieldMappingT
+from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingRawT
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
+from domain.value_objects.string import NormStr, RealStr
 from repositories.attribute import AttributeRepository
-from repositories.collection_entry import (
-    CollectionEntryRepository,
-)
+from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import DeletedTask, TaskInfo
+from services.dtos.task import DeletedTask
 from services.internal.edit_mode import EditModeService
 from services.internal.field_mapping import FieldMappingService
-from services.list import ListAccessService
 from services.internal.permission import PermissionService
 from services.internal.slot_type import SlotTypeService
+from services.list import ListAccessService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -54,7 +53,7 @@ class TaskService:
         task_name: FieldSlotStr,
         list_name: ListNameStr,
         aliases: t.Sequence[FieldSlotStr],
-        field_mapping: RawFieldMappingT,
+        field_mapping: FieldMappingRawT,
     ) -> TaskEntity:
         # --- Get Data --- #
         community, member, lst = self._list_access_service.get_convenient(
@@ -199,7 +198,9 @@ class TaskService:
 
         current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
 
-        new_aliases = self._edit_mode_service.handle_alias_edit(edit_mode, current_aliases, new_aliases)
+        new_aliases = self._edit_mode_service.handle_alias_edit(
+            edit_mode, current_aliases, new_aliases
+        )
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if FieldSlotStr.sequences_requal(current_aliases, new_aliases):
@@ -241,12 +242,14 @@ class TaskService:
 
     def edit_field_mapping(
         self,
-        new_field_mapping: RawFieldMappingT,
+        new_field_mapping: FieldMappingRawT,
         edit_mode: FieldMappingEditMode,
         task_name: FieldSlotStr,
         list_name: ListNameStr,
-    ) -> EntityFrozenFieldMappingT[AttributeType.TaskT]:
-        _, member, lst, task = self._task_access_service.get_convenient(DEFAULT, list_name, task_name, True)
+    ) -> FieldMappingEntityFrozenT[AttributeType.TaskT]:
+        _, member, lst, task = self._task_access_service.get_convenient(
+            DEFAULT, list_name, task_name, True
+        )
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
@@ -261,10 +264,23 @@ class TaskService:
             )
         )
 
-        new_fm = self._field_mapping_service.build_edit(edit_mode, self._field_slot_repo.get_field_mapping_by_task_id(task.task_id, ATTRIBUTE_TYPES), new_field_mapping, syn_to_attr, attr_id_to_collection)
+        new_fm = self._field_mapping_service.build_edit(
+            edit_mode,
+            self._field_slot_repo.get_field_mapping_by_task_id(task.task_id),
+            new_field_mapping,
+            syn_to_attr,
+            attr_id_to_collection,
+        )
 
-        self._field_slot_repo.replace_all_by_task_id(task.task_id, (FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot) for attr, field in new_fm.items() for i, slot in enumerate(field)))
-        
+        self._field_slot_repo.replace_all_by_task_id(
+            task.task_id,
+            (
+                FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
+                for attr, field in new_fm.items()
+                for i, slot in enumerate(field)
+            ),
+        )
+
         return new_fm
 
 
@@ -278,48 +294,66 @@ class TaskQueryService:
     _collection_entry_repo: CollectionEntryRepository
     _slot_type_service: SlotTypeService
 
-    def get_info(self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT) -> TaskInfo:
+    def get_info(
+        self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
+    ) -> FieldMappingEntityFrozenT[AttributeType.NonUserT]:
         _, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
 
-        ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
+        ATTRIBUTE_TYPES: t.Final = AttributeType.NON_USER()
 
-        id_to_attr = self._attribute_repo.get_all_by_list_id(
+        attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
             lst.list_id, ATTRIBUTE_TYPES
         )
 
-        aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
-        field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
-            task.task_id, ATTRIBUTE_TYPES
-        )
-        static_attributes = tuple(
-            self._attribute_repo.get_all_by_list_id(
-                lst.list_id, AttributeType.STATIC.as_set()
-            )
+        task_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
+
+        task_field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
+            task.task_id
         )
 
-        assert len(static_attributes) == 3
+        static_field_mapping: dict[AttributeID, tuple[FieldSlotStr, ...]] = {}
 
-        return TaskInfo(
-            task.task_id,
-            task.name,
-            aliases,
-            lst,
-            frozendict(
-                {
-                    id_to_attr[k]: v
-                    for k, v in field_mapping.items()
-                }  # pyright: ignore[reportCallIssue]  Pyright bug for beta 3.15
-            ),
-            static_attributes,
+        for attr in attrs:
+            if attr.type is not AttributeType.STATIC:
+                continue
+
+            match attr.kind:
+                case AttributeKind.ID:
+                    static_field_mapping[attr.attribute_id] = (
+                        FieldSlotStr._create(
+                            RealStr._create(str(task.task_id)),
+                            NormStr._create(str(task.task_id)),
+                        ),
+                    )
+
+                case AttributeKind.NAME:
+                    static_field_mapping[attr.attribute_id] = (task.name,)
+
+                case AttributeKind.ALIAS:
+                    static_field_mapping[attr.attribute_id] = task_aliases
+
+                case _:
+                    assert attr.kind is not AttributeKind.NONE
+                    t.assert_never(attr.kind)
+
+        field_mapping = static_field_mapping | task_field_mapping
+
+        del static_field_mapping, task_field_mapping
+
+        return frozendict(
+            (attr, field_mapping.get(attr.attribute_id, ())) for attr in attrs
         )
 
     def get_summaries(
         self,
         sorts: tuple[tuple[AttributeSynStr, bool], ...],
         list_name: ListNameStr | DEFAULT,
-    ) -> tuple[tuple[tuple[FieldSlotStr, ...], ...], ...]:
+    ) -> frozendict[
+        AttributeEntity[AttributeType | AttributeType],
+        tuple[tuple[FieldSlotStr, ...], ...],
+    ]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
         tasks: tuple[TaskEntity, ...] = self._task_repo.get_all_by_list_id(lst.list_id)
@@ -333,10 +367,12 @@ class TaskQueryService:
             sorted(set(SYN_TO_ATTR.values()), key=lambda attr: attr.position.value)
         )
 
-        TASK_ID_TO_STATIC_FIELD_MAPPING: t.Final[dict[
-            TaskID, dict[AttributeID, tuple[FieldSlotStr, ...]]
-        ]] = {}
-        TASK_ID_TO_ALIASES: t.Final = self._task_repo.get_grouped_aliases_by_list_id(lst.list_id)
+        TASK_ID_TO_STATIC_FIELD_MAPPING: t.Final[
+            dict[TaskID, dict[AttributeID, tuple[FieldSlotStr, ...]]]
+        ] = {}
+        TASK_ID_TO_ALIASES: t.Final = self._task_repo.get_grouped_aliases_by_list_id(
+            lst.list_id
+        )
 
         for attr in ATTRS_SORTED:
             if attr.type is not AttributeType.STATIC:
@@ -345,9 +381,16 @@ class TaskQueryService:
             match attr.kind:
                 case AttributeKind.ID:
                     for task in tasks:
+                        task_id_str = str(task.task_id)
+
                         TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
                             attr.attribute_id
-                        ] = (FieldSlotStr(str(task.task_id)),)
+                        ] = (
+                            FieldSlotStr._create(
+                                RealStr._create(task_id_str),
+                                NormStr._create(task_id_str),
+                            ),
+                        )
 
                 case AttributeKind.NAME:
                     for task in tasks:
@@ -366,10 +409,7 @@ class TaskQueryService:
                     t.assert_never(attr.kind)
 
         TASK_ID_TO_TASK_FIELD_MAPPING: t.Final = {
-            task_id: {
-                attr_id: field
-                for attr_id, field in mapping.items()
-            }
+            task_id: {attr_id: field for attr_id, field in mapping.items()}
             for task_id, mapping in self._field_slot_repo.get_task_field_mapping_by_list_id(
                 lst.list_id
             ).items()
@@ -399,9 +439,15 @@ class TaskQueryService:
             )
         )
 
-        return tuple(
-            tuple(TASK_ID_TO_FIELD_MAPPING[task.task_id].get(attr.attribute_id, ()) for attr in ATTRS_SORTED)
-            for task in tasks
+        return frozendict(
+            (
+                attr,
+                tuple(
+                    TASK_ID_TO_FIELD_MAPPING[task.task_id].get(attr.attribute_id, ())
+                    for task in tasks
+                ),
+            )
+            for attr in ATTRS_SORTED
         )
 
     def _sort[T: AttributeType](
@@ -412,9 +458,7 @@ class TaskQueryService:
             TaskID, t.Mapping[AttributeID, tuple[FieldSlotStr, ...]]
         ],
         syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attr_id_to_collection: t.Mapping[
-            AttributeID, CollectionT
-        ],
+        attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
     ) -> list[TaskEntity]:
         # --- Normalize Sorts As Much As Possible --- #
         optimized_sorts: list[tuple[AttributeEntity[T], bool]] = []
@@ -437,7 +481,7 @@ class TaskQueryService:
                 break
 
         del sorts
-        
+
         if not optimized_sorts:
             name_attr: AttributeEntity.OfTypeStaticT
 
@@ -451,15 +495,16 @@ class TaskQueryService:
             optimized_sorts = [(name_attr, True)]  # type: ignore
 
         # --- Gather Sorting Data --- #
-        task_to_sort_value: dict[TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]] = {}
+        task_to_sort_value: dict[
+            TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]
+        ] = {}
 
-        # TODO: Could be optimized to only fetch collection entry values excluding aliases 
+        # TODO: Could be optimized to only fetch collection entry values excluding aliases
         attr_id_to_collection_value_to_collection_index: dict[
             AttributeID, dict[FieldSlotStr, int]
         ] = {
             attr: {
-                entry_with_aliases[0]: i
-                for i, entry_with_aliases in enumerate(coll)
+                entry_with_aliases[0]: i for i, entry_with_aliases in enumerate(coll)
             }
             for attr, coll in attr_id_to_collection.items()
         }

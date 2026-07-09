@@ -15,17 +15,3 @@ from domain.value_objects.user import UserNameStr
 class DeletedTask:
     name: FieldSlotStr
     list: ListEntity
-
-
-@dataclass(frozen=True, slots=True)
-class TaskInfo:
-    id: TaskID
-    name: FieldSlotStr
-    aliases: tuple[FieldSlotStr, ...]
-    list: ListEntity
-    field_mapping: frozendict[AttributeEntity.OfTypeTaskT, tuple[FieldSlotStr, ...]]
-    static_attributes: tuple[
-        AttributeEntity.OfTypeStaticT,
-        AttributeEntity.OfTypeStaticT,
-        AttributeEntity.OfTypeStaticT,
-    ]

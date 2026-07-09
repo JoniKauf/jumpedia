@@ -1,5 +1,5 @@
-from interfaces.dsls.sort import parse
 from interfaces.dsls.shared import lex, parsing
+from interfaces.dsls.sort import parse
 
 
 def eval(s: str) -> list[tuple[str, bool]]:

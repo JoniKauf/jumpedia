@@ -66,24 +66,12 @@ class CommunityModel(BaseModel):
         ForeignKey("list.list_id", ondelete="SET NULL")
     )
 
-    community_list_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
-    list_attribute_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
-    list_task_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
-    attribute_alias_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
-    field_slot_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
-    collection_entry_count_max: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True)
-    )
+    community_list_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
+    list_attribute_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
+    list_task_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
+    attribute_alias_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
+    field_slot_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
+    collection_entry_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
     collection_entry_alias_count_max: Mapped[int] = mapped_column(
         INTEGER(unsigned=True)
     )

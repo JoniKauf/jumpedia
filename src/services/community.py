@@ -20,9 +20,9 @@ from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
 from services.dtos.user import UserRef
+from services.internal.permission import PermissionService
 from services.list import ListAccessService, ListService
 from services.member import MemberAccessService, MemberExistenceService
-from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
