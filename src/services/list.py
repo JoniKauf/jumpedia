@@ -7,7 +7,7 @@ from domain.entities.member import MemberEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
@@ -62,18 +62,19 @@ class ListService:
                     name=AttributeSynStr(("ID", "Name", "Alias")[i]),
                     type=AttributeType.STATIC,
                     kind=kind,
-                    slot=AttributeSlot(
-                        type=(
+                    field_config=AttributeFieldConfig(
+                        slot_type=(
                             AttributeSlotType.INTEGER,
                             AttributeSlotType.STRING,
                             AttributeSlotType.STRING,
                         )[i],
-                        min_count=(1, 1, 0)[i],
-                        max_count=(
+                        min_slot_count=(1, 1, 0)[i],
+                        max_slot_count=(
                             1,
                             1,
                             community.limits.field_slot_count_max,
                         )[i],
+                        unique_slots=True,
                     ),
                     position=Position(i + 1),
                 )
@@ -186,7 +187,7 @@ class ListAccessService:
         """Get the selected list in priority order:
 
         1. The user's selected list if specified
-        2. otherwise the community's default selected list
+        2. otherwise the community's default selected list if specified
         3. otherwise raise
         """
 

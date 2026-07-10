@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.index import Index
 from domain.value_objects.position import Position
 
@@ -14,7 +14,7 @@ class AttributeInsert[T: AttributeType]:
     name: AttributeSynStr
     type: T
     kind: AttributeKind
-    slot: AttributeSlot
+    field_config: AttributeFieldConfig
     position: Position
 
 

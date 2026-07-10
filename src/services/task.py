@@ -14,7 +14,11 @@ from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingRawT
+from domain.types.field_mapping import (
+    FieldMappingEntityFrozenT,
+    FieldMappingIDMutT,
+    FieldMappingRawT,
+)
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
@@ -246,7 +250,7 @@ class TaskService:
         edit_mode: FieldMappingEditMode,
         task_name: FieldSlotStr,
         list_name: ListNameStr,
-    ) -> FieldMappingEntityFrozenT[AttributeType.TaskT]:
+    ) -> TaskEntity:
         _, member, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, task_name, True
         )
@@ -281,7 +285,7 @@ class TaskService:
             ),
         )
 
-        return new_fm
+        return task
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -292,7 +296,7 @@ class TaskQueryService:
     _field_slot_repo: FieldSlotRepository
     _list_access_service: ListAccessService
     _collection_entry_repo: CollectionEntryRepository
-    _slot_type_service: SlotTypeService
+    _field_mapping_service: FieldMappingService
 
     def get_info(
         self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
@@ -307,36 +311,16 @@ class TaskQueryService:
             lst.list_id, ATTRIBUTE_TYPES
         )
 
-        task_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
+        # --- Get Static Field Mapping --- #
+        static_field_mapping = (
+            self._field_mapping_service.get_static_field_mapping_single(
+                task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
+            )
+        )
 
         task_field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
             task.task_id
         )
-
-        static_field_mapping: dict[AttributeID, tuple[FieldSlotStr, ...]] = {}
-
-        for attr in attrs:
-            if attr.type is not AttributeType.STATIC:
-                continue
-
-            match attr.kind:
-                case AttributeKind.ID:
-                    static_field_mapping[attr.attribute_id] = (
-                        FieldSlotStr._create(
-                            RealStr._create(str(task.task_id)),
-                            NormStr._create(str(task.task_id)),
-                        ),
-                    )
-
-                case AttributeKind.NAME:
-                    static_field_mapping[attr.attribute_id] = (task.name,)
-
-                case AttributeKind.ALIAS:
-                    static_field_mapping[attr.attribute_id] = task_aliases
-
-                case _:
-                    assert attr.kind is not AttributeKind.NONE
-                    t.assert_never(attr.kind)
 
         field_mapping = static_field_mapping | task_field_mapping
 
@@ -356,72 +340,34 @@ class TaskQueryService:
     ]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
-        tasks: tuple[TaskEntity, ...] = self._task_repo.get_all_by_list_id(lst.list_id)
-
         ATTRIBUTES_TYPES: t.Final = AttributeType.NON_USER()
 
-        SYN_TO_ATTR: t.Final = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTES_TYPES
         )
-        ATTRS_SORTED: t.Final = tuple(
-            sorted(set(SYN_TO_ATTR.values()), key=lambda attr: attr.position.value)
+        attrs_sorted = tuple(
+            sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
         )
 
-        TASK_ID_TO_STATIC_FIELD_MAPPING: t.Final[
-            dict[TaskID, dict[AttributeID, tuple[FieldSlotStr, ...]]]
-        ] = {}
-        TASK_ID_TO_ALIASES: t.Final = self._task_repo.get_grouped_aliases_by_list_id(
+        # Static field mapping is guaranteed to include all tasks. Use it as a basis.
+        task_id_to_static_field_mapping = (
+            self._field_mapping_service.get_static_field_mapping_many(
+                self._task_repo.get_all_by_list_id(lst.list_id),
+                self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
+                attrs_sorted,
+            )
+        )
+
+        task_id_to_task_field_mapping = self._field_slot_repo.get_task_field_mapping_by_list_id(
             lst.list_id
         )
 
-        for attr in ATTRS_SORTED:
-            if attr.type is not AttributeType.STATIC:
-                continue
+        task_id_to_field_mapping = frozendict(
+            (task_id, frozendict(static_field_mapping) | task_id_to_task_field_mapping.get(task_id, frozendict()))
+            for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
+        )
 
-            match attr.kind:
-                case AttributeKind.ID:
-                    for task in tasks:
-                        task_id_str = str(task.task_id)
-
-                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
-                            attr.attribute_id
-                        ] = (
-                            FieldSlotStr._create(
-                                RealStr._create(task_id_str),
-                                NormStr._create(task_id_str),
-                            ),
-                        )
-
-                case AttributeKind.NAME:
-                    for task in tasks:
-                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
-                            attr.attribute_id
-                        ] = (task.name,)
-
-                case AttributeKind.ALIAS:
-                    for task in tasks:
-                        TASK_ID_TO_STATIC_FIELD_MAPPING.setdefault(task.task_id, {})[
-                            attr.attribute_id
-                        ] = TASK_ID_TO_ALIASES.get(task.task_id, ())
-
-                case _:
-                    assert attr.kind is not AttributeKind.NONE
-                    t.assert_never(attr.kind)
-
-        TASK_ID_TO_TASK_FIELD_MAPPING: t.Final = {
-            task_id: {attr_id: field for attr_id, field in mapping.items()}
-            for task_id, mapping in self._field_slot_repo.get_task_field_mapping_by_list_id(
-                lst.list_id
-            ).items()
-        }
-
-        TASK_ID_TO_FIELD_MAPPING: t.Final = {
-            task.task_id: TASK_ID_TO_STATIC_FIELD_MAPPING.get(task.task_id, {})
-            | TASK_ID_TO_TASK_FIELD_MAPPING.get(task.task_id, {})
-            for task in tasks
-        }
-
-        del TASK_ID_TO_STATIC_FIELD_MAPPING, TASK_ID_TO_TASK_FIELD_MAPPING
+        del task_id_to_static_field_mapping, task_id_to_task_field_mapping
 
         attr_id_to_collection = (
             self._collection_entry_repo.get_grouped_collections_by_list_id(
@@ -429,138 +375,20 @@ class TaskQueryService:
             )
         )
 
-        tasks = tuple(
-            self._sort(
-                sorts,
-                tasks,
-                TASK_ID_TO_FIELD_MAPPING,
-                SYN_TO_ATTR,
-                attr_id_to_collection,
-            )
+        field_mappings = self._field_mapping_service.sort(
+            sorts,
+            task_id_to_field_mapping,
+            syn_to_attr,
+            attr_id_to_collection,
         )
 
         return frozendict(
             (
                 attr,
-                tuple(
-                    TASK_ID_TO_FIELD_MAPPING[task.task_id].get(attr.attribute_id, ())
-                    for task in tasks
-                ),
+                tuple(field_mapping[attr.attribute_id] for field_mapping in field_mappings),
             )
-            for attr in ATTRS_SORTED
+            for attr in attrs_sorted
         )
-
-    def _sort[T: AttributeType](
-        self,
-        sorts: t.Sequence[tuple[AttributeSynStr, bool]],
-        tasks: t.Sequence[TaskEntity],
-        task_id_to_field_mapping: t.Mapping[
-            TaskID, t.Mapping[AttributeID, tuple[FieldSlotStr, ...]]
-        ],
-        syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
-    ) -> list[TaskEntity]:
-        # --- Normalize Sorts As Much As Possible --- #
-        optimized_sorts: list[tuple[AttributeEntity[T], bool]] = []
-        seen: set[AttributeEntity[T]] = set()
-
-        for sort in sorts:
-            syn, asc = sort
-            attr = syn_to_attr[syn]
-
-            # Remove duplicate attrs because unnecessary
-            if attr in seen:
-                continue
-
-            seen.add(attr)
-
-            optimized_sorts.append((attr, asc))
-
-            # Short circuit when we know last sort results in unique data
-            if attr.slot_unique_across_list:
-                break
-
-        del sorts
-
-        if not optimized_sorts:
-            name_attr: AttributeEntity.OfTypeStaticT
-
-            for attr in syn_to_attr.values():
-                if attr.kind is AttributeKind.NAME:
-                    name_attr = attr  # type: ignore
-                    break
-            else:
-                raise ValueError("Data error, no name attribute found!!!")
-
-            optimized_sorts = [(name_attr, True)]  # type: ignore
-
-        # --- Gather Sorting Data --- #
-        task_to_sort_value: dict[
-            TaskEntity, list[tuple[AttributeSlotType.SlotTypeT, ...]]
-        ] = {}
-
-        # TODO: Could be optimized to only fetch collection entry values excluding aliases
-        attr_id_to_collection_value_to_collection_index: dict[
-            AttributeID, dict[FieldSlotStr, int]
-        ] = {
-            attr: {
-                entry_with_aliases[0]: i for i, entry_with_aliases in enumerate(coll)
-            }
-            for attr, coll in attr_id_to_collection.items()
-        }
-
-        for task in tasks:
-            result: list[tuple[AttributeSlotType.SlotTypeT, ...]] = []
-
-            for attr, _ in optimized_sorts:
-                syn_to_collection_entry_idx = (
-                    attr_id_to_collection_value_to_collection_index.get(
-                        attr.attribute_id, {}
-                    )
-                )
-
-                # Collection exists for given attr
-                if syn_to_collection_entry_idx:
-                    # It is possible that a slot does not match any collection value in case that
-                    # a user attribute's collection is edited and staff did not yet fix the users'
-                    # data.
-                    result.append(
-                        tuple(
-                            syn_to_collection_entry_idx.get(slot, -1)
-                            for slot in task_id_to_field_mapping.get(
-                                task.task_id, {}
-                            ).get(attr.attribute_id, ())
-                        )
-                    )
-                else:
-                    result.append(
-                        tuple(
-                            self._slot_type_service.convert_to_type(
-                                slot, attr.slot.type, _validate=False
-                            )
-                            for slot in task_id_to_field_mapping.get(
-                                task.task_id, {}
-                            ).get(attr.attribute_id, ())
-                        )
-                    )
-
-            task_to_sort_value[task] = result
-
-        # --- Apply Sort --- #
-        def compare_tasks(a: TaskEntity, b: TaskEntity) -> int:
-            values_a = task_to_sort_value[a]
-            values_b = task_to_sort_value[b]
-
-            for va, vb, (_, asc) in zip(values_a, values_b, optimized_sorts):
-                if va < vb:
-                    return -1 if asc else 1
-
-                if va > vb:
-                    return 1 if asc else -1
-
-            return 0
-
-        return sorted(tasks, key=functools.cmp_to_key(compare_tasks))
 
 
 @dataclass(frozen=True, slots=True, eq=False)

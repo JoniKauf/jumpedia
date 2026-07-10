@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
@@ -31,9 +32,6 @@ from domain.types.user import UserID
 from domain.value_objects import string
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import NormStr, RealStr
-
-_DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
-
 
 # --- Community ---
 
@@ -196,6 +194,7 @@ class AttributeModel(BaseModel):
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     min_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    unique_slots: Mapped[bool] = mapped_column(Boolean)
     position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (

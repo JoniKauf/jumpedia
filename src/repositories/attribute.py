@@ -5,7 +5,7 @@ from sqlalchemy import case, delete, func, or_, select, text, update
 
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain import errors
-from domain.entities.attribute import AttributeEntity, AttributeSlot
+from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
@@ -22,13 +22,16 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
     return AttributeEntity(
         attribute_id=model.attribute_id,
         list_id=model.list_id,
-        name=AttributeSynStr._create(model.real_name, model.norm_name),
+        name=AttributeSynStr._create_from_real_and_norm(
+            model.real_name, model.norm_name
+        ),
         type=AttributeType(model.type),
         kind=AttributeKind(model.kind),
-        slot=AttributeSlot(
+        field_config=AttributeFieldConfig(
             AttributeSlotType(model.slot_type),
             model.min_slot_count,
             model.max_slot_count,
+            model.unique_slots,
         ),
         position=Position(model.position),
     )
@@ -44,9 +47,10 @@ class AttributeRepository(BaseRepository):
             real_name=attribute.name.real,
             type=attribute.type,
             kind=attribute.kind.value,
-            slot_type=attribute.slot.type,
-            min_slot_count=attribute.slot.min_count,
-            max_slot_count=attribute.slot.max_count,
+            slot_type=attribute.field_config.slot_type,
+            min_slot_count=attribute.field_config.min_slot_count,
+            max_slot_count=attribute.field_config.max_slot_count,
+            unique_slots=attribute.field_config.unique_slots,
             position=attribute.position.value,
         )
 
@@ -158,13 +162,13 @@ class AttributeRepository(BaseRepository):
         entity = attribute_model_to_entity(attr_obj)
 
         if attr_obj.norm_name in norms:
-            syn = AttributeSynStr._create(
+            syn = AttributeSynStr._create_from_real_and_norm(
                 attr_obj.real_name,
                 attr_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            syn = AttributeSynStr._create(
+            syn = AttributeSynStr._create_from_real_and_norm(
                 alias_obj.real_alias,
                 alias_obj.norm_alias,
             )
@@ -204,13 +208,13 @@ class AttributeRepository(BaseRepository):
         entity = attribute_model_to_entity(attr_obj)
 
         if attr_obj.norm_name == syn.norm:
-            colliding_syn = AttributeSynStr._create(
+            colliding_syn = AttributeSynStr._create_from_real_and_norm(
                 attr_obj.real_name,
                 attr_obj.norm_name,
             )
         else:
             assert alias_obj is not None
-            colliding_syn = AttributeSynStr._create(
+            colliding_syn = AttributeSynStr._create_from_real_and_norm(
                 alias_obj.real_alias,
                 alias_obj.norm_alias,
             )
@@ -314,7 +318,9 @@ class AttributeRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    AttributeSynStr._create(alias_obj.real_alias, alias_obj.norm_alias)
+                    AttributeSynStr._create_from_real_and_norm(
+                        alias_obj.real_alias, alias_obj.norm_alias
+                    )
                 ] = entity
 
         return frozendict(res)
@@ -330,7 +336,7 @@ class AttributeRepository(BaseRepository):
         )
 
         return tuple(
-            AttributeSynStr._create(
+            AttributeSynStr._create_from_real_and_norm(
                 obj.real_alias,
                 obj.norm_alias,
             )
@@ -359,7 +365,7 @@ class AttributeRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(
-                AttributeSynStr._create(
+                AttributeSynStr._create_from_real_and_norm(
                     obj.real_alias,
                     obj.norm_alias,
                 )

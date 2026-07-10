@@ -4,7 +4,7 @@ from domain.entities.base import BaseEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.attribute import AttributeID
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position
 
 
@@ -16,7 +16,7 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
         name: AttributeSynStr,
         type: T,
         kind: AttributeKind,
-        slot: AttributeSlot,
+        field_config: AttributeFieldConfig,
         position: Position,
     ) -> None:
         super().__init__(attribute_id)
@@ -25,7 +25,7 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
         self._type = type
         self._kind = kind
         self.name = name
-        self.slot = slot
+        self.field_config = field_config
         self.position = position
 
     @property
@@ -53,12 +53,12 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
         self._name = value
 
     @property
-    def slot(self) -> AttributeSlot:
-        return self._slot
+    def field_config(self) -> AttributeFieldConfig:
+        return self._field_config
 
-    @slot.setter
-    def slot(self, value: AttributeSlot) -> None:
-        self._slot = value
+    @field_config.setter
+    def field_config(self, value: AttributeFieldConfig) -> None:
+        self._field_config = value
 
     @property
     def position(self) -> Position:

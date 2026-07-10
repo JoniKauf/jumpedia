@@ -70,7 +70,7 @@ class FieldSlotRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(
-                FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+                FieldSlotStr._create_from_real_and_norm(obj.real_slot, obj.norm_slot)
             )
 
         return frozendict({k: tuple(v) for k, v in res.items()})
@@ -105,7 +105,7 @@ class FieldSlotRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.task_id, {}).setdefault(obj.attribute_id, []).append(
-                FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+                FieldSlotStr._create_from_real_and_norm(obj.real_slot, obj.norm_slot)
             )
 
         return frozendict(
@@ -149,7 +149,7 @@ class FieldSlotRepository(BaseRepository):
                 res[task] = []
 
             res[task].append(
-                FieldSlotStr._create(
+                FieldSlotStr._create_from_real_and_norm(
                     slot_obj.real_slot,
                     slot_obj.norm_slot,
                 )

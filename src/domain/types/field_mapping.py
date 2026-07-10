@@ -16,4 +16,5 @@ type FieldMappingEntityFrozenT[T: AttributeType = AttributeType.AllT] = frozendi
 ]
 
 type FieldMappingIDT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
+type FieldMappingIDMutT = dict[AttributeID, tuple[FieldSlotStr, ...]]
 type FieldMappingIDFrozenT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]

@@ -6,7 +6,7 @@ from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
 from domain.types.collection_entry import CollectionT
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from interfaces import dsls
@@ -52,9 +52,10 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             "List": (str(info.list.name),),
             "Type": (info.type.name.title(),),
             "Kind": (info.kind.name.title(),),
-            "Slot Type": (info.slot.type.name.title(),),
-            "Minimum Slot Count": (str(info.slot.min_count),),
-            "Maximum Slot Count": (str(info.slot.max_count),),
+            "Slot Type": (info.field_config.slot_type.name.title(),),
+            "Minimum Slot Count": (str(info.field_config.min_slot_count),),
+            "Maximum Slot Count": (str(info.field_config.max_slot_count),),
+            "Unique Slots": ("True" if info.field_config.unique_slots else "False",),
             "Position": (str(info.position.value),),
             "Collection": _collection_to_representation(info.collection),
         }
@@ -81,6 +82,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         type: NonStaticAttributeTypesEnum,
         slot_type: AttributeSlotType,
         max_slot_count: int,
+        unique_slots: bool,
         aliases_dsl_list: str,
         collection_dsl_mapping: str,
     ) -> None:
@@ -100,7 +102,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             AttributeSynStr(attribute_name),
             ListNameStr(list_name),
             type.value,
-            AttributeSlot(slot_type, 0, max_slot_count),
+            AttributeFieldConfig(slot_type, 0, max_slot_count, unique_slots),
             aliases,
             collection,
         )
@@ -180,7 +182,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             ctx.interaction,
             t"{format.type_name_for_header(AttributeEntity)} Min And Max Slot Count Edited",
             t"The min and max slot count for the {format.mention_body(attr)} has been set to "
-            + t"{attr.slot.min_count @ format.T.FORMATTED} and {attr.slot.max_count @ format.T.FORMATTED} successfully!"
+            + t"{attr.field_config.min_slot_count @ format.T.FORMATTED} and {attr.field_config.max_slot_count @ format.T.FORMATTED} successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
@@ -239,13 +241,17 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
             "Type": tuple((summary.type.name.title(),) for summary in summaries),
             "Kind": tuple((summary.kind.name.title(),) for summary in summaries),
             "Slot Type": tuple(
-                (summary.slot.type.name.title(),) for summary in summaries
+                (summary.field_config.slot_type.name.title(),) for summary in summaries
             ),
             "Minimum Slot Count": tuple(
-                (str(summary.slot.min_count),) for summary in summaries
+                (str(summary.field_config.min_slot_count),) for summary in summaries
             ),
             "Maximum Slot Count": tuple(
-                (str(summary.slot.max_count),) for summary in summaries
+                (str(summary.field_config.max_slot_count),) for summary in summaries
+            ),
+            "Unique Slots": tuple(
+                ("True" if summary.field_config.unique_slots else "False",)
+                for summary in summaries
             ),
             "Position": tuple((str(summary.position.value),) for summary in summaries),
             "Collection": tuple(

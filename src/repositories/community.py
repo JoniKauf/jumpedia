@@ -19,7 +19,9 @@ from .base import BaseRepository
 def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
         community_id=model.community_id,
-        name=CommunityNameStr._create(model.real_name, model.norm_name),
+        name=CommunityNameStr._create_from_real_and_norm(
+            model.real_name, model.norm_name
+        ),
         default_selected_list_id=model.default_selected_list_id,
         created=model.created,
         limits=CommunityLimits(

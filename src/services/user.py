@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
+from domain.sentinels.default import DEFAULT
 from repositories.dtos.user import UserInsert
 from repositories.user import UserRepository
 from services.contexts.interacting_user import InteractingUserContext
@@ -31,8 +32,10 @@ class UserService:
 
         return target_user
 
+
 @dataclass(frozen=True, slots=True, eq=False)
 class UserExistenceService:
+    _ctx: InteractingUserContext
     _user_repo: UserRepository
 
     def get_or_create(
@@ -61,3 +64,12 @@ class UserExistenceService:
             return existing
 
         return self._user_repo.update(existing)
+
+
+    def get_or_create_with_user_ref(
+        self,
+        user: UserRef | DEFAULT
+    ) -> UserEntity:
+        return self._ctx.user if user is DEFAULT else self.get_or_create(
+            UserInsert(user.id, user.name)
+        )

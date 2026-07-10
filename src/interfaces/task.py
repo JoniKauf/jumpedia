@@ -147,7 +147,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
     @app_commands.command()
     @with_context()
-    async def update(
+    async def regive(
         self,
         ctx: CommandContext,
         task_name_or_alias: str,
@@ -170,8 +170,8 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(type(task))} Updated",
-            t"The {format.mention_body(task)} of the {format.mention_body(member)} successfully!"
+            t"{format.type_name_for_header(type(task))} Regiven",
+            t"The {format.mention_body(task)} was regiven to the {format.mention_body(member)} with the specified user field mapping successfully!",
         )
 
     @app_commands.command()
@@ -208,6 +208,29 @@ class TaskInterface(BaseInterface, group_name="task"):
         )
 
         await messages.object_aliases_edited(ctx.interaction, task)
+
+    @app_commands.command()
+    @with_context()
+    async def edit_field_mapping(
+        self,
+        ctx: CommandContext,
+        task_name: str,
+        list_name: str,
+        new_user_field_mapping: str,
+        edit_mode: FieldMappingEditModeInterfaceEnum,
+    ) -> None:
+        task = ctx.services.task.edit_field_mapping(
+            _field_mapping_input_to_value(new_user_field_mapping),
+            edit_mode.value,
+            FieldSlotStr(task_name),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(type(task))} Field Mapping Edited",
+            t"The field mapping of the {format.mention_body(task)} was successfully edited!",
+        )
 
 
 class TasksInterface(BaseInterface, group_name="tasks"):

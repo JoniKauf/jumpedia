@@ -6,7 +6,7 @@ from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.types.collection_entry import FrozenCollectionT
 from domain.types.list import ListID
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position
 
 
@@ -17,7 +17,7 @@ class AttributeInfo:
     list: ListEntity
     type: AttributeType
     kind: AttributeKind
-    slot: AttributeSlot
+    field_config: AttributeFieldConfig
     position: Position
     collection: FrozenCollectionT
 
@@ -29,7 +29,7 @@ class AttributeSummary:
     list: ListEntity
     type: AttributeType
     kind: AttributeKind
-    slot: AttributeSlot
+    field_config: AttributeFieldConfig
     position: Position
     collection: FrozenCollectionT
 
@@ -40,5 +40,5 @@ class DeletedAttribute:
     list: ListEntity
     type: AttributeType
     kind: AttributeKind
-    slot: AttributeSlot
+    field_config: AttributeFieldConfig
     position: Position

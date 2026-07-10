@@ -2,6 +2,7 @@ import typing as t
 from dataclasses import dataclass
 
 from domain import errors
+from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
@@ -18,14 +19,18 @@ from domain.value_objects.list import ListNameStr
 from repositories.attribute import AttributeRepository, AttributeSynStr
 from repositories.collection_entry import CollectionEntryRepository
 from repositories.community import CommunityNameStr
+from repositories.dtos.member import MemberInsert
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 from repositories.dtos.member_task import MemberTaskInsert
+from repositories.field_slot import FieldSlotRepository
 from repositories.member_field_slot import MemberFieldSlotRepository
 from repositories.member_task import MemberTaskRepository
+from repositories.task import TaskRepository
+from services.community import ListAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
 from services.internal.field_mapping import FieldMappingService
-from services.member import MemberAccessService
+from services.member import MemberAccessService, MemberExistenceService, MemberService
 from services.task import TaskAccessService
 
 
@@ -188,6 +193,120 @@ class MemberTaskService:
         )
 
         return target_member, task
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class MemberTaskQueryService:
+    _task_access_service: TaskAccessService
+    _task_repo: TaskRepository
+    _attribute_repo: AttributeRepository
+    _field_slot_repo: FieldSlotRepository
+    _list_access_service: ListAccessService
+    _collection_entry_repo: CollectionEntryRepository
+    _field_mapping_service: FieldMappingService
+    _member_field_slot_repo: MemberFieldSlotRepository
+    _member_existence_service: MemberExistenceService
+
+    def get_info(
+        self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT, target_user: UserRef | DEFAULT,
+    ) -> FieldMappingEntityFrozenT[AttributeType.AllT]:
+        community, _, lst, task = self._task_access_service.get_convenient(
+            DEFAULT, list_name, syn, False
+        )
+
+        target_member = self._member_existence_service.get_or_create_with_user_ref(target_user, community)
+
+        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
+
+        attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
+            lst.list_id, ATTRIBUTE_TYPES
+        )
+
+        # --- Get Static Field Mapping --- #
+        static_field_mapping = (
+            self._field_mapping_service.get_static_field_mapping_single(
+                task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
+            )
+        )
+
+        task_field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
+            task.task_id
+        )
+
+        user_field_mapping = self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(target_member.member_id, task.task_id)
+
+        field_mapping = static_field_mapping | task_field_mapping | user_field_mapping
+
+        del static_field_mapping, task_field_mapping, user_field_mapping
+
+        return frozendict(
+            (attr, field_mapping.get(attr.attribute_id, ())) for attr in attrs
+        )
+
+    def get_summaries(
+        self,
+        sorts: tuple[tuple[AttributeSynStr, bool], ...],
+        list_name: ListNameStr | DEFAULT,
+    ) -> frozendict[
+        AttributeEntity[AttributeType | AttributeType],
+        tuple[tuple[FieldSlotStr, ...], ...],
+    ]:
+        _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+
+        ATTRIBUTES_TYPES: t.Final = AttributeType.ALL()
+
+        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+            lst.list_id, ATTRIBUTES_TYPES
+        )
+        attrs_sorted = tuple(
+            sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
+        )
+
+        # Static field mapping is guaranteed to include all tasks. Use it as a basis.
+        task_id_to_static_field_mapping = (
+            self._field_mapping_service.get_static_field_mapping_many(
+                self._task_repo.get_all_by_list_id(lst.list_id),
+                self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
+                attrs_sorted,
+            )
+        )
+
+        task_id_to_task_field_mapping = self._field_slot_repo.get_task_field_mapping_by_list_id(
+            lst.list_id
+        )
+
+        task_id_to_user_field_mapping = self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
+            lst.list_id
+        )
+
+        task_id_to_field_mapping = frozendict(
+            (task_id, frozendict(static_field_mapping) | task_id_to_task_field_mapping.get(task_id, frozendict()))
+            for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
+        )
+
+        del task_id_to_static_field_mapping, task_id_to_task_field_mapping
+
+        attr_id_to_collection = (
+            self._collection_entry_repo.get_grouped_collections_by_list_id(
+                lst.list_id, AttributeType.TASK.as_set()
+            )
+        )
+
+        field_mappings = self._field_mapping_service.sort(
+            sorts,
+            task_id_to_field_mapping,
+            syn_to_attr,
+            attr_id_to_collection,
+        )
+
+        return frozendict(
+            (
+                attr,
+                tuple(field_mapping[attr.attribute_id] for field_mapping in field_mappings),
+            )
+            for attr in attrs_sorted
+        )
+
 
 
 @dataclass(frozen=True, slots=True, eq=False)

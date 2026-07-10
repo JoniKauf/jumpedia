@@ -55,30 +55,38 @@ class MemberFieldSlotRepository(BaseRepository):
         )
 
         return frozendict(
-            (k, tuple(FieldSlotStr._create(obj.real_slot, obj.norm_slot) for obj in g))
+            (
+                k,
+                tuple(
+                    FieldSlotStr._create_from_real_and_norm(
+                        obj.real_slot, obj.norm_slot
+                    )
+                    for obj in g
+                ),
+            )
             for k, g in itertools.groupby(
                 self._session.scalars(stmt), lambda obj: obj.attribute_id
             )
         )
 
-    def get_grouped_member_field_mapping_by_list_id(
+    def get_grouped_field_mapping_by_member_id(
         self,
-        list_id: ListID,
+        member_id: ListID,
     ) -> frozendict[
         MemberTaskID,
-        frozendict[AttributeID, tuple[FieldSlotStr, ...]],
+        frozendict[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
     ]:
         stmt = (
             select(MemberFieldSlotModel)
             .join(
-                AttributeModel,
-                AttributeModel.attribute_id == MemberFieldSlotModel.attribute_id,
+                MemberTaskModel,
+                MemberTaskModel.member_task_id == MemberFieldSlotModel.member_task_id,
             )
             .where(
-                AttributeModel.list_id == list_id,
+                MemberTaskModel.member_id == member_id,
             )
             .order_by(
-                MemberFieldSlotModel.member_task_id.asc(),
+                MemberTaskModel.task_id.asc(),
                 MemberFieldSlotModel.attribute_id.asc(),
                 MemberFieldSlotModel.index.asc(),
             )
@@ -91,7 +99,9 @@ class MemberFieldSlotRepository(BaseRepository):
                     (
                         attr_id,
                         tuple(
-                            FieldSlotStr._create(obj.real_slot, obj.norm_slot)
+                            FieldSlotStr._create_from_real_and_norm(
+                                obj.real_slot, obj.norm_slot
+                            )
                             for obj in attr_group
                         ),
                     )

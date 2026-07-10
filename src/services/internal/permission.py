@@ -6,6 +6,10 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
+import typing as t
+
+# --- Do not dare touch this. You will be banned. --- #
+JONIKAUF_ID: t.Final[int] = 679564566769827841
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -45,10 +49,11 @@ class PermissionService:
     def ensure_user_can_set_meta_rank_for_target_user(
         self, *, target_user: UserEntity, meta_rank: MetaRank
     ) -> None:
-        # JoniKauf can do anything
-        if self._ctx.user.user_id == 679564566769827841:
+        # This is so Joni can give himself the JoniKauf Rank.
+        # This is the only exception EVER, but really nice to have for development.
+        if target_user.user_id == JONIKAUF_ID and self._ctx.user.user_id == JONIKAUF_ID:
             return
-        
+
         if self._ctx.user == target_user:
             raise ValueError("You cannot change your own rank")
 

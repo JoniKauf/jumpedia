@@ -106,6 +106,7 @@ class MemberAccessService:
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberExistenceService:
     _member_repo: MemberRepository
+    _user_existence_service: UserExistenceService
 
     def get_or_create(
         self,
@@ -135,3 +136,11 @@ class MemberExistenceService:
             return existing
 
         return self._member_repo.update(existing)
+
+    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT, community: CommunityEntity) -> MemberEntity:
+        return self.get_or_create(
+            MemberInsert(
+                self._user_existence_service.get_or_create_with_user_ref(user),
+                community.community_id
+            )
+        )

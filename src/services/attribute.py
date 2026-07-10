@@ -13,7 +13,7 @@ from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.collection_entry import CollectionT, FrozenCollectionT
-from domain.value_objects.attribute import AttributeSlot, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
@@ -48,7 +48,7 @@ class AttributeService:
         name: AttributeSynStr,
         list_name: ListNameStr,
         type: T,
-        slot: AttributeSlot,
+        slot: AttributeFieldConfig,
         aliases: tuple[AttributeSynStr, ...],
         collection: CollectionT,
     ) -> AttributeEntity[T]:
@@ -66,7 +66,7 @@ class AttributeService:
 
         self._validate_syn_uniqueness(name, aliases, lst)
 
-        self._validate_slot(slot, community, True)
+        self._validate_field_config(slot, community, True)
 
         self._validate_collection_community_limits(collection, community)
 
@@ -97,68 +97,6 @@ class AttributeService:
 
         return attr_entity
 
-    def _validate_collection_syn_uniqueness(self, entire_collection: CollectionT):
-        FieldSlotStr.raise_if_not_unique(
-            syn for entry in entire_collection for syn in (entry[0], *entry[1])
-        )
-
-    def _validate_basic_community_limits(
-        self,
-        name: AttributeSynStr,
-        all_aliases_of_attr: tuple[AttributeSynStr, ...],
-        community: CommunityEntity,
-        list_attr_count: int,
-    ) -> None:
-        if list_attr_count >= community.limits.list_attribute_count_max:
-            raise errors.CountLimitReached(
-                community.limits.list_attribute_count_max, AttributeEntity
-            )
-
-        if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(
-                community.limits.attribute_alias_count_max, name, all_aliases_of_attr
-            )
-
-    def _validate_collection_community_limits(
-        self, entire_collection: CollectionT, community: CommunityEntity
-    ) -> None:
-        if len(entire_collection) > community.limits.collection_entry_count_max:
-            raise errors.CountLimitReached(
-                community.limits.collection_entry_count_max,
-                CollectionEntryEntity,
-            )
-
-        for entry in entire_collection:
-            if len(entry[1]) > community.limits.collection_entry_alias_count_max:
-                raise errors.AliasCountLimitReached(
-                    community.limits.collection_entry_alias_count_max,
-                    entry[0],
-                    entry[1],
-                )
-
-    def _validate_syn_uniqueness(
-        self,
-        name: AttributeSynStr,
-        all_aliases_of_attr: tuple[AttributeSynStr, ...],
-        lst: ListEntity,
-    ):
-        SYNS: t.Final[tuple[AttributeSynStr, ...]] = (name, *all_aliases_of_attr)
-
-        AttributeSynStr.raise_if_not_unique(SYNS)
-
-        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
-            lst.list_id, SYNS, None
-        )
-
-        if existing_same_syn is not None:
-            colliding_attr, colliding_syn = existing_same_syn
-
-            raise errors.SynAlreadyTaken(
-                *existing_same_syn,
-                colliding_attr.name != colliding_syn,
-                colliding_syn != name,
-            )
-
     def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> DeletedAttribute:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
@@ -172,7 +110,7 @@ class AttributeService:
         self._attribute_repo.decrement_positions_after(lst.list_id, attr.position)
 
         return DeletedAttribute(
-            attr.name, lst, attr.type, attr.kind, attr.slot, attr.position
+            attr.name, lst, attr.type, attr.kind, attr.field_config, attr.position
         )
 
     def edit_name(
@@ -292,11 +230,16 @@ class AttributeService:
         if attr.type is AttributeType.STATIC:
             raise ValueError("Cannot change slot count for static attributes")
 
-        slot = AttributeSlot(attr.slot.type, min_slot_count, max_slot_count)
+        field_config = AttributeFieldConfig(
+            attr.field_config.slot_type,
+            min_slot_count,
+            max_slot_count,
+            attr.field_config.unique_slots,
+        )
 
         del min_slot_count, max_slot_count
 
-        self._validate_slot(slot, community, False)
+        self._validate_field_config(field_config, community, False)
 
         # Task fields are entirely in control for staff team. Enforce that all fields must fit first before allowing change.
         if attr.type is AttributeType.TASK:
@@ -305,12 +248,17 @@ class AttributeService:
             invalid_tasks: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
 
             for task, slots in task_to_slots.items():
-                if len(slots) < slot.min_count or len(slots) > slot.max_count:
+                if (
+                    len(slots) < field_config.min_slot_count
+                    or len(slots) > field_config.max_slot_count
+                ):
                     invalid_tasks[task] = slots
 
             if invalid_tasks:
                 raise errors.TasksDoNotMatchMinOrMaxSlotCountCriteria(
-                    slot.min_count, slot.max_count, invalid_tasks
+                    field_config.min_slot_count,
+                    field_config.max_slot_count,
+                    invalid_tasks,
                 )
 
         else:
@@ -319,10 +267,10 @@ class AttributeService:
             t.assert_type(attr.type, AttributeType.UserT)
 
         self._attribute_repo.update_min_and_max_slot_count(
-            attr.attribute_id, slot.min_count, slot.max_count
+            attr.attribute_id, field_config.min_slot_count, field_config.max_slot_count
         )
 
-        attr.slot = slot
+        attr.field_config = field_config
 
         return attr
 
@@ -451,20 +399,85 @@ class AttributeService:
 
         return attr
 
-    def _validate_slot(
-        self, slot: AttributeSlot, community: CommunityEntity, creating_attribute: bool
+    def _validate_field_config(
+        self,
+        field_config: AttributeFieldConfig,
+        community: CommunityEntity,
+        creating_attribute: bool,
     ) -> None:
-        if creating_attribute and slot.min_count != 0:
+        if creating_attribute and field_config.min_slot_count != 0:
             raise errors.InitialSlotCountMustBeZero()
 
         # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
-        if slot.max_count > community.limits.field_slot_count_max:
+        if field_config.max_slot_count > community.limits.field_slot_count_max:
             raise errors.SlotCountDefinitionLimitExceeded(
-                slot.min_count,
-                slot.max_count,
+                field_config.min_slot_count,
+                field_config.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
                 CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
                 community.limits.field_slot_count_max,
+            )
+
+    def _validate_collection_syn_uniqueness(self, entire_collection: CollectionT):
+        FieldSlotStr.raise_if_not_unique(
+            syn for entry in entire_collection for syn in (entry[0], *entry[1])
+        )
+
+    def _validate_basic_community_limits(
+        self,
+        name: AttributeSynStr,
+        all_aliases_of_attr: tuple[AttributeSynStr, ...],
+        community: CommunityEntity,
+        list_attr_count: int,
+    ) -> None:
+        if list_attr_count >= community.limits.list_attribute_count_max:
+            raise errors.CountLimitReached(
+                community.limits.list_attribute_count_max, AttributeEntity
+            )
+
+        if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
+            raise errors.AliasCountLimitReached(
+                community.limits.attribute_alias_count_max, name, all_aliases_of_attr
+            )
+
+    def _validate_collection_community_limits(
+        self, entire_collection: CollectionT, community: CommunityEntity
+    ) -> None:
+        if len(entire_collection) > community.limits.collection_entry_count_max:
+            raise errors.CountLimitReached(
+                community.limits.collection_entry_count_max,
+                CollectionEntryEntity,
+            )
+
+        for entry in entire_collection:
+            if len(entry[1]) > community.limits.collection_entry_alias_count_max:
+                raise errors.AliasCountLimitReached(
+                    community.limits.collection_entry_alias_count_max,
+                    entry[0],
+                    entry[1],
+                )
+
+    def _validate_syn_uniqueness(
+        self,
+        name: AttributeSynStr,
+        all_aliases_of_attr: tuple[AttributeSynStr, ...],
+        lst: ListEntity,
+    ):
+        syns: tuple[AttributeSynStr, ...] = (name, *all_aliases_of_attr)
+
+        AttributeSynStr.raise_if_not_unique(syns)
+
+        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
+            lst.list_id, syns, None
+        )
+
+        if existing_same_syn is not None:
+            colliding_attr, colliding_syn = existing_same_syn
+
+            raise errors.SynAlreadyTaken(
+                *existing_same_syn,
+                colliding_attr.name != colliding_syn,
+                colliding_syn != name,
             )
 
 
@@ -495,7 +508,7 @@ class AttributeQueryService:
             lst,
             attr.type,
             attr.kind,
-            attr.slot,
+            attr.field_config,
             attr.position,
             collection,
         )
@@ -530,7 +543,7 @@ class AttributeQueryService:
                 lst,
                 attr.type,
                 attr.kind,
-                attr.slot,
+                attr.field_config,
                 attr.position,
                 attr_id_to_collection[attr.attribute_id],
             )

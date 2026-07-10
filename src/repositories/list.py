@@ -17,7 +17,7 @@ def list_model_to_entity(model: ListModel) -> ListEntity:
     return ListEntity(
         list_id=model.list_id,
         community_id=model.community_id,
-        name=ListNameStr._create(model.real_name, model.norm_name),
+        name=ListNameStr._create_from_real_and_norm(model.real_name, model.norm_name),
     )
 
 

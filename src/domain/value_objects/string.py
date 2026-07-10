@@ -117,7 +117,7 @@ class Str:
         self._validation()
 
     @classmethod
-    def _create(
+    def _create_from_real_and_norm(
         cls,
         real: RealStr,
         norm: NormStr,
@@ -191,7 +191,10 @@ class Str:
             mapping[store.norm] = store
 
         # Dict order is preserved
-        return tuple(cls._create(store.real, store.norm) for store in mapping.values())
+        return tuple(
+            cls._create_from_real_and_norm(store.real, store.norm)
+            for store in mapping.values()
+        )
 
     @classmethod
     def raise_if_not_unique(cls, iterable: t.Iterable[t.Self]) -> None:

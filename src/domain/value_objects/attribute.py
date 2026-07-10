@@ -21,19 +21,22 @@ else:
 
 
 @dataclass(frozen=True, unsafe_hash=True, slots=True)
-class AttributeSlot:
-    type: AttributeSlotType
-    min_count: int
-    max_count: int
+class AttributeFieldConfig:
+    slot_type: AttributeSlotType
+    min_slot_count: int
+    max_slot_count: int
+    unique_slots: bool
 
     def __post_init__(self) -> None:
         if not (
-            CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT <= self.min_count <= self.max_count
-            and self.max_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
+            CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT
+            <= self.min_slot_count
+            <= self.max_slot_count
+            and self.max_slot_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
         ):
             raise errors.SlotCountDefinitionLimitExceeded(
-                self.min_count,
-                self.max_count,
+                self.min_slot_count,
+                self.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
                 CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
                 None,
