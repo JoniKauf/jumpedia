@@ -53,7 +53,7 @@ class FieldMappingService:
     ) -> FieldMappingIDT:
         unchecked_field_mapping: FieldMappingIDT = {}
 
-        for attr_syn, value in field_mapping.items():
+        for attr_syn, value in field_mapping:
             attr = syn_to_attribute[attr_syn]
 
             if attr in unchecked_field_mapping:
@@ -235,7 +235,7 @@ class FieldMappingService:
     def sort[T: AttributeType](
         self,
         sorts: t.Sequence[tuple[AttributeSynStr, bool]],
-        task_id_to_field_mapping: frozendict[
+        task_id_to_field_mapping: t.Mapping[
             TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]
         ],
         syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
@@ -345,8 +345,9 @@ class FieldMappingService:
 
             return 0
 
-        return tuple(field_mapping for _, field_mapping in
-            sorted(
+        return tuple(
+            field_mapping
+            for _, field_mapping in sorted(
                 task_id_to_field_mapping.items(),
                 key=functools.cmp_to_key(compare_task_sort_values),
             )

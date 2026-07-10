@@ -1,7 +1,6 @@
 import typing as t
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
@@ -10,6 +9,7 @@ from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
+from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingRawT
 from domain.types.member import MemberID
@@ -48,7 +48,7 @@ class MemberTaskService:
         self,
         syn: FieldSlotStr,
         list_name: ListNameStr | DEFAULT,
-        user_field_mapping: t.Mapping[AttributeSynStr, tuple[FieldSlotStr, ...]],
+        user_field_mapping: FieldMappingRawT,
         target_user: UserRef | DEFAULT,
     ) -> tuple[MemberEntity, TaskEntity]:
         _, actor_member, lst, task = self._task_access_service.get_convenient(
@@ -66,7 +66,7 @@ class MemberTaskService:
         )
 
         if existing_member_task is not None:
-            raise errors.MemberAlreadyHasTask(target_member, task)
+            raise business.MemberAlreadyHasTask(target_member, task)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
 
@@ -127,7 +127,7 @@ class MemberTaskService:
         )
 
         if existing_target_member is None:
-            raise errors.MemberDoesNotHaveTask(target_member)
+            raise business.MemberDoesNotHaveTask(target_member)
 
         self._member_task_repo.delete(existing_target_member.member_task_id)
 
@@ -156,7 +156,7 @@ class MemberTaskService:
         )
 
         if member_task is None:
-            raise errors.MemberDoesNotHaveTask(target_member)
+            raise business.MemberDoesNotHaveTask(target_member)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
 
@@ -208,13 +208,20 @@ class MemberTaskQueryService:
     _member_existence_service: MemberExistenceService
 
     def get_info(
-        self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT, target_user: UserRef | DEFAULT,
+        self,
+        syn: FieldSlotStr,
+        target_user: UserRef | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
     ) -> FieldMappingEntityFrozenT[AttributeType.AllT]:
         community, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
 
-        target_member = self._member_existence_service.get_or_create_with_user_ref(target_user, community)
+        target_member = self._member_existence_service.get_or_create_with_user_ref(
+            target_user, community.community_id
+        )
+
+        del target_user
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
 
@@ -233,7 +240,11 @@ class MemberTaskQueryService:
             task.task_id
         )
 
-        user_field_mapping = self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(target_member.member_id, task.task_id)
+        user_field_mapping = (
+            self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(
+                target_member.member_id, task.task_id
+            )
+        )
 
         field_mapping = static_field_mapping | task_field_mapping | user_field_mapping
 
@@ -246,12 +257,19 @@ class MemberTaskQueryService:
     def get_summaries(
         self,
         sorts: tuple[tuple[AttributeSynStr, bool], ...],
+        target_user: UserRef | DEFAULT,
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
-        AttributeEntity[AttributeType | AttributeType],
+        AttributeEntity[AttributeType.AllT],
         tuple[tuple[FieldSlotStr, ...], ...],
     ]:
-        _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+        community, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+
+        target_member = self._member_existence_service.get_or_create_with_user_ref(
+            target_user, community.community_id
+        )
+
+        del target_user
 
         ATTRIBUTES_TYPES: t.Final = AttributeType.ALL()
 
@@ -262,7 +280,9 @@ class MemberTaskQueryService:
             sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
         )
 
-        # Static field mapping is guaranteed to include all tasks. Use it as a basis.
+        # Static field mapping is guaranteed to include all tasks. Use it as a basis
+        # for iteration later, so we don't exclude any tasks if they don't have a
+        # specific field mapping.
         task_id_to_static_field_mapping = (
             self._field_mapping_service.get_static_field_mapping_many(
                 self._task_repo.get_all_by_list_id(lst.list_id),
@@ -271,16 +291,24 @@ class MemberTaskQueryService:
             )
         )
 
-        task_id_to_task_field_mapping = self._field_slot_repo.get_task_field_mapping_by_list_id(
-            lst.list_id
+        task_id_to_task_field_mapping = (
+            self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
-        task_id_to_user_field_mapping = self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
-            lst.list_id
+        task_id_to_user_field_mapping = (
+            self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
+                target_member.member_id
+            )
         )
 
+        # Combine all 3 mappings into the final one
         task_id_to_field_mapping = frozendict(
-            (task_id, frozendict(static_field_mapping) | task_id_to_task_field_mapping.get(task_id, frozendict()))
+            (
+                task_id,
+                frozendict(static_field_mapping)
+                | task_id_to_task_field_mapping.get(task_id, frozendict())
+                | task_id_to_user_field_mapping.get(task_id, frozendict()),
+            )
             for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
         )
 
@@ -302,11 +330,12 @@ class MemberTaskQueryService:
         return frozendict(
             (
                 attr,
-                tuple(field_mapping[attr.attribute_id] for field_mapping in field_mappings),
+                tuple(
+                    field_mapping[attr.attribute_id] for field_mapping in field_mappings
+                ),
             )
             for attr in attrs_sorted
         )
-
 
 
 @dataclass(frozen=True, slots=True, eq=False)

@@ -1,8 +1,7 @@
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared import parsing
-from interfaces.dsls.shared.lex import Token, TokenType
+from interfaces.dsls.shared.lexing import Token, TokenType
 from interfaces.dsls.shared.parsing import (
     ExprNode,
     IdentifierNode,
@@ -23,10 +22,9 @@ def parse(tokens: t.Iterable[Token]) -> ValueListNode:
     res: list[TextNodeT] = []
 
     while (next := stream.pop()).type is not TokenType.NONE:
-        res.append(parsing.text_token_to_node(next))
+        res.append(parse.text_token_to_node(next))
 
-    if not res:
-        raise ValueError("Empty")
+    assert res
 
     if len(res) == 1:
         single = res[0]

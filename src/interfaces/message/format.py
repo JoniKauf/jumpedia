@@ -7,7 +7,7 @@ from domain.entities.member import MemberEntity, UserEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeType
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
-from domain.errors import AnyRankT
+from domain.errors.business import AnyRankT
 from interfaces.message.layout import T, _TaggedObj
 from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute
 from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity

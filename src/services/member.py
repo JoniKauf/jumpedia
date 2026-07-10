@@ -4,6 +4,7 @@ from domain.entities.community import CommunityEntity
 from domain.entities.member import MemberEntity
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
+from domain.types.community import CommunityID
 from domain.value_objects.community import CommunityNameStr
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert
@@ -137,10 +138,12 @@ class MemberExistenceService:
 
         return self._member_repo.update(existing)
 
-    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT, community: CommunityEntity) -> MemberEntity:
+    def get_or_create_with_user_ref(
+        self, user: UserRef | DEFAULT, community_id: CommunityID
+    ) -> MemberEntity:
         return self.get_or_create(
             MemberInsert(
                 self._user_existence_service.get_or_create_with_user_ref(user),
-                community.community_id
+                community_id,
             )
         )

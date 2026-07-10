@@ -1,12 +1,12 @@
 import typing as t
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
+from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
@@ -48,12 +48,12 @@ class CommunityService:
         existing = self._community_repo.get_by_name(name)
 
         if existing is not None:
-            raise errors.SynAlreadyTaken(existing, name, False, False)
+            raise business.SynAlreadyTaken(existing, name, False, False)
 
         existing = self._community_repo.get_by_server_id(self._ctx.server_id)
 
         if existing is not None:
-            raise errors.ServerAlreadyConnectedToACommunity(
+            raise business.ServerAlreadyConnectedToACommunity(
                 self._ctx.server_id, existing
             )
 
@@ -195,7 +195,7 @@ class CommunityAccessService:
         community = self._community_repo.get_by_name(name)
 
         if community is None:
-            raise errors.NotFoundByName(name, CommunityEntity)
+            raise business.NotFoundByName(name, CommunityEntity)
 
         return community
 
@@ -203,7 +203,7 @@ class CommunityAccessService:
         community = self._community_repo.get_by_server_id(self._ctx.server_id)
 
         if community is None:
-            raise errors.NotInCommunity()
+            raise business.NotInCommunity()
 
         return community
 

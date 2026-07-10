@@ -2,7 +2,7 @@ import re
 import string
 import typing as t
 
-from domain import errors
+from domain.errors import business
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
@@ -186,7 +186,7 @@ class Str:
             existing = mapping.get(store.norm)
 
             if existing is not None:
-                raise errors.DuplicateUniqueRequiredString(existing, store)
+                raise business.DuplicateUniqueRequiredString(existing, store)
 
             mapping[store.norm] = store
 
@@ -206,7 +206,7 @@ class Str:
             if existing is None:
                 seen[elem.norm] = elem
             else:
-                raise errors.DuplicateUniqueRequiredString(existing, elem)
+                raise business.DuplicateUniqueRequiredString(existing, elem)
 
     @classmethod
     def sequences_requal(cls, a: t.Sequence[t.Self], b: t.Sequence[t.Self], /) -> bool:

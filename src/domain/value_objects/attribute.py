@@ -2,9 +2,9 @@ import itertools
 import typing as t
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType
+from domain.errors import business
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import Str
@@ -34,7 +34,7 @@ class AttributeFieldConfig:
             <= self.max_slot_count
             and self.max_slot_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
         ):
-            raise errors.SlotCountDefinitionLimitExceeded(
+            raise business.SlotCountDefinitionLimitExceeded(
                 self.min_slot_count,
                 self.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,

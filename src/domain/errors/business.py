@@ -15,61 +15,57 @@ if t.TYPE_CHECKING:
 
 
 # --- Base ---
-class DomainError(Exception):
-    def __init__(self) -> None:
-        if type(self) is DomainError:
-            raise RuntimeError("Instance of base exception class created")
-
-        super().__init__()
-
-
-# --- Invalid String ---
-class EmptyString(DomainError):
+class BusinessError(Exception):
     pass
 
 
-class DoubleBacktick(DomainError):
+# --- Invalid String ---
+class EmptyString(BusinessError):
+    pass
+
+
+class DoubleBacktick(BusinessError):
     pass
 
 
 # --- Context ---
-class NotInServer(DomainError):
+class NotInServer(BusinessError):
     pass
 
 
-class NotInCommunity(DomainError):
+class NotInCommunity(BusinessError):
     pass
 
 
-class InCommunity(DomainError):
+class InCommunity(BusinessError):
     def __init__(self, community: CommunityEntity) -> None:
         super().__init__()
         self.community = community
 
 
 # --- Permission ---
-class NotAllowed(DomainError):
+class NotAllowed(BusinessError):
     def __init__(self, rank: AnyRankT, required: AnyRankT) -> None:
         super().__init__()
         self.rank = rank
         self.required = required
 
 
-class NotFoundByName(DomainError):
+class NotFoundByName(BusinessError):
     def __init__(self, name: Str, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
         self.type = type
 
 
-class NotFoundBySyn(DomainError):
+class NotFoundBySyn(BusinessError):
     def __init__(self, syn: Str, type: type[BaseEntity]) -> None:
         super().__init__()
         self.syn = syn
         self.type = type
 
 
-class NameTooLong(DomainError):
+class NameTooLong(BusinessError):
     def __init__(self, name: Str, limit: int, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
@@ -77,7 +73,7 @@ class NameTooLong(DomainError):
         self.type = type
 
 
-class SynAlreadyTaken(DomainError):
+class SynAlreadyTaken(BusinessError):
     def __init__(
         self,
         existing: BaseEntity,
@@ -92,39 +88,39 @@ class SynAlreadyTaken(DomainError):
         self.new_is_alias = new_is_alias
 
 
-class NameNotDifferent(DomainError):
+class NameNotDifferent(BusinessError):
     def __init__(self, name: Str) -> None:
         super().__init__()
         self.name = name
 
 
-class AliasesNotDifferent(DomainError):
+class AliasesNotDifferent(BusinessError):
     def __init__(self, aliases: tuple[Str, ...]) -> None:
         super().__init__()
         self.aliases = aliases
 
 
-class CollectionNotDifferent(DomainError):
+class CollectionNotDifferent(BusinessError):
     def __init__(self, collection: CollectionT) -> None:
         super().__init__()
         self.collection = collection
 
 
-class ServerAlreadyConnectedToACommunity(DomainError):
+class ServerAlreadyConnectedToACommunity(BusinessError):
     def __init__(self, server_id: int, community: CommunityEntity) -> None:
         super().__init__()
         self.server_id = server_id
         self.community = community
 
 
-class CountLimitReached(DomainError):
+class CountLimitReached(BusinessError):
     def __init__(self, limit: int, type: type[BaseEntity]) -> None:
         super().__init__()
         self.limit = limit
         self.type = type
 
 
-class AliasCountLimitReached(DomainError):
+class AliasCountLimitReached(BusinessError):
     def __init__(self, limit: int, entity_name: Str, aliases: t.Sequence[Str]) -> None:
         super().__init__()
         self.limit = limit
@@ -132,7 +128,7 @@ class AliasCountLimitReached(DomainError):
         self.aliases = aliases
 
 
-class SlotCountDefinitionLimitExceeded(DomainError):
+class SlotCountDefinitionLimitExceeded(BusinessError):
     def __init__(
         self, min: int, max: int, min_min: int, min_max: int, max_max: int | None
     ) -> None:
@@ -145,36 +141,36 @@ class SlotCountDefinitionLimitExceeded(DomainError):
         self.max_max = max_max
 
 
-class InitialSlotCountMustBeZero(DomainError):
+class InitialSlotCountMustBeZero(BusinessError):
     pass
 
 
-class DuplicateUniqueRequiredString(DomainError):
+class DuplicateUniqueRequiredString(BusinessError):
     def __init__(self, first: Str, second: Str) -> None:
         super().__init__()
         self.first = first
         self.second = second
 
 
-class NoDefaultSelectedList(DomainError):
+class NoDefaultSelectedList(BusinessError):
     def __init__(self) -> None:
         pass
 
 
-class MemberDoesNotHaveTask(DomainError):
+class MemberDoesNotHaveTask(BusinessError):
     def __init__(self, member: MemberEntity) -> None:
         super().__init__()
         self.member = member
 
 
-class MemberAlreadyHasTask(DomainError):
+class MemberAlreadyHasTask(BusinessError):
     def __init__(self, member: MemberEntity, task: TaskEntity) -> None:
         super().__init__()
         self.member = member
         self.task = task
 
 
-class TasksDoNotMatchMinOrMaxSlotCountCriteria(DomainError):
+class TasksDoNotMatchMinOrMaxSlotCountCriteria(BusinessError):
     def __init__(
         self,
         min_slot_count: int,
@@ -185,16 +181,3 @@ class TasksDoNotMatchMinOrMaxSlotCountCriteria(DomainError):
         self.min_slot_count = min_slot_count
         self.max_slot_count = max_slot_count
         self.invalid = invalid
-
-
-# --- Internal Errors --- #
-
-
-class InternalError(Exception):
-    pass
-
-
-class NotFoundById(InternalError):
-    def __init__(self, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.type = type

@@ -1,3 +1,5 @@
+import typing as t
+
 import discord
 from discord import app_commands
 
@@ -5,6 +7,7 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
 from domain.sentinels.default import DEFAULT
 from domain.types.common import ID
+from domain.types.field_mapping import FieldMappingRawT
 from domain.types.user import UserID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -24,15 +27,13 @@ from services.dtos.user import UserRef
 
 def _field_mapping_input_to_value(
     s: str | None,
-) -> frozendict[AttributeSynStr, tuple[FieldSlotStr, ...]]:
-    return (
-        frozendict()
+) -> FieldMappingRawT:
+    return tuple(
+        ()
         if s is None
-        else frozendict(
-            {
-                AttributeSynStr(k): tuple(FieldSlotStr(slot) for slot in v)
-                for k, v in dsls.mapping.engine.eval(s).items()
-            }
+        else tuple(
+            (AttributeSynStr(k), tuple(FieldSlotStr(slot) for slot in v))
+            for k, v in dsls.mapping.engine.eval(s)
         )
     )
 
@@ -48,7 +49,7 @@ def _aliases_input_to_value(s: str | None) -> tuple[FieldSlotStr, ...]:
 class TaskInterface(BaseInterface, group_name="task"):
     @app_commands.command()
     @with_context()
-    async def info(
+    async def info_user(
         self, ctx: CommandContext, task_name_or_alias: str, list_name: str | None = None
     ) -> None:
         info = ctx.services.task_query.get_info(
@@ -92,87 +93,6 @@ class TaskInterface(BaseInterface, group_name="task"):
         )
 
         await messages.object_nuked(ctx.interaction, deleted)
-
-    @app_commands.command()
-    @with_context()
-    async def give(
-        self,
-        ctx: CommandContext,
-        task_name_or_alias: str,
-        user_field_mapping: str | None = None,
-        user: discord.User | None = None,
-        list_name: str | None = None,
-    ) -> None:
-        member, task = ctx.services.member_task.give_to_user(
-            FieldSlotStr(task_name_or_alias),
-            DEFAULT if list_name is None else ListNameStr(list_name),
-            (_field_mapping_input_to_value(user_field_mapping)),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
-        )
-
-        await messages.success(
-            ctx.interaction,
-            t"{format.type_name_for_header(TaskEntity)} Given",
-            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!",
-        )
-
-    @app_commands.command()
-    @with_context()
-    async def take(
-        self,
-        ctx: CommandContext,
-        task_name_or_alias: str,
-        user: discord.User | None = None,
-        list_name: str | None = None,
-    ) -> None:
-        member, task = ctx.services.member_task.take_from_user(
-            FieldSlotStr(task_name_or_alias),
-            DEFAULT if list_name is None else ListNameStr(list_name),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
-        )
-
-        await messages.success(
-            ctx.interaction,
-            t"{format.type_name_for_header(TaskEntity)} Taken",
-            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!",
-        )
-
-    @app_commands.command()
-    @with_context()
-    async def regive(
-        self,
-        ctx: CommandContext,
-        task_name_or_alias: str,
-        new_user_field_mapping: str,
-        edit_mode: FieldMappingEditModeInterfaceEnum,
-        user: discord.User | None = None,
-        list_name: str | None = None,
-    ) -> None:
-        member, task = ctx.services.member_task.edit_member_field_mapping(
-            _field_mapping_input_to_value(new_user_field_mapping),
-            edit_mode.value,
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
-            FieldSlotStr(task_name_or_alias),
-            DEFAULT if list_name is None else ListNameStr(list_name),
-        )
-
-        await messages.success(
-            ctx.interaction,
-            t"{format.type_name_for_header(type(task))} Regiven",
-            t"The {format.mention_body(task)} was regiven to the {format.mention_body(member)} with the specified user field mapping successfully!",
-        )
 
     @app_commands.command()
     @with_context()
@@ -232,6 +152,117 @@ class TaskInterface(BaseInterface, group_name="task"):
             t"The field mapping of the {format.mention_body(task)} was successfully edited!",
         )
 
+    # --- Member Task --- #
+
+    @app_commands.command()
+    @with_context()
+    async def info_of_user(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        info = ctx.services.member_task_query.get_info(
+            FieldSlotStr(task_name_or_alias),
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.object_info(
+            ctx.interaction,
+            TaskEntity,
+            {
+                str(attr.name): tuple(str(slot) for slot in field)
+                for attr, field in info.items()
+            },
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def give(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        user_field_mapping: str | None = None,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        member, task = ctx.services.member_task.give_to_user(
+            FieldSlotStr(task_name_or_alias),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+            (_field_mapping_input_to_value(user_field_mapping)),
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(TaskEntity)} Given",
+            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!",
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def take(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        member, task = ctx.services.member_task.take_from_user(
+            FieldSlotStr(task_name_or_alias),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"{format.type_name_for_header(TaskEntity)} Taken",
+            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!",
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def update_given(
+        self,
+        ctx: CommandContext,
+        task_name_or_alias: str,
+        new_user_field_mapping: str,
+        edit_mode: FieldMappingEditModeInterfaceEnum,
+        user: discord.User | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        member, task = ctx.services.member_task.edit_member_field_mapping(
+            _field_mapping_input_to_value(new_user_field_mapping),
+            edit_mode.value,
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            ),
+            FieldSlotStr(task_name_or_alias),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"Given {format.type_name_for_header(type(task))} Updated",
+            t"The {format.mention_body(task)} the {format.mention_body(member)} had already given themselves was updated successfully!",
+        )
+
 
 class TasksInterface(BaseInterface, group_name="tasks"):
     @app_commands.command()
@@ -250,6 +281,45 @@ class TasksInterface(BaseInterface, group_name="tasks"):
                     (AttributeSynStr(sort), asc)
                     for sort, asc in dsls.sort.engine.eval(sort_dsl)
                 )
+            ),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.object_browse(
+            ctx.interaction,
+            TaskEntity,
+            {
+                str(attr.name): tuple(
+                    tuple(str(slot) for slot in field) for field in fields
+                )
+                for attr, fields in summaries.items()
+            },
+        )
+
+    # --- Member Task --- #
+
+    @app_commands.command()
+    @with_context()
+    async def browse_user(
+        self,
+        ctx: CommandContext,
+        user: discord.User | None = None,
+        sort_dsl: str | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        summaries = ctx.services.member_task_query.get_summaries(
+            (
+                ()
+                if sort_dsl is None
+                else tuple(
+                    (AttributeSynStr(sort), asc)
+                    for sort, asc in dsls.sort.engine.eval(sort_dsl)
+                )
+            ),
+            (
+                DEFAULT
+                if user is None
+                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
             ),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )

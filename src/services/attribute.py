@@ -1,7 +1,6 @@
 import typing as t
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
@@ -11,6 +10,7 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
+from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.types.collection_entry import CollectionT, FrozenCollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
@@ -129,7 +129,7 @@ class AttributeService:
 
         # Exactly equal (real matches, not just norm)
         if attr.name.real == new_name.real:
-            raise errors.NameNotDifferent(current_name)
+            raise business.NameNotDifferent(current_name)
 
         existing_attr_and_syn = self._attribute_repo.get_by_list_id_and_syn(
             lst.list_id,
@@ -141,7 +141,7 @@ class AttributeService:
 
             # False if the current attribute has the same name but with different casing
             if not (existing_attr == attr and attr.name == existing_syn):
-                raise errors.SynAlreadyTaken(
+                raise business.SynAlreadyTaken(
                     existing_attr, new_name, existing_attr.name != existing_syn, False
                 )
 
@@ -176,19 +176,19 @@ class AttributeService:
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if AttributeSynStr.sequences_requal(current_aliases, new_aliases):
-            raise errors.AliasesNotDifferent(new_aliases)
+            raise business.AliasesNotDifferent(new_aliases)
 
         del current_aliases
 
         if len(new_aliases) > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(
+            raise business.AliasCountLimitReached(
                 community.limits.attribute_alias_count_max, attr.name, new_aliases
             )
 
         # Check if name collision with current attribute
         for alias in new_aliases:
             if alias == attr.name:
-                raise errors.SynAlreadyTaken(attr, alias, False, True)
+                raise business.SynAlreadyTaken(attr, alias, False, True)
 
         existing_attr_and_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
             lst.list_id, new_aliases, attr.attribute_id
@@ -198,7 +198,7 @@ class AttributeService:
         if existing_attr_and_syn is not None:
             existing_attr, existing_syn = existing_attr_and_syn
 
-            raise errors.SynAlreadyTaken(
+            raise business.SynAlreadyTaken(
                 existing_attr, existing_syn, existing_attr.name != existing_syn, True
             )
 
@@ -255,7 +255,7 @@ class AttributeService:
                     invalid_tasks[task] = slots
 
             if invalid_tasks:
-                raise errors.TasksDoNotMatchMinOrMaxSlotCountCriteria(
+                raise business.TasksDoNotMatchMinOrMaxSlotCountCriteria(
                     field_config.min_slot_count,
                     field_config.max_slot_count,
                     invalid_tasks,
@@ -348,7 +348,7 @@ class AttributeService:
             FieldSlotStr.sequences_requal(a, b)
             for (_, a), (_, b) in zip(current_collection, new_collection)
         ):
-            raise errors.CollectionNotDifferent(new_collection)
+            raise business.CollectionNotDifferent(new_collection)
 
         del current_collection
 
@@ -406,11 +406,11 @@ class AttributeService:
         creating_attribute: bool,
     ) -> None:
         if creating_attribute and field_config.min_slot_count != 0:
-            raise errors.InitialSlotCountMustBeZero()
+            raise business.InitialSlotCountMustBeZero()
 
         # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
         if field_config.max_slot_count > community.limits.field_slot_count_max:
-            raise errors.SlotCountDefinitionLimitExceeded(
+            raise business.SlotCountDefinitionLimitExceeded(
                 field_config.min_slot_count,
                 field_config.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
@@ -431,12 +431,12 @@ class AttributeService:
         list_attr_count: int,
     ) -> None:
         if list_attr_count >= community.limits.list_attribute_count_max:
-            raise errors.CountLimitReached(
+            raise business.CountLimitReached(
                 community.limits.list_attribute_count_max, AttributeEntity
             )
 
         if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
-            raise errors.AliasCountLimitReached(
+            raise business.AliasCountLimitReached(
                 community.limits.attribute_alias_count_max, name, all_aliases_of_attr
             )
 
@@ -444,14 +444,14 @@ class AttributeService:
         self, entire_collection: CollectionT, community: CommunityEntity
     ) -> None:
         if len(entire_collection) > community.limits.collection_entry_count_max:
-            raise errors.CountLimitReached(
+            raise business.CountLimitReached(
                 community.limits.collection_entry_count_max,
                 CollectionEntryEntity,
             )
 
         for entry in entire_collection:
             if len(entry[1]) > community.limits.collection_entry_alias_count_max:
-                raise errors.AliasCountLimitReached(
+                raise business.AliasCountLimitReached(
                     community.limits.collection_entry_alias_count_max,
                     entry[0],
                     entry[1],
@@ -474,7 +474,7 @@ class AttributeService:
         if existing_same_syn is not None:
             colliding_attr, colliding_syn = existing_same_syn
 
-            raise errors.SynAlreadyTaken(
+            raise business.SynAlreadyTaken(
                 *existing_same_syn,
                 colliding_attr.name != colliding_syn,
                 colliding_syn != name,
@@ -563,7 +563,7 @@ class AttributeAccessService:
         attr = self._repo.get_by_list_id_and_name(lst.list_id, name)
 
         if attr is None:
-            raise errors.NotFoundByName(name, AttributeEntity)
+            raise business.NotFoundByName(name, AttributeEntity)
 
         return attr
 
@@ -573,7 +573,7 @@ class AttributeAccessService:
         existing_attr_and_syn = self._repo.get_by_list_id_and_syn(lst.list_id, syn)
 
         if existing_attr_and_syn is None:
-            raise errors.NotFoundBySyn(syn, AttributeEntity)
+            raise business.NotFoundBySyn(syn, AttributeEntity)
 
         return existing_attr_and_syn[0]
 

@@ -65,11 +65,9 @@ class UserExistenceService:
 
         return self._user_repo.update(existing)
 
-
-    def get_or_create_with_user_ref(
-        self,
-        user: UserRef | DEFAULT
-    ) -> UserEntity:
-        return self._ctx.user if user is DEFAULT else self.get_or_create(
-            UserInsert(user.id, user.name)
+    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT) -> UserEntity:
+        return (
+            self._ctx.user
+            if user is DEFAULT
+            else self.get_or_create(UserInsert(user.id, user.name))
         )

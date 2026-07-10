@@ -3,9 +3,9 @@ from sqlalchemy import select
 from db.models import CommunityModel as CommunityModel
 from db.models import ListModel
 from db.models import ServerModel as ServerModel
-from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
+from domain.errors import business
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.server import ServerID
@@ -72,7 +72,7 @@ class CommunityRepository(BaseRepository):
     def delete(self, community_id: CommunityID) -> None:
         obj = self._session.get(CommunityModel, community_id)
         if obj is None:
-            raise errors.NotFoundById(CommunityEntity)
+            raise business.NotFoundById(CommunityEntity)
 
         self._session.delete(obj)
         self._session.flush()
@@ -105,7 +105,7 @@ class CommunityRepository(BaseRepository):
         obj = self._session.get(CommunityModel, community_id)
 
         if obj is None:
-            raise errors.NotFoundById(CommunityEntity)
+            raise business.NotFoundById(CommunityEntity)
 
         obj.default_selected_list_id = default_selected_list_id
 

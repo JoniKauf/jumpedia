@@ -3,10 +3,10 @@ import types as ts
 from sqlalchemy import func, select
 
 from db.models import MemberModel, UserModel
-from domain import errors
 from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
+from domain.errors import business
 from domain.types.community import CommunityID
 from repositories import user as user_module
 from repositories.base import BaseRepository
@@ -54,7 +54,7 @@ class MemberRepository(BaseRepository):
         obj = self._session.get(MemberModel, member.member_id)
 
         if obj is None:
-            raise errors.InternalError("Tried updating a non existant member")
+            raise business.InternalError("Tried updating a non existant member")
 
         obj.power = member.community_rank.value
         obj.selected_list_id = member.selected_list_id

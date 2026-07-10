@@ -4,9 +4,9 @@ import typing as t
 from sqlalchemy import delete, func, or_, select
 
 from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntryModel
-from domain import errors
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeType
+from domain.errors import business
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import (
     CollectionEntryID,
@@ -176,7 +176,7 @@ class CollectionEntryRepository(BaseRepository):
         )
 
         if obj is None:
-            raise errors.NotFoundById(CollectionEntryEntity)
+            raise business.NotFoundById(CollectionEntryEntity)
 
         self._session.delete(obj)
         self._session.flush()

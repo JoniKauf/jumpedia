@@ -1,21 +1,15 @@
 import itertools
-import types as ts
 import typing as t
 
-from certifi import where
 from sqlalchemy import delete, select
 
-from db.models import AttributeModel, MemberFieldSlotModel, MemberTaskModel
-from domain.entities.member_field_slot import MemberFieldSlotEntity
-from domain.enums.attribute import AttributeType
+from db.models import MemberFieldSlotModel, MemberTaskModel
 from domain.types.attribute import AttributeID
 from domain.types.field_mapping import FieldMappingIDFrozenT
-from domain.types.list import ListID
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 
@@ -71,13 +65,10 @@ class MemberFieldSlotRepository(BaseRepository):
 
     def get_grouped_field_mapping_by_member_id(
         self,
-        member_id: ListID,
-    ) -> frozendict[
-        MemberTaskID,
-        frozendict[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
-    ]:
+        member_id: MemberID,
+    ) -> frozendict[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
         stmt = (
-            select(MemberFieldSlotModel)
+            select(MemberTaskModel.task_id, MemberFieldSlotModel)
             .join(
                 MemberTaskModel,
                 MemberTaskModel.member_task_id == MemberFieldSlotModel.member_task_id,
@@ -100,20 +91,24 @@ class MemberFieldSlotRepository(BaseRepository):
                         attr_id,
                         tuple(
                             FieldSlotStr._create_from_real_and_norm(
-                                obj.real_slot, obj.norm_slot
+                                obj.real_slot,
+                                obj.norm_slot,
                             )
-                            for obj in attr_group
+                            for _, obj in attr_group
                         ),
                     )
                     for attr_id, attr_group in itertools.groupby(
                         task_group,
-                        lambda obj: obj.attribute_id,
+                        lambda row: row[1].attribute_id,
                     )
                 ),
             )
             for task_id, task_group in itertools.groupby(
-                self._session.scalars(stmt),
-                lambda obj: obj.member_task_id,
+                t.cast(
+                    t.Iterable[tuple[TaskID, MemberFieldSlotModel]],
+                    self._session.execute(stmt),
+                ),
+                lambda row: row[0],
             )
         )
 

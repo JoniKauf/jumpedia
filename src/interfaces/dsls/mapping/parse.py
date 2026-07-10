@@ -2,7 +2,8 @@ import typing as t
 from dataclasses import dataclass
 
 from interfaces.dsls.shared import parsing
-from interfaces.dsls.shared.lex import Token, TokenType
+from interfaces.dsls.shared.errors.parse import UnexpectedToken
+from interfaces.dsls.shared.lexing import TEXT_TOKEN_TYPES, Token, TokenType
 from interfaces.dsls.shared.parsing import ExprNode, PushbackTokenStream, TextNodeT
 from interfaces.dsls.shared.value_objects import Span
 
@@ -23,20 +24,20 @@ class MappingNode(ExprNode):
     items: tuple[MappingItemNode, ...]
 
 
-def parse(tokens: t.Iterable[Token]) -> MappingNode:
+def parse(tokens: t.Iterable[Token], *, error_s: str) -> MappingNode:
     stream = PushbackTokenStream(tokens)
-
-    unique_res: dict[str, MappingItemNode] = {}
 
     first_tok = stream.peek()
     with_parens: bool
 
+    res: list[MappingItemNode] = []
+
     match first_tok.type:
         case TokenType.LPAREN:
             with_parens = True
-        case TokenType.STRING | TokenType.IDENT:
+        case text if text in TEXT_TOKEN_TYPES:
             with_parens = False
-
+            
             if first_tok.type is TokenType.IDENT and first_tok.value == "_":
                 stream.pop()
 
@@ -46,76 +47,64 @@ def parse(tokens: t.Iterable[Token]) -> MappingNode:
                 stream.push(first_tok)
 
         case TokenType.NONE:
-            raise ValueError("Empty")
+            assert False
         case _:
-            raise ValueError("Expected parenthesis or key as first token")
+            raise UnexpectedToken(error_s, TEXT_TOKEN_TYPES + (TokenType.LPAREN,), first_tok)
 
-    # At least one iteration/dict entry guaranteed
+    # At least one iteration guaranteed
     while stream.peek().type is not TokenType.NONE:
-        begin: int = (
-            -1
-        )  # Guaranteed to be set, make type checker happy tho :) (otherwise maybe unbound)
-        end: int
+        # Mark not unbound for type checker
+        item_begin: int = -1
+        item_end: int
 
         if with_parens:
             lparen_tok = stream.pop()
 
             if lparen_tok.type is not TokenType.LPAREN:
-                raise ValueError("Expected (")
+                raise UnexpectedToken(error_s, (TokenType.LPAREN,), lparen_tok)
 
-            begin = lparen_tok.span.begin
+            item_begin = lparen_tok.span.begin
 
-        key = parsing.text_token_to_node(stream.pop())
+        key_token = stream.pop()
+        key_node = parsing.text_token_to_node(key_token, error_s=error_s)
 
         if not with_parens:
-            begin = key.span.begin
-
-        if key in unique_res:
-            raise ValueError("Duplicate key")
+            item_begin = key_node.span.begin
 
         colon = stream.pop()
 
         if colon.type is not TokenType.COLON:
-            raise ValueError("Expected colon")
+            raise UnexpectedToken(error_s, (TokenType.COLON,), colon)
 
         values: list[TextNodeT] = []
 
         if with_parens:
             while (popped_tok := stream.pop()).type is not TokenType.NONE:
                 if popped_tok.type is TokenType.LPAREN:
-                    end = popped_tok.span.end
+                    item_end = popped_tok.span.end
                     break
 
-                values.append(parsing.text_token_to_node(popped_tok))
+                values.append(parsing.text_token_to_node(popped_tok, error_s=error_s))
 
             # We didn't break, so no ")" was found
             else:
-                raise ValueError("Missing closing )")
+                raise UnexpectedToken(error_s, (TokenType.RPAREN,), popped_tok)
         else:
-            end = colon.span.end
-            prev_tok: Token | None = None
+            while (tok := stream.pop()).type is not TokenType.NONE:
+                if stream.peek().type is TokenType.COLON:
+                    # We are after "key:" so if we receive another colon, bad
+                    if not values:
+                        raise UnexpectedToken(error_s, TEXT_TOKEN_TYPES, stream.pop())
 
-            # More complicated because if we find a colon after a value it is actually the key of the next values, so we gotta undo the previous step and break
-            while (peeked_tok := stream.peek()).type is not TokenType.NONE:
-
-                # Rewind because previous value was actually key because it is followed by colon
-                if peeked_tok.type is TokenType.COLON:
-
-                    # No previous value token -> double colon -> invalid
-                    if prev_tok is None:
-                        raise ValueError(
-                            "Expected value after colon, not another colon"
-                        )
-
-                    stream.push(prev_tok)
+                    # Otherwise if we see the next token is a colon, "tok" is the key of the next item
+                    # Undo adding to to the current values and stop for this item
+                    stream.push(tok)
                     values.pop()
-                    end = values[-1].span.end if values else colon.span.end
                     break
 
-                stream.pop()
-                values.append(parsing.text_token_to_node(peeked_tok))
-                end = peeked_tok.span.end
-                prev_tok = peeked_tok
+                values.append(parsing.text_token_to_node(tok, error_s=error_s))
+            
+            item_end = values[-1].span.end if values else colon.span.end
 
         value_list = ValueListNode(
             (
@@ -125,14 +114,9 @@ def parse(tokens: t.Iterable[Token]) -> MappingNode:
             ),
             tuple(values),
         )
-        key_str = parsing.get_string_from_text_node(key)
 
-        if key_str in unique_res:
-            raise ValueError("Non unique keys")
+        res.append(MappingItemNode(Span(item_begin, item_end), key_node, value_list))
 
-        unique_res[key_str] = MappingItemNode(Span(begin, end), key, value_list)
+    assert res
 
-    all_items = tuple(unique_res.values())
-    assert all_items
-
-    return MappingNode(Span(all_items[0].span.begin, all_items[-1].span.end), all_items)
+    return MappingNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))

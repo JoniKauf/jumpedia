@@ -4,9 +4,9 @@ import typing as t
 from sqlalchemy import case, delete, func, or_, select, text, update
 
 from db.models import AttributeAliasModel, AttributeModel, ListModel
-from domain import errors
 from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.errors import business
 from domain.types.attribute import AttributeID
 from domain.types.community import CommunityID
 from domain.types.list import ListID
@@ -80,7 +80,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise errors.NotFoundById(AttributeEntity)
+            raise business.NotFoundById(AttributeEntity)
 
         self._session.delete(obj)
         self._session.flush()
@@ -383,7 +383,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise errors.NotFoundById(AttributeEntity)
+            raise business.NotFoundById(AttributeEntity)
 
         obj.real_name = name.real
         obj.norm_name = name.norm
@@ -423,7 +423,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise errors.NotFoundById(AttributeEntity)
+            raise business.NotFoundById(AttributeEntity)
 
         obj.min_slot_count = min_slot_count
         obj.max_slot_count = max_slot_count

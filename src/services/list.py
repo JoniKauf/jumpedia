@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank
+from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
@@ -40,14 +40,14 @@ class ListService:
         list_count = self._list_repo.count_by_community(community.community_id)
 
         if list_count >= community.limits.community_list_count_max:
-            raise errors.CountLimitReached(
+            raise business.CountLimitReached(
                 community.limits.community_list_count_max, ListEntity
             )
 
         if existing := self._list_repo.get_by_community_and_name(
             community.community_id, name
         ):
-            raise errors.SynAlreadyTaken(existing, name, False, False)
+            raise business.SynAlreadyTaken(existing, name, False, False)
 
         lst = self._list_repo.create(ListInsert(community.community_id, name))
 
@@ -107,7 +107,7 @@ class ListService:
         )
 
         if name_taken_lst is not None:
-            raise errors.SynAlreadyTaken(name_taken_lst, lst.name, False, False)
+            raise business.SynAlreadyTaken(name_taken_lst, lst.name, False, False)
 
         self._list_repo.update(lst)
 
@@ -177,7 +177,7 @@ class ListAccessService:
         lst = self._list_repo.get_by_community_and_name(community.community_id, name)
 
         if lst is None:
-            raise errors.NotFoundByName(name, ListEntity)
+            raise business.NotFoundByName(name, ListEntity)
 
         return lst
 
@@ -194,7 +194,7 @@ class ListAccessService:
         selected_list_id = member.selected_list_id or community.default_selected_list_id
 
         if selected_list_id is None:
-            raise errors.NoDefaultSelectedList()
+            raise business.NoDefaultSelectedList()
 
         lst = self._list_repo.get_by_id(selected_list_id)
 

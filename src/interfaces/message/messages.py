@@ -6,7 +6,7 @@ import discord
 
 from domain.entities.base import BaseEntity
 from domain.enums.edit_mode import AliasEditMode
-from domain.errors import Str
+from domain.errors.business import Str
 from infrastructure import pastee
 from interfaces.message import format, layout
 from interfaces.message.layout import Status, T

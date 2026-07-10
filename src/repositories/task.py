@@ -4,8 +4,8 @@ import typing as t
 from sqlalchemy import delete, func, or_, select
 
 from db.models import ListModel, TaskAliasModel, TaskModel
-from domain import errors
 from domain.entities.task import TaskEntity
+from domain.errors import business
 from domain.types.community import CommunityID
 from domain.types.list import ListID
 from domain.types.task import TaskID
@@ -207,7 +207,7 @@ class TaskRepository(BaseRepository):
         obj = self._session.get(TaskModel, task_id)
 
         if obj is None:
-            raise errors.NotFoundById(TaskEntity)
+            raise business.NotFoundById(TaskEntity)
 
         self._session.delete(obj)
         self._session.flush()
@@ -329,7 +329,7 @@ class TaskRepository(BaseRepository):
         obj = self._session.get(TaskModel, task_id)
 
         if obj is None:
-            raise errors.NotFoundById(TaskEntity)
+            raise business.NotFoundById(TaskEntity)
 
         obj.real_name = name.real
         obj.norm_name = name.norm

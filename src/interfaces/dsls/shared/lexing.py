@@ -3,25 +3,39 @@ import types as ts
 import typing as t
 from dataclasses import dataclass
 
+from interfaces.dsls.shared.errors.lex import (
+    InvalidEscape,
+    MultilineStringsDisallowed,
+    UnknownChar,
+    UnterminatedString,
+)
 from interfaces.dsls.shared.value_objects import Span
 
 
 class TokenType(enum.Enum):
+    # Used for when there are no more tokens left
+    # Working with "TokenType | None" is awful, this is way nicer
     NONE = enum.auto()
+
     STRING = enum.auto()
     IDENT = enum.auto()
+
     LPAREN = enum.auto()
     RPAREN = enum.auto()
+
     LT = enum.auto()
     LTE = enum.auto()
     GT = enum.auto()
     GTE = enum.auto()
+
     PLUS = enum.auto()
     MINUS = enum.auto()
+
     COLON = enum.auto()
     COMMA = enum.auto()
 
 
+# Invariant: NO SYMBOL AND IDENTIFIER CHARS MAY OVERLAP!!
 SYMBOLS: dict[str, TokenType] = {
     "(": TokenType.LPAREN,
     ")": TokenType.RPAREN,
@@ -42,6 +56,7 @@ class Token:
     span: Span
     value: str
 
+TEXT_TOKEN_TYPES = (TokenType.IDENT, TokenType.STRING)
 
 NONE_TOKEN = Token(TokenType.NONE, Span(-1, -1), "")
 QUOTES: t.Final[frozenset[str]] = frozenset("'" + '"')
@@ -78,10 +93,10 @@ def lex(s: str, *, multiline_strings: bool) -> t.Generator[Token]:
                     escaped_v = ESCAPES.get(cc)
 
                     if escaped_v is None:
-                        raise ValueError(f"Unescapable char '{cc}'")
+                        raise InvalidEscape(s, Span(j - 1, j + 1))
 
                     if not multiline_strings and escaped_v == "\n":
-                        raise ValueError("Single line mode")
+                        raise MultilineStringsDisallowed(s, Span(j - 1, j + 1))
 
                     buf.append(escaped_v)
                     escaped = False
@@ -97,18 +112,13 @@ def lex(s: str, *, multiline_strings: bool) -> t.Generator[Token]:
 
                 j += 1
             else:
-                if escaped:
-                    raise ValueError("End reached in escape sequence in string")
-                else:
-                    raise ValueError("End reached in string")
+                raise UnterminatedString(s, Span(i, j), escaped)
 
             j += 1  # Skip closing quote
             yield Token(TokenType.STRING, Span(i, j), "".join(buf))
 
             i = j
             continue
-
-        # Invariant: No symbol and identifier chars overlap
 
         # --- Lex Identifier --- #
         if is_identifier_char(c):
@@ -137,7 +147,7 @@ def lex(s: str, *, multiline_strings: bool) -> t.Generator[Token]:
 
         # End point of lexing, nothing matched
         if symbol is None:
-            raise ValueError(f"Invalid character '{s[i]}'")
+            raise UnknownChar(s, Span(i, i + 1))
 
         j = i + len(symbol)
         yield Token(SYMBOLS[symbol], Span(i, j), symbol)

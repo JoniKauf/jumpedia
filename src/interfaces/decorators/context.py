@@ -8,9 +8,9 @@ from discord.ext import commands
 from sqlalchemy.orm import Session
 
 import db.session
-from domain import errors
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
+from domain.errors import business
 from domain.types.common import ID
 from domain.types.server import ServerID
 from domain.types.user import UserID
@@ -43,38 +43,38 @@ if t.TYPE_CHECKING:
 
 
 async def _handle_domain_error(
-    interaction: discord.Interaction, e: errors.DomainError
+    interaction: discord.Interaction, e: business.BusinessError
 ) -> None:
     match e:
-        case errors.NotInServer():
+        case business.NotInServer():
             await messages.error(
                 interaction,
                 t"Not In A Server",
                 t"The specified command needs to be executed in a server!",
             )
 
-        case errors.NotInCommunity():
+        case business.NotInCommunity():
             await messages.error(
                 interaction,
                 t"Not In A Community",
                 t"The specified command needs to be executed in a community!",
             )
 
-        case errors.NotAllowed():
+        case business.NotAllowed():
             await messages.error(
                 interaction,
                 t"Not Allowed",
                 t"You have the rank {format.mention_body(e.rank)}, but you at least need the rank {format.mention_body(e.required)} to perform this action!",
             )
 
-        case errors.EmptyString():
+        case business.EmptyString():
             await messages.error(
                 interaction,
                 t"Empty String",
                 t'You entered an empty or whitespace-only string (`""`), which is not allowed!',
             )
 
-        case errors.DoubleBacktick():
+        case business.DoubleBacktick():
             await messages.error(
                 interaction,
                 t"Double Backtick",
@@ -190,7 +190,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     member = interaction.user
 
                     if not isinstance(member, discord.Member):
-                        raise errors.NotInServer()
+                        raise business.NotInServer()
 
                     services = _create_services_object(session, member)
 
@@ -203,9 +203,9 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         *args,
                         **kwargs,
                     )
-                except errors.DomainError as e:
+                except business.BusinessError as e:
                     await _handle_domain_error(interaction, e)
-                except errors.InternalError, Exception:
+                except business.InternalError, Exception:
                     await messages.error(
                         interaction,
                         t"Unhandled",

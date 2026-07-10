@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.community import CommunityEntity
 from domain.enums.rank import ServerRank
+from domain.errors import business
 from domain.value_objects.community import CommunityNameStr
 from repositories.community import CommunityRepository
 from repositories.server import ServerRepository
@@ -27,7 +27,7 @@ class ServerService:
         community = self._community_repo.get_by_server_id(self._ctx.server_id)
 
         if community is not None:
-            raise errors.InCommunity(community)
+            raise business.InCommunity(community)
 
         community = self._community_access_service.get_by_name_or_raise(community_name)
 

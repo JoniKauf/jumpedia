@@ -2,7 +2,6 @@ import functools
 import typing as t
 from dataclasses import dataclass
 
-from domain import errors
 from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
@@ -11,6 +10,7 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
+from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import AttributeID
 from domain.types.collection_entry import CollectionT
@@ -71,14 +71,14 @@ class TaskService:
         task_count = self._task_repo.count_by_list(lst.list_id)
 
         if task_count >= community.limits.list_task_count_max:
-            raise errors.CountLimitReached(
+            raise business.CountLimitReached(
                 community.limits.list_task_count_max, TaskEntity
             )
 
         syns: tuple[FieldSlotStr, ...] = (task_name, *aliases)
 
         if len(aliases) > community.limits.field_slot_count_max:
-            raise errors.AliasCountLimitReached(
+            raise business.AliasCountLimitReached(
                 community.limits.field_slot_count_max, task_name, tuple(aliases)
             )
 
@@ -92,7 +92,7 @@ class TaskService:
         if existing_same_syn is not None:
             colliding_task, colliding_syn = existing_same_syn
 
-            raise errors.SynAlreadyTaken(
+            raise business.SynAlreadyTaken(
                 *existing_same_syn,
                 colliding_task.name != colliding_syn,
                 colliding_syn != task_name,
@@ -165,7 +165,7 @@ class TaskService:
 
         # Exactly equal (real matches, not just norm)
         if task.name.real == new_name.real:
-            raise errors.NameNotDifferent(task_name)
+            raise business.NameNotDifferent(task_name)
 
         existing_task_and_syn = self._task_repo.get_by_list_id_and_syn(
             lst.list_id,
@@ -177,7 +177,7 @@ class TaskService:
 
             # False if the current task has the same name but with different casing
             if not (existing_task == task and task.name == existing_syn):
-                raise errors.SynAlreadyTaken(
+                raise business.SynAlreadyTaken(
                     existing_task, new_name, existing_task.name != existing_syn, False
                 )
 
@@ -208,19 +208,19 @@ class TaskService:
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if FieldSlotStr.sequences_requal(current_aliases, new_aliases):
-            raise errors.AliasesNotDifferent(new_aliases)
+            raise business.AliasesNotDifferent(new_aliases)
 
         del current_aliases
 
         if len(new_aliases) > community.limits.field_slot_count_max:
-            raise errors.AliasCountLimitReached(
+            raise business.AliasCountLimitReached(
                 community.limits.field_slot_count_max, task.name, new_aliases
             )
 
         # Check if name collision with current task
         for alias in new_aliases:
             if alias == task.name:
-                raise errors.SynAlreadyTaken(task, alias, False, True)
+                raise business.SynAlreadyTaken(task, alias, False, True)
 
         existing_task_and_syn = self._task_repo.get_first_by_list_id_and_any_syn(
             lst.list_id, new_aliases, task.task_id
@@ -230,7 +230,7 @@ class TaskService:
         if existing_task_and_syn is not None:
             existing_task, existing_syn = existing_task_and_syn
 
-            raise errors.SynAlreadyTaken(
+            raise business.SynAlreadyTaken(
                 existing_task, existing_syn, existing_task.name != existing_syn, True
             )
 
@@ -335,7 +335,7 @@ class TaskQueryService:
         sorts: tuple[tuple[AttributeSynStr, bool], ...],
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
-        AttributeEntity[AttributeType | AttributeType],
+        AttributeEntity[AttributeType.NonUserT],
         tuple[tuple[FieldSlotStr, ...], ...],
     ]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
@@ -358,12 +358,16 @@ class TaskQueryService:
             )
         )
 
-        task_id_to_task_field_mapping = self._field_slot_repo.get_task_field_mapping_by_list_id(
-            lst.list_id
+        task_id_to_task_field_mapping = (
+            self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
         task_id_to_field_mapping = frozendict(
-            (task_id, frozendict(static_field_mapping) | task_id_to_task_field_mapping.get(task_id, frozendict()))
+            (
+                task_id,
+                frozendict(static_field_mapping)
+                | task_id_to_task_field_mapping.get(task_id, frozendict()),
+            )
             for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
         )
 
@@ -385,7 +389,9 @@ class TaskQueryService:
         return frozendict(
             (
                 attr,
-                tuple(field_mapping[attr.attribute_id] for field_mapping in field_mappings),
+                tuple(
+                    field_mapping[attr.attribute_id] for field_mapping in field_mappings
+                ),
             )
             for attr in attrs_sorted
         )
@@ -403,7 +409,7 @@ class TaskAccessService:
         task = self._task_repo.get_by_list_id_and_name(lst.list_id, name)
 
         if task is None:
-            raise errors.NotFoundByName(name, TaskEntity)
+            raise business.NotFoundByName(name, TaskEntity)
 
         return task
 
@@ -413,7 +419,7 @@ class TaskAccessService:
         tup = self._task_repo.get_by_list_id_and_syn(lst.list_id, syn)
 
         if tup is None:
-            raise errors.NotFoundBySyn(syn, TaskEntity)
+            raise business.NotFoundBySyn(syn, TaskEntity)
 
         return tup[0]
 

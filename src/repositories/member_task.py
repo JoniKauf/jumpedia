@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
 from db.models import MemberTaskModel
-from domain import errors
 from domain.entities.member_task import MemberTaskEntity
+from domain.errors import business
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
 from domain.types.task import TaskID
@@ -47,7 +47,7 @@ class MemberTaskRepository(BaseRepository):
         obj = self._session.get(MemberTaskModel, member_task_id)
 
         if obj is None:
-            raise errors.NotFoundById(MemberTaskEntity)
+            raise business.NotFoundById(MemberTaskEntity)
 
         self._session.delete(obj)
         self._session.flush()
