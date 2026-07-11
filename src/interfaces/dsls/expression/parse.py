@@ -3,8 +3,9 @@ import typing as t
 from dataclasses import dataclass
 
 from interfaces.dsls.shared.errors.parse import DepthLimitSurpassed, ExpectedKeyword, UnexpectedToken
-from interfaces.dsls.shared.lexing import Token, TokenType
-from interfaces.dsls.shared.parsing import (
+from interfaces.dsls.shared.lex import Token, TokenType
+from interfaces.dsls.shared.parse import (
+    BaseParser,
     ExprNode,
     IdentifierNode,
     PushbackTokenStream,
@@ -59,37 +60,65 @@ class ConditionalExpr(ExprNode):
     false_value: ExprNode
 
 
-class _Parser:
-    def __init__(self, max_depth: int, error_s: str) -> None:
-        self.max_depth = max_depth
-        self.depth = 0
-        self.error_s = error_s
+def _try_consume_keyword(
+    tokens: PushbackTokenStream,
+    keyword: KeywordType,
+) -> bool:
+    tok = tokens.peek()
 
-    def parse_expr(self, tokens: PushbackTokenStream) -> ExprNode:
-        self.depth += 1
+    if tok.type != TokenType.IDENT:
+        return False
+
+    if tok.value != keyword:
+        return False
+
+    tokens.pop()
+    return True
+
+
+class ExpressionParser(BaseParser):
+    def __init__(self, s: str, max_depth: int) -> None:
+        super().__init__(s)
+        self._max_depth = max_depth
+        self._depth = 0
+
+    def parse(self, tokens: t.Iterable[Token]) -> ExprNode:
+        stream = PushbackTokenStream(tokens)
+
+        result = self._parse_expr(stream)
+
+        tok = stream.pop()
+
+        if tok.type is not TokenType.NONE:
+            raise UnexpectedToken(self._s, (TokenType.NONE,), tok)
+
+        return result
+
+    def _parse_expr(self, tokens: PushbackTokenStream) -> ExprNode:
+        self._depth += 1
 
         try:
-            if self.depth > self.max_depth:
-                raise DepthLimitSurpassed(self.error_s, tokens.peek(), self.max_depth)
+            if self._depth > self._max_depth:
+                raise DepthLimitSurpassed(self._s, tokens.peek(), self._max_depth)
 
-            return self.parse_conditional(tokens)
+            return self._parse_conditional(tokens)
         finally:
-            self.depth -= 1
+            self._depth -= 1
 
-    def parse_conditional(self, tokens: PushbackTokenStream) -> ExprNode:
-        true_value = self.parse_or(tokens)
+    def _parse_conditional(self, tokens: PushbackTokenStream) -> ExprNode:
+        true_value = self._parse_or(tokens)
 
         if not _try_consume_keyword(tokens, KeywordType.IF):
             return true_value
 
-        condition = self.parse_or(tokens)
+        condition = self._parse_or(tokens)
 
         else_tok = tokens.pop()
 
         if else_tok.type != TokenType.IDENT or else_tok.value != KeywordType.ELSE:
-            raise ExpectedKeyword(self.error_s, (KeywordType.ELSE,), else_tok)
+            raise ExpectedKeyword(self._s, (KeywordType.ELSE,), else_tok)
 
-        false_value = self.parse_conditional(tokens)
+        false_value = self._parse_conditional(tokens)
 
         return ConditionalExpr(
             Span(true_value.span.begin, false_value.span.end),
@@ -98,11 +127,11 @@ class _Parser:
             false_value,
         )
 
-    def parse_or(self, tokens: PushbackTokenStream) -> ExprNode:
-        elements: list[ExprNode] = [self.parse_and(tokens)]
+    def _parse_or(self, tokens: PushbackTokenStream) -> ExprNode:
+        elements: list[ExprNode] = [self._parse_and(tokens)]
 
         while _try_consume_keyword(tokens, KeywordType.OR):
-            elements.append(self.parse_and(tokens))
+            elements.append(self._parse_and(tokens))
 
         if len(elements) == 1:
             return elements[0]
@@ -115,11 +144,11 @@ class _Parser:
             tuple(elements),
         )
 
-    def parse_and(self, tokens: PushbackTokenStream) -> ExprNode:
-        elements: list[ExprNode] = [self.parse_comparison(tokens)]
+    def _parse_and(self, tokens: PushbackTokenStream) -> ExprNode:
+        elements: list[ExprNode] = [self._parse_comparison(tokens)]
 
         while _try_consume_keyword(tokens, KeywordType.AND):
-            elements.append(self.parse_comparison(tokens))
+            elements.append(self._parse_comparison(tokens))
 
         if len(elements) == 1:
             return elements[0]
@@ -132,8 +161,8 @@ class _Parser:
             tuple(elements),
         )
 
-    def parse_comparison(self, tokens: PushbackTokenStream) -> ExprNode:
-        left = self.parse_additive(tokens)
+    def _parse_comparison(self, tokens: PushbackTokenStream) -> ExprNode:
+        left = self._parse_additive(tokens)
 
         if _try_consume_keyword(tokens, KeywordType.IS):
             op_type = (
@@ -142,7 +171,7 @@ class _Parser:
                 else BinOpType.IS
             )
 
-            right = self.parse_additive(tokens)
+            right = self._parse_additive(tokens)
 
             return BinOp(
                 Span(left.span.begin, right.span.end),
@@ -163,7 +192,7 @@ class _Parser:
                 continue
 
             tokens.pop()
-            right = self.parse_additive(tokens)
+            right = self._parse_additive(tokens)
 
             return BinOp(
                 Span(left.span.begin, right.span.end),
@@ -174,12 +203,12 @@ class _Parser:
 
         return left
 
-    def parse_additive(self, tokens: PushbackTokenStream) -> ExprNode:
-        left = self.parse_atom(tokens)
+    def _parse_additive(self, tokens: PushbackTokenStream) -> ExprNode:
+        left = self._parse_atom(tokens)
 
         while tokens.peek().type in (TokenType.PLUS, TokenType.MINUS):
             op = tokens.pop()
-            right = self.parse_atom(tokens)
+            right = self._parse_atom(tokens)
 
             left = BinOp(
                 Span(left.span.begin, right.span.end),
@@ -190,7 +219,7 @@ class _Parser:
 
         return left
 
-    def parse_atom(self, tokens: PushbackTokenStream) -> ExprNode:
+    def _parse_atom(self, tokens: PushbackTokenStream) -> ExprNode:
         tok = tokens.pop()
 
         match tok.type:
@@ -201,42 +230,13 @@ class _Parser:
                 return StringNode(tok.span, tok.value)
 
             case TokenType.LPAREN:
-                expr = self.parse_expr(tokens)
+                expr = self._parse_expr(tokens)
 
                 closing = tokens.pop()
 
                 if closing.type != TokenType.RPAREN:
-                    raise UnexpectedToken(self.error_s, (TokenType.RPAREN,), closing)
+                    raise UnexpectedToken(self._s, (TokenType.RPAREN,), closing)
 
                 return expr
 
-        raise UnexpectedToken(self.error_s, (TokenType.IDENT, TokenType.STRING, TokenType.LPAREN), tok)
-
-
-def parse(tokens: t.Iterable[Token], max_depth: int, *, error_s: str) -> ExprNode:
-    stream = PushbackTokenStream(tokens)
-
-    result = _Parser(max_depth, error_s).parse_expr(stream)
-
-    tok = stream.pop()
-
-    if tok.type is not TokenType.NONE:
-        raise UnexpectedToken(error_s, (TokenType.NONE,), tok)
-
-    return result
-
-
-def _try_consume_keyword(
-    tokens: PushbackTokenStream,
-    keyword: KeywordType,
-) -> bool:
-    tok = tokens.peek()
-
-    if tok.type != TokenType.IDENT:
-        return False
-
-    if tok.value != keyword:
-        return False
-
-    tokens.pop()
-    return True
+        raise UnexpectedToken(self._s, (TokenType.IDENT, TokenType.STRING, TokenType.LPAREN), tok)

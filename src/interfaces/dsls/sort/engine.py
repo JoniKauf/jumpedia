@@ -1,11 +1,14 @@
-from interfaces.dsls.shared import evaluating, lexing
-from interfaces.dsls.sort import parse
+from interfaces.dsls.shared.engine import BaseEngine
+from interfaces.dsls.shared.lex import Lexer
+from interfaces.dsls.sort.parse import SortParser
 
 
-def eval(s: str) -> list[tuple[str, bool]]:
-    toks = lexing.lex(s, multiline_strings=False)
-    ast = parse.parse(toks, error_s=s)
-    return [
-        (evaluating.get_string_from_text_node(elem.value), elem.asc)
-        for elem in ast.elements
-    ]
+
+class SortEngine(BaseEngine):
+    def eval(self, s: str) -> list[tuple[str, bool]]:
+        toks = Lexer(multiline_strings=False).lex(s)
+        ast = SortParser(s).parse(toks)
+        return [
+            (self.get_string_from_text_node(elem.value), elem.asc)
+            for elem in ast.elements
+        ]

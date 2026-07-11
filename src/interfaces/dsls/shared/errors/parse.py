@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from interfaces.dsls.shared.errors.base import DslError
-from interfaces.dsls.shared.lexing import Token, TokenType
+from interfaces.dsls.shared.lex import Token, TokenType
 
 
 @dataclass(frozen=True, slots=True)

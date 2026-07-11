@@ -1,11 +1,11 @@
 import enum
 from dataclasses import dataclass
 
-from domain.entities.attribute import AttributeEntity
+from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 
 
-class Op(enum.Enum):
+class OpType(enum.Enum):
     EQ = enum.auto()
     NEQ = enum.auto()
     LT = enum.auto()
@@ -24,8 +24,8 @@ class Filter:
 
 @dataclass(frozen=True, slots=True)
 class ComparisonFilter(Filter):
-    attribute: AttributeEntity
-    operator: Op
+    attribute: AttributeSynStr
+    operator: OpType
     value: FieldSlotStr | EMPTY
 
 

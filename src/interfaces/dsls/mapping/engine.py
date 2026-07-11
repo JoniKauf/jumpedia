@@ -1,20 +1,22 @@
 import typing as t
 
-from interfaces.dsls.mapping import parse
-from interfaces.dsls.shared import evaluating, lexing
+from interfaces.dsls.mapping.parse import MappingParser
+from interfaces.dsls.shared.engine import BaseEngine
+from interfaces.dsls.shared.lex import Lexer
 
 
-def eval(s: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    toks = lexing.lex(s, multiline_strings=False)
-    ast = parse.parse(toks, error_s=s)
+class MappingEngine(BaseEngine):
+    def eval(self, s: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        toks = Lexer(multiline_strings=False).lex(s)
+        ast = MappingParser(s).parse(toks)
 
-    return tuple(
-        (
-            evaluating.get_string_from_text_node(item.key),
-            tuple(
-                evaluating.get_string_from_text_node(elem)
-                for elem in item.value.elements
-            ),
+        return tuple(
+            (
+                self.get_string_from_text_node(item.key),
+                tuple(
+                    self.get_string_from_text_node(elem)
+                    for elem in item.value.elements
+                ),
+            )
+            for item in ast.items
         )
-        for item in ast.items
-    )

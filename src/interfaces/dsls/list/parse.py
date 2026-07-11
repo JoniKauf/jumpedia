@@ -1,8 +1,9 @@
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.lexing import Token, TokenType
-from interfaces.dsls.shared.parsing import (
+from interfaces.dsls.shared.lex import Token, TokenType
+from interfaces.dsls.shared.parse import (
+    BaseParser,
     ExprNode,
     IdentifierNode,
     PushbackTokenStream,
@@ -16,20 +17,21 @@ class ValueListNode(ExprNode):
     elements: tuple[TextNodeT, ...]
 
 
-def parse(tokens: t.Iterable[Token]) -> ValueListNode:
-    stream = PushbackTokenStream(tokens)
+class ListParser(BaseParser):
+    def parse(self, tokens: t.Iterable[Token]) -> ValueListNode:
+        stream = PushbackTokenStream(tokens)
 
-    res: list[TextNodeT] = []
+        res: list[TextNodeT] = []
 
-    while (next := stream.pop()).type is not TokenType.NONE:
-        res.append(parse.text_token_to_node(next))
+        while (next := stream.pop()).type is not TokenType.NONE:
+            res.append(self.text_token_to_node(next))
 
-    assert res
+        assert res
 
-    if len(res) == 1:
-        single = res[0]
+        if len(res) == 1:
+            single = res[0]
 
-        if isinstance(single, IdentifierNode) and single.name == "_":
-            return ValueListNode(single.span, ())
+            if isinstance(single, IdentifierNode) and single.name == "_":
+                return ValueListNode(single.span, ())
 
-    return ValueListNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))
+        return ValueListNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))

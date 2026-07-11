@@ -1,8 +1,11 @@
-from interfaces.dsls.list import parse
-from interfaces.dsls.shared import lexing, evaluating
+
+from interfaces.dsls.list.parse import ListParser
+from interfaces.dsls.shared.engine import BaseEngine
+from interfaces.dsls.shared.lex import Lexer
 
 
-def eval(s: str) -> list[str]:
-    toks = lexing.lex(s, multiline_strings=False)
-    ast = parse.parse(toks)
-    return [evaluating.get_string_from_text_node(elem) for elem in ast.elements]
+class ListEngine(BaseEngine):
+    def eval(self, s: str) -> list[str]:
+        toks = Lexer(multiline_strings=False).lex(s)
+        ast = ListParser(s).parse(toks)
+        return [self.get_string_from_text_node(elem) for elem in ast.elements]
