@@ -1,52 +1,113 @@
 # Jumpedia
-This is the source code of Jumpedia.
-It is currently **private**.
 
-This README is extended whenever we can think of new things to add and is most likely
-VERY incomplete.
+This is the source code of **Jumpedia**.
 
-## Domain Specific Knowledge
-Like in every codebase, there is knowledge specific to that codebase that must be
-learned, called domain knowledge.
-Domain knowledge is bad for new members of the team, so we try to keep it as low as
-possible by following common conventions.
+> **Note:** The project is currently **private**.
 
-Here is a list of domain specific infos that might help you!
+This README grows whenever we think of something worth documenting, so expect it to be a living document rather than a complete reference.
 
-### Design
-Before this 3rd or 4th rework of Jumpedia, I (Joni) didn't know much about existing
-structures for codebases and just structured it my way. It ended in chaos and very hard
-to extend code.
+---
 
-Now we use DDD (Domain Driven Design) Lite (at least close to it).
+# Domain-Specific Knowledge
 
-#### Domain
-The foundation lies in `domain/`. Here lies everything that is used everywhere else in
-the codebase. It may therefore not reference anything outside of `domain/`.
+Like every codebase, Jumpedia has knowledge that is specific to its own architecture and terminology. We try to keep this "domain knowledge" to a minimum because every extra concept makes onboarding new contributors harder.
 
-#### Repository
-`repositories/` is at the lowest level. It only knows about `domain/`. It provides the
-service layer methods to interact with the database. It is dumb by design and only 
-fetches or edits database data. It performs no business logic.
+This section documents the concepts that are unique to Jumpedia and may not be immediately obvious.
 
-#### Service
-`services/` is above the repository layer. It knows about `domain/` and `repositories/`.
-It handles ALL business logic and uses repositories to perform its business logic.
-There are "public" services which are visible for interfaces (explained next) and
-internal services which are used by other services to unify repeated logic and
-operations.
+---
 
-#### Interface
-`interaces/` is above the service layer. It knows about `domain/` and `services/`. 
-It does not directly interact with `repositories/` because that's what the services
-are for and handle.
+# Architecture
 
-It instead manages how data is displayed to users. This includes managing discord
-commands, turning user input into service method input data (via dsls) and then
-turning the service output into appropriately displayed data.
+## A bit of history
 
-...
+Before this 3rd (or maybe 4th...) rewrite of Jumpedia, I (Joni) didn't really know much about established software architecture. I simply organized the project in whatever way felt reasonable at the time.
 
-## TODO
+It worked... for a while.
 
-...
+Eventually the codebase became increasingly difficult to extend, responsibilities blurred together, and making changes became frustrating.
+
+This rewrite adopts a lightweight version of **Domain-Driven Design (DDD)**. It isn't a textbook implementation, but it follows the same general ideas and has proven much easier to reason about.
+
+---
+
+## Layer overview
+
+The project is split into four primary layers.
+
+```text
+Interfaces  
+     │       \
+Services --- Domain
+     │       /
+Repositories 
+```
+
+Each layer may only depend on the layers below it.
+
+---
+
+## Domain
+
+`domain/`
+
+The domain layer is the foundation of the project.
+
+It contains the core concepts of Jumpedia, including entities, value objects, enums, exceptions, and other business primitives.
+
+Everything else in the project depends on this layer, which means the domain itself **must never depend on anything outside `domain/`**.
+
+---
+
+## Repositories
+
+`repositories/`
+
+Repositories are responsible for talking to the database.
+
+They know only about the domain layer and intentionally contain **no business logic**.
+
+Their responsibilities include:
+
+- Loading data
+- Storing data
+- Updating data
+- Deleting data
+
+They are deliberately "dumb." They simply translate between the database and domain objects.
+
+---
+
+## Services
+
+`services/`
+
+Services contain **all business logic**.
+
+They know about both the domain layer and repositories, using repositories whenever database access is required.
+
+There are two categories of services:
+
+- **Public services** — the API exposed to interfaces.
+- **Internal services** — reusable building blocks used by other services to avoid duplicated logic.
+
+Whenever a rule, validation, permission check, or workflow exists, it belongs here.
+
+---
+
+## Interfaces
+
+`interfaces/`
+
+Interfaces are responsible for interacting with the outside world.
+
+They know about the domain layer and services, but **never communicate directly with repositories**.
+
+Their responsibilities include:
+
+- Handling Discord commands
+- Parsing user input (using the DSLs)
+- Calling services
+- Formatting service results for presentation
+- Displaying responses back to users
+
+In short, interfaces are responsible for **how** users interact with Jumpedia, while services are responsible for **what** Jumpedia does.

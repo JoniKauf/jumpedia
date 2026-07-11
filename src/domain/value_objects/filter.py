@@ -24,6 +24,7 @@ class Filter:
 
 @dataclass(frozen=True, slots=True)
 class ComparisonFilter(Filter):
+    """Guarantees that value is only EMPTY for EQ and NEQ operators."""
     attribute: AttributeSynStr
     operator: OpType
     value: FieldSlotStr | EMPTY
