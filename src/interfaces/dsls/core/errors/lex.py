@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.errors.base import DslError
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core.errors.base import DslError
+from interfaces.dsls.core.value_objects import Span
 
 
 @dataclass(frozen=True, slots=True)

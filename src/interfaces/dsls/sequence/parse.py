@@ -1,24 +1,24 @@
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.lex import Token, TokenType
-from interfaces.dsls.shared.parse import (
+from interfaces.dsls.core.lex import Token, TokenType
+from interfaces.dsls.core.parse import (
     BaseParser,
     ExprNode,
     IdentifierNode,
     PushbackTokenStream,
     TextNodeT,
 )
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core.value_objects import Span
 
 
 @dataclass(frozen=True, slots=True)
-class ValueListNode(ExprNode):
+class SequenceNode(ExprNode):
     elements: tuple[TextNodeT, ...]
 
 
-class ListParser(BaseParser):
-    def parse(self, tokens: t.Iterable[Token]) -> ValueListNode:
+class SequenceParser(BaseParser):
+    def parse(self, tokens: t.Iterable[Token]) -> SequenceNode:
         stream = PushbackTokenStream(tokens)
 
         res: list[TextNodeT] = []
@@ -32,6 +32,6 @@ class ListParser(BaseParser):
             single = res[0]
 
             if isinstance(single, IdentifierNode) and single.name == "_":
-                return ValueListNode(single.span, ())
+                return SequenceNode(single.span, ())
 
-        return ValueListNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))
+        return SequenceNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))

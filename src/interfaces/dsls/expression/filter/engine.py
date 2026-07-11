@@ -1,11 +1,11 @@
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.filter import AndFilter, OrFilter, ComparisonFilter, Filter, OpType, EMPTY
+from domain.value_objects.filter import AndFilter, OrFilter, ComparisonFilter, FilterT, OpType, EMPTY
 from interfaces.dsls.expression.parse import BinOpType, ExpressionParser
-from interfaces.dsls.shared.engine import BaseEngine
-from interfaces.dsls.shared.errors.eval import UnexpectedBinOp, UnexpectedNode
-from interfaces.dsls.shared.lex import TEXT_TOKEN_TYPES, Lexer
-from interfaces.dsls.shared.parse import TEXT_NODE_TYPES, ExprNode, IdentifierNode, TextNodeT
+from interfaces.dsls.core.engine import BaseEngine
+from interfaces.dsls.core.errors.eval import EmptyAfterNonEqualityOperator, UnexpectedBinOp, UnexpectedNode
+from interfaces.dsls.core.lex import TEXT_TOKEN_TYPES, Lexer
+from interfaces.dsls.core.parse import TEXT_NODE_TYPES, ExprNode, IdentifierNode, TextNodeT
 import typing as t
 from interfaces.dsls.expression import parse
 
@@ -13,9 +13,9 @@ from interfaces.dsls.expression import parse
 class FilterEngine(BaseEngine):
     def __init__(self) -> None:
         super().__init__()
-        self._s = None
+        self._s: str | None = None
 
-    def eval(self, s: str) -> Filter:
+    def eval(self, s: str) -> FilterT:
         toks = Lexer(multiline_strings=False).lex(s)
         ast = ExpressionParser(s, 16).parse(toks)
 
@@ -26,7 +26,7 @@ class FilterEngine(BaseEngine):
         finally:
             self._s = None
 
-    def _eval_recursively(self, node: ExprNode) -> Filter:
+    def _eval_recursively(self, node: ExprNode) -> FilterT:
         match node:
             case parse.BoolOp() as bool_op:
                 elems = tuple(self._eval_recursively(elem) for elem in bool_op.elements)
@@ -74,7 +74,7 @@ class FilterEngine(BaseEngine):
                 else:
                     if bin_op.type not in (BinOpType.IS, BinOpType.IS_NOT):
                         assert self._s is not None
-                        raise UnexpectedNode(self._s, TEXT_NODE_TYPES, bin_op.right)
+                        raise EmptyAfterNonEqualityOperator(self._s, bin_op)
 
                     value = EMPTY
 
@@ -83,3 +83,7 @@ class FilterEngine(BaseEngine):
                     op_type,
                     value
                 )
+
+            case _:
+                assert self._s is not None
+                raise UnexpectedNode(self._s, (parse.BoolOp, parse.BinOp), node)

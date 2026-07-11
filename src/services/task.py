@@ -23,6 +23,7 @@ from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.filter import FilterT, OptionalFilterT
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.string import NormStr, RealStr
@@ -332,6 +333,7 @@ class TaskQueryService:
 
     def get_summaries(
         self,
+        filter: FilterT | None,
         sorts: tuple[tuple[AttributeSynStr, bool], ...],
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
@@ -362,11 +364,10 @@ class TaskQueryService:
             self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
-        task_id_to_field_mapping = frozendict(
+        field_mappings = tuple(
             (
-                task_id,
                 frozendict(static_field_mapping)
-                | task_id_to_task_field_mapping.get(task_id, frozendict()),
+                | task_id_to_task_field_mapping.get(task_id, frozendict())
             )
             for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
         )
@@ -379,9 +380,16 @@ class TaskQueryService:
             )
         )
 
+        field_mappings = self._field_mapping_service.filter(
+            filter,
+            field_mappings,
+            syn_to_attr,
+            attr_id_to_collection
+        )
+
         field_mappings = self._field_mapping_service.sort(
             sorts,
-            task_id_to_field_mapping,
+            field_mappings,
             syn_to_attr,
             attr_id_to_collection,
         )

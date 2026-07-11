@@ -1,4 +1,4 @@
-from interfaces.dsls.shared.parse import StringNode, TextNodeT
+from interfaces.dsls.core.parse import StringNode, TextNodeT
 
 
 class BaseEngine:

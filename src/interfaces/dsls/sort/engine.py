@@ -1,5 +1,5 @@
-from interfaces.dsls.shared.engine import BaseEngine
-from interfaces.dsls.shared.lex import Lexer
+from interfaces.dsls.core.engine import BaseEngine
+from interfaces.dsls.core.lex import Lexer
 from interfaces.dsls.sort.parse import SortParser
 
 

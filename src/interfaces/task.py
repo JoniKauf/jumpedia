@@ -1,19 +1,15 @@
-import typing as t
 
 import discord
 from discord import app_commands
 
-from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
 from domain.sentinels.default import DEFAULT
 from domain.types.common import ID
-from domain.types.field_mapping import FieldMappingRawT
 from domain.types.user import UserID
-from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
-from interfaces import dsls
+from interfaces import bindings
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
@@ -23,27 +19,6 @@ from interfaces.enums.edit_mode import (
 )
 from interfaces.message import format, messages
 from services.dtos.user import UserRef
-
-
-def _field_mapping_input_to_value(
-    s: str | None,
-) -> FieldMappingRawT:
-    return tuple(
-        ()
-        if s is None
-        else tuple(
-            (AttributeSynStr(k), tuple(FieldSlotStr(slot) for slot in v))
-            for k, v in dsls.mapping.engine.eval(s)
-        )
-    )
-
-
-def _aliases_input_to_value(s: str | None) -> tuple[FieldSlotStr, ...]:
-    return (
-        ()
-        if s is None
-        else tuple(FieldSlotStr(alias) for alias in dsls.list.engine.eval(s))
-    )
 
 
 class TaskInterface(BaseInterface, group_name="task"):
@@ -73,14 +48,14 @@ class TaskInterface(BaseInterface, group_name="task"):
         ctx: CommandContext,
         task_name: str,
         list_name: str,
-        aliases: str,
-        field_mapping: str,
+        aliases_dsl_sequence: str,
+        field_mapping_dsl: str,
     ) -> None:
         task = ctx.services.task.create(
             FieldSlotStr(task_name),
             ListNameStr(list_name),
-            _aliases_input_to_value(aliases),
-            _field_mapping_input_to_value(field_mapping),
+            bindings.sequence.task_aliases(aliases_dsl_sequence),
+            bindings.mapping.field_mapping(field_mapping_dsl),
         )
 
         await messages.object_created(ctx.interaction, task)
@@ -116,13 +91,11 @@ class TaskInterface(BaseInterface, group_name="task"):
         self,
         ctx: CommandContext,
         task_name: str,
-        new_task_aliases: str,
+        new_task_aliases_dsl_sequence: str,
         list_name: str,
         edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
-        after = tuple(
-            FieldSlotStr(alias) for alias in dsls.list.engine.eval(new_task_aliases)
-        )
+        after = bindings.sequence.task_aliases(new_task_aliases_dsl_sequence)
         task = ctx.services.task.edit_aliases(
             after, edit_mode.value, FieldSlotStr(task_name), ListNameStr(list_name)
         )
@@ -136,11 +109,11 @@ class TaskInterface(BaseInterface, group_name="task"):
         ctx: CommandContext,
         task_name: str,
         list_name: str,
-        new_user_field_mapping: str,
+        new_user_field_mapping_dsl: str,
         edit_mode: FieldMappingEditModeInterfaceEnum,
     ) -> None:
         task = ctx.services.task.edit_field_mapping(
-            _field_mapping_input_to_value(new_user_field_mapping),
+            bindings.mapping.field_mapping(new_user_field_mapping_dsl),
             edit_mode.value,
             FieldSlotStr(task_name),
             DEFAULT if list_name is None else ListNameStr(list_name),
@@ -156,7 +129,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
     @app_commands.command()
     @with_context()
-    async def info_of_user(
+    async def info_user(
         self,
         ctx: CommandContext,
         task_name_or_alias: str,
@@ -188,14 +161,14 @@ class TaskInterface(BaseInterface, group_name="task"):
         self,
         ctx: CommandContext,
         task_name_or_alias: str,
-        user_field_mapping: str | None = None,
+        user_field_mapping_dsl: str | None = None,
         user: discord.User | None = None,
         list_name: str | None = None,
     ) -> None:
         member, task = ctx.services.member_task.give_to_user(
             FieldSlotStr(task_name_or_alias),
             DEFAULT if list_name is None else ListNameStr(list_name),
-            (_field_mapping_input_to_value(user_field_mapping)),
+            (bindings.mapping.field_mapping(user_field_mapping_dsl)),
             (
                 DEFAULT
                 if user is None
@@ -246,7 +219,7 @@ class TaskInterface(BaseInterface, group_name="task"):
         list_name: str | None = None,
     ) -> None:
         member, task = ctx.services.member_task.edit_member_field_mapping(
-            _field_mapping_input_to_value(new_user_field_mapping),
+            bindings.mapping.field_mapping(new_user_field_mapping),
             edit_mode.value,
             (
                 DEFAULT
@@ -270,18 +243,13 @@ class TasksInterface(BaseInterface, group_name="tasks"):
     async def browse(
         self,
         ctx: CommandContext,
+        filter_dsl: str | None = None,
         sort_dsl: str | None = None,
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.task_query.get_summaries(
-            (
-                ()
-                if sort_dsl is None
-                else tuple(
-                    (AttributeSynStr(sort), asc)
-                    for sort, asc in dsls.sort.engine.eval(sort_dsl)
-                )
-            ),
+            bindings.filter.filter(filter_dsl),
+            bindings.sort.sorts(sort_dsl),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
@@ -308,14 +276,7 @@ class TasksInterface(BaseInterface, group_name="tasks"):
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.member_task_query.get_summaries(
-            (
-                ()
-                if sort_dsl is None
-                else tuple(
-                    (AttributeSynStr(sort), asc)
-                    for sort, asc in dsls.sort.engine.eval(sort_dsl)
-                )
-            ),
+            bindings.sort.sorts(sort_dsl),
             (
                 DEFAULT
                 if user is None

@@ -17,13 +17,10 @@ class OpType(enum.Enum):
 EMPTY = sentinel("EMPTY")
 
 
-@dataclass(frozen=True, slots=True)
-class Filter:
-    pass
-
+type FilterT = OrFilter | AndFilter | ComparisonFilter
 
 @dataclass(frozen=True, slots=True)
-class ComparisonFilter(Filter):
+class ComparisonFilter:
     """Guarantees that value is only EMPTY for EQ and NEQ operators."""
     attribute: AttributeSynStr
     operator: OpType
@@ -31,10 +28,10 @@ class ComparisonFilter(Filter):
 
 
 @dataclass(frozen=True, slots=True)
-class AndFilter(Filter):
-    operands: tuple[Filter, ...]
+class AndFilter:
+    operands: tuple[FilterT, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class OrFilter(Filter):
-    operands: tuple[Filter, ...]
+class OrFilter:
+    operands: tuple[FilterT, ...]

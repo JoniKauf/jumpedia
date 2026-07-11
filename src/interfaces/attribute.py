@@ -7,16 +7,14 @@ from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
 from domain.types.collection_entry import CollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
-from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
-from interfaces import dsls
+from interfaces import bindings
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     CollectionEditModeInterfaceEnum,
-    FieldMappingEditModeInterfaceEnum,
 )
 from interfaces.message import format, messages
 from services.dtos.attribute import AttributeSummary
@@ -83,20 +81,12 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         slot_type: AttributeSlotType,
         max_slot_count: int,
         unique_slots: bool,
-        aliases_dsl_list: str,
+        aliases_dsl_sequence: str,
         collection_dsl_mapping: str,
     ) -> None:
-        aliases: tuple[AttributeSynStr, ...] = tuple(
-            AttributeSynStr(alias) for alias in dsls.list.engine.eval(aliases_dsl_list)
-        )
+        aliases = bindings.sequence.attribute_aliases(aliases_dsl_sequence)
 
-        collection: CollectionT = tuple(
-            (
-                FieldSlotStr(k),
-                tuple(FieldSlotStr(elem) for elem in v),
-            )
-            for k, v in dsls.mapping.engine.eval(collection_dsl_mapping)
-        )
+        collection = bindings.mapping.collection(collection_dsl_mapping)
 
         attr = ctx.services.attribute.create(
             AttributeSynStr(attribute_name),
@@ -145,13 +135,10 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         ctx: CommandContext,
         attribute_name: str,
         list_name: str,
-        new_attribute_aliases_dsl_list: str,
+        new_attribute_aliases_dsl_sequence: str,
         edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
-        after = tuple(
-            AttributeSynStr(alias)
-            for alias in dsls.list.engine.eval(new_attribute_aliases_dsl_list)
-        )
+        after = bindings.sequence.attribute_aliases(new_attribute_aliases_dsl_sequence)
         attr = ctx.services.attribute.edit_aliases(
             AttributeSynStr(attribute_name),
             after,
@@ -168,14 +155,14 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         ctx: CommandContext,
         attribute_name: str,
         list_name: str,
-        min_slot_count: int,
-        max_slot_count: int,
+        new_min_slot_count: int,
+        new_max_slot_count: int,
     ) -> None:
         attr = ctx.services.attribute.edit_min_and_max_slot_count(
             AttributeSynStr(attribute_name),
             ListNameStr(list_name),
-            min_slot_count,
-            max_slot_count,
+            new_min_slot_count,
+            new_max_slot_count,
         )
 
         await messages.success(
@@ -200,13 +187,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         new_collection_dsl_mapping: str,
         edit_mode: CollectionEditModeInterfaceEnum,
     ) -> None:
-        new_collection: CollectionT = tuple(
-            (
-                FieldSlotStr(k),
-                tuple(FieldSlotStr(elem) for elem in v),
-            )
-            for k, v in dsls.mapping.engine.eval(new_collection_dsl_mapping)
-        )
+        new_collection = bindings.mapping.collection(new_collection_dsl_mapping)
 
         attr = ctx.services.attribute.edit_collection(
             AttributeSynStr(attribute_name), list_name, new_collection, edit_mode.value
@@ -265,15 +246,9 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
     @app_commands.command()
     @with_context()
     async def edit_position_order(
-        self, ctx: CommandContext, all_attribute_names_dsl_list: str, list_name: str
+        self, ctx: CommandContext, all_attribute_names_dsl_sequence: str, list_name: str
     ) -> None:
-        lst = ctx.services.attribute.edit_position_order(
-            tuple(
-                AttributeSynStr(name)
-                for name in dsls.list.engine.eval(all_attribute_names_dsl_list)
-            ),
-            ListNameStr(list_name),
-        )
+        lst = ctx.services.attribute.edit_position_order(bindings.sequence.attributes(all_attribute_names_dsl_sequence), ListNameStr(list_name))
 
         await messages.success(
             ctx.interaction,

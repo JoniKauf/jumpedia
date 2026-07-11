@@ -2,9 +2,9 @@ import enum
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.errors.parse import DepthLimitSurpassed, ExpectedKeyword, UnexpectedToken
-from interfaces.dsls.shared.lex import Token, TokenType
-from interfaces.dsls.shared.parse import (
+from interfaces.dsls.core.errors.parse import DepthLimitSurpassed, ExpectedKeyword, UnexpectedToken
+from interfaces.dsls.core.lex import Token, TokenType
+from interfaces.dsls.core.parse import (
     BaseParser,
     ExprNode,
     IdentifierNode,
@@ -12,7 +12,7 @@ from interfaces.dsls.shared.parse import (
     StringNode,
     TextNodeT,
 )
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core.value_objects import Span
 
 
 class BoolOpType(enum.Enum):

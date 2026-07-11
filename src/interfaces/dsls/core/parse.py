@@ -2,9 +2,9 @@ import functools
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared import lex
-from interfaces.dsls.shared.errors.parse import UnexpectedToken
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core import lex
+from interfaces.dsls.core.errors.parse import UnexpectedToken
+from interfaces.dsls.core.value_objects import Span
 
 
 class PushbackTokenStream:

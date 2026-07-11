@@ -20,6 +20,7 @@ from domain.types.field_mapping import (
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.filter import FilterT
 from domain.value_objects.string import NormStr, RealStr
 from services.internal.edit_mode import EditModeService
 from services.internal.slot_type import SlotTypeService
@@ -232,15 +233,19 @@ class FieldMappingService:
 
         return static_field_mapping
 
+    def filter[T: AttributeType](self, filter: FilterT | None, field_mappings: t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]], syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]], attr_id_to_collection: t.Mapping[AttributeID, CollectionT]) -> t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
+        if filter is None:
+            return field_mappings
+
+        ...
+
     def sort[T: AttributeType](
         self,
         sorts: t.Sequence[tuple[AttributeSynStr, bool]],
-        task_id_to_field_mapping: t.Mapping[
-            TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]
-        ],
+        field_mappings: t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
         syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
-    ) -> tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], ...]:
+    ) -> t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
         # Warning: Complicated code ahead! But it allows for fast, multi-key, asc/desc sorting
 
         # --- Normalize Sorts As Much As Possible --- #
@@ -279,9 +284,7 @@ class FieldMappingService:
             clean_sorts = [(name_attr, True)]  # type: ignore
 
         # --- Gather Sorting Data --- #
-        task_id_to_sort_value: dict[
-            TaskID, list[tuple[AttributeSlotType.SlotTypeT, ...]]
-        ] = {}
+        field_mappings_and_their_sort_value: list[tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]]] = []
 
         # TODO: Could be optimized to only fetch collection entry values excluding aliases
         # because all data should be the value, not any aliases of the collection. Aliases
@@ -293,7 +296,7 @@ class FieldMappingService:
             for attr, coll in attr_id_to_collection.items()
         }
 
-        for task_id, field_mapping in task_id_to_field_mapping.items():
+        for field_mapping in field_mappings:
             # Map every attr into the typed field of the task
             task_sort_value: list[tuple[AttributeSlotType.SlotTypeT, ...]] = []
 
@@ -308,7 +311,7 @@ class FieldMappingService:
                 if value_to_collection_entry_idx:
                     # It is possible that a slot does not match any collection value in case that
                     # a user attribute's collection is edited and staff did not yet fix the users'
-                    # data.
+                    # data. Therefore allow for default and put as -1 (sort first/last)
                     task_sort_value.append(
                         tuple(
                             value_to_collection_entry_idx.get(slot, -1)
@@ -325,15 +328,15 @@ class FieldMappingService:
                         )
                     )
 
-            task_id_to_sort_value[task_id] = task_sort_value
+            field_mappings_and_their_sort_value.append((field_mapping, task_sort_value))
 
         # --- Apply Sort --- #
-        def compare_task_sort_values(
-            a: tuple[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
-            b: tuple[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
+        def compare_sort_values(
+            a: tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]],
+            b: tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]],
         ) -> int:
-            values_a = task_id_to_sort_value[a[0]]
-            values_b = task_id_to_sort_value[b[0]]
+            values_a = a[1]
+            values_b = b[1]
 
             # Compare each value of the specified attribute for the given two tasks until one is greater, otherwise equal
             for va, vb, (_, asc) in zip(values_a, values_b, clean_sorts):
@@ -345,10 +348,7 @@ class FieldMappingService:
 
             return 0
 
-        return tuple(
-            field_mapping
-            for _, field_mapping in sorted(
-                task_id_to_field_mapping.items(),
-                key=functools.cmp_to_key(compare_task_sort_values),
-            )
-        )
+        return tuple(field_mapping for field_mapping, _ in sorted(
+            field_mappings_and_their_sort_value,
+            key=functools.cmp_to_key(compare_sort_values),
+        ))

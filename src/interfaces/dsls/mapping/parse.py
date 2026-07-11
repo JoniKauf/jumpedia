@@ -1,10 +1,10 @@
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.errors.parse import UnexpectedToken
-from interfaces.dsls.shared.lex import TEXT_TOKEN_TYPES, Token, TokenType
-from interfaces.dsls.shared.parse import BaseParser, ExprNode, PushbackTokenStream, TextNodeT
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core.errors.parse import UnexpectedToken
+from interfaces.dsls.core.lex import TEXT_TOKEN_TYPES, Token, TokenType
+from interfaces.dsls.core.parse import BaseParser, ExprNode, PushbackTokenStream, TextNodeT
+from interfaces.dsls.core.value_objects import Span
 
 
 @dataclass(frozen=True, slots=True)

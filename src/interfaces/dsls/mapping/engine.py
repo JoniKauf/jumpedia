@@ -1,8 +1,8 @@
 import typing as t
 
 from interfaces.dsls.mapping.parse import MappingParser
-from interfaces.dsls.shared.engine import BaseEngine
-from interfaces.dsls.shared.lex import Lexer
+from interfaces.dsls.core.engine import BaseEngine
+from interfaces.dsls.core.lex import Lexer
 
 
 class MappingEngine(BaseEngine):

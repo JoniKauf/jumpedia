@@ -3,13 +3,13 @@ import types as ts
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.shared.errors.lex import (
+from interfaces.dsls.core.errors.lex import (
     InvalidEscape,
     MultilineStringsDisallowed,
     UnknownChar,
     UnterminatedString,
 )
-from interfaces.dsls.shared.value_objects import Span
+from interfaces.dsls.core.value_objects import Span
 
 
 class TokenType(enum.Enum):
