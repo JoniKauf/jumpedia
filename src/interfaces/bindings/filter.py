@@ -1,6 +1,3 @@
-
-
-
 from domain.value_objects.filter import FilterT
 from interfaces import dsls
 

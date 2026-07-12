@@ -286,68 +286,68 @@ def create_database(
         """)
 
         c.raw_execute(f"""
-            CREATE TABLE {db.CommunityUserTask} (
-                {db.CommunityUserTask.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                {db.CommunityUserTask.list_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTask.community_user_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTask.task_id} INT UNSIGNED NOT NULL,
+            CREATE TABLE {db.CommunityUserAttributeTypeTask} (
+                {db.CommunityUserAttributeTypeTask.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                {db.CommunityUserAttributeTypeTask.list_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTask.community_user_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTask.task_id} INT UNSIGNED NOT NULL,
 
-                FOREIGN KEY ({db.CommunityUserTask.list_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTask.list_id.unqualified})
                     REFERENCES {db.List}({db.List.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTask.task_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTask.task_id.unqualified})
                     REFERENCES {db.Task}({db.Task.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTask.community_user_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTask.community_user_id.unqualified})
                     REFERENCES {db.CommunityUser}({db.CommunityUser.id.unqualified})
                     ON DELETE CASCADE,
 
                 UNIQUE (
-                    {db.CommunityUserTask.list_id.unqualified}, 
-                    {db.CommunityUserTask.task_id.unqualified},
-                    {db.CommunityUserTask.community_user_id.unqualified}
+                    {db.CommunityUserAttributeTypeTask.list_id.unqualified}, 
+                    {db.CommunityUserAttributeTypeTask.task_id.unqualified},
+                    {db.CommunityUserAttributeTypeTask.community_user_id.unqualified}
                 )
             )
             """)
 
         c.raw_execute(f"""
-            CREATE TABLE {db.CommunityUserTaskAttributeValue} (
-                {db.CommunityUserTaskAttributeValue.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                {db.CommunityUserTaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.community_user_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.community_user_task_id} BIGINT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
-                {db.CommunityUserTaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
+            CREATE TABLE {db.CommunityUserAttributeTypeTaskAttributeValue} (
+                {db.CommunityUserAttributeTypeTaskAttributeValue.id} BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.list_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.community_user_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.community_user_task_id} BIGINT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.task_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.attribute_id} INT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.index} TINYINT UNSIGNED NOT NULL,
+                {db.CommunityUserAttributeTypeTaskAttributeValue.slot_slot} VARCHAR({slot_str.STR_MAX_LEN}) NOT NULL,
 
-                FOREIGN KEY ({db.CommunityUserTaskAttributeValue.community_user_task_id.unqualified})
-                    REFERENCES {db.CommunityUserTask}({db.CommunityUserTask.id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTaskAttributeValue.community_user_task_id.unqualified})
+                    REFERENCES {db.CommunityUserAttributeTypeTask}({db.CommunityUserAttributeTypeTask.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTaskAttributeValue.list_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTaskAttributeValue.list_id.unqualified})
                     REFERENCES {db.List}({db.List.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTaskAttributeValue.task_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTaskAttributeValue.task_id.unqualified})
                     REFERENCES {db.Task}({db.Task.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTaskAttributeValue.community_user_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTaskAttributeValue.community_user_id.unqualified})
                     REFERENCES {db.CommunityUser}({db.CommunityUser.id.unqualified})
                     ON DELETE CASCADE,
-                FOREIGN KEY ({db.CommunityUserTaskAttributeValue.attribute_id.unqualified})
+                FOREIGN KEY ({db.CommunityUserAttributeTypeTaskAttributeValue.attribute_id.unqualified})
                     REFERENCES {db.Attribute}({db.Attribute.id.unqualified})
                     ON DELETE CASCADE,
 
                 UNIQUE (
-                    {db.CommunityUserTaskAttributeValue.community_user_task_id.unqualified},
-                    {db.CommunityUserTaskAttributeValue.attribute_id.unqualified},
-                    {db.CommunityUserTaskAttributeValue.index.unqualified}
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.community_user_task_id.unqualified},
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.attribute_id.unqualified},
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.index.unqualified}
                 ),
                 UNIQUE (
-                    {db.CommunityUserTaskAttributeValue.list_id.unqualified},
-                    {db.CommunityUserTaskAttributeValue.community_user_id.unqualified}, 
-                    {db.CommunityUserTaskAttributeValue.task_id.unqualified},
-                    {db.CommunityUserTaskAttributeValue.attribute_id.unqualified},
-                    {db.CommunityUserTaskAttributeValue.index.unqualified}
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.list_id.unqualified},
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.community_user_id.unqualified}, 
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.task_id.unqualified},
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.attribute_id.unqualified},
+                    {db.CommunityUserAttributeTypeTaskAttributeValue.index.unqualified}
                 )
             )
         """)

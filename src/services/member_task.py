@@ -11,6 +11,7 @@ from domain.enums.attribute import AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
+from domain.types.attribute import AnyAttributeTypeT, SlotTypeT
 from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingRawT
 from domain.types.member import MemberID
 from domain.value_objects.field_slot import FieldSlotStr
@@ -31,6 +32,7 @@ from services.community import ListAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
 from services.internal.field_mapping import FieldMappingService
+from services.internal.slot_type import SlotTypeService
 from services.member import MemberAccessService, MemberExistenceService, MemberService
 from services.task import TaskAccessService
 
@@ -207,13 +209,14 @@ class MemberTaskQueryService:
     _field_mapping_service: FieldMappingService
     _member_field_slot_repo: MemberFieldSlotRepository
     _member_existence_service: MemberExistenceService
+    _slot_type_service: SlotTypeService
 
     def get_info(
         self,
         syn: FieldSlotStr,
         target_user: UserRef | DEFAULT,
         list_name: ListNameStr | DEFAULT,
-    ) -> FieldMappingEntityFrozenT[AttributeType.AllT]:
+    ) -> FieldMappingEntityFrozenT[AnyAttributeTypeT]:
         community, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
@@ -262,8 +265,8 @@ class MemberTaskQueryService:
         target_user: UserRef | DEFAULT,
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
-        AttributeEntity[AttributeType.AllT],
-        tuple[tuple[FieldSlotStr, ...], ...],
+        AttributeEntity[AnyAttributeTypeT],
+        tuple[tuple[SlotTypeT, ...], ...],
     ]:
         community, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
@@ -296,7 +299,7 @@ class MemberTaskQueryService:
         task_id_to_task_field_mapping = (
             self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
-
+        
         task_id_to_user_field_mapping = (
             self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
                 target_member.member_id
@@ -304,7 +307,7 @@ class MemberTaskQueryService:
         )
 
         # Combine all 3 mappings into the final one
-        field_mappings = tuple(
+        field_mappings_untyped = (
             (
                 frozendict(static_field_mapping)
                 | task_id_to_task_field_mapping.get(task_id, frozendict())
@@ -315,24 +318,18 @@ class MemberTaskQueryService:
 
         del task_id_to_static_field_mapping, task_id_to_task_field_mapping
 
-        attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+        field_mappings = tuple(
+            {attr: tuple(self._slot_type_service.convert_to_slot_typed(slot, ) for slot in f) for attr, f in fm.items()} for fm in field_mappings_untyped
+        )
+        attr_id_to_coll_value_to_idx = (
+            self._collection_entry_repo.get_grouped_value_to_index_by_list_id(
                 lst.list_id, AttributeType.TASK.as_set()
             )
         )
 
-        field_mappings = self._field_mapping_service.filter(
-            filter,
-            field_mappings,
-            syn_to_attr,
-            attr_id_to_collection
-        )
-        
-        field_mappings = self._field_mapping_service.sort(
-            sorts,
-            field_mappings,
-            syn_to_attr,
-            attr_id_to_collection,
+        field_mappings = self._field_mapping_service.filter_and_sort(
+            tuple(fm for fm in field_mappings)
+            field_mappings, filter, sorts, syn_to_attr, attr_id_to_coll_value_to_idx
         )
 
         return frozendict(

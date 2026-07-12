@@ -3,7 +3,12 @@ from dataclasses import dataclass
 
 from interfaces.dsls.core.errors.parse import UnexpectedToken
 from interfaces.dsls.core.lex import TEXT_TOKEN_TYPES, Token, TokenType
-from interfaces.dsls.core.parse import BaseParser, ExprNode, PushbackTokenStream, TextNodeT
+from interfaces.dsls.core.parse import (
+    BaseParser,
+    ExprNode,
+    PushbackTokenStream,
+    TextNodeT,
+)
 from interfaces.dsls.core.value_objects import Span
 
 
@@ -37,7 +42,7 @@ class MappingParser(BaseParser):
                 with_parens = True
             case text if text in TEXT_TOKEN_TYPES:
                 with_parens = False
-                
+
                 if first_tok.type is TokenType.IDENT and first_tok.value == "_":
                     stream.pop()
 
@@ -49,7 +54,9 @@ class MappingParser(BaseParser):
             case TokenType.NONE:
                 assert False
             case _:
-                raise UnexpectedToken(self._s, TEXT_TOKEN_TYPES + (TokenType.LPAREN,), first_tok)
+                raise UnexpectedToken(
+                    self._s, TEXT_TOKEN_TYPES + (TokenType.LPAREN,), first_tok
+                )
 
         # At least one iteration guaranteed
         while stream.peek().type is not TokenType.NONE:
@@ -94,7 +101,9 @@ class MappingParser(BaseParser):
                     if stream.peek().type is TokenType.COLON:
                         # We are after "key:" so if we receive another colon, bad
                         if not values:
-                            raise UnexpectedToken(self._s, TEXT_TOKEN_TYPES, stream.pop())
+                            raise UnexpectedToken(
+                                self._s, TEXT_TOKEN_TYPES, stream.pop()
+                            )
 
                         # Otherwise if we see the next token is a colon, "tok" is the key of the next item
                         # Undo adding to to the current values and stop for this item
@@ -103,7 +112,7 @@ class MappingParser(BaseParser):
                         break
 
                     values.append(self.text_token_to_node(tok))
-                
+
                 item_end = values[-1].span.end if values else colon.span.end
 
             value_list = ValueListNode(
@@ -115,7 +124,9 @@ class MappingParser(BaseParser):
                 tuple(values),
             )
 
-            res.append(MappingItemNode(Span(item_begin, item_end), key_node, value_list))
+            res.append(
+                MappingItemNode(Span(item_begin, item_end), key_node, value_list)
+            )
 
         assert res
 

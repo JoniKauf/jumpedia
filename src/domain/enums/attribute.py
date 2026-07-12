@@ -1,7 +1,8 @@
 import decimal
 import enum
 import typing as t
-from functools import cached_property
+
+from domain.types.attribute import AnyAttributeTypeT, SlotTypeT, StaticAttributeTypeT, TaskAttributeTypeT, UserAttributeTypeT
 
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
@@ -10,25 +11,17 @@ class AttributeType(enum.IntEnum):
     TASK = 2
     USER = 3
 
-    type StaticT = t.Literal[AttributeType.STATIC]
-    type TaskT = t.Literal[AttributeType.TASK]
-    type UserT = t.Literal[AttributeType.USER]
-
-    type NonUserT = StaticT | TaskT
-    type NonStaticT = TaskT | UserT
-    type AllT = StaticT | TaskT | UserT
+    @t.overload
+    def as_set(self: StaticAttributeTypeT) -> t.AbstractSet[StaticAttributeTypeT]:
+        pass
 
     @t.overload
-    def as_set(self: StaticT) -> t.AbstractSet[StaticT]:
-        return {self}
+    def as_set(self: TaskAttributeTypeT) -> t.AbstractSet[TaskAttributeTypeT]:
+        pass
 
     @t.overload
-    def as_set(self: TaskT) -> t.AbstractSet[TaskT]:
-        return {self}
-
-    @t.overload
-    def as_set(self: UserT) -> t.AbstractSet[UserT]:
-        return {self}
+    def as_set(self: UserAttributeTypeT) -> t.AbstractSet[UserAttributeTypeT]:
+        pass
 
     def as_set(  # pyright: ignore[reportInconsistentOverload]
         self,
@@ -36,15 +29,15 @@ class AttributeType(enum.IntEnum):
         return {self}
 
     @classmethod
-    def ALL(cls) -> t.AbstractSet[AllT]:
+    def ALL(cls) -> t.AbstractSet[AnyAttributeTypeT]:
         return {cls.STATIC, cls.TASK, cls.USER}
 
     @classmethod
-    def NON_STATIC(cls) -> t.AbstractSet[TaskT | UserT]:
+    def NON_STATIC(cls) -> t.AbstractSet[TaskAttributeTypeT | UserAttributeTypeT]:
         return {cls.TASK, cls.USER}
 
     @classmethod
-    def NON_USER(cls) -> t.AbstractSet[StaticT | TaskT]:
+    def NON_USER(cls) -> t.AbstractSet[StaticAttributeTypeT | TaskAttributeTypeT]:
         return {cls.STATIC, cls.TASK}
 
 
@@ -54,7 +47,6 @@ class AttributeKind(enum.IntEnum):
     NAME = 1
     ALIAS = 2
     ID = 3
-
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
 class AttributeSlotType(enum.IntEnum):
@@ -76,5 +68,3 @@ class AttributeSlotType(enum.IntEnum):
                 return str
             case _:
                 t.assert_never(self)
-
-    type SlotTypeT = bool | int | decimal.Decimal | str

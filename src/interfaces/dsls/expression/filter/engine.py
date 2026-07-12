@@ -1,13 +1,27 @@
-from domain.value_objects.attribute import AttributeSynStr
-from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.filter import AndFilter, OrFilter, ComparisonFilter, FilterT, OpType, EMPTY
-from interfaces.dsls.expression.parse import BinOpType, ExpressionParser
-from interfaces.dsls.core.engine import BaseEngine
-from interfaces.dsls.core.errors.eval import EmptyAfterNonEqualityOperator, UnexpectedBinOp, UnexpectedNode
-from interfaces.dsls.core.lex import TEXT_TOKEN_TYPES, Lexer
-from interfaces.dsls.core.parse import TEXT_NODE_TYPES, ExprNode, IdentifierNode, TextNodeT
 import typing as t
+
+from domain.value_objects.filter import (
+    AndFilter,
+    NonEmptyComparisonFilter,
+    EmptyComparisonFilter,
+    FilterT,
+    OpType,
+    OrFilter,
+)
+from interfaces.dsls.core.engine import BaseEngine
+from interfaces.dsls.core.errors.eval import (
+    EmptyAfterNonEqualityOperator,
+    UnexpectedBinOp,
+    UnexpectedNode,
+)
+from interfaces.dsls.core.lex import Lexer
+from interfaces.dsls.core.parse import (
+    TEXT_NODE_TYPES,
+    ExprNode,
+    IdentifierNode,
+)
 from interfaces.dsls.expression import parse
+from interfaces.dsls.expression.parse import BinOpType, ExpressionParser
 
 
 class FilterEngine(BaseEngine):
@@ -57,32 +71,40 @@ class FilterEngine(BaseEngine):
                         op_type = OpType.GTE
                     case _:
                         assert self._s is not None
-                        raise UnexpectedBinOp(self._s, (BinOpType.IS, BinOpType.IS_NOT, BinOpType.LT, BinOpType.LTE, BinOpType.GT, BinOpType.GTE), bin_op.type)
+                        raise UnexpectedBinOp(
+                            self._s,
+                            (
+                                BinOpType.IS,
+                                BinOpType.IS_NOT,
+                                BinOpType.LT,
+                                BinOpType.LTE,
+                                BinOpType.GT,
+                                BinOpType.GTE,
+                            ),
+                            bin_op.type,
+                        )
 
                 if not isinstance(bin_op.right, TEXT_NODE_TYPES):
                     assert self._s is not None
                     raise UnexpectedNode(self._s, TEXT_NODE_TYPES, bin_op.left)
-                
+
                 if not isinstance(bin_op.left, TEXT_NODE_TYPES):
                     assert self._s is not None
                     raise UnexpectedNode(self._s, TEXT_NODE_TYPES, bin_op.left)
 
-                value: FieldSlotStr | EMPTY
+                attr = self.get_string_from_text_node(bin_op.right)
 
-                if not (isinstance(bin_op.right, IdentifierNode) and bin_op.right.name == '_'):
-                    value = FieldSlotStr(self.get_string_from_text_node(bin_op.right))
-                else:
-                    if bin_op.type not in (BinOpType.IS, BinOpType.IS_NOT):
+                if (
+                    isinstance(bin_op.right, IdentifierNode)
+                    and bin_op.right.name == "_"
+                ):
+                    if op_type not in (OpType.EQ, OpType.NEQ):
                         assert self._s is not None
                         raise EmptyAfterNonEqualityOperator(self._s, bin_op)
-
-                    value = EMPTY
-
-                return ComparisonFilter(
-                    AttributeSynStr(self.get_string_from_text_node(bin_op.left)),
-                    op_type,
-                    value
-                )
+                    
+                    return EmptyComparisonFilter(attr, op_type)
+                
+                return NonEmptyComparisonFilter(attr, op_type, self.get_string_from_text_node(bin_op.right))
 
             case _:
                 assert self._s is not None

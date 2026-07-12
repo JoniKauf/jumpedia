@@ -2,7 +2,11 @@ import enum
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.core.errors.parse import DepthLimitSurpassed, ExpectedKeyword, UnexpectedToken
+from interfaces.dsls.core.errors.parse import (
+    DepthLimitSurpassed,
+    ExpectedKeyword,
+    UnexpectedToken,
+)
 from interfaces.dsls.core.lex import Token, TokenType
 from interfaces.dsls.core.parse import (
     BaseParser,
@@ -239,4 +243,6 @@ class ExpressionParser(BaseParser):
 
                 return expr
 
-        raise UnexpectedToken(self._s, (TokenType.IDENT, TokenType.STRING, TokenType.LPAREN), tok)
+        raise UnexpectedToken(
+            self._s, (TokenType.IDENT, TokenType.STRING, TokenType.LPAREN), tok
+        )

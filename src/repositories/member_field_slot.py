@@ -66,7 +66,7 @@ class MemberFieldSlotRepository(BaseRepository):
     def get_grouped_field_mapping_by_member_id(
         self,
         member_id: MemberID,
-    ) -> frozendict[TaskID, frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
+    ) -> frozendict[TaskID, FieldMappingIDFrozenT]:
         stmt = (
             select(MemberTaskModel.task_id, MemberFieldSlotModel)
             .join(

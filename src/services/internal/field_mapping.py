@@ -8,23 +8,42 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
-from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionT
+from domain.errors.business import NotFoundByName
+from domain.types.attribute import AnyAttributeTypeT, AttributeID, SlotTypeT, StaticAttributeTypeT
+from domain.types.collection_entry import CollectionSlotTypeFrozenT, CollectionT
 from domain.types.field_mapping import (
     FieldMappingEntityFrozenT,
     FieldMappingEntityT,
+    FieldMappingIDFrozenT,
     FieldMappingIDMutT,
     FieldMappingIDT,
+    FieldMappingIDSlotTypeT,
     FieldMappingRawT,
 )
 from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.filter import FilterT
+from domain.value_objects.filter import (
+    AndFilter,
+    NonEmptyComparisonFilter,
+    FilterT,
+    EmptyComparisonFilter,
+    OpType,
+    OrFilter,
+)
 from domain.value_objects.string import NormStr, RealStr
 from services.internal.edit_mode import EditModeService
 from services.internal.slot_type import SlotTypeService
 
+
+_OP_TO_COMP_FUNC: t.Final[frozendict[OpType, t.Callable[[SlotTypeT, SlotTypeT], bool]]] = frozendict({
+    OpType.EQ: lambda a, b: a == b,
+    OpType.NEQ: lambda a, b: a != b,
+    OpType.LT: lambda a, b: a < b, # pyright: ignore[reportOperatorIssue]
+    OpType.LTE: lambda a, b: a <= b, # pyright: ignore[reportOperatorIssue]
+    OpType.GT: lambda a, b: a > b, # pyright: ignore[reportOperatorIssue]
+    OpType.GTE: lambda a, b: a >= b # pyright: ignore[reportOperatorIssue]
+})
 
 @dataclass(frozen=True, slots=True, eq=False)
 class FieldMappingService:
@@ -160,7 +179,7 @@ class FieldMappingService:
         self,
         task: TaskEntity,
         task_aliases: tuple[FieldSlotStr, ...],
-        attributes: t.Iterable[AttributeEntity.OfAnyTypeT],
+        attributes: t.Iterable[AttributeEntity[AnyAttributeTypeT]],
     ) -> FieldMappingIDMutT:
         static_field_mapping: FieldMappingIDMutT = {}
 
@@ -233,19 +252,118 @@ class FieldMappingService:
 
         return static_field_mapping
 
-    def filter[T: AttributeType](self, filter: FilterT | None, field_mappings: t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]], syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]], attr_id_to_collection: t.Mapping[AttributeID, CollectionT]) -> t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
+    def filter_and_sort(
+        self,
+        field_mappings: t.Sequence[FieldMappingIDSlotTypeT],
+        filter: FilterT | None,
+        sorts: t.Sequence[tuple[AttributeSynStr, bool]],
+        syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity],
+        attribute_id_to_collection_value_to_entry_index: t.Mapping[AttributeID, dict[SlotTypeT, int]]
+    ) -> t.Sequence[FieldMappingIDSlotTypeT]:
+
+        fms = self._filter(field_mappings, filter, syn_to_attribute, attribute_id_to_collection_value_to_entry_index)
+        fms = self._sort(fms, )
+        
+    def _filter[T: AttributeType](
+        self,
+        field_mappings: t.Sequence[FieldMappingIDSlotTypeT],
+        filter: FilterT | None,
+        syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
+        attribute_id_to_collection_value_to_entry_index: t.Mapping[AttributeID, dict[SlotTypeT, int]],
+    ) -> t.Sequence[FieldMappingIDSlotTypeT]:
         if filter is None:
             return field_mappings
 
-        ...
+        return tuple(
+            self._recursively_solve_filter(
+                {id(fm): fm for fm in field_mappings},
+                filter,
+                syn_to_attribute,
+                attribute_id_to_collection_value_to_entry_index,
+            ).values()
+        )
 
-    def sort[T: AttributeType](
+    def _recursively_solve_filter[T: AttributeType](
         self,
+        id_to_field_mappings: t.Mapping[int, FieldMappingIDSlotTypeT],
+        filter: FilterT,
+        syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
+        attribute_id_to_collection_value_to_entry_index: t.Mapping[AttributeID, dict[SlotTypeT, int]],
+    ) -> t.Mapping[int, FieldMappingIDSlotTypeT]:
+        match filter:
+            case OrFilter() as or_filter:
+                yet_invalid: dict[int, FieldMappingIDSlotTypeT] = dict(
+                    id_to_field_mappings
+                )
+                valid: dict[int, FieldMappingIDSlotTypeT] = {}
+
+                for operand in or_filter.operands:
+                    if not yet_invalid:
+                        break
+
+                    new_valid = self._recursively_solve_filter(
+                        yet_invalid, operand, syn_to_attribute, attribute_id_to_collection_value_to_entry_index
+                    )
+
+                    for k in new_valid:
+                        del yet_invalid[k]
+
+                    valid.update(new_valid)
+
+                return valid
+
+            case AndFilter() as and_filter:
+                still_valid: t.Mapping[int, FieldMappingIDSlotTypeT] = dict(
+                    id_to_field_mappings
+                )
+
+                for operand in and_filter.operands:
+                    if not still_valid:
+                        break
+
+                    still_valid = self._recursively_solve_filter(
+                        still_valid, operand, syn_to_attribute, attribute_id_to_collection_value_to_entry_index
+                    )
+
+                return still_valid
+
+            case EmptyComparisonFilter() | NonEmptyComparisonFilter() as comp_filter:
+                attr_syn = AttributeSynStr(comp_filter.attribute)
+
+                attr = syn_to_attribute.get(attr_syn)
+
+                if attr is None:
+                    raise NotFoundByName(attr_syn, AttributeEntity)
+
+                if isinstance(comp_filter, EmptyComparisonFilter):
+                    want_empty = comp_filter.op is OpType.EQ
+
+                    # Return all field mappings where the field for the
+                    # specified attribute is empty (or not empty if operator is NEQ) 
+                    return {
+                        id: field_mapping
+                        for id, field_mapping in id_to_field_mappings.items()
+                        if (not field_mapping.get(attr.attribute_id)) is want_empty
+                    }
+                
+                elif isinstance(comp_filter, NonEmptyComparisonFilter):
+                    comp_func = _OP_TO_COMP_FUNC[comp_filter.op]
+
+                    
+
+                    return {}
+                
+                t.assert_never(comp_filter)
+
+        t.assert_never(filter)
+
+    def _sort[T: AttributeType](
+        self,
+        field_mappings: t.Sequence[FieldMappingIDSlotTypeT],
         sorts: t.Sequence[tuple[AttributeSynStr, bool]],
-        field_mappings: t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]],
-        syn_to_attr: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
-    ) -> t.Sequence[frozendict[AttributeID, tuple[FieldSlotStr, ...]]]:
+        syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
+        attribute_id_to_collection_value_to_entry_index: t.Mapping[AttributeID, t.Mapping[SlotTypeT, int]],
+    ) -> t.Sequence[FieldMappingIDSlotTypeT]:
         # Warning: Complicated code ahead! But it allows for fast, multi-key, asc/desc sorting
 
         # --- Normalize Sorts As Much As Possible --- #
@@ -254,7 +372,7 @@ class FieldMappingService:
 
         for sort in sorts:
             syn, asc = sort
-            attr = syn_to_attr[syn]
+            attr = syn_to_attribute[syn]
 
             # Remove duplicate attrs, they don't affect final result
             if attr in seen:
@@ -272,9 +390,9 @@ class FieldMappingService:
 
         # Sort by name by default
         if not clean_sorts:
-            name_attr: AttributeEntity.OfTypeStaticT
+            name_attr: AttributeEntity[StaticAttributeTypeT]
 
-            for attr in syn_to_attr.values():
+            for attr in syn_to_attribute.values():
                 if attr.kind is AttributeKind.NAME:
                     name_attr = attr  # type: ignore
                     break
@@ -284,25 +402,20 @@ class FieldMappingService:
             clean_sorts = [(name_attr, True)]  # type: ignore
 
         # --- Gather Sorting Data --- #
-        field_mappings_and_their_sort_value: list[tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]]] = []
-
-        # TODO: Could be optimized to only fetch collection entry values excluding aliases
-        # because all data should be the value, not any aliases of the collection. Aliases
-        # are only for lookup.
-        attr_id_to_collection_value_to_collection_entry_index: dict[
-            AttributeID, dict[FieldSlotStr, int]
-        ] = {
-            attr: {entry[0]: i for i, entry in enumerate(coll)}
-            for attr, coll in attr_id_to_collection.items()
-        }
+        field_mappings_and_their_sort_value: list[
+            tuple[
+                FieldMappingIDSlotTypeT,
+                list[tuple[SlotTypeT, ...]],
+            ]
+        ] = []
 
         for field_mapping in field_mappings:
             # Map every attr into the typed field of the task
-            task_sort_value: list[tuple[AttributeSlotType.SlotTypeT, ...]] = []
+            task_sort_value: list[tuple[SlotTypeT, ...]] = []
 
             for attr, _ in clean_sorts:
                 value_to_collection_entry_idx = (
-                    attr_id_to_collection_value_to_collection_entry_index.get(
+                    attribute_id_to_collection_value_to_entry_index.get(
                         attr.attribute_id, {}
                     )
                 )
@@ -321,9 +434,7 @@ class FieldMappingService:
                 else:
                     task_sort_value.append(
                         tuple(
-                            self._slot_type_service.convert_to_type(
-                                slot, attr.field_config.slot_type, _validate=False
-                            )
+                            slot
                             for slot in field_mapping.get(attr.attribute_id, ())
                         )
                     )
@@ -332,8 +443,14 @@ class FieldMappingService:
 
         # --- Apply Sort --- #
         def compare_sort_values(
-            a: tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]],
-            b: tuple[frozendict[AttributeID, tuple[FieldSlotStr, ...]], list[tuple[AttributeSlotType.SlotTypeT, ...]]],
+            a: tuple[
+                FieldMappingIDSlotTypeT,
+                list[tuple[SlotTypeT, ...]],
+            ],
+            b: tuple[
+                FieldMappingIDSlotTypeT,
+                list[tuple[SlotTypeT, ...]],
+            ],
         ) -> int:
             values_a = a[1]
             values_b = b[1]
@@ -348,7 +465,10 @@ class FieldMappingService:
 
             return 0
 
-        return tuple(field_mapping for field_mapping, _ in sorted(
-            field_mappings_and_their_sort_value,
-            key=functools.cmp_to_key(compare_sort_values),
-        ))
+        return tuple(
+            field_mapping
+            for field_mapping, _ in sorted(
+                field_mappings_and_their_sort_value,
+                key=functools.cmp_to_key(compare_sort_values),
+            )
+        )

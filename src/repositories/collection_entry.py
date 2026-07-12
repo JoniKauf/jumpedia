@@ -1,3 +1,4 @@
+import itertools
 import types as ts
 import typing as t
 
@@ -7,11 +8,11 @@ from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntry
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeType
 from domain.errors import business
-from domain.types.attribute import AttributeID
+from domain.types.attribute import AttributeID, NonStaticAttributeTypeT
 from domain.types.collection_entry import (
     CollectionEntryID,
     CollectionT,
-    FrozenCollectionT,
+    CollectionFrozenT,
 )
 from domain.types.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
@@ -184,7 +185,7 @@ class CollectionEntryRepository(BaseRepository):
     def get_collection_by_attribute_id(
         self,
         attribute_id: AttributeID,
-    ) -> FrozenCollectionT:
+    ) -> CollectionFrozenT:
         stmt = (
             select(
                 CollectionEntryModel,
@@ -243,7 +244,7 @@ class CollectionEntryRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
-    ) -> frozendict[AttributeID, FrozenCollectionT]:
+    ) -> frozendict[AttributeID, CollectionFrozenT]:
         assert AttributeType.STATIC not in types
 
         stmt = (
@@ -310,6 +311,46 @@ class CollectionEntryRepository(BaseRepository):
             }
         )
 
+    def get_grouped_value_to_index_by_list_id(
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[NonStaticAttributeTypeT],
+    ) -> frozendict[AttributeID, frozendict[FieldSlotStr, int]]:
+        stmt = (
+            select(CollectionEntryModel)
+            .join(
+                AttributeModel,
+                AttributeModel.attribute_id == CollectionEntryModel.attribute_id,
+            )
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+            )
+            .order_by(
+                CollectionEntryModel.attribute_id.asc(),
+                CollectionEntryModel.index.asc(),
+            )
+        )
+
+        return frozendict(
+            (
+                attribute_id,
+                frozendict(
+                    (
+                        FieldSlotStr._create_from_real_and_norm(
+                            obj.real_value,
+                            obj.norm_value,
+                        ),
+                        obj.index,
+                    )
+                    for obj in group
+                ),
+            )
+            for attribute_id, group in itertools.groupby(
+                self._session.scalars(stmt),
+                lambda obj: obj.attribute_id,
+            )
+        )
     def replace_collection(
         self, attribute_id: AttributeID, collection: CollectionT
     ) -> None:

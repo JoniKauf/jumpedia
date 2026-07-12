@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.types.attribute import SlotTypeT
 from domain.value_objects.field_slot import FieldSlotStr
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
@@ -66,7 +67,7 @@ class SlotTypeService:
 
     def convert_to_type(
         self, slot: FieldSlotStr, type: AttributeSlotType, *, _validate: bool = True
-    ) -> AttributeSlotType.SlotTypeT:
+    ) -> SlotTypeT:
         if _validate:
             slot = self.convert_to_slot_typed(slot, type)
 

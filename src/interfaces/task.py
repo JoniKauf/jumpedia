@@ -1,4 +1,3 @@
-
 import discord
 from discord import app_commands
 
@@ -272,10 +271,12 @@ class TasksInterface(BaseInterface, group_name="tasks"):
         self,
         ctx: CommandContext,
         user: discord.User | None = None,
+        filter_dsl: str | None = None,
         sort_dsl: str | None = None,
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.member_task_query.get_summaries(
+            bindings.filter.filter(filter_dsl),
             bindings.sort.sorts(sort_dsl),
             (
                 DEFAULT

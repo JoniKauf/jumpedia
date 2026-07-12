@@ -16,10 +16,12 @@ class UnexpectedToken(ParseError):
     expected: tuple[TokenType, ...]
     received: Token
 
+
 @dataclass(frozen=True, slots=True)
 class ExpectedKeyword(ParseError):
     expected: tuple[str, ...]
     received: Token
+
 
 @dataclass(frozen=True, slots=True)
 class DepthLimitSurpassed(ParseError):

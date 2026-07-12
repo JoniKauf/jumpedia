@@ -1,6 +1,3 @@
-
-
-
 from domain.types.collection_entry import CollectionT
 from domain.types.field_mapping import FieldMappingRawT
 from domain.value_objects.attribute import AttributeSynStr
@@ -9,12 +6,16 @@ from interfaces import dsls
 
 
 def collection(s: str | None) -> CollectionT:
-    return () if s is None else tuple(
-        (
-            FieldSlotStr(k),
-            tuple(FieldSlotStr(elem) for elem in v),
+    return (
+        ()
+        if s is None
+        else tuple(
+            (
+                FieldSlotStr(k),
+                tuple(FieldSlotStr(elem) for elem in v),
+            )
+            for k, v in dsls.mapping.engine.MappingEngine().eval(s)
         )
-        for k, v in dsls.mapping.engine.MappingEngine().eval(s)
     )
 
 

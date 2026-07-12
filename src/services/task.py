@@ -12,7 +12,7 @@ from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.attribute import AttributeID
+from domain.types.attribute import AttributeID, NonUserAttributeTypeT
 from domain.types.collection_entry import CollectionT
 from domain.types.field_mapping import (
     FieldMappingEntityFrozenT,
@@ -23,7 +23,7 @@ from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.filter import FilterT, OptionalFilterT
+from domain.value_objects.filter import FilterT
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.string import NormStr, RealStr
@@ -301,7 +301,7 @@ class TaskQueryService:
 
     def get_info(
         self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
-    ) -> FieldMappingEntityFrozenT[AttributeType.NonUserT]:
+    ) -> FieldMappingEntityFrozenT[NonUserAttributeTypeT]:
         _, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
@@ -337,7 +337,7 @@ class TaskQueryService:
         sorts: tuple[tuple[AttributeSynStr, bool], ...],
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
-        AttributeEntity[AttributeType.NonUserT],
+        AttributeEntity[NonUserAttributeTypeT],
         tuple[tuple[FieldSlotStr, ...], ...],
     ]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
@@ -380,16 +380,13 @@ class TaskQueryService:
             )
         )
 
-        field_mappings = self._field_mapping_service.filter(
-            filter,
-            field_mappings,
-            syn_to_attr,
-            attr_id_to_collection
+        field_mappings = self._field_mapping_service._filter(
+            field_mappings, filter, syn_to_attr, attr_id_to_collection
         )
 
-        field_mappings = self._field_mapping_service.sort(
-            sorts,
+        field_mappings = self._field_mapping_service._sort(
             field_mappings,
+            sorts,
             syn_to_attr,
             attr_id_to_collection,
         )

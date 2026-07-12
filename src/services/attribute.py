@@ -12,7 +12,7 @@ from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.collection_entry import CollectionT, FrozenCollectionT
+from domain.types.collection_entry import CollectionT, CollectionFrozenT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -43,7 +43,7 @@ class AttributeService:
     _field_slot_repo: FieldSlotRepository
     _edit_mode_service: EditModeService
 
-    def create[T: AttributeType.TaskT | AttributeType.UserT](
+    def create[T: AttributeType.TaskAttributeTypeT | AttributeType.UserAttributeTypeT](
         self,
         name: AttributeSynStr,
         list_name: ListNameStr,
@@ -264,7 +264,7 @@ class AttributeService:
         else:
             # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
             # Keep it as a soft limit and staff can safely change it afterwards.
-            t.assert_type(attr.type, AttributeType.UserT)
+            t.assert_type(attr.type, AttributeType.UserAttributeTypeT)
 
         self._attribute_repo.update_min_and_max_slot_count(
             attr.attribute_id, field_config.min_slot_count, field_config.max_slot_count
@@ -330,7 +330,7 @@ class AttributeService:
         if attr.type is AttributeType.STATIC:
             raise ValueError("Cannot change collection for static attributes")
 
-        current_collection: FrozenCollectionT = (
+        current_collection: CollectionFrozenT = (
             self._collection_entry_repo.get_collection_by_attribute_id(
                 attr.attribute_id
             )
@@ -391,7 +391,7 @@ class AttributeService:
         else:
             # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
             # Keep it as a soft limit and staff can safely change it afterwards.
-            t.assert_type(attr.type, AttributeType.UserT)
+            t.assert_type(attr.type, AttributeType.UserAttributeTypeT)
 
         self._collection_entry_repo.replace_collection(
             attr.attribute_id, new_collection

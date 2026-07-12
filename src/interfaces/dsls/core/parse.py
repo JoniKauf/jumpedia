@@ -49,6 +49,7 @@ TextNodeT = IdentifierNode | StringNode
 
 TEXT_NODE_TYPES = (IdentifierNode, StringNode)
 
+
 class BaseParser:
     def __init__(self, s: str) -> None:
         self._s = s

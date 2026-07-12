@@ -1,7 +1,6 @@
-
-from interfaces.dsls.sequence.parse import SequenceParser
 from interfaces.dsls.core.engine import BaseEngine
 from interfaces.dsls.core.lex import Lexer
+from interfaces.dsls.sequence.parse import SequenceParser
 
 
 class SequenceEngine(BaseEngine):

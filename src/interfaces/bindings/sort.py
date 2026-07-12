@@ -1,5 +1,3 @@
-
-
 from domain.value_objects.attribute import AttributeSynStr
 from interfaces import dsls
 

@@ -71,14 +71,3 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
     @property
     def slot_unique_across_list(self) -> bool:
         return self.type is AttributeType.STATIC
-
-    type OfTypeStaticT = AttributeEntity[AttributeType.StaticT]
-    type OfTypeTaskT = AttributeEntity[AttributeType.TaskT]
-    type OfTypeUserT = AttributeEntity[AttributeType.UserT]
-
-    type OfTypeNotUserT = AttributeEntity[AttributeType.StaticT | AttributeType.TaskT]
-    type OfTypeNotStaticT = AttributeEntity[AttributeType.TaskT | AttributeType.UserT]
-
-    type OfAnyTypeT = AttributeEntity[AttributeType.AllT]
-
-    type AllStaticT = tuple[OfTypeStaticT, OfTypeStaticT, OfTypeStaticT]

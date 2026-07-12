@@ -1,8 +1,8 @@
 import typing as t
 
-from interfaces.dsls.mapping.parse import MappingParser
 from interfaces.dsls.core.engine import BaseEngine
 from interfaces.dsls.core.lex import Lexer
+from interfaces.dsls.mapping.parse import MappingParser
 
 
 class MappingEngine(BaseEngine):
@@ -14,8 +14,7 @@ class MappingEngine(BaseEngine):
             (
                 self.get_string_from_text_node(item.key),
                 tuple(
-                    self.get_string_from_text_node(elem)
-                    for elem in item.value.elements
+                    self.get_string_from_text_node(elem) for elem in item.value.elements
                 ),
             )
             for item in ast.items

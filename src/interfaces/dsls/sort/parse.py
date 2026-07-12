@@ -3,7 +3,12 @@ from dataclasses import dataclass
 
 from interfaces.dsls.core.errors.parse import UnexpectedToken
 from interfaces.dsls.core.lex import Token, TokenType
-from interfaces.dsls.core.parse import BaseParser, ExprNode, PushbackTokenStream, TextNodeT
+from interfaces.dsls.core.parse import (
+    BaseParser,
+    ExprNode,
+    PushbackTokenStream,
+    TextNodeT,
+)
 from interfaces.dsls.core.value_objects import Span
 
 
@@ -33,7 +38,7 @@ class SortParser(BaseParser):
                 raise UnexpectedToken(self._s, ASC_OPS, asc_op)
 
             value = self.text_token_to_node(stream.pop())
-            
+
             res.append(
                 SortElementNode(
                     Span(value.span.begin, asc_op.span.end),

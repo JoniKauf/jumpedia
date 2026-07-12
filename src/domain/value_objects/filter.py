@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
+import typing as t
 
 
 class OpType(enum.Enum):
@@ -14,17 +15,20 @@ class OpType(enum.Enum):
     GTE = enum.auto()
 
 
-EMPTY = sentinel("EMPTY")
+type FilterT = OrFilter | AndFilter | EmptyComparisonFilter | NonEmptyComparisonFilter
 
-
-type FilterT = OrFilter | AndFilter | ComparisonFilter
 
 @dataclass(frozen=True, slots=True)
-class ComparisonFilter:
-    """Guarantees that value is only EMPTY for EQ and NEQ operators."""
-    attribute: AttributeSynStr
-    operator: OpType
-    value: FieldSlotStr | EMPTY
+class NonEmptyComparisonFilter:
+    attribute: str
+    op: OpType
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmptyComparisonFilter:
+    attribute: str
+    op: t.Literal[OpType.EQ, OpType.NEQ]
 
 
 @dataclass(frozen=True, slots=True)

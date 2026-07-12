@@ -248,7 +248,10 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
     async def edit_position_order(
         self, ctx: CommandContext, all_attribute_names_dsl_sequence: str, list_name: str
     ) -> None:
-        lst = ctx.services.attribute.edit_position_order(bindings.sequence.attributes(all_attribute_names_dsl_sequence), ListNameStr(list_name))
+        lst = ctx.services.attribute.edit_position_order(
+            bindings.sequence.attributes(all_attribute_names_dsl_sequence),
+            ListNameStr(list_name),
+        )
 
         await messages.success(
             ctx.interaction,

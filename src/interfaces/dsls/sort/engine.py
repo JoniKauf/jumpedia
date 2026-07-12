@@ -3,7 +3,6 @@ from interfaces.dsls.core.lex import Lexer
 from interfaces.dsls.sort.parse import SortParser
 
 
-
 class SortEngine(BaseEngine):
     def eval(self, s: str) -> list[tuple[str, bool]]:
         toks = Lexer(multiline_strings=False).lex(s)
