@@ -19,7 +19,7 @@ def _is_number_in_range(v: int | decimal.Decimal) -> bool:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotTypeService:
-    def convert_to_slot_typed(
+    def to_slot_typed_str(
         self, slot: FieldSlotStr, type: AttributeSlotType
     ) -> FieldSlotStr:
         match type:
@@ -65,20 +65,32 @@ class SlotTypeService:
 
         t.assert_never(type)
 
-    def convert_to_type(
-        self, slot: FieldSlotStr, type: AttributeSlotType, *, _validate: bool = True
+    def single_to_slot_type(
+        self, slot: FieldSlotStr, type: AttributeSlotType, *, validate: bool = True
     ) -> SlotTypeT:
-        if _validate:
-            slot = self.convert_to_slot_typed(slot, type)
+        for s in self.many_to_slot_type((slot,), type, validate=validate):
+            return s
+
+        assert False
+
+    def many_to_slot_type(
+        self,
+        slots: t.Iterable[FieldSlotStr],
+        type: AttributeSlotType,
+        *,
+        validate: bool = True,
+    ) -> t.Iterable[SlotTypeT]:
+        if validate:
+            slots = (self.to_slot_typed_str(slot, type) for slot in slots)
 
         match type:
             case AttributeSlotType.BOOLEAN:
-                return bool(str(slot))
+                return (bool(str(slot)) for slot in slots)
             case AttributeSlotType.INTEGER:
-                return int(str(slot))
+                return (int(str(slot)) for slot in slots)
             case AttributeSlotType.DECIMAL:
-                return decimal.Decimal(str(slot))
+                return (decimal.Decimal(str(slot)) for slot in slots)
             case AttributeSlotType.STRING:
-                return str(slot)
+                return (str(slot) for slot in slots)
 
         t.assert_never(type)

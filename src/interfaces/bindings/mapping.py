@@ -1,5 +1,5 @@
 from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import FieldMappingRawT
+from domain.types.field_mapping import RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from interfaces import dsls
@@ -21,7 +21,7 @@ def collection(s: str | None) -> CollectionT:
 
 def field_mapping(
     s: str | None,
-) -> FieldMappingRawT:
+) -> RawFieldMappingT:
     return tuple(
         ()
         if s is None

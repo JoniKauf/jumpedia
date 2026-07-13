@@ -101,10 +101,12 @@ class FilterEngine(BaseEngine):
                     if op_type not in (OpType.EQ, OpType.NEQ):
                         assert self._s is not None
                         raise EmptyAfterNonEqualityOperator(self._s, bin_op)
-                    
+
                     return EmptyComparisonFilter(attr, op_type)
-                
-                return NonEmptyComparisonFilter(attr, op_type, self.get_string_from_text_node(bin_op.right))
+
+                return NonEmptyComparisonFilter(
+                    attr, op_type, self.get_string_from_text_node(bin_op.right)
+                )
 
             case _:
                 assert self._s is not None

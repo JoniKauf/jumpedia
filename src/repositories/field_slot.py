@@ -7,7 +7,10 @@ from db.models import AttributeModel, FieldSlotModel, TaskModel
 from domain.entities.field_slot import FieldSlotEntity
 from domain.enums.attribute import AttributeType
 from domain.types.attribute import AttributeID
-from domain.types.field_mapping import FieldMappingEntityFrozenT, FieldMappingIDFrozenT
+from domain.types.field_mapping import (
+    FrozenFieldMappingEntityToStrings,
+    FrozenFieldMappingIDToStringsT,
+)
 from domain.types.list import ListID
 from domain.types.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
@@ -56,7 +59,9 @@ class FieldSlotRepository(BaseRepository):
 
         self.create_many(field_slots)
 
-    def get_field_mapping_by_task_id(self, task_id: TaskID) -> FieldMappingIDFrozenT:
+    def get_field_mapping_by_task_id(
+        self, task_id: TaskID
+    ) -> FrozenFieldMappingIDToStringsT:
         stmt = (
             select(FieldSlotModel)
             .where(FieldSlotModel.task_id == task_id)
@@ -80,7 +85,7 @@ class FieldSlotRepository(BaseRepository):
         list_id: ListID,
     ) -> frozendict[
         TaskID,
-        FieldMappingIDFrozenT,
+        FrozenFieldMappingIDToStringsT,
     ]:
         stmt = (
             select(FieldSlotModel)

@@ -13,17 +13,14 @@ from domain.value_objects.field_slot import FieldSlotStr
 # normalized (with AttributeSynStr) wayyy later. To have this all occur in one place,
 # the DSL guarantees no key uniqueness and lets us do the work when building a field
 # mapping.
-type FieldMappingRawT = t.Sequence[tuple[AttributeSynStr, t.Sequence[FieldSlotStr]]]
+type RawFieldMappingT = t.Sequence[tuple[AttributeSynStr, t.Sequence[FieldSlotStr]]]
 
-type FieldMappingEntityT[T: AttributeType = AnyAttributeTypeT] = t.Mapping[
-    AttributeEntity[T], t.Sequence[FieldSlotStr]
-]
-type FieldMappingEntityFrozenT[T: AttributeType = AnyAttributeTypeT] = frozendict[
-    AttributeEntity[T], tuple[FieldSlotStr, ...]
-]
+type FrozenFieldMappingEntityToStrings[
+    T: AttributeType = AnyAttributeTypeT
+] = frozendict[AttributeEntity[T], tuple[FieldSlotStr, ...]]
 
-type FieldMappingIDT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
-type FieldMappingIDMutT = dict[AttributeID, tuple[FieldSlotStr, ...]]
-type FieldMappingIDFrozenT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
+type AbstractFieldMappingIDToStringsT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
+type MutableFieldMappingIDToStringsT = dict[AttributeID, tuple[FieldSlotStr, ...]]
+type FrozenFieldMappingIDToStringsT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
 
-type FieldMappingIDSlotTypeT = t.Mapping[AttributeID, tuple[SlotTypeT, ...]]
+type AbstractFieldMappingIDToSlotTypeT = t.Mapping[AttributeID, tuple[SlotTypeT, ...]]

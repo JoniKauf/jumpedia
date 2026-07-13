@@ -351,6 +351,7 @@ class CollectionEntryRepository(BaseRepository):
                 lambda obj: obj.attribute_id,
             )
         )
+
     def replace_collection(
         self, attribute_id: AttributeID, collection: CollectionT
     ) -> None:

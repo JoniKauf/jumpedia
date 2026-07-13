@@ -1,4 +1,3 @@
-import functools
 import typing as t
 from dataclasses import dataclass
 
@@ -7,26 +6,22 @@ from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeType
 from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.attribute import AttributeID, NonUserAttributeTypeT
-from domain.types.collection_entry import CollectionT
+from domain.types.attribute import NonUserAttributeTypeT, SlotTypeT
 from domain.types.field_mapping import (
-    FieldMappingEntityFrozenT,
-    FieldMappingIDMutT,
-    FieldMappingRawT,
+    FrozenFieldMappingEntityToStrings,
+    RawFieldMappingT,
 )
-from domain.types.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.filter import FilterT
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.string import NormStr, RealStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
@@ -58,7 +53,7 @@ class TaskService:
         task_name: FieldSlotStr,
         list_name: ListNameStr,
         aliases: t.Sequence[FieldSlotStr],
-        field_mapping: FieldMappingRawT,
+        field_mapping: RawFieldMappingT,
     ) -> TaskEntity:
         # --- Get Data --- #
         community, member, lst = self._list_access_service.get_convenient(
@@ -247,7 +242,7 @@ class TaskService:
 
     def edit_field_mapping(
         self,
-        new_field_mapping: FieldMappingRawT,
+        new_field_mapping: RawFieldMappingT,
         edit_mode: FieldMappingEditMode,
         task_name: FieldSlotStr,
         list_name: ListNameStr,
@@ -298,10 +293,10 @@ class TaskQueryService:
     _list_access_service: ListAccessService
     _collection_entry_repo: CollectionEntryRepository
     _field_mapping_service: FieldMappingService
-
+    _slot_type_service: SlotTypeService
     def get_info(
         self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
-    ) -> FieldMappingEntityFrozenT[NonUserAttributeTypeT]:
+    ) -> FrozenFieldMappingEntityToStrings[NonUserAttributeTypeT]:
         _, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
@@ -334,11 +329,12 @@ class TaskQueryService:
     def get_summaries(
         self,
         filter: FilterT | None,
-        sorts: tuple[tuple[AttributeSynStr, bool], ...],
+        sort: t.Sequence[tuple[AttributeSynStr, bool]],
+        yield_: t.Sequence[AttributeSynStr],
         list_name: ListNameStr | DEFAULT,
     ) -> frozendict[
         AttributeEntity[NonUserAttributeTypeT],
-        tuple[tuple[FieldSlotStr, ...], ...],
+        tuple[tuple[SlotTypeT, ...], ...],
     ]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
@@ -350,8 +346,17 @@ class TaskQueryService:
         attrs_sorted = tuple(
             sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
         )
+        attrs_sorted_to_yield = attrs_sorted
 
-        # Static field mapping is guaranteed to include all tasks. Use it as a basis.
+        if yield_:
+            attrs_sorted_to_yield = tuple(syn_to_attr[syn] for syn in yield_)
+
+            if len(set(attrs_sorted_to_yield)) < len(attrs_sorted_to_yield):
+                raise ValueError("Not unique")
+
+        # Static field mapping is guaranteed to include all tasks. Use it as a basis
+        # for iteration later, so we don't exclude any tasks if they don't have a
+        # specific field mapping.
         task_id_to_static_field_mapping = (
             self._field_mapping_service.get_static_field_mapping_many(
                 self._task_repo.get_all_by_list_id(lst.list_id),
@@ -364,7 +369,8 @@ class TaskQueryService:
             self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
-        field_mappings = tuple(
+        # Combine all 3 mappings into the final one
+        field_mappings_untyped = (
             (
                 frozendict(static_field_mapping)
                 | task_id_to_task_field_mapping.get(task_id, frozendict())
@@ -374,21 +380,38 @@ class TaskQueryService:
 
         del task_id_to_static_field_mapping, task_id_to_task_field_mapping
 
-        attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+        attr_id_to_slot_type = {
+            attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted
+        }
+
+        field_mappings = tuple(
+            {
+                attr_id: tuple(
+                    self._slot_type_service.many_to_slot_type(
+                        f, attr_id_to_slot_type[attr_id], validate=False
+                    )
+                )
+                for attr_id, f in fm.items()
+            }
+            for fm in field_mappings_untyped
+        )
+        attr_id_to_coll_value_to_idx = {
+            attr_id: {
+                slot_type: idx
+                for slot_type, idx in zip(
+                    self._slot_type_service.many_to_slot_type(
+                        value_to_idx, attr_id_to_slot_type[attr_id], validate=False
+                    ),
+                    value_to_idx.values(),
+                )
+            }
+            for attr_id, value_to_idx in self._collection_entry_repo.get_grouped_value_to_index_by_list_id(
                 lst.list_id, AttributeType.TASK.as_set()
-            )
-        )
+            ).items()
+        }
 
-        field_mappings = self._field_mapping_service._filter(
-            field_mappings, filter, syn_to_attr, attr_id_to_collection
-        )
-
-        field_mappings = self._field_mapping_service._sort(
-            field_mappings,
-            sorts,
-            syn_to_attr,
-            attr_id_to_collection,
+        field_mappings = self._field_mapping_service.filter_and_sort_and_yield(
+            field_mappings, filter, sort, syn_to_attr, attr_id_to_coll_value_to_idx
         )
 
         return frozendict(
@@ -398,7 +421,7 @@ class TaskQueryService:
                     field_mapping[attr.attribute_id] for field_mapping in field_mappings
                 ),
             )
-            for attr in attrs_sorted
+            for attr in attrs_sorted_to_yield
         )
 
 

@@ -2,7 +2,13 @@ import decimal
 import enum
 import typing as t
 
-from domain.types.attribute import AnyAttributeTypeT, SlotTypeT, StaticAttributeTypeT, TaskAttributeTypeT, UserAttributeTypeT
+from domain.types.attribute import (
+    AnyAttributeTypeT,
+    SlotTypeT,
+    StaticAttributeTypeT,
+    TaskAttributeTypeT,
+    UserAttributeTypeT,
+)
 
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
@@ -47,6 +53,7 @@ class AttributeKind(enum.IntEnum):
     NAME = 1
     ALIAS = 2
     ID = 3
+
 
 @enum.verify(enum.UNIQUE, enum.CONTINUOUS)
 class AttributeSlotType(enum.IntEnum):

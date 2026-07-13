@@ -5,7 +5,7 @@ from sqlalchemy import delete, select
 
 from db.models import MemberFieldSlotModel, MemberTaskModel
 from domain.types.attribute import AttributeID
-from domain.types.field_mapping import FieldMappingIDFrozenT
+from domain.types.field_mapping import FrozenFieldMappingIDToStringsT
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
 from domain.types.task import TaskID
@@ -34,7 +34,7 @@ class MemberFieldSlotRepository(BaseRepository):
 
     def get_field_mapping_by_member_id_and_task_id(
         self, member_id: MemberID, task_id: TaskID
-    ) -> FieldMappingIDFrozenT:
+    ) -> FrozenFieldMappingIDToStringsT:
         stmt = (
             select(MemberFieldSlotModel)
             .join(MemberTaskModel)
@@ -66,7 +66,7 @@ class MemberFieldSlotRepository(BaseRepository):
     def get_grouped_field_mapping_by_member_id(
         self,
         member_id: MemberID,
-    ) -> frozendict[TaskID, FieldMappingIDFrozenT]:
+    ) -> frozendict[TaskID, FrozenFieldMappingIDToStringsT]:
         stmt = (
             select(MemberTaskModel.task_id, MemberFieldSlotModel)
             .join(
