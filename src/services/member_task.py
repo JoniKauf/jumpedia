@@ -359,7 +359,7 @@ class MemberTaskQueryService:
             ).items()
         }
 
-        field_mappings = self._field_mapping_service.filter_and_sort_and_yield(
+        field_mappings = self._field_mapping_service.filter_and_sort(
             field_mappings, filter, sort, syn_to_attr, attr_id_to_coll_value_to_idx
         )
 

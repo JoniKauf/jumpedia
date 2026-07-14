@@ -42,6 +42,7 @@ class KeywordType(enum.StrEnum):
     NOT = "not"
     OR = "or"
     AND = "and"
+    _ = "_"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +65,7 @@ class ConditionalExpr(ExprNode):
     false_value: ExprNode
 
 
+def is_
 def _try_consume_keyword(
     tokens: PushbackTokenStream,
     keyword: KeywordType,

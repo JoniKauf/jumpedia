@@ -259,7 +259,7 @@ class FieldMappingService:
 
         return static_field_mapping
 
-    def filter_and_sort_and_yield(
+    def filter_and_sort(
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         filter: FilterT | None,
@@ -269,7 +269,7 @@ class FieldMappingService:
             AttributeID, t.Mapping[SlotTypeT, int]
         ],
     ) -> t.Sequence[AbstractFieldMappingIDToSlotTypeT]:
-        fms = self._filter(
+        fms = self.filter(
             field_mappings,
             filter,
             syn_to_attribute,
@@ -283,7 +283,7 @@ class FieldMappingService:
         )
         return fms
 
-    def _filter[T: AttributeType](
+    def filter[T: AttributeType](
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         filter: FilterT | None,
@@ -314,6 +314,8 @@ class FieldMappingService:
         ],
     ) -> t.Mapping[int, AbstractFieldMappingIDToSlotTypeT]:
         match filter:
+            # --- OR ---
+            # One of the operands must be true to be valid 
             case OrFilter() as or_filter:
                 yet_invalid: dict[int, AbstractFieldMappingIDToSlotTypeT] = dict(
                     id_to_field_mappings
@@ -338,12 +340,16 @@ class FieldMappingService:
 
                 return valid
 
+            # --- AND --- #
+            # All operands must be true to be valid
             case AndFilter() as and_filter:
                 still_valid: t.Mapping[int, AbstractFieldMappingIDToSlotTypeT] = dict(
                     id_to_field_mappings
                 )
 
+                
                 for operand in and_filter.operands:
+                    # No more elements that are valid -> stop
                     if not still_valid:
                         break
 
@@ -356,6 +362,8 @@ class FieldMappingService:
 
                 return still_valid
 
+            # --- COMPARISON ---
+            # Check if the given comparison expression is true for a given field_mapping
             case EmptyComparisonFilter() | NonEmptyComparisonFilter() as comp_filter:
                 attr_syn = AttributeSynStr(comp_filter.attribute)
 
@@ -364,6 +372,7 @@ class FieldMappingService:
                 if attr is None:
                     raise NotFoundByName(attr_syn, AttributeEntity)
 
+                # Examples: "a is _", "a is not _"
                 if isinstance(comp_filter, EmptyComparisonFilter):
                     want_empty = comp_filter.op is OpType.EQ
 
@@ -375,21 +384,23 @@ class FieldMappingService:
                         if (not field_mapping.get(attr.attribute_id)) is want_empty
                     }
 
+                # Examples: "a is value", "a >= value", "a < value"
                 elif isinstance(comp_filter, NonEmptyComparisonFilter):
                     comp_any = _OP_TO_COMP_ANY_FUNC[comp_filter.op]
                     value = self._slot_type_service.single_to_slot_type(FieldSlotStr(comp_filter.value), attr.field_config.slot_type)
 
                     coll_value_to_idx = attribute_id_to_collection_value_to_entry_index.get(attr.attribute_id)
 
-                    # Attribute has collection
+                    # Attribute has collection, compare collection index
                     if coll_value_to_idx:
                         value_idx = coll_value_to_idx[value]
 
                         return {
                             id: field_mapping
                             for id, field_mapping in id_to_field_mappings.items()
-                            if comp_any(value_idx, (coll_value_to_idx[slot] for slot in field_mapping.get(attr.attribute_id, ())))
+                            if comp_any(value_idx, (coll_value_to_idx.get(slot, -1) for slot in field_mapping.get(attr.attribute_id, ())))
                         }
+                    # Attribute has no collection, compare actual value
                     else:
                         return {
                             id: field_mapping
