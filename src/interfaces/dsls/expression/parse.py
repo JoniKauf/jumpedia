@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from interfaces.dsls.core.errors.parse import (
     DepthLimitSurpassed,
-    ExpectedKeyword,
     UnexpectedToken,
 )
 from interfaces.dsls.core.lex import Token, TokenType
@@ -14,7 +13,6 @@ from interfaces.dsls.core.parse import (
     IdentifierNode,
     PushbackTokenStream,
     StringNode,
-    TextNodeT,
 )
 from interfaces.dsls.core.value_objects import Span
 
@@ -34,15 +32,6 @@ class BinOpType(enum.Enum):
     ADD = enum.auto()
     SUB = enum.auto()
 
-
-class KeywordType(enum.StrEnum):
-    IF = "if"
-    ELSE = "else"
-    IS = "is"
-    NOT = "not"
-    OR = "or"
-    AND = "and"
-    _ = "_"
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,22 +54,14 @@ class ConditionalExpr(ExprNode):
     false_value: ExprNode
 
 
-def is_
-def _try_consume_keyword(
-    tokens: PushbackTokenStream,
-    keyword: KeywordType,
-) -> bool:
+def _try_consume_token(tokens: PushbackTokenStream, type: TokenType) -> Token | None:
     tok = tokens.peek()
 
-    if tok.type != TokenType.IDENT:
-        return False
+    if tok.type is type:
+        tokens.pop()
+        return tok
 
-    if tok.value != keyword:
-        return False
-
-    tokens.pop()
-    return True
-
+    return None
 
 class ExpressionParser(BaseParser):
     def __init__(self, s: str, max_depth: int) -> None:
@@ -114,15 +95,15 @@ class ExpressionParser(BaseParser):
     def _parse_conditional(self, tokens: PushbackTokenStream) -> ExprNode:
         true_value = self._parse_or(tokens)
 
-        if not _try_consume_keyword(tokens, KeywordType.IF):
+        if not _try_consume_token(tokens, TokenType.IF):
             return true_value
 
         condition = self._parse_or(tokens)
 
         else_tok = tokens.pop()
 
-        if else_tok.type != TokenType.IDENT or else_tok.value != KeywordType.ELSE:
-            raise ExpectedKeyword(self._s, (KeywordType.ELSE,), else_tok)
+        if else_tok.type is not TokenType.ELSE:
+            raise UnexpectedToken(self._s, (TokenType.ELSE,), else_tok)
 
         false_value = self._parse_conditional(tokens)
 
@@ -136,7 +117,7 @@ class ExpressionParser(BaseParser):
     def _parse_or(self, tokens: PushbackTokenStream) -> ExprNode:
         elements: list[ExprNode] = [self._parse_and(tokens)]
 
-        while _try_consume_keyword(tokens, KeywordType.OR):
+        while _try_consume_token(tokens, TokenType.OR):
             elements.append(self._parse_and(tokens))
 
         if len(elements) == 1:
@@ -153,7 +134,7 @@ class ExpressionParser(BaseParser):
     def _parse_and(self, tokens: PushbackTokenStream) -> ExprNode:
         elements: list[ExprNode] = [self._parse_comparison(tokens)]
 
-        while _try_consume_keyword(tokens, KeywordType.AND):
+        while _try_consume_token(tokens, TokenType.AND):
             elements.append(self._parse_comparison(tokens))
 
         if len(elements) == 1:
@@ -170,13 +151,13 @@ class ExpressionParser(BaseParser):
     def _parse_comparison(self, tokens: PushbackTokenStream) -> ExprNode:
         left = self._parse_additive(tokens)
 
-        if _try_consume_keyword(tokens, KeywordType.IS):
+        if _try_consume_token(tokens, TokenType.IS):
             op_type = (
                 BinOpType.IS_NOT
-                if _try_consume_keyword(tokens, KeywordType.NOT)
+                if _try_consume_token(tokens, TokenType.NOT)
                 else BinOpType.IS
             )
-
+            
             right = self._parse_additive(tokens)
 
             return BinOp(

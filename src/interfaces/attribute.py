@@ -1,6 +1,7 @@
 import enum
 
-from discord import app_commands
+from discord import app_commands, ui
+import discord
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
@@ -17,6 +18,8 @@ from interfaces.enums.edit_mode import (
     CollectionEditModeInterfaceEnum,
 )
 from interfaces.message import format, messages
+from interfaces.message import views
+from interfaces.message.views import ConfirmView
 from services.dtos.attribute import AttributeSummary
 
 
@@ -104,11 +107,20 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     async def nuke(
         self, ctx: CommandContext, attribute_name: str, list_name: str
     ) -> None:
-        deleted = ctx.services.attribute.delete(
+        prepared = ctx.services.attribute_prepare.delete(
             AttributeSynStr(attribute_name), ListNameStr(list_name)
         )
 
-        await messages.object_nuked(ctx.interaction, deleted)
+        view = views.ConfirmView(
+            on_confirm=lambda: ctx.services.attribute.delete(prepared),
+            ...,
+            ...,
+        )
+        
+        view._message = await messages.warning(ctx.interaction, t"Confirm Attribute Deletion", t"Are you sure you want to delete the {format.mention_body(prepared)} of the {format.mention_body(prepared.list)}?", view)
+        
+
+        await messages.object_nuked(ctx.interaction, prepared)
 
     @app_commands.command()
     @with_context()

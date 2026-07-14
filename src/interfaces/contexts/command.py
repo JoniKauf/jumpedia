@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import discord
 
-from services.attribute import AttributeQueryService, AttributeService
+from services.attribute import AttributePrepareService, AttributeQueryService, AttributeService
 from services.community import CommunityQueryService, CommunityService
 from services.list import ListQueryService, ListService
 from services.member import MemberService
@@ -20,6 +20,7 @@ class PublicServices:
     list: ListService
     list_query: ListQueryService
     attribute: AttributeService
+    attribute_prepare: AttributePrepareService
     attribute_query: AttributeQueryService
     task: TaskService
     task_query: TaskQueryService

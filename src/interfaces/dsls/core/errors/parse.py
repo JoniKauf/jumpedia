@@ -18,12 +18,6 @@ class UnexpectedToken(ParseError):
 
 
 @dataclass(frozen=True, slots=True)
-class ExpectedKeyword(ParseError):
-    expected: tuple[str, ...]
-    received: Token
-
-
-@dataclass(frozen=True, slots=True)
 class DepthLimitSurpassed(ParseError):
     at: Token
     max_depth: int

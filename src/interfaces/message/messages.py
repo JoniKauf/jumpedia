@@ -3,12 +3,12 @@ import typing as t
 from string.templatelib import Template
 
 import discord
+from discord import ui
+from discord.abc import MISSING
 
-from domain.entities.base import BaseEntity
-from domain.enums.edit_mode import AliasEditMode
 from domain.errors.business import Str
 from infrastructure import pastee
-from interfaces.message import format, layout
+from interfaces.message import format, layout, views
 from interfaces.message.layout import Status, T
 
 
@@ -34,6 +34,12 @@ async def success(
     interaction: discord.Interaction, header: Template, body: Template
 ) -> None:
     await interaction.followup.send(layout.layout(header, body, Status.SUCCESS))
+
+
+async def warning(
+    interaction: discord.Interaction, header: Template, body: Template
+) -> None:
+    await interaction.followup.send(layout.layout(header, body, Status.WARNING))
 
 
 async def info(
@@ -96,7 +102,7 @@ async def object_created(
 
 
 async def object_nuked(
-    interaction: discord.Interaction, dto: format.MentionableDeletedDTOT
+    interaction: discord.Interaction, dto: format.MentionablePreparedDTOT
 ) -> None:
     await success(
         interaction,
@@ -126,3 +132,20 @@ async def object_aliases_edited(
         t"{format.type_name_for_header(type(entity))} Renamed",
         t"The aliases of the {format.mention_body(entity)} have been edited successfully!\n",
     )
+
+
+
+async def object_nuking_with_confirmation(
+    interaction: discord.Interaction, header: Template, body: Template
+) -> None:
+    view = views.ConfirmView(
+        on_confirm=lambda: ctx.services.attribute.delete(prepared),
+        ...,
+        ...,
+    )
+    
+    view._message = await messages.warning(ctx.interaction, t"Confirm Attribute Deletion", t"Are you sure you want to delete the {format.mention_body(prepared)} of the {format.mention_body(prepared.list)}?", view)
+    
+
+    await messages.object_nuked(ctx.interaction, prepared)
+

@@ -17,26 +17,39 @@ class TokenType(enum.Enum):
     # Working with "TokenType | None" is awful, this is way nicer
     NONE = enum.auto()
 
+    # Text
     STRING = enum.auto()
     IDENT = enum.auto()
 
+    # Parentheses
     LPAREN = enum.auto()
     RPAREN = enum.auto()
 
+    # Comparison Ops
     LT = enum.auto()
     LTE = enum.auto()
     GT = enum.auto()
     GTE = enum.auto()
 
+    # Addition
     PLUS = enum.auto()
     MINUS = enum.auto()
 
+    # Delimiters
     COLON = enum.auto()
     COMMA = enum.auto()
 
+    # Keywords
+    IF = enum.auto()
+    ELSE = enum.auto()
+    IS = enum.auto()
+    NOT = enum.auto()
+    OR = enum.auto()
+    AND = enum.auto()
+
 
 # Invariant: NO SYMBOL AND IDENTIFIER CHARS MAY OVERLAP!!
-SYMBOLS: dict[str, TokenType] = {
+SYMBOLS: t.Final[frozendict[str, TokenType]] = frozendict({
     "(": TokenType.LPAREN,
     ")": TokenType.RPAREN,
     ":": TokenType.COLON,
@@ -47,7 +60,16 @@ SYMBOLS: dict[str, TokenType] = {
     "<=": TokenType.LTE,
     ">": TokenType.GT,
     ">=": TokenType.GTE,
-}
+})
+
+KEYWORDS: t.Final[frozendict[str, TokenType]] = frozendict({
+    "if": TokenType.IF,
+    "else": TokenType.ELSE,
+    "is": TokenType.IS,
+    "not": TokenType.NOT,
+    "or": TokenType.OR,
+    "and": TokenType.AND,
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,8 +147,8 @@ class Lexer:
 
                 i = j
                 continue
-
-            # --- Lex Identifier --- #
+            
+            # --- Lex Keyword OR Identifier --- #
             if self.is_identifier_char(c):
                 j: int = i + 1
 
@@ -138,7 +160,15 @@ class Lexer:
 
                     j += 1
 
-                yield Token(TokenType.IDENT, Span(i, j), s[i:j])
+                value = s[i:j]
+                span = Span(i, j)
+
+                kw = KEYWORDS.get(value)
+
+                if kw is not None:
+                    yield Token(kw, span, value)
+                else:
+                    yield Token(TokenType.IDENT, span, value)
 
                 i = j
                 continue
