@@ -2,10 +2,7 @@ import enum
 import typing as t
 from dataclasses import dataclass
 
-from interfaces.dsls.core.errors.parse import (
-    DepthLimitSurpassed,
-    UnexpectedToken,
-)
+from interfaces.dsls.core.errors.parse import DepthLimitSurpassed, UnexpectedToken
 from interfaces.dsls.core.lex import Token, TokenType
 from interfaces.dsls.core.parse import (
     BaseParser,
@@ -31,7 +28,6 @@ class BinOpType(enum.Enum):
     GTE = enum.auto()
     ADD = enum.auto()
     SUB = enum.auto()
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +58,7 @@ def _try_consume_token(tokens: PushbackTokenStream, type: TokenType) -> Token | 
         return tok
 
     return None
+
 
 class ExpressionParser(BaseParser):
     def __init__(self, s: str, max_depth: int) -> None:
@@ -157,7 +154,7 @@ class ExpressionParser(BaseParser):
                 if _try_consume_token(tokens, TokenType.NOT)
                 else BinOpType.IS
             )
-            
+
             right = self._parse_additive(tokens)
 
             return BinOp(

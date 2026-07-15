@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
 from domain.types.community import CommunityID
+from domain.types.list import ListID
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.string import Str
 from repositories.attribute import AttributeEntity
@@ -25,6 +26,5 @@ class ListSummary:
 
 
 @dataclass(frozen=True, slots=True)
-class DeletedList:
-    community: CommunityEntity
-    name: ListNameStr
+class PreparedDeleteList:
+    list_id: ListID

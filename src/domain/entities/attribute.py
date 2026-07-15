@@ -2,7 +2,7 @@ import typing as t
 
 from domain.entities.base import BaseEntity
 from domain.enums.attribute import AttributeKind, AttributeType
-from domain.types.attribute import AttributeID
+from domain.types.attribute import AttributeID, StaticAttributeTypeT
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position

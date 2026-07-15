@@ -1,9 +1,13 @@
 import enum
+from string.templatelib import Template
 
-from discord import app_commands, ui
 import discord
+from discord import app_commands, ui
 
 from domain.entities.attribute import AttributeEntity
+from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
+from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
 from domain.types.collection_entry import CollectionT
@@ -17,16 +21,15 @@ from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     CollectionEditModeInterfaceEnum,
 )
-from interfaces.message import format, messages
-from interfaces.message import views
-from interfaces.message.views import ConfirmView
+from interfaces.message import format, messages, views
+from interfaces.message.views import DangerousConfirmView
 from services.dtos.attribute import AttributeSummary
 
 
 def _collection_to_representation(
     collection: CollectionT,
 ) -> tuple[str, ...]:
-    # Python's repr of strings aligns well with our string tokens.
+    # Python's repr of strings aligns well with our string tokens, so we can just use that and it will be parsable again :)
     return tuple(
         f"({str(item[0])!r}: {' '.join(repr(str(alias)) for alias in item[1])})"
         for item in collection
@@ -107,20 +110,23 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
     async def nuke(
         self, ctx: CommandContext, attribute_name: str, list_name: str
     ) -> None:
-        prepared = ctx.services.attribute_prepare.delete(
+        prepared, lst, attr = ctx.services.attribute_prepare.delete(
             AttributeSynStr(attribute_name), ListNameStr(list_name)
         )
 
-        view = views.ConfirmView(
-            on_confirm=lambda: ctx.services.attribute.delete(prepared),
-            ...,
-            ...,
+        consequences: Template = (
+            t"Each field of every {format.type_name_for_body(TaskEntity)} for this specific {format.type_name_for_body(AttributeEntity)} will be deleted!"
+            if attr.type is AttributeType.TASK
+            else t"Each custom field of every {format.type_name_for_body(MemberEntity)} who have given themselves this {format.type_name_for_body(TaskEntity)} will be deleted!"
         )
-        
-        view._message = await messages.warning(ctx.interaction, t"Confirm Attribute Deletion", t"Are you sure you want to delete the {format.mention_body(prepared)} of the {format.mention_body(prepared.list)}?", view)
-        
 
-        await messages.object_nuked(ctx.interaction, prepared)
+        await messages.nuke_object_on_confirmation(
+            ctx.interaction,
+            to_nuke=attr,
+            parent=lst,
+            consequences=consequences,
+            execute=lambda: ctx.services.attribute.delete(prepared),
+        )
 
     @app_commands.command()
     @with_context()

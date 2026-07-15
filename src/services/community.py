@@ -18,7 +18,11 @@ from repositories.member import MemberRepository
 from repositories.server import ServerRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.community import CommunityInfo, CommunitySummary, DeletedCommunity
+from services.dtos.community import (
+    CommunityInfo,
+    CommunitySummary,
+    PreparedDeleteCommunity,
+)
 from services.dtos.user import UserRef
 from services.internal.permission import PermissionService
 from services.list import ListAccessService, ListService
@@ -84,14 +88,8 @@ class CommunityService:
 
         return community
 
-    def delete(self) -> DeletedCommunity:
-        community, member = self._member_access_service.get_convenient(DEFAULT)
-
-        self._permission_service.ensure_community_rank(member, CommunityRank.OWNER)
-
-        self._community_repo.delete(community.community_id)
-
-        return DeletedCommunity(community.name, community.created, community.limits)
+    def delete(self, prepared: PreparedDeleteCommunity) -> None:
+        self._community_repo.delete(prepared.community_id)
 
     @t.overload
     def edit_default_selected_list(
@@ -129,6 +127,19 @@ class CommunityService:
         )
 
         return community, lst
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class CommunityPrepareService:
+    _member_access_service: MemberAccessService
+    _permission_service: PermissionService
+
+    def delete(self) -> tuple[PreparedDeleteCommunity, CommunityEntity]:
+        community, member = self._member_access_service.get_convenient(DEFAULT)
+
+        self._permission_service.ensure_community_rank(member, CommunityRank.OWNER)
+
+        return PreparedDeleteCommunity(community.community_id), community
 
 
 @dataclass(frozen=True, slots=True, eq=False)

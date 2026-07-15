@@ -101,16 +101,6 @@ async def object_created(
     )
 
 
-async def object_nuked(
-    interaction: discord.Interaction, dto: format.MentionablePreparedDTOT
-) -> None:
-    await success(
-        interaction,
-        t"{format.type_name_for_header(type(dto))} Deleted",
-        t"The {format.mention_body(dto)} has been nuked successfully! 💣",
-    )
-
-
 async def object_name_edited(
     interaction: discord.Interaction,
     entity_type: type[format.MentionableEntityT],
@@ -134,18 +124,49 @@ async def object_aliases_edited(
     )
 
 
-
-async def object_nuking_with_confirmation(
-    interaction: discord.Interaction, header: Template, body: Template
+async def nuke_object_on_confirmation(
+    interaction: discord.Interaction,
+    *,
+    to_nuke: format.MentionableEntityT,
+    parent: format.MentionableEntityT | None,
+    consequences: Template,
+    execute: t.Callable[[], None],
 ) -> None:
-    view = views.ConfirmView(
-        on_confirm=lambda: ctx.services.attribute.delete(prepared),
-        ...,
-        ...,
+    TIMEOUT: t.Final[int] = 60
+
+    of_parent_text = t"" if parent is None else t" of the {format.mention_body(parent)}"
+
+    view = views.DangerousConfirmView(
+        user=interaction.user,
+        on_confirm=execute,
+        success_text=layout.layout(
+            t"{format.type_name_for_header(type(to_nuke))} Deleted",
+            t"The {format.mention_body(to_nuke)}"
+            + of_parent_text
+            + t" has been deleted (nuked) successfully! 💣",
+            Status.SUCCESS,
+        ),
+        cancel_text=layout.layout(
+            t"{format.type_name_for_header(type(to_nuke))} Deletion Aborted",
+            t"The deletion (nuking) of the {format.mention_body(to_nuke)} has been aborted!\nNothing changed.",
+            Status.WARNING,
+        ),
+        timeout=TIMEOUT,
     )
-    
-    view._message = await messages.warning(ctx.interaction, t"Confirm Attribute Deletion", t"Are you sure you want to delete the {format.mention_body(prepared)} of the {format.mention_body(prepared.list)}?", view)
-    
 
-    await messages.object_nuked(ctx.interaction, prepared)
-
+    view._message = await interaction.followup.send(
+        layout.layout(
+            t"Confirm {format.type_name_for_header(type(to_nuke))} Deletion",
+            t"Are you sure you want to delete (nuke) the {format.mention_body(to_nuke)}"
+            + of_parent_text
+            + t"?\n\n"
+            + consequences
+            + t"\n\n### This action cannot be undone!"
+            + t"\n\nThis view will timeout after "
+            + Template(str(TIMEOUT))
+            + t" seconds!",
+            Status.WARNING,
+        ),
+        view=view,
+        wait=True,
+    )

@@ -2,9 +2,9 @@ import typing as t
 
 from domain.value_objects.filter import (
     AndFilter,
-    NonEmptyComparisonFilter,
     EmptyComparisonFilter,
     FilterT,
+    NonEmptyComparisonFilter,
     OpType,
     OrFilter,
 )
@@ -15,11 +15,7 @@ from interfaces.dsls.core.errors.eval import (
     UnexpectedNode,
 )
 from interfaces.dsls.core.lex import Lexer
-from interfaces.dsls.core.parse import (
-    TEXT_NODE_TYPES,
-    ExprNode,
-    IdentifierNode,
-)
+from interfaces.dsls.core.parse import TEXT_NODE_TYPES, ExprNode, IdentifierNode
 from interfaces.dsls.expression import parse
 from interfaces.dsls.expression.parse import BinOpType, ExpressionParser
 

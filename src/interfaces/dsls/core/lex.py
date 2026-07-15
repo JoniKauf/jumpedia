@@ -49,27 +49,31 @@ class TokenType(enum.Enum):
 
 
 # Invariant: NO SYMBOL AND IDENTIFIER CHARS MAY OVERLAP!!
-SYMBOLS: t.Final[frozendict[str, TokenType]] = frozendict({
-    "(": TokenType.LPAREN,
-    ")": TokenType.RPAREN,
-    ":": TokenType.COLON,
-    ",": TokenType.COMMA,
-    "+": TokenType.PLUS,
-    "-": TokenType.MINUS,
-    "<": TokenType.LT,
-    "<=": TokenType.LTE,
-    ">": TokenType.GT,
-    ">=": TokenType.GTE,
-})
+SYMBOLS: t.Final[frozendict[str, TokenType]] = frozendict(
+    {
+        "(": TokenType.LPAREN,
+        ")": TokenType.RPAREN,
+        ":": TokenType.COLON,
+        ",": TokenType.COMMA,
+        "+": TokenType.PLUS,
+        "-": TokenType.MINUS,
+        "<": TokenType.LT,
+        "<=": TokenType.LTE,
+        ">": TokenType.GT,
+        ">=": TokenType.GTE,
+    }
+)
 
-KEYWORDS: t.Final[frozendict[str, TokenType]] = frozendict({
-    "if": TokenType.IF,
-    "else": TokenType.ELSE,
-    "is": TokenType.IS,
-    "not": TokenType.NOT,
-    "or": TokenType.OR,
-    "and": TokenType.AND,
-})
+KEYWORDS: t.Final[frozendict[str, TokenType]] = frozendict(
+    {
+        "if": TokenType.IF,
+        "else": TokenType.ELSE,
+        "is": TokenType.IS,
+        "not": TokenType.NOT,
+        "or": TokenType.OR,
+        "and": TokenType.AND,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +151,7 @@ class Lexer:
 
                 i = j
                 continue
-            
+
             # --- Lex Keyword OR Identifier --- #
             if self.is_identifier_char(c):
                 j: int = i + 1

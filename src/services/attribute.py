@@ -12,8 +12,13 @@ from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.attribute import AttributeID, TaskAttributeTypeT, UserAttributeTypeT
-from domain.types.collection_entry import CollectionT, CollectionFrozenT
+from domain.types.attribute import (
+    AttributeID,
+    NonStaticAttributeTypeT,
+    TaskAttributeTypeT,
+    UserAttributeTypeT,
+)
+from domain.types.collection_entry import CollectionFrozenT, CollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -27,7 +32,11 @@ from repositories.dtos.field_slot import FieldSlotInsert
 from repositories.field_slot import FieldSlotRepository
 from services.community import CommunityAccessService
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.attribute import AttributeInfo, AttributeSummary, DeletedAttribute, PreparedDeleteAttribute
+from services.dtos.attribute import (
+    AttributeInfo,
+    AttributeSummary,
+    PreparedDeleteAttribute,
+)
 from services.internal.edit_mode import EditModeService
 from services.internal.permission import PermissionService
 from services.list import ListAccessService
@@ -98,9 +107,11 @@ class AttributeService:
 
         return attr_entity
 
-    def delete(self, attribute: PreparedDeleteAttribute) -> None:
-        self._attribute_repo.delete(attribute.attribute_id)
-        self._attribute_repo.decrement_positions_after(attribute.list.list_id, attribute.position)
+    def delete(self, prepared: PreparedDeleteAttribute) -> None:
+        self._attribute_repo.delete(prepared.attribute_id)
+        self._attribute_repo.decrement_positions_after(
+            prepared.list_id, prepared.attribute_position
+        )
 
     def edit_name(
         self,
@@ -379,7 +390,7 @@ class AttributeService:
             )
         else:
             # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
-            # Keep it as a soft limit and staff can safely change it afterwards.
+            # Keep it as a soft limitation and staff can safely change it afterwards because users can't change it back to a now invalid collection entry.
             t.assert_type(attr.type, UserAttributeTypeT)
 
         self._collection_entry_repo.replace_collection(
@@ -474,8 +485,12 @@ class AttributeService:
 class AttributePrepareService:
     _attribute_access_service: AttributeAccessService
     _permission_service: PermissionService
-    
-    def delete(self, name: AttributeSynStr, list_name: ListNameStr) -> PreparedDeleteAttribute:
+
+    def delete(
+        self, name: AttributeSynStr, list_name: ListNameStr
+    ) -> tuple[
+        PreparedDeleteAttribute, ListEntity, AttributeEntity[NonStaticAttributeTypeT]
+    ]:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
         )
@@ -484,16 +499,17 @@ class AttributePrepareService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        return PreparedDeleteAttribute(
-            attr.attribute_id,
-            attr.name,
+        if attr.type is AttributeType.STATIC:
+            raise ValueError("Cannot delete attribute of type static")
+
+        attr = t.cast(AttributeEntity[NonStaticAttributeTypeT], attr)
+
+        return (
+            PreparedDeleteAttribute(lst.list_id, attr.attribute_id, attr.position),
             lst,
-            attr.type,
-            attr.kind,
-            attr.field_config,
-            attr.position
+            attr,
         )
-    
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeQueryService:
@@ -563,8 +579,6 @@ class AttributeQueryService:
             )
             for attr in attrs
         )
-
-
 
 
 @dataclass(frozen=True, slots=True, eq=False)

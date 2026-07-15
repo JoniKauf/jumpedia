@@ -327,7 +327,11 @@ class MemberTaskQueryService:
             for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
         )
 
-        del task_id_to_static_field_mapping, task_id_to_task_field_mapping, task_id_to_user_field_mapping
+        del (
+            task_id_to_static_field_mapping,
+            task_id_to_task_field_mapping,
+            task_id_to_user_field_mapping,
+        )
 
         attr_id_to_slot_type = {
             attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted

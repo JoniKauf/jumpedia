@@ -37,10 +37,6 @@ class AttributeSummary:
 
 @dataclass(frozen=True, slots=True)
 class PreparedDeleteAttribute:
+    list_id: ListID
     attribute_id: AttributeID
-    name: AttributeSynStr
-    list: ListEntity
-    type: AttributeType
-    kind: AttributeKind
-    field_config: AttributeFieldConfig
-    position: Position
+    attribute_position: Position

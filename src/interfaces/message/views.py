@@ -5,16 +5,20 @@ import discord
 from discord import ButtonStyle, ui
 
 
-class ConfirmView(ui.View):
+class DangerousConfirmView(ui.View):
+
     def __init__(
         self,
         *,
+        user: discord.User | discord.Member,
         on_confirm: Callable[[], None],
-        success_text: str ,
+        success_text: str,
         cancel_text: str,
+        timeout: int,
     ) -> None:
-        super().__init__(timeout=30)
+        super().__init__(timeout=timeout)
 
+        self._user = user
         self._on_confirm = on_confirm
         self._success_text = success_text
         self._cancel_text = cancel_text
@@ -59,6 +63,9 @@ class ConfirmView(ui.View):
         interaction: discord.Interaction,
         _: ui.Button,
     ) -> None:
+        if self._user.id != interaction.user.id:
+            return
+
         self._enable_task.cancel()
         self.stop()
 
@@ -77,6 +84,9 @@ class ConfirmView(ui.View):
         interaction: discord.Interaction,
         _: ui.Button,
     ) -> None:
+        if self._user.id != interaction.user.id:
+            return
+
         self._enable_task.cancel()
         self.stop()
 

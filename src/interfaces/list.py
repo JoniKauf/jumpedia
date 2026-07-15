@@ -1,6 +1,11 @@
-from discord import app_commands
+from string.templatelib import Template
 
+from discord import app_commands
+from message import format
+
+from domain.entities.attribute import AttributeEntity
 from domain.entities.list import ListEntity
+from domain.entities.task import TaskEntity
 from domain.value_objects.list import ListNameStr
 from interfaces.base import BaseInterface
 from interfaces.decorators.context import CommandContext, with_context
@@ -35,9 +40,21 @@ class ListInterface(BaseInterface, group_name="list"):
     @app_commands.command()
     @with_context()
     async def nuke(self, ctx: CommandContext, list_name: str) -> None:
-        deleted = ctx.services.list.delete(ListNameStr(list_name))
+        prepared, community, lst = ctx.services.list_prepare.delete(
+            ListNameStr(list_name)
+        )
 
-        await messages.object_nuked(ctx.interaction, deleted)
+        consequences: Template = (
+            t"All {format.type_name_for_body(TaskEntity, False)} and {format.type_name_for_body(AttributeEntity, False)} of this specific {format.type_name_for_body(ListEntity)} will be deleted! This also includes their sub-data like fields, user fields, collections and more!"
+        )
+
+        await messages.nuke_object_on_confirmation(
+            ctx.interaction,
+            to_nuke=lst,
+            parent=community,
+            consequences=consequences,
+            execute=lambda: ctx.services.list.delete(prepared),
+        )
 
     @app_commands.command()
     @with_context()

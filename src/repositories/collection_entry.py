@@ -11,8 +11,8 @@ from domain.errors import business
 from domain.types.attribute import AttributeID, NonStaticAttributeTypeT
 from domain.types.collection_entry import (
     CollectionEntryID,
-    CollectionT,
     CollectionFrozenT,
+    CollectionT,
 )
 from domain.types.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr

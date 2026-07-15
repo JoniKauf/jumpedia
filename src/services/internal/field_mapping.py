@@ -18,8 +18,8 @@ from domain.types.attribute import (
 from domain.types.collection_entry import CollectionSlotTypeFrozenT, CollectionT
 from domain.types.field_mapping import (
     AbstractFieldMappingIDToSlotTypeT,
-    FrozenFieldMappingEntityToStrings,
     AbstractFieldMappingIDToStringsT,
+    FrozenFieldMappingEntityToStrings,
     MutableFieldMappingIDToStringsT,
     RawFieldMappingT,
 )
@@ -28,9 +28,9 @@ from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.filter import (
     AndFilter,
-    NonEmptyComparisonFilter,
-    FilterT,
     EmptyComparisonFilter,
+    FilterT,
+    NonEmptyComparisonFilter,
     OpType,
     OrFilter,
 )
@@ -44,10 +44,18 @@ _OP_TO_COMP_ANY_FUNC: t.Final[
     {
         OpType.EQ: lambda v, field: v in field,
         OpType.NEQ: lambda v, field: v not in field,
-        OpType.LT: lambda v, field: any(v < slot for slot in field),  # pyright: ignore[reportOperatorIssue]
-        OpType.LTE: lambda v, field: any(v <= slot for slot in field),  # pyright: ignore[reportOperatorIssue]
-        OpType.GT: lambda v, field: any(v > slot for slot in field),  # pyright: ignore[reportOperatorIssue]
-        OpType.GTE: lambda v, field: any(v >= slot for slot in field),  # pyright: ignore[reportOperatorIssue]
+        OpType.LT: lambda v, field: any(
+            v < slot for slot in field
+        ),  # pyright: ignore[reportOperatorIssue]
+        OpType.LTE: lambda v, field: any(
+            v <= slot for slot in field
+        ),  # pyright: ignore[reportOperatorIssue]
+        OpType.GT: lambda v, field: any(
+            v > slot for slot in field
+        ),  # pyright: ignore[reportOperatorIssue]
+        OpType.GTE: lambda v, field: any(
+            v >= slot for slot in field
+        ),  # pyright: ignore[reportOperatorIssue]
     }
 )
 
@@ -315,7 +323,7 @@ class FieldMappingService:
     ) -> t.Mapping[int, AbstractFieldMappingIDToSlotTypeT]:
         match filter:
             # --- OR ---
-            # One of the operands must be true to be valid 
+            # One of the operands must be true to be valid
             case OrFilter() as or_filter:
                 yet_invalid: dict[int, AbstractFieldMappingIDToSlotTypeT] = dict(
                     id_to_field_mappings
@@ -347,7 +355,6 @@ class FieldMappingService:
                     id_to_field_mappings
                 )
 
-                
                 for operand in and_filter.operands:
                     # No more elements that are valid -> stop
                     if not still_valid:
@@ -387,9 +394,15 @@ class FieldMappingService:
                 # Examples: "a is value", "a >= value", "a < value"
                 elif isinstance(comp_filter, NonEmptyComparisonFilter):
                     comp_any = _OP_TO_COMP_ANY_FUNC[comp_filter.op]
-                    value = self._slot_type_service.single_to_slot_type(FieldSlotStr(comp_filter.value), attr.field_config.slot_type)
+                    value = self._slot_type_service.single_to_slot_type(
+                        FieldSlotStr(comp_filter.value), attr.field_config.slot_type
+                    )
 
-                    coll_value_to_idx = attribute_id_to_collection_value_to_entry_index.get(attr.attribute_id)
+                    coll_value_to_idx = (
+                        attribute_id_to_collection_value_to_entry_index.get(
+                            attr.attribute_id
+                        )
+                    )
 
                     # Attribute has collection, compare collection index
                     if coll_value_to_idx:
@@ -398,7 +411,13 @@ class FieldMappingService:
                         return {
                             id: field_mapping
                             for id, field_mapping in id_to_field_mappings.items()
-                            if comp_any(value_idx, (coll_value_to_idx.get(slot, -1) for slot in field_mapping.get(attr.attribute_id, ())))
+                            if comp_any(
+                                value_idx,
+                                (
+                                    coll_value_to_idx.get(slot, -1)
+                                    for slot in field_mapping.get(attr.attribute_id, ())
+                                ),
+                            )
                         }
                     # Attribute has no collection, compare actual value
                     else:
@@ -493,7 +512,9 @@ class FieldMappingService:
                         tuple(slot for slot in field_mapping.get(attr.attribute_id, ()))
                     )
 
-            field_mappings_and_their_sort_value.append((field_mapping, tuple(task_sort_value)))
+            field_mappings_and_their_sort_value.append(
+                (field_mapping, tuple(task_sort_value))
+            )
 
         # --- Apply Sort --- #
         def compare_sort_values(

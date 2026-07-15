@@ -5,8 +5,10 @@ from dataclasses import asdict
 import discord
 from discord import app_commands
 
+from domain.entities.attribute import AttributeEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
+from domain.entities.task import TaskEntity
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.types.common import ID
@@ -102,9 +104,15 @@ class CommunityInterface(BaseInterface, group_name="community"):
         self,
         ctx: CommandContext,
     ) -> None:
-        deleted = ctx.services.community.delete()
+        prepared, community = ctx.services.community_prepare.delete()
 
-        await messages.object_nuked(ctx.interaction, deleted)
+        await messages.nuke_object_on_confirmation(
+            ctx.interaction,
+            to_nuke=community,
+            parent=None,
+            consequences=t"Literally every piece of information about this community will be deleted! This includes all {format.type_name_for_body(ListEntity, False)}, {format.type_name_for_body(AttributeEntity, False)}, {format.type_name_for_body(TaskEntity, False)} and more...\n**This is the ultimate hammer of destruction!**",
+            execute=lambda: ctx.services.community.delete(prepared),
+        )
 
     @app_commands.command()
     @with_context()

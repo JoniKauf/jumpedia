@@ -294,6 +294,7 @@ class TaskQueryService:
     _collection_entry_repo: CollectionEntryRepository
     _field_mapping_service: FieldMappingService
     _slot_type_service: SlotTypeService
+
     def get_info(
         self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
     ) -> FrozenFieldMappingEntityToStrings[NonUserAttributeTypeT]:

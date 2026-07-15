@@ -17,7 +17,7 @@ from repositories.dtos.list import ListInsert
 from repositories.list import ListRepository
 from repositories.task import TaskRepository
 from services.community import CommunityAccessService
-from services.dtos.list import DeletedList, ListInfo, ListSummary
+from services.dtos.list import ListInfo, ListSummary, PreparedDeleteList
 from services.internal.permission import PermissionService
 from services.member import MemberAccessService
 
@@ -82,16 +82,8 @@ class ListService:
 
         return lst
 
-    def delete(self, name: ListNameStr) -> DeletedList:
-        community, member, lst = self._list_access_service.get_convenient(DEFAULT, name)
-
-        self._permission_service.ensure_community_rank(
-            member, CommunityRank.ADMINISTRATOR
-        )
-
-        self._list_repo.delete(lst.list_id)
-
-        return DeletedList(community, lst.name)
+    def delete(self, prepared: PreparedDeleteList) -> None:
+        self._list_repo.delete(prepared.list_id)
 
     def edit_name(
         self, current_name: ListNameStr, new_name: ListNameStr
@@ -112,6 +104,23 @@ class ListService:
         self._list_repo.update(lst)
 
         return lst.name
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class ListPrepareService:
+    _list_access_service: ListAccessService
+    _permission_service: PermissionService
+
+    def delete(
+        self, name: ListNameStr
+    ) -> tuple[PreparedDeleteList, CommunityEntity, ListEntity]:
+        community, member, lst = self._list_access_service.get_convenient(DEFAULT, name)
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        return PreparedDeleteList(lst.list_id), community, lst
 
 
 @dataclass(frozen=True, slots=True, eq=False)

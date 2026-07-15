@@ -2,6 +2,7 @@ from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from interfaces import dsls
 
+
 # attribute_aliases, attributes and yield_ technically share the same
 # code but might evolve differently. Keep them seperate.
 def attribute_aliases(s: str | None) -> tuple[AttributeSynStr, ...]:
@@ -24,6 +25,7 @@ def attributes(s: str | None) -> tuple[AttributeSynStr, ...]:
             for alias in dsls.sequence.engine.SequenceEngine().eval(s)
         )
     )
+
 
 def yield_(s: str | None) -> tuple[AttributeSynStr, ...]:
     return (
