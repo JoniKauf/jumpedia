@@ -5,6 +5,7 @@ import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
+from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
@@ -38,6 +39,8 @@ from domain.value_objects.string import NormStr, RealStr
 from services.internal.edit_mode import EditModeService
 from services.internal.slot_type import SlotTypeService
 
+# Type checkers do not know that values passed in share the same SlotTypeT every time
+# They complain because comparisons between the different types is obviously not always valid
 _OP_TO_COMP_ANY_FUNC: t.Final[
     frozendict[OpType, t.Callable[[SlotTypeT, t.Iterable[SlotTypeT]], bool]]
 ] = frozendict(
@@ -45,17 +48,17 @@ _OP_TO_COMP_ANY_FUNC: t.Final[
         OpType.EQ: lambda v, field: v in field,
         OpType.NEQ: lambda v, field: v not in field,
         OpType.LT: lambda v, field: any(
-            v < slot for slot in field
-        ),  # pyright: ignore[reportOperatorIssue]
+            v < slot for slot in field  # pyright: ignore[reportOperatorIssue]
+        ),
         OpType.LTE: lambda v, field: any(
-            v <= slot for slot in field
-        ),  # pyright: ignore[reportOperatorIssue]
+            v <= slot for slot in field  # pyright: ignore[reportOperatorIssue]
+        ),
         OpType.GT: lambda v, field: any(
-            v > slot for slot in field
-        ),  # pyright: ignore[reportOperatorIssue]
+            v > slot for slot in field  # pyright: ignore[reportOperatorIssue]
+        ),
         OpType.GTE: lambda v, field: any(
-            v >= slot for slot in field
-        ),  # pyright: ignore[reportOperatorIssue]
+            v >= slot for slot in field  # pyright: ignore[reportOperatorIssue]
+        ),
     }
 )
 
@@ -190,7 +193,7 @@ class FieldMappingService:
             new_fm, frozenset(syn_to_attribute.values()), attribute_id_to_collection
         )
 
-    def get_static_field_mapping_single(
+    def get_task_kinded_field_mapping_single(
         self,
         task: TaskEntity,
         task_aliases: tuple[FieldSlotStr, ...],
@@ -199,9 +202,6 @@ class FieldMappingService:
         static_field_mapping: MutableFieldMappingIDToStringsT = {}
 
         for attr in attributes:
-            if attr.type is not AttributeType.STATIC:
-                continue
-
             match attr.kind:
                 case AttributeKind.ID:
                     static_field_mapping[attr.attribute_id] = (
@@ -217,13 +217,46 @@ class FieldMappingService:
                 case AttributeKind.ALIAS:
                     static_field_mapping[attr.attribute_id] = task_aliases
 
+                case AttributeKind.NONE | AttributeKind.GIVEN_AT | AttributeKind.GIVEN_BY:
+                    pass
+
                 case _:
-                    assert attr.kind is not AttributeKind.NONE
-                    t.assert_never(attr.kind)
+                    t.assert_never(attr)
 
         return static_field_mapping
 
-    def get_static_field_mapping_many(
+    def get_user_kinded_field_mapping_single(
+        self,
+        member_task: MemberTaskEntity,
+        attributes: t.Iterable[AttributeEntity[AnyAttributeTypeT]],
+    ) -> MutableFieldMappingIDToStringsT:
+        static_field_mapping: MutableFieldMappingIDToStringsT = {}
+
+        for attr in attributes:
+            match attr.kind:
+                case AttributeKind.GIVEN_AT:
+                    static_field_mapping[attr.attribute_id] = (
+                        FieldSlotStr._create_from_real_and_norm(
+                            RealStr._create(str(task.task_id)),
+                            NormStr._create(str(task.task_id)),
+                        ),
+                    )
+
+                case AttributeKind.NAME:
+                    static_field_mapping[attr.attribute_id] = (task.name,)
+
+                case AttributeKind.ALIAS:
+                    static_field_mapping[attr.attribute_id] = task_aliases
+
+                case AttributeKind.NONE | AttributeKind.GIVEN_AT | AttributeKind.GIVEN_BY:
+                    pass
+
+                case _:
+                    t.assert_never(attr)
+                    
+        return static_field_mapping
+
+    def get_task_kinded_field_mapping_many(
         self,
         tasks: t.Sequence[TaskEntity],
         task_id_to_aliases: t.Mapping[TaskID, tuple[FieldSlotStr, ...]],
@@ -234,9 +267,6 @@ class FieldMappingService:
         )
 
         for attr in attributes:
-            if attr.type is not AttributeType.STATIC:
-                continue
-
             match attr.kind:
                 case AttributeKind.ID:
                     for task in tasks:
@@ -261,9 +291,11 @@ class FieldMappingService:
                             task_id_to_aliases.get(task.task_id, ())
                         )
 
+                case AttributeKind.NONE | AttributeKind.GIVEN_AT | AttributeKind.GIVEN_BY:
+                    pass
+
                 case _:
-                    assert attr.kind is not AttributeKind.NONE
-                    t.assert_never(attr.kind)
+                    t.assert_never(attr)
 
         return static_field_mapping
 

@@ -26,7 +26,7 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
             model.real_name, model.norm_name
         ),
         type=AttributeType(model.type),
-        kind=AttributeKind(model.kind),
+        kind=AttributeKind.NONE if model.kind is None else AttributeKind(model.kind),
         field_config=AttributeFieldConfig(
             AttributeSlotType(model.slot_type),
             model.min_slot_count,
@@ -46,7 +46,7 @@ class AttributeRepository(BaseRepository):
             norm_name=attribute.name.norm,
             real_name=attribute.name.real,
             type=attribute.type,
-            kind=attribute.kind.value,
+            kind=None if attribute.kind is AttributeKind.NONE else attribute.kind.value,
             slot_type=attribute.field_config.slot_type,
             min_slot_count=attribute.field_config.min_slot_count,
             max_slot_count=attribute.field_config.max_slot_count,

@@ -5,6 +5,7 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.types.community import CommunityID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
+from domain.value_objects.datetime import DateTime
 from domain.value_objects.string import Str
 
 
@@ -12,7 +13,7 @@ from domain.value_objects.string import Str
 class CommunityInfo:
     name: CommunityNameStr
     default_selected_list: ListEntity | None
-    created: datetime
+    created_at: DateTime
     limits: CommunityLimits
     members: tuple[MemberEntity, ...]
     lists: tuple[ListEntity, ...]
@@ -22,7 +23,7 @@ class CommunityInfo:
 @dataclass(frozen=True, slots=True)
 class CommunitySummary:
     name: CommunityNameStr
-    created: datetime
+    created: DateTime
     member_count: int
     list_count: int
     total_task_count: int

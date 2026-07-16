@@ -2,7 +2,7 @@ import typing as t
 
 from domain.entities.base import BaseEntity
 from domain.enums.attribute import AttributeKind, AttributeType
-from domain.types.attribute import AttributeID, StaticAttributeTypeT
+from domain.types.attribute import AnyAttributeTypeT, AttributeID
 from domain.types.list import ListID
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position
@@ -21,6 +21,9 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
     ) -> None:
         super().__init__(attribute_id)
 
+        if kind is not AttributeKind.NONE and kind.type is not type:
+            raise ValueError("Kind and type do not match:", type, kind)
+        
         self._list_id = list_id
         self._type = type
         self._kind = kind
@@ -70,4 +73,4 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
 
     @property
     def slot_unique_across_list(self) -> bool:
-        return self.type is AttributeType.STATIC
+        return self.kind in (AttributeKind.ID, AttributeKind.NAME, AttributeKind.ALIAS)

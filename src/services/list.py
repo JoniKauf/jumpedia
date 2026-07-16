@@ -7,7 +7,7 @@ from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeTy
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr, KindedAttributeDefaultProperties
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
@@ -51,32 +51,16 @@ class ListService:
 
         lst = self._list_repo.create(ListInsert(community.community_id, name))
 
-        # Create static attributes
-        for i, kind in enumerate(AttributeKind):
-            if kind is AttributeKind.NONE:
-                continue
-
+        # Create kinded attributes
+        for attr in KindedAttributeDefaultProperties.DEFAULTS:
             self._attribute_repo.create(
                 AttributeInsert(
-                    list_id=lst.list_id,
-                    name=AttributeSynStr(("ID", "Name", "Alias")[i]),
-                    type=AttributeType.STATIC,
-                    kind=kind,
-                    field_config=AttributeFieldConfig(
-                        slot_type=(
-                            AttributeSlotType.INTEGER,
-                            AttributeSlotType.STRING,
-                            AttributeSlotType.STRING,
-                        )[i],
-                        min_slot_count=(1, 1, 0)[i],
-                        max_slot_count=(
-                            1,
-                            1,
-                            community.limits.field_slot_count_max,
-                        )[i],
-                        unique_slots=True,
-                    ),
-                    position=Position(i + 1),
+                    lst.list_id,
+                    attr.name,
+                    attr.kind.type,
+                    attr.kind,
+                    attr.field_config,
+                    attr.position
                 )
             )
 

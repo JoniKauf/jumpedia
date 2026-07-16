@@ -9,10 +9,7 @@ AttributeAliasID = t.NewType("AttributeAliasID", ID)
 
 type SlotTypeT = bool | int | decimal.Decimal | str
 
-type StaticAttributeTypeT = t.Literal[AttributeType.STATIC]
 type TaskAttributeTypeT = t.Literal[AttributeType.TASK]
 type UserAttributeTypeT = t.Literal[AttributeType.USER]
 
-type NonUserAttributeTypeT = StaticAttributeTypeT | TaskAttributeTypeT
-type NonStaticAttributeTypeT = TaskAttributeTypeT | UserAttributeTypeT
-type AnyAttributeTypeT = StaticAttributeTypeT | TaskAttributeTypeT | UserAttributeTypeT
+type AnyAttributeTypeT = TaskAttributeTypeT | UserAttributeTypeT

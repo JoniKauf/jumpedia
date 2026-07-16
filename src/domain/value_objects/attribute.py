@@ -1,12 +1,15 @@
+import annotationlib
 import itertools
 import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
-from domain.enums.attribute import AttributeSlotType
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.errors import business
+from domain.types.attribute import AnyAttributeTypeT, TaskAttributeTypeT, UserAttributeTypeT
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
+from domain.value_objects.position import Position
 from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
@@ -41,3 +44,72 @@ class AttributeFieldConfig:
                 CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
                 None,
             )
+
+
+@dataclass(frozen=True, slots=True)
+class KindedAttributeDefaultProperties:
+    name: AttributeSynStr
+    kind: AttributeKind
+    field_config: AttributeFieldConfig
+    position: Position
+
+    DEFAULTS: t.ClassVar[t.Final[tuple[KindedAttributeDefaultProperties, ...]]]  # type: ignore
+
+
+KindedAttributeDefaultProperties.DEFAULTS = (  # type: ignore
+    KindedAttributeDefaultProperties(
+        AttributeSynStr("ID"),
+        AttributeKind.ID,
+        AttributeFieldConfig(
+            AttributeSlotType.INTEGER,
+            1,
+            1,
+            False,
+        ),
+        Position(1),
+    ),
+    KindedAttributeDefaultProperties(
+        AttributeSynStr("Name"),
+        AttributeKind.NAME,
+        AttributeFieldConfig(
+            AttributeSlotType.STRING,
+            1,
+            1,
+            False,
+        ),
+        Position(2),
+    ),
+    KindedAttributeDefaultProperties(
+        AttributeSynStr("Alias"),
+        AttributeKind.ALIAS,
+        AttributeFieldConfig(
+            AttributeSlotType.STRING,
+            0,
+            15,
+            True,
+        ),
+        Position(3),
+    ),
+    KindedAttributeDefaultProperties(
+        AttributeSynStr("Given At"),
+        AttributeKind.GIVEN_AT,
+        AttributeFieldConfig(
+            AttributeSlotType.STRING,
+            1,
+            1,
+            False,
+        ),
+        Position(4),
+    ),
+    KindedAttributeDefaultProperties(
+        AttributeSynStr("Given By"),
+        AttributeKind.GIVEN_BY,
+        AttributeFieldConfig(
+            AttributeSlotType.STRING,
+            1,
+            1,
+            False,
+        ),
+        Position(5),
+    ),
+)

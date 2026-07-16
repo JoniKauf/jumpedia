@@ -8,3 +8,4 @@ from domain.types.task import TaskID
 class MemberTaskInsert:
     member_id: MemberID
     task_id: TaskID
+    given_by: MemberID

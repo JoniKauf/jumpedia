@@ -65,6 +65,8 @@ class MemberTaskService:
             actor_member, target_user
         )
 
+        given_by_id = actor_member.member_id
+
         del actor_member, target_user
 
         existing_member_task = self._member_task_repo.get_by_member_id_and_task_id(
@@ -90,7 +92,7 @@ class MemberTaskService:
         )
 
         member_task = self._member_task_repo.create(
-            MemberTaskInsert(target_member.member_id, task.task_id)
+            MemberTaskInsert(target_member.member_id, task.task_id, given_by_id)
         )
 
         if ufm:
@@ -238,7 +240,7 @@ class MemberTaskQueryService:
 
         # --- Get Static Field Mapping --- #
         static_field_mapping = (
-            self._field_mapping_service.get_static_field_mapping_single(
+            self._field_mapping_service.get_task_kinded_field_mapping_single(
                 task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
             )
         )
@@ -300,7 +302,7 @@ class MemberTaskQueryService:
         # for iteration later, so we don't exclude any tasks if they don't have a
         # specific field mapping.
         task_id_to_static_field_mapping = (
-            self._field_mapping_service.get_static_field_mapping_many(
+            self._field_mapping_service.get_task_kinded_field_mapping_many(
                 self._task_repo.get_all_by_list_id(lst.list_id),
                 self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
                 attrs_sorted,

@@ -1,7 +1,6 @@
 from string.templatelib import Template
 
 from discord import app_commands
-from interfaces.command import groups
 from message import format
 
 from domain.entities.attribute import AttributeEntity
@@ -9,6 +8,7 @@ from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
 from domain.value_objects.list import ListNameStr
 from interfaces.base import BaseInterface
+from interfaces.command import groups
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import messages
 from services.dtos.list import ListSummary

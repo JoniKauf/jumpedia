@@ -74,7 +74,7 @@ class TaskInterface(BaseInterface, group_name="task"):
             to_nuke=task,
             parent=lst,
             consequences=t"All its associated field and user field data will be deleted!",
-            execute=lambda: ctx.services.task.delete(prepared)
+            execute=lambda: ctx.services.task.delete(prepared),
         )
 
     @edit_group.command(name="name")

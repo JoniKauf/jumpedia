@@ -16,7 +16,7 @@ from services.list import ListPrepareService, ListQueryService, ListService
 from services.member import MemberService
 from services.member_task import MemberTaskQueryService, MemberTaskService
 from services.server import ServerService
-from services.task import TaskQueryService, TaskService, TaskPrepareService
+from services.task import TaskPrepareService, TaskQueryService, TaskService
 from services.user import UserService
 
 

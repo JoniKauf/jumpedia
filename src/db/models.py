@@ -54,7 +54,7 @@ class CommunityModel(BaseModel):
         RealStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX), unique=True
     )
 
-    created: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
@@ -167,6 +167,11 @@ class MemberModel(BaseModel):
 
 # --- Attribute ---
 
+_KIND_TO_TYPE_CASE = " ".join(
+    f"WHEN {kind.value} THEN {kind.type.value}"
+    for kind in AttributeKind
+    if kind is not AttributeKind.NONE
+)
 
 class AttributeModel(BaseModel):
     __tablename__ = "attribute"
@@ -190,7 +195,7 @@ class AttributeModel(BaseModel):
     )
 
     type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
-    kind: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
     slot_type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     min_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -204,12 +209,13 @@ class AttributeModel(BaseModel):
         UniqueConstraint("list_id", "position"),
         # Only check most important constraints here, rest is done in service layer (valid position and so on)
         CheckConstraint(
-            f"(type = {AttributeType.STATIC} AND kind BETWEEN {AttributeKind.NONE + 1} AND {max(AttributeKind)}) "
-            f"OR "
-            f"(type in ({AttributeType.TASK}, {AttributeType.USER}) AND kind = {AttributeKind.NONE})"
+            f"kind IS NULL OR kind IN ({', '.join(str(kind.value) for kind in AttributeKind if kind is not AttributeKind.NONE)})"
         ),
         CheckConstraint(
-            f"slot_type BETWEEN {min(AttributeSlotType)} AND {max(AttributeSlotType)}"
+            f"kind IS NULL OR type = CASE kind {_KIND_TO_TYPE_CASE} END"
+        ),
+        CheckConstraint(
+            f"slot_type IN ({', '.join(str(slot_type.value) for slot_type in AttributeSlotType)})",
         ),
     )
 
@@ -414,6 +420,16 @@ class MemberTaskModel(BaseModel):
 
     task_id: Mapped[TaskID] = mapped_column(
         ForeignKey("task.task_id", ondelete="CASCADE")
+    )
+
+    given_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    given_by: Mapped[MemberID | None] = mapped_column(
+        ForeignKey("member.member_id", ondelete="SET NULL")
     )
 
     __table_args__ = (

@@ -8,7 +8,7 @@ from domain.enums.edit_mode import (
     FieldMappingEditMode,
 )
 from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import IDFieldMappingT
+from domain.types.field_mapping import AbstractFieldMappingIDToStringsT
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
 
@@ -59,9 +59,9 @@ class EditModeService:
     def handle_field_mapping_edit(
         self,
         edit_mode: FieldMappingEditMode,
-        current: IDFieldMappingT,
-        new: IDFieldMappingT,
-    ) -> IDFieldMappingT:
+        current: AbstractFieldMappingIDToStringsT,
+        new: AbstractFieldMappingIDToStringsT,
+    ) -> AbstractFieldMappingIDToStringsT:
         if edit_mode is FieldMappingEditMode.REPLACE:
             return new
 

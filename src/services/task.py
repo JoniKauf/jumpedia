@@ -281,7 +281,9 @@ class TaskPrepareService:
     _task_access_service: TaskAccessService
     _permission_service: PermissionService
 
-    def delete(self, task_name: FieldSlotStr, list_name: ListNameStr) -> tuple[PreparedDeleteTask, ListEntity, TaskEntity]:
+    def delete(
+        self, task_name: FieldSlotStr, list_name: ListNameStr
+    ) -> tuple[PreparedDeleteTask, ListEntity, TaskEntity]:
         _, member, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, task_name, True
         )
@@ -317,7 +319,7 @@ class TaskQueryService:
 
         # --- Get Static Field Mapping --- #
         static_field_mapping = (
-            self._field_mapping_service.get_static_field_mapping_single(
+            self._field_mapping_service.get_task_kinded_field_mapping_single(
                 task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
             )
         )
@@ -366,7 +368,7 @@ class TaskQueryService:
         # for iteration later, so we don't exclude any tasks if they don't have a
         # specific field mapping.
         task_id_to_static_field_mapping = (
-            self._field_mapping_service.get_static_field_mapping_many(
+            self._field_mapping_service.get_task_kinded_field_mapping_many(
                 self._task_repo.get_all_by_list_id(lst.list_id),
                 self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
                 attrs_sorted,

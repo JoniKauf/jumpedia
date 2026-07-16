@@ -26,14 +26,9 @@ from services.dtos.user import UserRef
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
 
-
-def _created_to_representation(created: dt.datetime) -> str:
-    return created.strftime("%A, %Y/%m/%d %H:%M:%S")
-
-
 class CommunityInterface(BaseInterface, group_name="community"):
     edit_group = groups.create_edit_group()
-    
+
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, community: str | None = None) -> None:
@@ -43,7 +38,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         data: dict[str, tuple[str, ...]] = {
             "Name": (str(info.name),),
-            "Created": (_created_to_representation(info.created),),
+            "Created": (str(info.created_at),),
             "Owners": tuple(
                 str(user.name)
                 for user in info.members
@@ -144,7 +139,7 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((str(summary.name),) for summary in summaries),
             "Created": tuple(
-                (_created_to_representation(summary.created),) for summary in summaries
+                (str(summary.created),) for summary in summaries
             ),
             "User Count": tuple((str(summary.member_count),) for summary in summaries),
             "List Count": tuple((str(summary.list_count),) for summary in summaries),

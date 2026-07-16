@@ -94,3 +94,5 @@ class SlotTypeService:
                 return (str(slot) for slot in slots)
 
         t.assert_never(type)
+
+    

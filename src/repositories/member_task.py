@@ -6,6 +6,7 @@ from domain.errors.internal import NotFoundById
 from domain.types.member import MemberID
 from domain.types.member_task import MemberTaskID
 from domain.types.task import TaskID
+from domain.value_objects.datetime import DateTime
 from repositories.base import BaseRepository
 from repositories.dtos.member_task import MemberTaskInsert
 
@@ -15,13 +16,15 @@ def member_task_model_to_entity(model: MemberTaskModel) -> MemberTaskEntity:
         member_task_id=model.member_task_id,
         member_id=model.member_id,
         task_id=model.task_id,
+        given_at=DateTime(model.given_at),
+        given_by=model.given_by
     )
 
 
 class MemberTaskRepository(BaseRepository):
     def create(self, member_task: MemberTaskInsert) -> MemberTaskEntity:
         obj = MemberTaskModel(
-            member_id=member_task.member_id, task_id=member_task.task_id
+            member_id=member_task.member_id, task_id=member_task.task_id, given_by=member_task.given_by
         )
 
         self._session.add(obj)

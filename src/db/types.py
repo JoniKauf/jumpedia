@@ -28,7 +28,7 @@ class RealStrType(TypeDecorator):
         if value is None:
             return None
 
-        return string.RealStr(value, _validate=False)
+        return string.RealStr._create(value)
 
 
 class NormStrType(TypeDecorator):
@@ -53,4 +53,4 @@ class NormStrType(TypeDecorator):
         if value is None:
             return None
 
-        return string.NormStr(value, _validate=False)
+        return string.NormStr._create(value)

@@ -7,19 +7,23 @@ from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.types.attribute import (
+    AnyAttributeTypeT,
     AttributeID,
-    NonStaticAttributeTypeT,
     TaskAttributeTypeT,
     UserAttributeTypeT,
 )
 from domain.types.collection_entry import CollectionFrozenT, CollectionT
-from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
+from domain.value_objects.attribute import (
+    AttributeFieldConfig,
+    AttributeSynStr,
+    KindedAttributeDefaultProperties,
+)
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
@@ -227,7 +231,7 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        if attr.type is AttributeType.STATIC:
+        if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot change slot count for static attributes")
 
         field_config = AttributeFieldConfig(
@@ -327,7 +331,7 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        if attr.type is AttributeType.STATIC:
+        if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot change collection for static attributes")
 
         current_collection: CollectionFrozenT = (
@@ -489,7 +493,7 @@ class AttributePrepareService:
     def delete(
         self, name: AttributeSynStr, list_name: ListNameStr
     ) -> tuple[
-        PreparedDeleteAttribute, ListEntity, AttributeEntity[NonStaticAttributeTypeT]
+        PreparedDeleteAttribute, ListEntity, AttributeEntity
     ]:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
@@ -499,10 +503,8 @@ class AttributePrepareService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        if attr.type is AttributeType.STATIC:
+        if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot delete attribute of type static")
-
-        attr = t.cast(AttributeEntity[NonStaticAttributeTypeT], attr)
 
         return (
             PreparedDeleteAttribute(lst.list_id, attr.attribute_id, attr.position),
