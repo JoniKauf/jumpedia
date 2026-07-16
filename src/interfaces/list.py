@@ -1,6 +1,7 @@
 from string.templatelib import Template
 
 from discord import app_commands
+from interfaces.command import groups
 from message import format
 
 from domain.entities.attribute import AttributeEntity
@@ -14,6 +15,8 @@ from services.dtos.list import ListSummary
 
 
 class ListInterface(BaseInterface, group_name="list"):
+    edit_group = groups.create_edit_group()
+
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, list_name: str) -> None:
@@ -56,7 +59,7 @@ class ListInterface(BaseInterface, group_name="list"):
             execute=lambda: ctx.services.list.delete(prepared),
         )
 
-    @app_commands.command()
+    @edit_group.command(name="name")
     @with_context()
     async def edit_name(
         self, ctx: CommandContext, list_name: str, new_list_name: str

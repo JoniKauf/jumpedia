@@ -20,7 +20,7 @@ from services.dtos.community import (
     PreparedDeleteCommunity,
 )
 from services.dtos.list import DeletedList, ListInfo, ListSummary
-from services.dtos.task import DeletedTask
+from services.dtos.task import PreparedDeleteTask
 
 
 def shorten(s: str, max_len: int, more: str = "...") -> str:
@@ -48,7 +48,7 @@ type MentionableEntityT = CommunityEntity | UserEntity | MemberEntity | ListEnti
 
 type MentionableInfoDTOT = CommunityInfo | ListInfo | AttributeInfo | TaskEntity
 type MentionableSummaryDTOT = CommunitySummary | ListSummary | AttributeSummary | TaskEntity
-type MentionablePreparedDTOT = PreparedDeleteCommunity | DeletedList | PreparedDeleteAttribute | DeletedTask
+type MentionablePreparedDTOT = PreparedDeleteCommunity | DeletedList | PreparedDeleteAttribute | PreparedDeleteTask
 type MentionableDTOT = MentionableInfoDTOT | MentionableSummaryDTOT | MentionablePreparedDTOT
 
 type MentionableT = AnyRankT | MentionableEntityT | MentionableDTOT
@@ -72,7 +72,7 @@ TYPE_MAP: dict[type[MentionableT], tuple[str, str]] = {
     AttributeSummary: ("attribute", "attributes"),
     PreparedDeleteAttribute: ("attribute", "attributes"),
     TaskEntity: ("task", "tasks"),
-    DeletedTask: ("task", "tasks"),
+    PreparedDeleteTask: ("task", "tasks"),
 }
 
 ATTRIBUTE_TYPE_PREFIX_MAP = {

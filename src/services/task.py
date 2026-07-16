@@ -28,7 +28,7 @@ from repositories.dtos.task import TaskAliasInsert, TaskInsert
 from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
 from repositories.task import TaskRepository
 from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import DeletedTask
+from services.dtos.task import PreparedDeleteTask
 from services.internal.edit_mode import EditModeService
 from services.internal.field_mapping import FieldMappingService
 from services.internal.permission import PermissionService
@@ -139,16 +139,8 @@ class TaskService:
 
         return task_entity
 
-    def delete(self, task_name: FieldSlotStr, list_name: ListNameStr) -> DeletedTask:
-        _, member, lst, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, task_name, True
-        )
-
-        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
-
-        self._task_repo.delete(task.task_id)
-
-        return DeletedTask(task.name, lst)
+    def delete(self, prepared: PreparedDeleteTask) -> None:
+        self._task_repo.delete(prepared.task_id)
 
     def edit_name(
         self, new_name: FieldSlotStr, task_name: FieldSlotStr, list_name: ListNameStr
@@ -282,6 +274,21 @@ class TaskService:
         )
 
         return task
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class TaskPrepareService:
+    _task_access_service: TaskAccessService
+    _permission_service: PermissionService
+
+    def delete(self, task_name: FieldSlotStr, list_name: ListNameStr) -> tuple[PreparedDeleteTask, ListEntity, TaskEntity]:
+        _, member, lst, task = self._task_access_service.get_convenient(
+            DEFAULT, list_name, task_name, True
+        )
+
+        self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
+
+        return PreparedDeleteTask(task.task_id), lst, task
 
 
 @dataclass(frozen=True, slots=True, eq=False)

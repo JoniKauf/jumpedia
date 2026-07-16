@@ -18,6 +18,7 @@ from domain.value_objects.string import Str
 from domain.value_objects.user import UserNameStr
 from interfaces.attribute import ListNameStr
 from interfaces.base import BaseInterface
+from interfaces.command import groups
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import format, messages
 from services.dtos.community import CommunitySummary
@@ -31,6 +32,8 @@ def _created_to_representation(created: dt.datetime) -> str:
 
 
 class CommunityInterface(BaseInterface, group_name="community"):
+    edit_group = groups.create_edit_group()
+    
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, community: str | None = None) -> None:
@@ -114,7 +117,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             execute=lambda: ctx.services.community.delete(prepared),
         )
 
-    @app_commands.command()
+    @edit_group.command(name="default_selected_list")
     @with_context()
     async def edit_default_selected_list(
         self, ctx: CommandContext, list_name: str | None = None

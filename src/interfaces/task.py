@@ -10,6 +10,7 @@ from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
 from interfaces import bindings
 from interfaces.base import BaseInterface
+from interfaces.command import groups
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.enums.edit_mode import (
@@ -21,9 +22,11 @@ from services.dtos.user import UserRef
 
 
 class TaskInterface(BaseInterface, group_name="task"):
+    edit_group = groups.create_edit_group()
+
     @app_commands.command()
     @with_context()
-    async def info_user(
+    async def info(
         self, ctx: CommandContext, task_name_or_alias: str, list_name: str | None = None
     ) -> None:
         info = ctx.services.task_query.get_info(
@@ -62,13 +65,19 @@ class TaskInterface(BaseInterface, group_name="task"):
     @app_commands.command()
     @with_context()
     async def nuke(self, ctx: CommandContext, task_name: str, list_name: str) -> None:
-        deleted = ctx.services.task.delete(
+        prepared, lst, task = ctx.services.task_prepare.delete(
             FieldSlotStr(task_name), ListNameStr(list_name)
         )
 
-        await messages.object_nuked(ctx.interaction, deleted)
+        await messages.nuke_object_on_confirmation(
+            ctx.interaction,
+            to_nuke=task,
+            parent=lst,
+            consequences=t"All its associated field and user field data will be deleted!",
+            execute=lambda: ctx.services.task.delete(prepared)
+        )
 
-    @app_commands.command()
+    @edit_group.command(name="name")
     @with_context()
     async def edit_name(
         self,
@@ -84,7 +93,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.object_name_edited(ctx.interaction, TaskEntity, before, after)
 
-    @app_commands.command()
+    @edit_group.command(name="aliases")
     @with_context()
     async def edit_aliases(
         self,
@@ -101,7 +110,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.object_aliases_edited(ctx.interaction, task)
 
-    @app_commands.command()
+    @edit_group.command(name="field_mapping")
     @with_context()
     async def edit_field_mapping(
         self,
@@ -244,11 +253,13 @@ class TasksInterface(BaseInterface, group_name="tasks"):
         ctx: CommandContext,
         filter_dsl: str | None = None,
         sort_dsl: str | None = None,
+        yield_dsl_sequence: str | None = None,
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.task_query.get_summaries(
             bindings.filter.filter(filter_dsl),
             bindings.sort.sorts(sort_dsl),
+            bindings.sequence.yield_(yield_dsl_sequence),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
@@ -273,11 +284,13 @@ class TasksInterface(BaseInterface, group_name="tasks"):
         user: discord.User | None = None,
         filter_dsl: str | None = None,
         sort_dsl: str | None = None,
+        yield_dsl_sequence: str | None = None,
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.member_task_query.get_summaries(
             bindings.filter.filter(filter_dsl),
             bindings.sort.sorts(sort_dsl),
+            bindings.sequence.yield_(yield_dsl_sequence),
             (
                 DEFAULT
                 if user is None

@@ -16,7 +16,7 @@ from services.list import ListPrepareService, ListQueryService, ListService
 from services.member import MemberService
 from services.member_task import MemberTaskQueryService, MemberTaskService
 from services.server import ServerService
-from services.task import TaskQueryService, TaskService
+from services.task import TaskQueryService, TaskService, TaskPrepareService
 from services.user import UserService
 
 
@@ -33,6 +33,7 @@ class PublicServices:
     attribute_prepare: AttributePrepareService
     attribute_query: AttributeQueryService
     task: TaskService
+    task_prepare: TaskPrepareService
     task_query: TaskQueryService
     member_task: MemberTaskService
     member_task_query: MemberTaskQueryService

@@ -8,12 +8,14 @@ from domain.types.common import ID
 from domain.types.user import UserID
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
+from interfaces.command import groups
 from interfaces.decorators.context import CommandContext, with_context
 from interfaces.message import format, messages
 from services.dtos.user import UserRef
 
 
 class UserInterface(BaseInterface, group_name="user"):
+    set_group = groups.create_set_group()
 
     MetaRanksEnum = enum.Enum(
         "MetaRanksEnum",
@@ -24,7 +26,7 @@ class UserInterface(BaseInterface, group_name="user"):
         + [],
     )
 
-    @app_commands.command()
+    @set_group.command(name="meta_rank")
     @with_context()
     async def set_meta_rank(
         self, ctx: CommandContext, user: discord.User, rank: MetaRanksEnum
@@ -48,7 +50,7 @@ class UserInterface(BaseInterface, group_name="user"):
         + [],
     )
 
-    @app_commands.command()
+    @set_group.command(name="community_rank")
     @with_context()
     async def set_community_rank(
         self, ctx: CommandContext, user: discord.User, rank: CommunityRanksEnum

@@ -15,6 +15,7 @@ from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.list import ListNameStr
 from interfaces import bindings
 from interfaces.base import BaseInterface
+from interfaces.command import groups
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
 from interfaces.enums.edit_mode import (
@@ -37,6 +38,8 @@ def _collection_to_representation(
 
 
 class AttributeInterface(BaseInterface, group_name="attribute"):
+    edit_group = groups.create_edit_group()
+
     @app_commands.command()
     @with_context()
     async def info(
@@ -128,7 +131,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             execute=lambda: ctx.services.attribute.delete(prepared),
         )
 
-    @app_commands.command()
+    @edit_group.command(name="name")
     @with_context()
     async def edit_name(
         self,
@@ -146,7 +149,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             ctx.interaction, AttributeEntity, before, after
         )
 
-    @app_commands.command()
+    @edit_group.command(name="aliases")
     @with_context()
     async def edit_aliases(
         self,
@@ -166,7 +169,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.object_aliases_edited(ctx.interaction, attr)
 
-    @app_commands.command()
+    @edit_group.command(name="min_and_max_slot_count")
     @with_context()
     async def edit_min_and_max_slot_count(
         self,
@@ -195,7 +198,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             ),
         )
 
-    @app_commands.command()
+    @edit_group.command(name="collection")
     @with_context()
     async def edit_collection(
         self,
@@ -224,6 +227,8 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
 
 class AttributesInterface(BaseInterface, group_name="attributes"):
+    edit_group = groups.create_edit_group()
+
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext, list_name: str | None = None) -> None:
@@ -261,7 +266,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         await messages.object_browse(ctx.interaction, AttributeSummary, data)
 
-    @app_commands.command()
+    @edit_group.command(name="position_order")
     @with_context()
     async def edit_position_order(
         self, ctx: CommandContext, all_attribute_names_dsl_sequence: str, list_name: str
