@@ -11,7 +11,7 @@ from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.typing.attribute import AnyAttributeTypeT, SlotTypeT
+from domain.typing.attribute import AnyAttributeTypeT, SlotTypeT, TaskAttributeTypeT
 from domain.typing.community import CommunityID
 from domain.typing.field_mapping import (
     FrozenFieldMappingEntityToStrings,
@@ -250,7 +250,22 @@ class MemberTaskQueryService:
         tuple[tuple[SlotTypeT, ...], ...],
     ]:
         return self._field_mapping_service.get_summaries(
-            filter, sort, yield_, list_name, target_user
+            filter, sort, yield_, list_name, target_user, False
+        )
+
+    def get_summaries_missing(
+        self,
+        filter: FilterT | None,
+        sort: t.Sequence[tuple[AttributeSynStr, bool]],
+        yield_: t.Sequence[AttributeSynStr],
+        target_user: UserRef | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
+    ) -> frozendict[
+        AttributeEntity[TaskAttributeTypeT],
+        tuple[tuple[SlotTypeT, ...], ...],
+    ]:
+        return self._field_mapping_service.get_summaries(
+            filter, sort, yield_, list_name, target_user, True
         )
 
 

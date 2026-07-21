@@ -7,6 +7,7 @@ from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.typing.member import MemberID
 from domain.value_objects.string import Str
+from domain.value_objects.user import UserNameStr
 
 
 class MemberEntity(BaseEntity[MemberID]):
@@ -54,5 +55,5 @@ class MemberEntity(BaseEntity[MemberID]):
         return self._user
 
     @property
-    def name(self) -> Str:
+    def name(self) -> UserNameStr:
         return self.user.name

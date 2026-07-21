@@ -37,7 +37,7 @@ class UserInterface(BaseInterface, group_name="user"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(MetaRank)} Set",
+            t"{F.name_of_type(MetaRank)} Set",
             t"The {format.type_name_for_body(MetaRank)} of the {format.mention_body(target_user)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
         )
 
@@ -61,6 +61,6 @@ class UserInterface(BaseInterface, group_name="user"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(CommunityRank)} Set",
+            t"{F.name_of_type(CommunityRank)} Set",
             t"The {format.type_name_for_body(CommunityRank)} of the {format.mention_body(target_member)} has been set to {format.get_instance_name(rank.value) @ format.T.FORMATTED} successfully!",
         )

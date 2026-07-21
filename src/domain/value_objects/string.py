@@ -92,14 +92,18 @@ class NormStr(BaseSingleStr):
         self._str = s._str.casefold()
 
 
-# Per definition in unicode 1 character map to at most 3 characters after casing operations
-UNICODE_MAX_MULTIPLE_CASING: t.Final[int] = 3
+# Per definition in unicode 1 character maps to at most 3 characters after a casing operations
+# So if we casefold our real str we can at most expect 3 times the length. That means
+# every place where a real str is accepted in the DB, we need to have 3x the space for
+# the norm str version and we are safe.
+# I searched a while in the unicode docs to find this info but can't find it again LOL
+UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING: t.Final[int] = 3
 
 
 class Str:
     """A string wrapper used inside the entire domain.
 
-    It holds the raw, a :class:`~RealStr` and a :class:`~NormStr` version of the wrapped string.
+    It holds a raw, :class:`~RealStr` and :class:`~NormStr` version of the wrapped string.
 
     The length and str(...) is returned from the real version of the string, while equality and
     the hash is based off the norm version of the string.

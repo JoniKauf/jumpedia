@@ -2,9 +2,8 @@ import enum
 import typing as t
 from dataclasses import dataclass
 from string.templatelib import Interpolation, Template, convert
-from types import UnionType
 
-from interfaces.message import format
+from interfaces.message.format import F
 
 
 class Status(enum.StrEnum):
@@ -15,16 +14,16 @@ class Status(enum.StrEnum):
     ERROR = "x"
 
 
-def _parse_interpolation(interpolation: Interpolation) -> str:
-    if interpolation.format_spec:
-        raise ValueError("Format is no longer supported")
+def _parse_interpolation(interpolation: Interpolation[F]) -> str:
+    if interpolation.format_spec or interpolation.conversion:
+        raise ValueError("Format or conversion not allowed rn")
 
     obj = interpolation.value
 
-    if not isinstance(obj, _TaggedObj):
-        obj = _TaggedObj(obj)
+    if not isinstance(obj, F):
+        raise ValueError("Not F wrapped")
 
-    return str(obj)
+    return obj._s
 
 
 def _parse_template(t: Template) -> str:
@@ -49,41 +48,3 @@ def layout(header: Template, body: Template, status: Status) -> str:
     )
 
     return f"## {sheader}\n{sbody}\n\n{sstatus}".rstrip()
-
-
-class T(enum.IntFlag):
-    EMBED = 1 << 0
-    SHORTEN = 1 << 1
-
-    # combos
-    NONE = 0
-    FORMATTED = EMBED | SHORTEN
-    RAW = NONE
-    DEFAULT = FORMATTED
-
-    def __rmatmul__(self, value: t.Any) -> _TaggedObj:
-        # overwrite tags
-        if isinstance(value, _TaggedObj):
-            return _TaggedObj(value.obj, self)
-
-        return _TaggedObj(value, self)
-
-    def has_flag(self, flag: T) -> bool:
-        return self & flag == flag
-
-
-@dataclass(frozen=True, slots=True)
-class _TaggedObj:
-    obj: t.Any
-    flags: T = T.DEFAULT
-
-    def __str__(self) -> str:
-        s = str(self.obj)
-
-        if self.flags.has_flag(T.SHORTEN):
-            s = format.shorten(s, 32)
-
-        if self.flags.has_flag(T.EMBED):
-            s = f"``{s}``"
-
-        return s

@@ -3,13 +3,12 @@ import typing as t
 from string.templatelib import Template
 
 import discord
-from discord import ui
-from discord.abc import MISSING
 
 from domain.errors.business import Str
 from infrastructure import pastee
-from interfaces.message import format, layout, views
-from interfaces.message.layout import Status, T
+from interfaces.message import layout, views
+from interfaces.message.format import F, MentionableT
+from interfaces.message.layout import Status
 
 
 async def error(
@@ -50,7 +49,7 @@ async def info(
 
 async def object_info(
     interaction: discord.Interaction,
-    info_dto_type: type[format.MentionableInfoDTOT],
+    mentionable_type: type[MentionableT],
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
     links = pastee.table_to_pastee_strings(
@@ -59,23 +58,23 @@ async def object_info(
 
     await info(
         interaction,
-        t"{format.type_name_for_header(info_dto_type)} Info",
-        t"{'\n'.join(links) @ T.RAW}",
+        t"{F.type_name(mentionable_type, header=True)} Info",
+        Template('\n'.join(links))
     )
 
 
 async def object_browse(
     interaction: discord.Interaction,
-    summary_dto_type: type[format.MentionableSummaryDTOT],
+    mentionable_type: type[MentionableT],
     data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
-    header = t"{format.type_name_for_header(summary_dto_type)} Browsed"
+    header = t"{F.type_name(mentionable_type, header=True)} Browsed"
 
     if not data:
         return await info(
             interaction,
             header,
-            t"No {format.type_name_for_body(summary_dto_type)} with the specified criteria could be found!",
+            t"No {F.type_name(mentionable_type, header=False)} with the specified criteria could be found!",
         )
 
     links = pastee.table_to_pastee_strings(tuple(data), data.values())
@@ -83,72 +82,74 @@ async def object_browse(
         next(iter(data.values()))
     )  # Count length of first value in the mapping
 
+    plural: bool = count != 1
+
     await info(
         interaction,
         header,
-        t"A total of {count @ T.EMBED} {format.type_name_for_body(summary_dto_type, count == 1)} were found with the specified criteria!\n\n{'\n'.join(links) @ T.RAW}",
+        t"A total of {F.raw(str(count))} {F.type_name(mentionable_type, header=False, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
     )
 
 
 async def object_created(
     interaction: discord.Interaction,
-    entity: format.MentionableEntityT,
+    entity: MentionableT,
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_for_header(type(entity))} Created",
-        t"The {format.mention_body(entity)} has been created successfully!",
+        t"{F.type_name(type(entity), header=True)} Created",
+        t"The {F.mention(entity)} has been created successfully!",
     )
 
 
 async def object_name_edited(
     interaction: discord.Interaction,
-    entity_type: type[format.MentionableEntityT],
+    entity_type: type[MentionableT],
     before: Str,
     after: Str,
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_for_header(entity_type)} Renamed",
-        t"The {format.type_name_for_body(entity_type)} {before @ format.T.FORMATTED} has been renamed to {after @ format.T.FORMATTED} successfully!",
+        t"{F.type_name(entity_type, header=True)} Renamed",
+        t"The {F.type_name(entity_type, header=False)} {F.raw(str(before))} has been renamed to {F.raw(str(after))} successfully!",
     )
 
 
 async def object_aliases_edited(
-    interaction: discord.Interaction, entity: format.MentionableEntityT
+    interaction: discord.Interaction, entity: MentionableT
 ) -> None:
     await success(
         interaction,
-        t"{format.type_name_for_header(type(entity))} Renamed",
-        t"The aliases of the {format.mention_body(entity)} have been edited successfully!\n",
+        t"{F.type_name(type(entity), header=True)} Renamed",
+        t"The aliases of the {F.mention(entity)} have been edited successfully!\n",
     )
 
 
 async def nuke_object_on_confirmation(
     interaction: discord.Interaction,
     *,
-    to_nuke: format.MentionableEntityT,
-    parent: format.MentionableEntityT | None,
+    to_nuke: MentionableT,
+    parent: MentionableT | None,
     consequences: Template,
     execute: t.Callable[[], None],
 ) -> None:
     TIMEOUT: t.Final[int] = 60
 
-    of_parent_text = t"" if parent is None else t" of the {format.mention_body(parent)}"
+    of_parent_text = t"" if parent is None else t" of the {F.mention(parent)}"
 
     view = views.DangerousConfirmView(
         user=interaction.user,
         on_confirm=execute,
         success_text=layout.layout(
-            t"{format.type_name_for_header(type(to_nuke))} Deleted",
-            t"The {format.mention_body(to_nuke)}"
+            t"{F.type_name(type(to_nuke), header=True)} Deleted",
+            t"The {F.mention(to_nuke)}"
             + of_parent_text
             + t" has been deleted (nuked) successfully! 💣",
             Status.SUCCESS,
         ),
         cancel_text=layout.layout(
-            t"{format.type_name_for_header(type(to_nuke))} Deletion Aborted",
-            t"The deletion (nuking) of the {format.mention_body(to_nuke)} has been aborted!\nNothing changed.",
+            t"{F.type_name(type(to_nuke), header=True)} Deletion Aborted",
+            t"The deletion (nuking) of the {F.mention(to_nuke)} has been aborted successfully!\nNothing changed.",
             Status.WARNING,
         ),
         timeout=TIMEOUT,
@@ -156,15 +157,13 @@ async def nuke_object_on_confirmation(
 
     view._message = await interaction.followup.send(
         layout.layout(
-            t"Confirm {format.type_name_for_header(type(to_nuke))} Deletion",
-            t"Are you sure you want to delete (nuke) the {format.mention_body(to_nuke)}"
+            t"Confirm {F.type_name(type(to_nuke), header=True)} Deletion",
+            t"Are you sure you want to delete (nuke) the {F.mention(to_nuke)}"
             + of_parent_text
             + t"?\n\n"
             + consequences
             + t"\n\n### This action cannot be undone!"
-            + t"\n\nThis view will timeout after "
-            + Template(str(TIMEOUT))
-            + t" seconds!",
+            + t"\n\nThis interaction will timeout after {F.raw(str(TIMEOUT))} seconds!",
             Status.WARNING,
         ),
         view=view,

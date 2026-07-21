@@ -1,7 +1,7 @@
 import enum
 from string.templatelib import Template
 
-import discord
+import typing as t
 from discord import app_commands, ui
 
 from domain.entities.attribute import AttributeEntity
@@ -18,11 +18,13 @@ from interfaces.base import BaseInterface
 from interfaces.command import groups
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.context import with_context
+from interfaces.enums.attribute import AttributeTypeInterfaceEnum
 from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     CollectionEditModeInterfaceEnum,
 )
-from interfaces.message import format, messages, views
+from interfaces.message.format import F
+from interfaces.message import messages, views
 from interfaces.message.views import DangerousConfirmView
 from services.dtos.attribute import AttributeSummary
 
@@ -67,17 +69,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             "Collection": _collection_to_representation(info.collection),
         }
 
-        await messages.object_info(ctx.interaction, type(info), data)
-
-    NonStaticAttributeTypesEnum = enum.Enum(
-        "NonStaticAttributeTypesEnum",
-        [
-            (format.ATTRIBUTE_TYPE_PREFIX_MAP[attr_type].title(), attr_type)
-            for attr_type in AttributeType
-            if attr_type is not AttributeType.STATIC
-        ]
-        + [],  # Pyright is happy with this enum inside a type annotation only if we add a "+ []"
-    )
+        await messages.object_info(ctx.interaction, AttributeEntity, data)
 
     @app_commands.command()
     @with_context()
@@ -86,7 +78,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         ctx: CommandContext,
         attribute_name: str,
         list_name: str,
-        type: NonStaticAttributeTypesEnum,
+        type: AttributeTypeInterfaceEnum,
         slot_type: AttributeSlotType,
         max_slot_count: int,
         unique_slots: bool,
@@ -118,9 +110,9 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         )
 
         consequences: Template = (
-            t"Each field of every {format.type_name_for_body(TaskEntity)} for this specific {format.type_name_for_body(AttributeEntity)} will be deleted!"
+            t"Each field of every {F.type_name(TaskEntity, header=False)} for this specific {F.type_name(AttributeEntity, header=False)} will be deleted!"
             if attr.type is AttributeType.TASK
-            else t"Each custom field of every {format.type_name_for_body(MemberEntity)} who have given themselves this {format.type_name_for_body(TaskEntity)} will be deleted!"
+            else t"Each custom field of every {F.type_name(MemberEntity, header=False)} who has given themselves this {F.type_name(TaskEntity, header=False)} will be deleted!"
         )
 
         await messages.nuke_object_on_confirmation(
@@ -188,13 +180,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(AttributeEntity)} Min And Max Slot Count Edited",
-            t"The min and max slot count for the {format.mention_body(attr)} has been set to "
-            + t"{attr.field_config.min_slot_count @ format.T.FORMATTED} and {attr.field_config.max_slot_count @ format.T.FORMATTED} successfully!"
+            t"{F.type_name(AttributeEntity, header=True)} Min And Max Slot Count Edited",
+            t"The min and max slot count for the {F.mention(attr)} has been set to "
+            + t"{F.raw(str(attr.field_config.min_slot_count))} and {F.raw(str(attr.field_config.max_slot_count))} successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
+                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity, header=False)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
             ),
         )
 
@@ -216,12 +208,12 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(AttributeEntity)} Collection Edited",
-            t"The collection for the {format.mention_body(attr)} has been set to edit successfully!"
+            t"{F.type_name(AttributeEntity, header=True)} Collection Edited",
+            t"The collection for the {F.mention(attr)} has been edited successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {format.type_name_for_body(AttributeEntity)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
+                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity, header=False)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
             ),
         )
 
@@ -264,7 +256,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
             ),
         }
 
-        await messages.object_browse(ctx.interaction, AttributeSummary, data)
+        await messages.object_browse(ctx.interaction, AttributeEntity, data)
 
     @edit_group.command(name="position_order")
     @with_context()
@@ -278,6 +270,6 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(AttributeEntity, False)} Position Order Edited",
-            t"The positions and therefore the order of all {format.type_name_for_body(AttributeEntity, False)} of the {format.mention_body(lst)} has been edited successfully!",
+            t"{F.type_name(AttributeEntity, header=True, plural=True)} Position Order Edited",
+            t"The positions and therefore the ordering of all {F.type_name(AttributeEntity, header=False, plural=True)} of the {F.mention(lst)} has been edited successfully!",
         )

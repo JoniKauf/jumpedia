@@ -20,7 +20,8 @@ from interfaces.attribute import ListNameStr
 from interfaces.base import BaseInterface
 from interfaces.command import groups
 from interfaces.decorators.context import CommandContext, with_context
-from interfaces.message import format, messages
+from interfaces.message import messages
+from interfaces.message.format import F
 from services.dtos.community import CommunitySummary
 from services.dtos.user import UserRef
 
@@ -61,7 +62,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             if isinstance(value, int)
         }
 
-        await messages.object_info(ctx.interaction, type(info), data)
+        await messages.object_info(ctx.interaction, CommunityEntity, data)
 
     @app_commands.command()
     @with_context()
@@ -109,7 +110,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             ctx.interaction,
             to_nuke=community,
             parent=None,
-            consequences=t"Literally every piece of information about this community will be deleted! This includes all {format.type_name_for_body(ListEntity, False)}, {format.type_name_for_body(AttributeEntity, False)}, {format.type_name_for_body(TaskEntity, False)} and more...\n**This is the ultimate hammer of destruction!**",
+            consequences=t"Literally every piece of information about this community will be deleted! This includes all {F.type_name(ListEntity, header=False, plural=True)}, {F.type_name(AttributeEntity, header=False, plural=True)}, {F.type_name(TaskEntity, header=False, plural=True)} and more...\n**This is the ultimate hammer of destruction!**",
             execute=lambda: ctx.services.community.delete(prepared),
         )
 
@@ -124,9 +125,9 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         await messages.success(
             ctx.interaction,
-            t"Default Selected {format.type_name_for_header(ListEntity)} Edited",
-            t"The default selected {format.type_name_for_body(ListEntity)} of the {format.mention_body(community)} has been "
-            + (t"unsed" if lst is None else t"changed to {format.mention_body(lst)}")
+            t"Default Selected {F.type_name(ListEntity, header=True)} Edited",
+            t"The default selected {F.type_name(ListEntity, header=False)} of the {F.mention(community)} has been "
+            + (t"unset" if lst is None else t"changed to {F.mention(lst)}")
             + t" successfully!",
         )
 
@@ -147,4 +148,4 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
             ),
         }
 
-        await messages.object_browse(ctx.interaction, CommunitySummary, data)
+        await messages.object_browse(ctx.interaction, CommunityEntity, data)

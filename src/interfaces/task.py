@@ -129,7 +129,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(type(task))} Field Mapping Edited",
+            t"{F.name_of_type(type(task))} Field Mapping Edited",
             t"The field mapping of the {format.mention_body(task)} was successfully edited!",
         )
 
@@ -186,7 +186,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(TaskEntity)} Given",
+            t"{F.name_of_type(TaskEntity)} Given",
             t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!",
         )
 
@@ -211,7 +211,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{format.type_name_for_header(TaskEntity)} Taken",
+            t"{F.name_of_type(TaskEntity)} Taken",
             t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!",
         )
 
@@ -240,7 +240,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"Given {format.type_name_for_header(type(task))} Updated",
+            t"Given {F.name_of_type(type(task))} Updated",
             t"The {format.mention_body(task)} the {format.mention_body(member)} had already given themselves was updated successfully!",
         )
 

@@ -859,7 +859,7 @@ class FieldMappingService:
         AttributeEntity[TaskAttributeTypeT],
         tuple[tuple[SlotTypeT, ...], ...],
     ]:
-        pass
+        """Get all summaries with the specified filter, sort and yield."""
 
     @t.overload
     def get_summaries(
@@ -869,13 +869,30 @@ class FieldMappingService:
         yield_: t.Sequence[AttributeSynStr],
         list_name: ListNameStr | DEFAULT,
         target_user: UserRef | DEFAULT,
+        missing: t.Literal[False],
     ) -> frozendict[
         AttributeEntity[AnyAttributeTypeT],
         tuple[tuple[SlotTypeT, ...], ...],
     ]:
-        pass
+        """Get all user specific summaries with the specified filter, sort and yield."""
 
-    # TODO missing
+    @t.overload
+    def get_summaries(
+        self,
+        filter: FilterT | None,
+        sort: t.Sequence[tuple[AttributeSynStr, bool]],
+        yield_: t.Sequence[AttributeSynStr],
+        list_name: ListNameStr | DEFAULT,
+        target_user: UserRef | DEFAULT,
+        missing: t.Literal[True],
+    ) -> frozendict[
+        AttributeEntity[TaskAttributeTypeT],
+        tuple[tuple[SlotTypeT, ...], ...],
+    ]:
+        """Get all summaries with the specified filter, sort and yield a user is
+        missing.
+        """
+
     def get_summaries(
         self,
         filter: FilterT | None,
@@ -883,6 +900,7 @@ class FieldMappingService:
         yield_: t.Sequence[AttributeSynStr],
         list_name: ListNameStr | DEFAULT,
         target_user: UserRef | DEFAULT | None = None,
+        missing: bool = False,
     ) -> (
         frozendict[
             AttributeEntity[TaskAttributeTypeT],
@@ -900,9 +918,11 @@ class FieldMappingService:
 
         target_member: MemberEntity | None = None
 
+        # Task
         if target_user is None:
             ATTRIBUTE_TYPES = AttributeType.TASK.as_set()
             ATTRIBUTE_KINDS = AttributeKind.NONE_OR_TASK_KINDED
+        # User
         else:
             ATTRIBUTE_TYPES = AttributeType.ALL
             ATTRIBUTE_KINDS = AttributeKind.ALL
@@ -928,30 +948,15 @@ class FieldMappingService:
             TaskID, FrozenFieldMappingIDToStringsT
         ] = frozendict()
 
+        # Task
         if target_member is None:
             tasks = self._task_repo.get_all_by_list_id(lst.list_id)
-
+        # User
+        elif not missing:
+            tasks = self._task_repo.get_all_missing_by_list_id_and_member_id(lst.list_id, target_member.member_id)
+        # User Missing
         else:
-            member_tasks_to_tasks = self._member_task_repo.get_member_tasks_and_tasks_by_list_id_and_member_id(
-                lst.list_id, target_member.member_id
-            )
-
-            member_tasks = tuple(member_tasks_to_tasks.keys())
-            tasks = tuple(member_tasks_to_tasks.values())
-
-            task_id_to_user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
-                member_tasks,
-                self._member_task_repo.get_given_by_member_by_list_id_and_member_id(
-                    lst.list_id, target_member.member_id
-                ),
-                attrs_sorted,
-            )
-
-            task_id_to_user_field_mapping = (
-                self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
-                    target_member.member_id
-                )
-            )
+            tasks, task_id_to_user_kinded_field_mapping, task_id_to_user_field_mapping = self._calc_user_field_mapping_data(lst, target_member, attrs_sorted)
 
         task_id_to_task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_many(
@@ -965,15 +970,15 @@ class FieldMappingService:
             self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
-        # Combine all mappings into the final one
-        field_mappings_untyped = (
+        # Combine all mappings into the final one (generator, one time use)
+        field_mappings_untyped_gen = (
             (
                 task_id_to_task_kinded_field_mapping.get(task.task_id, frozendict())
                 | task_id_to_user_kinded_field_mapping.get(task.task_id, frozendict())
                 | task_id_to_task_field_mapping.get(task.task_id, frozendict())
                 | task_id_to_user_field_mapping.get(task.task_id, frozendict())
             )
-            for task in member_tasks_to_tasks.values()
+            for task in tasks
         )
 
         del (
@@ -987,6 +992,7 @@ class FieldMappingService:
             attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted
         }
 
+        # Iterate generator to create typed mappings
         field_mappings = tuple(
             {
                 attr_id: tuple(
@@ -996,12 +1002,16 @@ class FieldMappingService:
                 )
                 for attr_id, f in fm.items()
             }
-            for fm in field_mappings_untyped
+            for fm in field_mappings_untyped_gen
         )
+
+        # Map each attribute to a mapping which maps the collections value to its index in the collection
+        # Used for sorting and filtering
+        # Highly complicated comprehension but not worth making it 10x longer than it needs to be
         attr_id_to_coll_value_to_idx = {
             attr_id: {
-                slot_type: idx
-                for slot_type, idx in zip(
+                slot_typed: idx
+                for slot_typed, idx in zip(
                     self._slot_type_service.many_to_slot_type(
                         value_to_idx, attr_id_to_slot_type[attr_id], validate=False
                     ),
@@ -1021,3 +1031,26 @@ class FieldMappingService:
             syn_to_attr,
             attr_id_to_coll_value_to_idx,
         )
+
+    def _calc_user_field_mapping_data(self, lst: ListEntity, target_member: MemberEntity, attrs_sorted: tuple[AttributeEntity[AnyAttributeTypeT], ...]) -> tuple[tuple[TaskEntity, ...], frozendict[TaskID, MutableFieldMappingIDToStringsT], frozendict[TaskID, FrozenFieldMappingIDToStringsT]]:
+        member_tasks_to_tasks = self._member_task_repo.get_member_tasks_and_tasks_by_list_id_and_member_id(
+                lst.list_id, target_member.member_id
+            )
+
+        member_tasks = tuple(member_tasks_to_tasks.keys())
+        tasks = tuple(member_tasks_to_tasks.values())
+
+        task_id_to_user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
+                member_tasks,
+                self._member_task_repo.get_given_by_member_by_list_id_and_member_id(
+                    lst.list_id, target_member.member_id
+                ),
+                attrs_sorted,
+            )
+
+        task_id_to_user_field_mapping = (
+                self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
+                    target_member.member_id
+                )
+            )
+        return tasks, task_id_to_user_kinded_field_mapping, task_id_to_user_field_mapping

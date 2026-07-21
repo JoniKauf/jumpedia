@@ -1,9 +1,9 @@
 import types as ts
 import typing as t
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, exists, func, not_, or_, select
 
-from db.models import ListModel, TaskAliasModel, TaskModel
+from db.models import ListModel, MemberID, MemberTaskModel, TaskAliasModel, TaskModel
 from domain.entities.task import TaskEntity
 from domain.errors import business
 from domain.typing.community import CommunityID
@@ -364,3 +364,22 @@ class TaskRepository(BaseRepository):
             self._session.add_all(objs)
 
         self._session.flush()
+
+    def get_all_missing_by_list_id_and_member_id(
+        self,
+        list_id: ListID,
+        member_id: MemberID,
+    ) -> tuple[TaskEntity, ...]:
+        stmt = select(TaskModel).where(
+            TaskModel.list_id == list_id,
+            not_(
+                exists(
+                    select(1).where(
+                        MemberTaskModel.task_id == TaskModel.task_id,
+                        MemberTaskModel.member_id == member_id,
+                    )
+                )
+            ),
+        )
+
+        return tuple(task_model_to_entity(model) for model in self._session.execute(stmt).scalars().all())
