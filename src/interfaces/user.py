@@ -4,8 +4,8 @@ import discord
 from discord import app_commands
 
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.common import ID
-from domain.types.user import UserID
+from domain.typing.common import ID
+from domain.typing.user import UserID
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.command import groups

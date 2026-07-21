@@ -2,7 +2,7 @@ import typing as t
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeType
-from domain.types.attribute import AnyAttributeTypeT, AttributeID, SlotTypeT
+from domain.typing.attribute import AnyAttributeTypeT, AttributeID, SlotTypeT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 
@@ -24,3 +24,6 @@ type MutableFieldMappingIDToStringsT = dict[AttributeID, tuple[FieldSlotStr, ...
 type FrozenFieldMappingIDToStringsT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
 
 type AbstractFieldMappingIDToSlotTypeT = t.Mapping[AttributeID, tuple[SlotTypeT, ...]]
+type FrozenFieldMappingEntityToSlotTypeT = frozendict[
+    AttributeEntity, tuple[SlotTypeT, ...]
+]

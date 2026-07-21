@@ -4,7 +4,7 @@ from string.templatelib import Template
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.rank import AnyRankT
-from domain.types.collection_entry import CollectionT
+from domain.typing.collection_entry import CollectionT
 from domain.value_objects.attribute import AttributeFieldConfig
 from domain.value_objects.field_slot import FieldSlotStr
 

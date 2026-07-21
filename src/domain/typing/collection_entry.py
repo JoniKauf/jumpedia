@@ -1,7 +1,7 @@
 import typing as t
 
-from domain.types.attribute import SlotTypeT
-from domain.types.common import ID
+from domain.typing.attribute import SlotTypeT
+from domain.typing.common import ID
 from domain.value_objects.field_slot import FieldSlotStr
 
 CollectionEntryID = t.NewType("CollectionEntryID", ID)

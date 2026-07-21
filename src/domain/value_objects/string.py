@@ -109,9 +109,14 @@ class Str:
     _real: RealStr | None
     _norm: NormStr | None
 
-    def __init__(self, s: str) -> None:
-        self._raw = s
-        self._real = None
+    def __init__(self, s: str | RealStr) -> None:
+        if isinstance(s, RealStr):
+            self._raw = s.value
+            self._real = s
+        else:
+            self._raw = s
+            self._real = None  # Calculate lazily
+
         self._norm = None
 
         self._validation()

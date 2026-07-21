@@ -1,5 +1,5 @@
 import typing as t
 
-from domain.types.common import ID
+from domain.typing.common import ID
 
 CommunityID = t.NewType("CommunityID", ID)

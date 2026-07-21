@@ -3,8 +3,8 @@ from discord import app_commands
 
 from domain.entities.task import TaskEntity
 from domain.sentinels.default import DEFAULT
-from domain.types.common import ID
-from domain.types.user import UserID
+from domain.typing.common import ID
+from domain.typing.user import UserID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr

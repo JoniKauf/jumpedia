@@ -7,9 +7,9 @@ from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.errors import business
-from domain.types.attribute import AttributeID
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.attribute import AttributeID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.index import Index
 from domain.value_objects.position import Position
@@ -90,12 +90,18 @@ class AttributeRepository(BaseRepository):
         return None if obj is None else attribute_model_to_entity(obj)
 
     def get_all_by_list_id_ordered_by_position[T: AttributeType](
-        self, list_id: ListID, types: t.AbstractSet[T]
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[T],
+        kinds: t.AbstractSet[AttributeKind],
     ) -> tuple[AttributeEntity[T], ...]:
         stmt = (
             select(AttributeModel)
-            .where(AttributeModel.list_id == list_id)
-            .where(AttributeModel.type.in_(types))
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+                AttributeModel.kind.in_(kinds),
+            )
             .order_by(AttributeModel.position.asc())
         )
         objs = self._session.scalars(stmt).all()
@@ -290,7 +296,10 @@ class AttributeRepository(BaseRepository):
         self._session.flush()
 
     def get_syn_to_attribute_by_list_id[T: AttributeType](
-        self, list_id: ListID, types: t.AbstractSet[T]
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[T],
+        kinds: t.AbstractSet[AttributeKind],
     ) -> frozendict[AttributeSynStr, AttributeEntity[T]]:
         stmt = (
             select(AttributeModel, AttributeAliasModel)
@@ -298,8 +307,11 @@ class AttributeRepository(BaseRepository):
                 AttributeAliasModel,
                 AttributeAliasModel.attribute_id == AttributeModel.attribute_id,
             )
-            .where(AttributeModel.list_id == list_id)
-            .where(AttributeModel.type.in_(types))
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+                AttributeModel.kind.in_(kinds),
+            )
         )
 
         res: dict[AttributeSynStr, AttributeEntity[T]] = {}
@@ -347,6 +359,7 @@ class AttributeRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
+        kinds: t.AbstractSet[AttributeKind],
     ) -> frozendict[AttributeID, tuple[AttributeSynStr, ...]]:
         stmt = (
             select(AttributeAliasModel)
@@ -357,6 +370,7 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
+                AttributeModel.kind.in_(kinds),
             )
             .order_by(AttributeModel.position.asc(), AttributeAliasModel.index.asc())
         )

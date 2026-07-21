@@ -1,15 +1,16 @@
 import datetime as dt
-from dataclasses import dataclass
 import typing as t
+from dataclasses import dataclass
+
 
 @dataclass(frozen=True, slots=True)
-class DateTime:
+class DateTimeWrapper:
     value: dt.datetime
 
     def __str__(self) -> str:
-        return self.value.strftime(DateTime.FORMAT)
+        return self.value.strftime(DateTimeWrapper.FORMAT)
 
-    FORMAT: t.ClassVar[t.Final[str]] = "%A, %Y/%m/%d %H:%M:%S (UTC)"
+    FORMAT: t.ClassVar[t.Final[str]] = "%Y/%m/%d %H:%M:%S (UTC)"
 
     @classmethod
     def now(cls) -> t.Self:
@@ -18,4 +19,3 @@ class DateTime:
     @classmethod
     def parse(cls, s: str) -> t.Self:
         return cls(dt.datetime.strptime(s, cls.FORMAT).replace(tzinfo=dt.UTC))
-    

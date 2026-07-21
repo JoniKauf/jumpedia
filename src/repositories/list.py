@@ -5,8 +5,8 @@ from sqlalchemy import func, select
 from db.models import ListModel as ListModel
 from domain.entities.list import ListEntity
 from domain.errors import business
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.value_objects.list import ListNameStr
 from repositories.dtos.list import ListInsert
 

@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from domain.entities.base import BaseEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.community import CommunityID
-from domain.types.list import ListID
-from domain.types.member import MemberID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
+from domain.typing.member import MemberID
 from domain.value_objects.string import Str
 
 

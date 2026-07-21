@@ -1,4 +1,4 @@
-from domain.types.user import UserID
+from domain.typing.user import UserID
 from domain.value_objects.attribute import dataclass
 from domain.value_objects.user import UserNameStr
 

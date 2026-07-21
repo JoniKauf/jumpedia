@@ -1,4 +1,5 @@
 import types as ts
+import typing as t
 
 from sqlalchemy import func, select
 
@@ -7,13 +8,14 @@ from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
 from domain.errors import business
-from domain.types.community import CommunityID
-from repositories import user as user_module
+from domain.typing.community import CommunityID
+from domain.typing.member import MemberID
+from repositories import user
 from repositories.base import BaseRepository
 from repositories.dtos.member import MemberInsert
 
 
-def _member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntity:
+def member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntity:
     return MemberEntity(
         member_id=model.member_id,
         user=user,
@@ -24,6 +26,22 @@ def _member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntit
 
 
 class MemberRepository(BaseRepository):
+    def get_by_member_id(self, member_id: MemberID) -> MemberEntity | None:
+        stmt = (
+            select(MemberModel, UserModel)
+            .join(UserModel, MemberModel.user_id == UserModel.user_id)
+            .where(MemberModel.member_id == member_id)
+        )
+
+        row = self._session.execute(stmt).one_or_none()
+
+        if row is None:
+            return None
+
+        member_obj, user_obj = row.tuple()
+
+        return member_model_to_entity(member_obj, user.user_model_to_entity(user_obj))
+
     def get_by_user_and_community_id(
         self, user: UserEntity, community_id: CommunityID
     ) -> MemberEntity | None:
@@ -32,7 +50,7 @@ class MemberRepository(BaseRepository):
             MemberModel.community_id == community_id,
         )
         obj = self._session.scalar(stmt)
-        return None if obj is None else _member_model_to_entity(obj, user)
+        return None if obj is None else member_model_to_entity(obj, user)
 
     def create(self, member: MemberInsert) -> MemberEntity:
         obj = MemberModel(
@@ -45,7 +63,7 @@ class MemberRepository(BaseRepository):
         self._session.add(obj)
         self._session.flush()
 
-        return _member_model_to_entity(obj, member.user)
+        return member_model_to_entity(obj, member.user)
 
     def update(
         self,
@@ -59,7 +77,7 @@ class MemberRepository(BaseRepository):
         obj.power = member.community_rank.value
         obj.selected_list_id = member.selected_list_id
 
-        return _member_model_to_entity(obj, member.user)
+        return member_model_to_entity(obj, member.user)
 
     def count_grouped_by_community_id(self) -> frozendict[CommunityID, int]:
         stmt = select(MemberModel.community_id, func.count()).group_by(
@@ -78,11 +96,11 @@ class MemberRepository(BaseRepository):
         )
 
         return tuple(
-            _member_model_to_entity(
+            member_model_to_entity(
                 member,
-                user_module._user_model_to_entity(user),
+                user.user_model_to_entity(usr),
             )
-            for member, user in self._session.execute(stmt)
+            for member, usr in self._session.execute(stmt)
         )
 
     def count_by_community_id(self, community_id: int) -> int:

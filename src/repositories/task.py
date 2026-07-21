@@ -6,9 +6,10 @@ from sqlalchemy import delete, func, or_, select
 from db.models import ListModel, TaskAliasModel, TaskModel
 from domain.entities.task import TaskEntity
 from domain.errors import business
-from domain.types.community import CommunityID
-from domain.types.list import ListID
-from domain.types.task import TaskID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
+from domain.typing.task import TaskID
+from domain.value_objects.datetime import DateTimeWrapper
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
@@ -21,6 +22,7 @@ def task_model_to_entity(model: TaskModel) -> TaskEntity:
         task_id=model.task_id,
         list_id=model.list_id,
         name=FieldSlotStr._create_from_real_and_norm(model.real_name, model.norm_name),
+        created_at=DateTimeWrapper(model.created_at),
     )
 
 

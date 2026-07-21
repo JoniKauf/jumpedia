@@ -1,5 +1,5 @@
-from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import RawFieldMappingT
+from domain.typing.collection_entry import CollectionT
+from domain.typing.field_mapping import RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from interfaces import dsls

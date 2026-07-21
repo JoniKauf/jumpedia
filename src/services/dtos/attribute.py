@@ -4,9 +4,9 @@ from domain.entities.attribute import AttributeEntity
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.list import ListEntity
 from domain.enums.attribute import AttributeKind, AttributeType
-from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionFrozenT
-from domain.types.list import ListID
+from domain.typing.attribute import AttributeID
+from domain.typing.collection_entry import CollectionFrozenT
+from domain.typing.list import ListID
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position
 

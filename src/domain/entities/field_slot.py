@@ -1,8 +1,8 @@
 from typing import Any
 
 from domain.entities.base import BaseEntity
-from domain.types.attribute import AttributeID
-from domain.types.task import TaskID
+from domain.typing.attribute import AttributeID
+from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 

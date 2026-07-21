@@ -1,6 +1,6 @@
 from domain.entities.base import BaseEntity
-from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionEntryID
+from domain.typing.attribute import AttributeID
+from domain.typing.collection_entry import CollectionEntryID
 from domain.value_objects.field_slot import FieldSlotStr
 
 

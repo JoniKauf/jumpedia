@@ -10,7 +10,7 @@ from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
-from domain.types.collection_entry import CollectionT
+from domain.typing.collection_entry import CollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.list import ListNameStr
 from interfaces import bindings

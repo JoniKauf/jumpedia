@@ -20,15 +20,15 @@ from db.base import BaseModel
 from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.types.attribute import AttributeID
-from domain.types.collection_entry import CollectionEntryID
-from domain.types.community import CommunityID
-from domain.types.list import ListID
-from domain.types.member import MemberID
-from domain.types.member_task import MemberTaskID
-from domain.types.server import ServerID
-from domain.types.task import TaskID
-from domain.types.user import UserID
+from domain.typing.attribute import AttributeID
+from domain.typing.collection_entry import CollectionEntryID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
+from domain.typing.member import MemberID
+from domain.typing.member_task import MemberTaskID
+from domain.typing.server import ServerID
+from domain.typing.task import TaskID
+from domain.typing.user import UserID
 from domain.value_objects import string
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.string import NormStr, RealStr
@@ -173,6 +173,7 @@ _KIND_TO_TYPE_CASE = " ".join(
     if kind is not AttributeKind.NONE
 )
 
+
 class AttributeModel(BaseModel):
     __tablename__ = "attribute"
 
@@ -211,9 +212,7 @@ class AttributeModel(BaseModel):
         CheckConstraint(
             f"kind IS NULL OR kind IN ({', '.join(str(kind.value) for kind in AttributeKind if kind is not AttributeKind.NONE)})"
         ),
-        CheckConstraint(
-            f"kind IS NULL OR type = CASE kind {_KIND_TO_TYPE_CASE} END"
-        ),
+        CheckConstraint(f"kind IS NULL OR type = CASE kind {_KIND_TO_TYPE_CASE} END"),
         CheckConstraint(
             f"slot_type IN ({', '.join(str(slot_type.value) for slot_type in AttributeSlotType)})",
         ),
@@ -335,6 +334,12 @@ class TaskModel(BaseModel):
     )
     real_name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
     __table_args__ = (

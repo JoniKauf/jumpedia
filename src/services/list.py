@@ -7,7 +7,11 @@ from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeTy
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr, KindedAttributeDefaultProperties
+from domain.value_objects.attribute import (
+    AttributeFieldConfig,
+    AttributeSynStr,
+    KindedAttributeDefaultProperties,
+)
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
@@ -60,7 +64,7 @@ class ListService:
                     attr.kind.type,
                     attr.kind,
                     attr.field_config,
-                    attr.position
+                    attr.position,
                 )
             )
 
@@ -119,7 +123,7 @@ class ListQueryService:
         community, _, lst = self._list_access_service.get_convenient(DEFAULT, name)
 
         attributes = self._attribute_repo.get_all_by_list_id_ordered_by_position(
-            lst.list_id, AttributeType.ALL()
+            lst.list_id, AttributeType.ALL, AttributeKind.ALL
         )
         task_count = self._task_repo.count_by_list(lst.list_id)
         is_default = community.default_selected_list_id == lst.list_id

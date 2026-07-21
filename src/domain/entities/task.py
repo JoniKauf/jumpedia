@@ -1,14 +1,22 @@
 from domain.entities.base import BaseEntity
-from domain.types.list import ListID
-from domain.types.task import TaskID
+from domain.typing.list import ListID
+from domain.typing.task import TaskID
+from domain.value_objects.datetime import DateTimeWrapper
 from domain.value_objects.field_slot import FieldSlotStr
 
 
 class TaskEntity(BaseEntity[TaskID]):
-    def __init__(self, task_id: TaskID, list_id: ListID, name: FieldSlotStr) -> None:
+    def __init__(
+        self,
+        task_id: TaskID,
+        list_id: ListID,
+        name: FieldSlotStr,
+        created_at: DateTimeWrapper,
+    ) -> None:
         super().__init__(task_id)
         self._list_id = list_id
         self.name = name
+        self._created_at = created_at
 
     @property
     def task_id(self) -> TaskID:
@@ -25,3 +33,7 @@ class TaskEntity(BaseEntity[TaskID]):
     @name.setter
     def name(self, value: FieldSlotStr) -> None:
         self._name = value
+
+    @property
+    def created_at(self) -> DateTimeWrapper:
+        return self._created_at

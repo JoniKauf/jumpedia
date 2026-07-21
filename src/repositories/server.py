@@ -2,7 +2,7 @@ from sqlalchemy import delete
 
 from db.models import ServerModel
 from domain.entities.community import CommunityEntity
-from domain.types.server import ServerID
+from domain.typing.server import ServerID
 from repositories.base import BaseRepository
 
 

@@ -2,8 +2,8 @@ import typing as t
 from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.string import Str
 from repositories.attribute import AttributeEntity

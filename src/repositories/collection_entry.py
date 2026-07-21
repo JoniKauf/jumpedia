@@ -6,15 +6,19 @@ from sqlalchemy import delete, func, or_, select
 
 from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntryModel
 from domain.entities.collection_entry import CollectionEntryEntity
-from domain.enums.attribute import AttributeType
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.errors import business
-from domain.types.attribute import AttributeID, NonStaticAttributeTypeT
-from domain.types.collection_entry import (
+from domain.typing.attribute import (
+    AttributeID,
+    NoneKindedAttributeT,
+    NonStaticAttributeTypeT,
+)
+from domain.typing.collection_entry import (
     CollectionEntryID,
     CollectionFrozenT,
     CollectionT,
 )
-from domain.types.list import ListID
+from domain.typing.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.base import BaseRepository
 
@@ -244,9 +248,8 @@ class CollectionEntryRepository(BaseRepository):
         self,
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
+        kinds: t.AbstractSet[t.Literal[AttributeKind.NONE]],
     ) -> frozendict[AttributeID, CollectionFrozenT]:
-        assert AttributeType.STATIC not in types
-
         stmt = (
             select(CollectionEntryModel, CollectionEntryAliasModel)
             .join(
@@ -261,6 +264,7 @@ class CollectionEntryRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
+                AttributeModel.kind.in_(kinds),
             )
             .order_by(
                 CollectionEntryModel.attribute_id.asc(),
@@ -314,7 +318,8 @@ class CollectionEntryRepository(BaseRepository):
     def get_grouped_value_to_index_by_list_id(
         self,
         list_id: ListID,
-        types: t.AbstractSet[NonStaticAttributeTypeT],
+        types: t.AbstractSet[AttributeType],
+        kinds: t.AbstractSet[NoneKindedAttributeT],
     ) -> frozendict[AttributeID, frozendict[FieldSlotStr, int]]:
         stmt = (
             select(CollectionEntryModel)
@@ -325,6 +330,7 @@ class CollectionEntryRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
+                AttributeModel.kind.in_(kinds),
             )
             .order_by(
                 CollectionEntryModel.attribute_id.asc(),

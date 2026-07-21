@@ -7,16 +7,18 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeType
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.attribute import AnyAttributeTypeT, SlotTypeT
-from domain.types.field_mapping import (
+from domain.typing.attribute import AnyAttributeTypeT, SlotTypeT
+from domain.typing.community import CommunityID
+from domain.typing.field_mapping import (
     FrozenFieldMappingEntityToStrings,
     RawFieldMappingT,
 )
-from domain.types.member import MemberID
+from domain.typing.member import MemberID
+from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.filter import FilterT
 from domain.value_objects.index import Index
@@ -28,13 +30,19 @@ from repositories.dtos.member import MemberInsert
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 from repositories.dtos.member_task import MemberTaskInsert
 from repositories.field_slot import FieldSlotRepository
+from repositories.member import MemberRepository
 from repositories.member_field_slot import MemberFieldSlotRepository
 from repositories.member_task import MemberTaskRepository
 from repositories.task import TaskRepository
 from services.community import ListAccessService
 from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
-from services.internal.field_mapping import FieldMappingService
+from services.internal.field_mapping import (
+    FieldMappingBuildService,
+    FieldMappingExtractionService,
+    FieldMappingService,
+    FieldMappingTransformationService,
+)
 from services.internal.slot_type import SlotTypeService
 from services.member import MemberAccessService, MemberExistenceService, MemberService
 from services.task import TaskAccessService
@@ -43,7 +51,7 @@ from services.task import TaskAccessService
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskService:
     _attribute_repo: AttributeRepository
-    _field_mapping_service: FieldMappingService
+    _field_mapping_service: FieldMappingBuildService
     _collection_entry_repo: CollectionEntryRepository
     _task_access_service: TaskAccessService
     _member_access_service: MemberAccessService
@@ -77,13 +85,14 @@ class MemberTaskService:
             raise business.MemberAlreadyHasTask(target_member, task)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
+        ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
-            lst.list_id, ATTRIBUTE_TYPES
+            lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
             self._collection_entry_repo.get_grouped_collections_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES
+                lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
@@ -167,13 +176,14 @@ class MemberTaskService:
             raise business.MemberDoesNotHaveTask(target_member)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
+        ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
         syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
-            lst.list_id, ATTRIBUTE_TYPES
+            lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
             self._collection_entry_repo.get_grouped_collections_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES
+                lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
@@ -205,16 +215,20 @@ class MemberTaskService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskQueryService:
-    _task_access_service: TaskAccessService
     _task_repo: TaskRepository
     _attribute_repo: AttributeRepository
     _field_slot_repo: FieldSlotRepository
     _list_access_service: ListAccessService
     _collection_entry_repo: CollectionEntryRepository
-    _field_mapping_service: FieldMappingService
     _member_field_slot_repo: MemberFieldSlotRepository
     _member_existence_service: MemberExistenceService
     _slot_type_service: SlotTypeService
+    _member_task_access_service: MemberTaskAccessService
+    _member_repo: MemberRepository
+    _member_task_repo: MemberTaskRepository
+    _field_mapping_transformation_service: FieldMappingTransformationService
+    _field_mapping_extraction_service: FieldMappingExtractionService
+    _field_mapping_service: FieldMappingService
 
     def get_info(
         self,
@@ -222,46 +236,7 @@ class MemberTaskQueryService:
         target_user: UserRef | DEFAULT,
         list_name: ListNameStr | DEFAULT,
     ) -> FrozenFieldMappingEntityToStrings[AnyAttributeTypeT]:
-        community, _, lst, task = self._task_access_service.get_convenient(
-            DEFAULT, list_name, syn, False
-        )
-
-        target_member = self._member_existence_service.get_or_create_with_user_ref(
-            target_user, community.community_id
-        )
-
-        del target_user
-
-        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
-
-        attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
-            lst.list_id, ATTRIBUTE_TYPES
-        )
-
-        # --- Get Static Field Mapping --- #
-        static_field_mapping = (
-            self._field_mapping_service.get_task_kinded_field_mapping_single(
-                task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
-            )
-        )
-
-        task_field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
-            task.task_id
-        )
-
-        user_field_mapping = (
-            self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(
-                target_member.member_id, task.task_id
-            )
-        )
-
-        field_mapping = static_field_mapping | task_field_mapping | user_field_mapping
-
-        del static_field_mapping, task_field_mapping, user_field_mapping
-
-        return frozendict(
-            (attr, field_mapping.get(attr.attribute_id, ())) for attr in attrs
-        )
+        return self._field_mapping_service.get_info(syn, list_name, target_user)
 
     def get_summaries(
         self,
@@ -274,109 +249,8 @@ class MemberTaskQueryService:
         AttributeEntity[AnyAttributeTypeT],
         tuple[tuple[SlotTypeT, ...], ...],
     ]:
-        community, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
-
-        target_member = self._member_existence_service.get_or_create_with_user_ref(
-            target_user, community.community_id
-        )
-
-        del target_user
-
-        ATTRIBUTES_TYPES: t.Final = AttributeType.ALL()
-
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
-            lst.list_id, ATTRIBUTES_TYPES
-        )
-        attrs_sorted = tuple(
-            sorted(set(syn_to_attr.values()), key=lambda attr: attr.position.value)
-        )
-        attrs_sorted_to_yield = attrs_sorted
-
-        if yield_:
-            attrs_sorted_to_yield = tuple(syn_to_attr[syn] for syn in yield_)
-
-            if len(set(attrs_sorted_to_yield)) < len(attrs_sorted_to_yield):
-                raise ValueError("Not unique")
-
-        # Static field mapping is guaranteed to include all tasks. Use it as a basis
-        # for iteration later, so we don't exclude any tasks if they don't have a
-        # specific field mapping.
-        task_id_to_static_field_mapping = (
-            self._field_mapping_service.get_task_kinded_field_mapping_many(
-                self._task_repo.get_all_by_list_id(lst.list_id),
-                self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
-                attrs_sorted,
-            )
-        )
-
-        task_id_to_task_field_mapping = (
-            self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
-        )
-
-        task_id_to_user_field_mapping = (
-            self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
-                target_member.member_id
-            )
-        )
-
-        # Combine all 3 mappings into the final one
-        field_mappings_untyped = (
-            (
-                frozendict(static_field_mapping)
-                | task_id_to_task_field_mapping.get(task_id, frozendict())
-                | task_id_to_user_field_mapping.get(task_id, frozendict())
-            )
-            for task_id, static_field_mapping in task_id_to_static_field_mapping.items()
-        )
-
-        del (
-            task_id_to_static_field_mapping,
-            task_id_to_task_field_mapping,
-            task_id_to_user_field_mapping,
-        )
-
-        attr_id_to_slot_type = {
-            attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted
-        }
-
-        field_mappings = tuple(
-            {
-                attr_id: tuple(
-                    self._slot_type_service.many_to_slot_type(
-                        f, attr_id_to_slot_type[attr_id], validate=False
-                    )
-                )
-                for attr_id, f in fm.items()
-            }
-            for fm in field_mappings_untyped
-        )
-        attr_id_to_coll_value_to_idx = {
-            attr_id: {
-                slot_type: idx
-                for slot_type, idx in zip(
-                    self._slot_type_service.many_to_slot_type(
-                        value_to_idx, attr_id_to_slot_type[attr_id], validate=False
-                    ),
-                    value_to_idx.values(),
-                )
-            }
-            for attr_id, value_to_idx in self._collection_entry_repo.get_grouped_value_to_index_by_list_id(
-                lst.list_id, AttributeType.TASK.as_set()
-            ).items()
-        }
-
-        field_mappings = self._field_mapping_service.filter_and_sort(
-            field_mappings, filter, sort, syn_to_attr, attr_id_to_coll_value_to_idx
-        )
-
-        return frozendict(
-            (
-                attr,
-                tuple(
-                    field_mapping[attr.attribute_id] for field_mapping in field_mappings
-                ),
-            )
-            for attr in attrs_sorted_to_yield
+        return self._field_mapping_service.get_summaries(
+            filter, sort, yield_, list_name, target_user
         )
 
 
@@ -385,6 +259,22 @@ class MemberTaskAccessService:
     _ctx: InteractingUserContext
     _member_task_repo: MemberTaskRepository
     _task_access_service: TaskAccessService
+    _member_existence_service: MemberExistenceService
+
+    def get_member_task_or_raise(
+        self, target_user: UserRef | DEFAULT, community_id: CommunityID, task_id: TaskID
+    ) -> tuple[MemberEntity, MemberTaskEntity]:
+        target_member = self._member_existence_service.get_or_create_with_user_ref(
+            target_user, community_id
+        )
+        member_task = self._member_task_repo.get_by_member_id_and_task_id(
+            target_member.member_id, task_id
+        )
+
+        if member_task is None:
+            raise ValueError("member doesn't have task")
+
+        return target_member, member_task
 
     def get_convenient(
         self,
@@ -392,17 +282,21 @@ class MemberTaskAccessService:
         list_name: ListNameStr | DEFAULT,
         task_syn: FieldSlotStr,
         task_only_by_name: bool,
-        target_member_id: MemberID | DEFAULT,
+        target_user: UserRef | DEFAULT,
     ) -> tuple[
-        CommunityEntity, MemberEntity, ListEntity, TaskEntity, MemberTaskEntity | None
+        CommunityEntity,
+        MemberEntity,
+        ListEntity,
+        TaskEntity,
+        MemberEntity,
+        MemberTaskEntity,
     ]:
         community, member, lst, task = self._task_access_service.get_convenient(
             community_name, list_name, task_syn, task_only_by_name
         )
 
-        member_task = self._member_task_repo.get_by_member_id_and_task_id(
-            member.member_id if target_member_id is DEFAULT else target_member_id,
-            task.task_id,
+        return (community, member, lst, task) + (
+            self.get_member_task_or_raise(
+                target_user, community.community_id, task.task_id
+            )
         )
-
-        return (community, member, lst, task, member_task)

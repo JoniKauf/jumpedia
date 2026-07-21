@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from domain.types.task import TaskID
+from domain.typing.task import TaskID
 
 
 @dataclass(frozen=True, slots=True)

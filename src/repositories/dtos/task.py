@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from domain.types.list import ListID
-from domain.types.task import TaskID
+from domain.typing.list import ListID
+from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 

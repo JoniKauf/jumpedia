@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 
 
 @dataclass(frozen=True, slots=True)

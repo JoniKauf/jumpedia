@@ -6,13 +6,13 @@ from sqlalchemy import delete, select
 from db.models import AttributeModel, FieldSlotModel, TaskModel
 from domain.entities.field_slot import FieldSlotEntity
 from domain.enums.attribute import AttributeType
-from domain.types.attribute import AttributeID
-from domain.types.field_mapping import (
+from domain.typing.attribute import AttributeID
+from domain.typing.field_mapping import (
     FrozenFieldMappingEntityToStrings,
     FrozenFieldMappingIDToStringsT,
 )
-from domain.types.list import ListID
-from domain.types.task import TaskID
+from domain.typing.list import ListID
+from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
 from domain.value_objects.index import Index
 from repositories.base import BaseRepository

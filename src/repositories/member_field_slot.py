@@ -4,11 +4,11 @@ import typing as t
 from sqlalchemy import delete, select
 
 from db.models import MemberFieldSlotModel, MemberTaskModel
-from domain.types.attribute import AttributeID
-from domain.types.field_mapping import FrozenFieldMappingIDToStringsT
-from domain.types.member import MemberID
-from domain.types.member_task import MemberTaskID
-from domain.types.task import TaskID
+from domain.typing.attribute import AttributeID
+from domain.typing.field_mapping import FrozenFieldMappingIDToStringsT
+from domain.typing.member import MemberID
+from domain.typing.member_task import MemberTaskID
+from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr
 from repositories.base import BaseRepository
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
@@ -104,10 +104,7 @@ class MemberFieldSlotRepository(BaseRepository):
                 ),
             )
             for task_id, task_group in itertools.groupby(
-                t.cast(
-                    t.Iterable[tuple[TaskID, MemberFieldSlotModel]],
-                    self._session.execute(stmt),
-                ),
+                self._session.execute(stmt).tuples(),
                 lambda row: row[0],
             )
         )

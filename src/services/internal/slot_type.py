@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
-from domain.types.attribute import SlotTypeT
+from domain.typing.attribute import SlotTypeT
 from domain.value_objects.field_slot import FieldSlotStr
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
@@ -94,5 +94,3 @@ class SlotTypeService:
                 return (str(slot) for slot in slots)
 
         t.assert_never(type)
-
-    

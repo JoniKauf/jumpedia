@@ -11,9 +11,9 @@ import db.session
 from domain.entities.user import UserEntity
 from domain.enums.rank import AnyRankT, MetaRank, ServerRank
 from domain.errors import business
-from domain.types.common import ID
-from domain.types.server import ServerID
-from domain.types.user import UserID
+from domain.typing.common import ID
+from domain.typing.server import ServerID
+from domain.typing.user import UserID
 from domain.value_objects.string import Str
 from domain.value_objects.user import UserNameStr
 from interfaces.contexts.command import CommandContext, PublicServices

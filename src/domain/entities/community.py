@@ -1,10 +1,10 @@
 from datetime import datetime
 
 from domain.entities.base import BaseEntity
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
-from domain.value_objects.datetime import DateTime
+from domain.value_objects.datetime import DateTimeWrapper
 
 
 class CommunityEntity(BaseEntity[CommunityID]):
@@ -13,7 +13,7 @@ class CommunityEntity(BaseEntity[CommunityID]):
         community_id: CommunityID,
         name: CommunityNameStr,
         default_selected_list_id: ListID | None,
-        created_at: DateTime,
+        created_at: DateTimeWrapper,
         limits: CommunityLimits,
     ) -> None:
         super().__init__(community_id)
@@ -36,7 +36,7 @@ class CommunityEntity(BaseEntity[CommunityID]):
         self._name = value
 
     @property
-    def created(self) -> DateTime:
+    def created(self) -> DateTimeWrapper:
         return self._created_at
 
     @property

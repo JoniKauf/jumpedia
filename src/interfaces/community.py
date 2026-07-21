@@ -11,8 +11,8 @@ from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
-from domain.types.common import ID
-from domain.types.user import UserID
+from domain.typing.common import ID
+from domain.typing.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.string import Str
 from domain.value_objects.user import UserNameStr
@@ -25,6 +25,7 @@ from services.dtos.community import CommunitySummary
 from services.dtos.user import UserRef
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
+
 
 class CommunityInterface(BaseInterface, group_name="community"):
     edit_group = groups.create_edit_group()
@@ -138,9 +139,7 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
 
         data: dict[str, tuple[tuple[str, ...], ...]] = {
             "Name": tuple((str(summary.name),) for summary in summaries),
-            "Created": tuple(
-                (str(summary.created),) for summary in summaries
-            ),
+            "Created": tuple((str(summary.created),) for summary in summaries),
             "User Count": tuple((str(summary.member_count),) for summary in summaries),
             "List Count": tuple((str(summary.list_count),) for summary in summaries),
             "Total Task Count": tuple(

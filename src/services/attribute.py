@@ -12,13 +12,13 @@ from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
-from domain.types.attribute import (
+from domain.typing.attribute import (
     AnyAttributeTypeT,
     AttributeID,
     TaskAttributeTypeT,
     UserAttributeTypeT,
 )
-from domain.types.collection_entry import CollectionFrozenT, CollectionT
+from domain.typing.collection_entry import CollectionFrozenT, CollectionT
 from domain.value_objects.attribute import (
     AttributeFieldConfig,
     AttributeSynStr,
@@ -290,7 +290,7 @@ class AttributeService:
         name_to_attr = {
             attr.name: attr
             for attr in self._attribute_repo.get_all_by_list_id_ordered_by_position(
-                lst.list_id, AttributeType.ALL()
+                lst.list_id, AttributeType.ALL, AttributeKind.ALL
             )
         }
         new_order: list[AttributeEntity] = []
@@ -492,9 +492,7 @@ class AttributePrepareService:
 
     def delete(
         self, name: AttributeSynStr, list_name: ListNameStr
-    ) -> tuple[
-        PreparedDeleteAttribute, ListEntity, AttributeEntity
-    ]:
+    ) -> tuple[PreparedDeleteAttribute, ListEntity, AttributeEntity]:
         _, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
         )
@@ -551,20 +549,21 @@ class AttributeQueryService:
     ) -> tuple[AttributeSummary, ...]:
         _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
-        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL()
+        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL
+        ATTRIBUTE_KINDS: t.Final = AttributeKind.ALL
 
         attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
-            lst.list_id, ATTRIBUTE_TYPES
+            lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
 
         attr_id_to_aliases = (
             self._attribute_repo.get_grouped_aliases_by_list_id_ordered_by_pos(
-                lst.list_id, ATTRIBUTE_TYPES
+                lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
         attr_id_to_collection = (
             self._collection_entry_repo.get_grouped_collections_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES
+                lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
             )
         )
 

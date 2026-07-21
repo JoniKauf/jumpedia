@@ -2,7 +2,7 @@ from db.models import UserModel
 from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from domain.errors import business
-from domain.types.user import UserID
+from domain.typing.user import UserID
 from domain.value_objects.string import RealStr
 from domain.value_objects.user import UserNameStr
 from repositories.dtos.user import UserInsert
@@ -10,7 +10,7 @@ from repositories.dtos.user import UserInsert
 from .base import BaseRepository
 
 
-def _user_model_to_entity(model: UserModel) -> UserEntity:
+def user_model_to_entity(model: UserModel) -> UserEntity:
     return UserEntity(
         user_id=model.user_id,
         name=UserNameStr._create_from_real_and_norm(
@@ -23,7 +23,7 @@ def _user_model_to_entity(model: UserModel) -> UserEntity:
 class UserRepository(BaseRepository):
     def get_by_id(self, user_id: UserID) -> UserEntity | None:
         obj = self._session.get(UserModel, user_id)
-        return None if obj is None else _user_model_to_entity(obj)
+        return None if obj is None else user_model_to_entity(obj)
 
     def create(self, user: UserInsert) -> UserEntity:
         obj = UserModel(
@@ -36,7 +36,7 @@ class UserRepository(BaseRepository):
         self._session.add(obj)
         self._session.flush()
 
-        return _user_model_to_entity(obj)
+        return user_model_to_entity(obj)
 
     def update(
         self,
@@ -51,4 +51,4 @@ class UserRepository(BaseRepository):
         obj.norm_name = user.name.norm
         obj.power = user.meta_rank
 
-        return _user_model_to_entity(obj)
+        return user_model_to_entity(obj)

@@ -1,12 +1,19 @@
 from domain.entities.base import BaseEntity
-from domain.types.member import MemberID
-from domain.types.member_task import MemberTaskID
-from domain.types.task import TaskID
-from domain.value_objects.datetime import DateTime
+from domain.typing.member import MemberID
+from domain.typing.member_task import MemberTaskID
+from domain.typing.task import TaskID
+from domain.value_objects.datetime import DateTimeWrapper
+from domain.value_objects.member import OptionalMemberWrapper
+
 
 class MemberTaskEntity(BaseEntity[MemberTaskID]):
     def __init__(
-        self, member_task_id: MemberTaskID, member_id: MemberID, task_id: TaskID, given_at: DateTime, given_by: MemberID | None
+        self,
+        member_task_id: MemberTaskID,
+        member_id: MemberID,
+        task_id: TaskID,
+        given_at: DateTimeWrapper,
+        given_by: MemberID | None,
     ) -> None:
         super().__init__(member_task_id)
         self._member_id = member_id
@@ -27,7 +34,7 @@ class MemberTaskEntity(BaseEntity[MemberTaskID]):
         return self._task_id
 
     @property
-    def given_at(self) -> DateTime:
+    def given_at(self) -> DateTimeWrapper:
         return self._given_at
 
     @property

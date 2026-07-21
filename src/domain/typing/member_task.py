@@ -1,5 +1,5 @@
 import typing as t
 
-from src.domain.types.common import ID
+from src.domain.typing.common import ID
 
 MemberTaskID = t.NewType("MemberTaskID", ID)

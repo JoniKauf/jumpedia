@@ -4,7 +4,7 @@ from domain.entities.community import CommunityEntity
 from domain.entities.member import MemberEntity
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
-from domain.types.community import CommunityID
+from domain.typing.community import CommunityID
 from domain.value_objects.community import CommunityNameStr
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert

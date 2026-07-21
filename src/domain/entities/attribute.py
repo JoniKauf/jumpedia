@@ -2,8 +2,8 @@ import typing as t
 
 from domain.entities.base import BaseEntity
 from domain.enums.attribute import AttributeKind, AttributeType
-from domain.types.attribute import AnyAttributeTypeT, AttributeID
-from domain.types.list import ListID
+from domain.typing.attribute import AnyAttributeTypeT, AttributeID
+from domain.typing.list import ListID
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.position import Position
 
@@ -23,7 +23,7 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
 
         if kind is not AttributeKind.NONE and kind.type is not type:
             raise ValueError("Kind and type do not match:", type, kind)
-        
+
         self._list_id = list_id
         self._type = type
         self._kind = kind

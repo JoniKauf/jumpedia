@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.errors import business
-from domain.types.attribute import AnyAttributeTypeT, TaskAttributeTypeT, UserAttributeTypeT
+from domain.typing.attribute import (
+    AnyAttributeTypeT,
+    TaskAttributeTypeT,
+    UserAttributeTypeT,
+)
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.position import Position

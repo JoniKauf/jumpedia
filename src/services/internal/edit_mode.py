@@ -7,8 +7,8 @@ from domain.enums.edit_mode import (
     CollectionEditMode,
     FieldMappingEditMode,
 )
-from domain.types.collection_entry import CollectionT
-from domain.types.field_mapping import AbstractFieldMappingIDToStringsT
+from domain.typing.collection_entry import CollectionT
+from domain.typing.field_mapping import AbstractFieldMappingIDToStringsT
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
 

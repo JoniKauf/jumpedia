@@ -1,6 +1,6 @@
 from domain.entities.base import BaseEntity
-from domain.types.community import CommunityID
-from domain.types.list import ListID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.value_objects.list import ListNameStr
 
 

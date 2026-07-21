@@ -6,11 +6,11 @@ from db.models import ServerModel as ServerModel
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.errors import business
-from domain.types.community import CommunityID
-from domain.types.list import ListID
-from domain.types.server import ServerID
+from domain.typing.community import CommunityID
+from domain.typing.list import ListID
+from domain.typing.server import ServerID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
-from domain.value_objects.datetime import DateTime
+from domain.value_objects.datetime import DateTimeWrapper
 from repositories.dtos.community import CommunityInsert
 from repositories.list import list_model_to_entity
 
@@ -24,7 +24,7 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
             model.real_name, model.norm_name
         ),
         default_selected_list_id=model.default_selected_list_id,
-        created_at=DateTime(model.created_at),
+        created_at=DateTimeWrapper(model.created_at),
         limits=CommunityLimits(
             community_list_count_max=model.community_list_count_max,
             list_attribute_count_max=model.list_attribute_count_max,
