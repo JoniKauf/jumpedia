@@ -20,7 +20,7 @@ from domain.typing.attribute import (
     SlotTypeT,
     TaskAttributeTypeT,
 )
-from domain.typing.collection_entry import CollectionSlotTypeFrozenT, CollectionT
+from domain.typing.collection_entry import AbstractCollectionT
 from domain.typing.field_mapping import (
     AbstractFieldMappingIDToSlotTypeT,
     AbstractFieldMappingIDToStringsT,
@@ -95,7 +95,7 @@ class FieldMappingBuildService:
         self,
         field_mapping: RawFieldMappingT,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
+        attr_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
     ) -> FrozenFieldMappingEntityToStrings[T]:
         unchecked_field_mapping = self._try_convert_syns_to_attr_ids(
             field_mapping, syn_to_attribute
@@ -128,7 +128,7 @@ class FieldMappingBuildService:
         self,
         unchecked_field_mapping: AbstractFieldMappingIDToStringsT,
         attributes: t.AbstractSet[AttributeEntity[T]],
-        attr_id_to_collection: t.Mapping[AttributeID, CollectionT],
+        attr_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
     ) -> FrozenFieldMappingEntityToStrings[T]:
         res: dict[AttributeEntity[T], tuple[FieldSlotStr, ...]] = {}
 
@@ -148,7 +148,7 @@ class FieldMappingBuildService:
                 raise ValueError("attr max count overflow")
 
             v = tuple(
-                self._slot_type_service.to_slot_typed_str(
+                self._slot_type_service.single_to_slot_typed_str(
                     slot, attr.field_config.slot_type
                 )
                 for slot in v
@@ -192,7 +192,7 @@ class FieldMappingBuildService:
         current_field_mapping: AbstractFieldMappingIDToStringsT,
         new_field_mapping: RawFieldMappingT,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
-        attribute_id_to_collection: t.Mapping[AttributeID, CollectionT],
+        attribute_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
     ) -> FrozenFieldMappingEntityToStrings[T]:
         # Build the new mapping to see if even valid on its own
         new_fm = {

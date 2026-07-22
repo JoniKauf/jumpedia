@@ -10,7 +10,7 @@ from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.sentinels.default import DEFAULT
-from domain.typing.collection_entry import CollectionT
+from domain.typing.collection_entry import AbstractCollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.list import ListNameStr
 from interfaces import bindings
@@ -30,12 +30,12 @@ from services.dtos.attribute import AttributeSummary
 
 
 def _collection_to_representation(
-    collection: CollectionT,
+    collection: AbstractCollectionT,
 ) -> tuple[str, ...]:
     # Python's repr of strings aligns well with our string tokens, so we can just use that and it will be parsable again :)
     return tuple(
-        f"({str(item[0])!r}: {' '.join(repr(str(alias)) for alias in item[1])})"
-        for item in collection
+        f"({str(entry.value)!r}: {' '.join(repr(str(alias)) for alias in entry.aliases)})"
+        for entry in collection
     )
 
 

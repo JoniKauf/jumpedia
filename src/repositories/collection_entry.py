@@ -11,12 +11,11 @@ from domain.errors import business
 from domain.typing.attribute import (
     AttributeID,
     NoneKindedAttributeT,
-    NonStaticAttributeTypeT,
 )
 from domain.typing.collection_entry import (
     CollectionEntryID,
     CollectionFrozenT,
-    CollectionT,
+    AbstractCollectionT,
 )
 from domain.typing.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
@@ -37,7 +36,7 @@ class CollectionEntryRepository(BaseRepository):
     def create_collection(
         self,
         attribute_id: AttributeID,
-        collection: CollectionT,
+        collection: AbstractCollectionT,
     ) -> None:
         entry_objs = tuple(
             CollectionEntryModel(
@@ -359,7 +358,7 @@ class CollectionEntryRepository(BaseRepository):
         )
 
     def replace_collection(
-        self, attribute_id: AttributeID, collection: CollectionT
+        self, attribute_id: AttributeID, collection: AbstractCollectionT
     ) -> None:
         """Replaces the entire collection of an attribute. Preserves entry order."""
 

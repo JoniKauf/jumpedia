@@ -18,12 +18,13 @@ from domain.typing.attribute import (
     TaskAttributeTypeT,
     UserAttributeTypeT,
 )
-from domain.typing.collection_entry import CollectionFrozenT, CollectionT
+from domain.typing.collection_entry import CollectionFrozenT, AbstractCollectionT, FrozenCollectionT
 from domain.value_objects.attribute import (
     AttributeFieldConfig,
     AttributeSynStr,
     KindedAttributeDefaultProperties,
 )
+from domain.value_objects.collection_entry import FrozenCollectionEntry
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
@@ -43,6 +44,7 @@ from services.dtos.attribute import (
 )
 from services.internal.edit_mode import EditModeService
 from services.internal.permission import PermissionService
+from services.internal.slot_type import SlotTypeService
 from services.list import ListAccessService
 from services.member import MemberAccessService
 
@@ -56,6 +58,7 @@ class AttributeService:
     _attribute_access_service: AttributeAccessService
     _field_slot_repo: FieldSlotRepository
     _edit_mode_service: EditModeService
+    _slot_type_service: SlotTypeService
 
     def create[T: TaskAttributeTypeT | UserAttributeTypeT](
         self,
@@ -64,7 +67,7 @@ class AttributeService:
         type: T,
         slot: AttributeFieldConfig,
         aliases: tuple[AttributeSynStr, ...],
-        collection: CollectionT,
+        collection: AbstractCollectionT,
     ) -> AttributeEntity[T]:
         community, member, lst = self._list_access_service.get_convenient(
             DEFAULT, list_name
@@ -84,7 +87,7 @@ class AttributeService:
 
         self._validate_collection_community_limits(collection, community)
 
-        self._validate_collection_syn_uniqueness(collection)
+        good_collection = self._validate_collection(collection, slot.slot_type)
 
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
@@ -320,7 +323,7 @@ class AttributeService:
         self,
         name: AttributeSynStr,
         list_name: ListNameStr,
-        new_collection: CollectionT,
+        new_collection: AbstractCollectionT,
         edit_mode: CollectionEditMode,
     ) -> AttributeEntity:
         community, member, _, attr = self._attribute_access_service.get_convenient(
@@ -344,7 +347,7 @@ class AttributeService:
             edit_mode, current_collection, new_collection
         )
 
-        self._validate_collection_syn_uniqueness(new_collection)
+        self._validate_collection(new_collection)
 
         if FieldSlotStr.sequences_requal(
             tuple(v for v, _ in current_collection), tuple(v for v, _ in new_collection)
@@ -422,10 +425,20 @@ class AttributeService:
                 community.limits.field_slot_count_max,
             )
 
-    def _validate_collection_syn_uniqueness(self, entire_collection: CollectionT):
+    def _validate_collection(self, entire_collection: AbstractCollectionT, attribute_slot_type: AttributeSlotType) -> FrozenCollectionT:
         FieldSlotStr.raise_if_not_unique(
             syn for entry in entire_collection for syn in (entry[0], *entry[1])
         )
+
+        entries: list[FrozenCollectionEntry] = []
+
+        for value, aliases in entire_collection:
+            value = self._slot_type_service.single_to_slot_typed_str(value, attribute_slot_type)
+
+            entries.append(FrozenCollectionEntry(value, tuple(aliases)))
+
+        return tuple(entries)
+
 
     def _validate_basic_community_limits(
         self,
@@ -443,23 +456,6 @@ class AttributeService:
             raise business.AliasCountLimitReached(
                 community.limits.attribute_alias_count_max, name, all_aliases_of_attr
             )
-
-    def _validate_collection_community_limits(
-        self, entire_collection: CollectionT, community: CommunityEntity
-    ) -> None:
-        if len(entire_collection) > community.limits.collection_entry_count_max:
-            raise business.CountLimitReached(
-                community.limits.collection_entry_count_max,
-                CollectionEntryEntity,
-            )
-
-        for entry in entire_collection:
-            if len(entry[1]) > community.limits.collection_entry_alias_count_max:
-                raise business.AliasCountLimitReached(
-                    community.limits.collection_entry_alias_count_max,
-                    entry[0],
-                    entry[1],
-                )
 
     def _validate_syn_uniqueness(
         self,

@@ -1,16 +1,16 @@
-from domain.typing.collection_entry import CollectionT
+from domain.typing.collection_entry import AbstractCollectionEntry, AbstractCollectionT
 from domain.typing.field_mapping import RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from interfaces import dsls
 
 
-def collection(s: str | None) -> CollectionT:
+def collection(s: str | None) -> AbstractCollectionT:
     return (
         ()
         if s is None
         else tuple(
-            (
+            AbstractCollectionEntry(
                 FieldSlotStr(k),
                 tuple(FieldSlotStr(elem) for elem in v),
             )

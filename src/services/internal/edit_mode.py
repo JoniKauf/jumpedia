@@ -7,7 +7,7 @@ from domain.enums.edit_mode import (
     CollectionEditMode,
     FieldMappingEditMode,
 )
-from domain.typing.collection_entry import CollectionT
+from domain.typing.collection_entry import AbstractCollectionT
 from domain.typing.field_mapping import AbstractFieldMappingIDToStringsT
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
@@ -38,8 +38,8 @@ class EditModeService:
         )
 
     def handle_collection_edit(
-        self, edit_mode: CollectionEditMode, current: CollectionT, new: CollectionT
-    ) -> CollectionT:
+        self, edit_mode: CollectionEditMode, current: AbstractCollectionT, new: AbstractCollectionT
+    ) -> AbstractCollectionT:
         if edit_mode is CollectionEditMode.REPLACE:
             return new
 
