@@ -2,29 +2,24 @@ import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
-from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import (
-    AnyAttributeTypeT,
-    AttributeID,
     TaskAttributeTypeT,
     UserAttributeTypeT,
 )
-from domain.typing.collection_entry import CollectionFrozenT, AbstractCollectionT, FrozenCollectionT
+from domain.typing.collection_entry import AbstractCollectionT
 from domain.value_objects.attribute import (
     AttributeFieldConfig,
     AttributeSynStr,
-    KindedAttributeDefaultProperties,
 )
-from domain.value_objects.collection_entry import FrozenCollectionEntry
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
@@ -42,9 +37,9 @@ from services.dtos.attribute import (
     AttributeSummary,
     PreparedDeleteAttribute,
 )
+from services.internal.collection import CollectionBuildService
 from services.internal.edit_mode import EditModeService
 from services.internal.permission import PermissionService
-from services.internal.slot_type import SlotTypeService
 from services.list import ListAccessService
 from services.member import MemberAccessService
 
@@ -58,14 +53,14 @@ class AttributeService:
     _attribute_access_service: AttributeAccessService
     _field_slot_repo: FieldSlotRepository
     _edit_mode_service: EditModeService
-    _slot_type_service: SlotTypeService
+    _collection_build_service: CollectionBuildService
 
     def create[T: TaskAttributeTypeT | UserAttributeTypeT](
         self,
         name: AttributeSynStr,
         list_name: ListNameStr,
         type: T,
-        slot: AttributeFieldConfig,
+        field_config: AttributeFieldConfig,
         aliases: tuple[AttributeSynStr, ...],
         collection: AbstractCollectionT,
     ) -> AttributeEntity[T]:
@@ -83,11 +78,11 @@ class AttributeService:
 
         self._validate_syn_uniqueness(name, aliases, lst)
 
-        self._validate_field_config(slot, community, True)
+        self._validate_field_config(field_config, community, True)
 
-        self._validate_collection_community_limits(collection, community)
+        good_collection = self._collection_build_service.build(collection, community, field_config.slot_type)
 
-        good_collection = self._validate_collection(collection, slot.slot_type)
+        del collection
 
         # --- Create Attribute ---
         attr_entity = self._attribute_repo.create(
@@ -96,7 +91,7 @@ class AttributeService:
                 name,
                 type,
                 AttributeKind.NONE,
-                slot,
+                field_config,
                 Position(attr_count + 1),
             )
         )
@@ -109,7 +104,7 @@ class AttributeService:
 
         # --- Create Attribute Collection ---
         self._collection_entry_repo.create_collection(
-            attr_entity.attribute_id, collection
+            attr_entity.attribute_id, good_collection
         )
 
         return attr_entity
@@ -337,7 +332,7 @@ class AttributeService:
         if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot change collection for static attributes")
 
-        current_collection: CollectionFrozenT = (
+        current_collection = (
             self._collection_entry_repo.get_collection_by_attribute_id(
                 attr.attribute_id
             )
@@ -346,8 +341,6 @@ class AttributeService:
         new_collection = self._edit_mode_service.handle_collection_edit(
             edit_mode, current_collection, new_collection
         )
-
-        self._validate_collection(new_collection)
 
         if FieldSlotStr.sequences_requal(
             tuple(v for v, _ in current_collection), tuple(v for v, _ in new_collection)
@@ -359,7 +352,7 @@ class AttributeService:
 
         del current_collection
 
-        self._validate_collection_community_limits(new_collection, community)
+        new_collection = self._collection_build_service.build(new_collection, community, attr.field_config.slot_type)
 
         if attr.type is AttributeType.TASK:
             syn_to_collection_entry_value: dict[FieldSlotStr, FieldSlotStr] = {
@@ -424,20 +417,6 @@ class AttributeService:
                 CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
                 community.limits.field_slot_count_max,
             )
-
-    def _validate_collection(self, entire_collection: AbstractCollectionT, attribute_slot_type: AttributeSlotType) -> FrozenCollectionT:
-        FieldSlotStr.raise_if_not_unique(
-            syn for entry in entire_collection for syn in (entry[0], *entry[1])
-        )
-
-        entries: list[FrozenCollectionEntry] = []
-
-        for value, aliases in entire_collection:
-            value = self._slot_type_service.single_to_slot_typed_str(value, attribute_slot_type)
-
-            entries.append(FrozenCollectionEntry(value, tuple(aliases)))
-
-        return tuple(entries)
 
 
     def _validate_basic_community_limits(

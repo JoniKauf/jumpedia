@@ -89,9 +89,10 @@ class SynAlreadyTaken(BusinessError):
 
 
 class NameNotDifferent(BusinessError):
-    def __init__(self, name: Str) -> None:
+    def __init__(self, name: Str, type: type[BaseEntity]) -> None:
         super().__init__()
         self.name = name
+        self.type = type
 
 
 class AliasesNotDifferent(BusinessError):
