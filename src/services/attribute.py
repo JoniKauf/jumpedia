@@ -9,7 +9,7 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
-from domain.errors import business
+from domain.errors.business import AliasCountLimitSurpassed, AliasesDidNotChange, CollectionDidNotChange, CountLimitReached, InitialSlotCountMustBeZero, NameNotDifferent, SlotCountConfigLimitExceeded, SynAlreadyTaken, TasksDoNotMatchMinOrMaxSlotCountCriteria
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import (
     TaskAttributeTypeT,
@@ -40,9 +40,9 @@ from services.dtos.attribute import (
 from services.internal.collection import CollectionBuildService
 from services.internal.edit_mode import EditModeService
 from services.internal.permission import PermissionService
+from services.internal.strs import StrsService
 from services.list import ListAccessService
 from services.member import MemberAccessService
-
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeService:
@@ -54,6 +54,7 @@ class AttributeService:
     _field_slot_repo: FieldSlotRepository
     _edit_mode_service: EditModeService
     _collection_build_service: CollectionBuildService
+    _strs_service: StrsService
 
     def create[T: TaskAttributeTypeT | UserAttributeTypeT](
         self,
@@ -80,7 +81,9 @@ class AttributeService:
 
         self._validate_field_config(field_config, community, True)
 
-        good_collection = self._collection_build_service.build(collection, community, field_config.slot_type)
+        good_collection = self._collection_build_service.build(
+            collection, community, field_config.slot_type
+        )
 
         del collection
 
@@ -131,7 +134,7 @@ class AttributeService:
 
         # Exactly equal (real matches, not just norm)
         if attr.name.real == new_name.real:
-            raise business.NameNotDifferent(current_name)
+            raise NameNotDifferent(attr)
 
         existing_attr_and_syn = self._attribute_repo.get_by_list_id_and_syn(
             lst.list_id,
@@ -143,7 +146,7 @@ class AttributeService:
 
             # False if the current attribute has the same name but with different casing
             if not (existing_attr == attr and attr.name == existing_syn):
-                raise business.SynAlreadyTaken(
+                raise SynAlreadyTaken(
                     existing_attr, new_name, existing_attr.name != existing_syn, False
                 )
 
@@ -166,7 +169,7 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        AttributeSynStr.raise_if_not_unique(new_aliases)
+        self._strs_service.validate_unique_aliases(new_aliases, AttributeEntity)
 
         current_aliases = self._attribute_repo.get_aliases_by_attribute_id(
             attr.attribute_id
@@ -177,20 +180,20 @@ class AttributeService:
         )
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
-        if AttributeSynStr.sequences_requal(current_aliases, new_aliases):
-            raise business.AliasesNotDifferent(new_aliases)
+        if AttributeSynStr.sequence_real_equals(current_aliases, new_aliases):
+            raise AliasesDidNotChange(AttributeEntity, new_aliases)
 
         del current_aliases
 
         if len(new_aliases) > community.limits.attribute_alias_count_max:
-            raise business.AliasCountLimitReached(
+            raise AliasCountLimitSurpassed(
                 community.limits.attribute_alias_count_max, attr.name, new_aliases
             )
 
         # Check if name collision with current attribute
         for alias in new_aliases:
             if alias == attr.name:
-                raise business.SynAlreadyTaken(attr, alias, False, True)
+                raise SynAlreadyTaken(attr, alias, False, True)
 
         existing_attr_and_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
             lst.list_id, new_aliases, attr.attribute_id
@@ -200,7 +203,7 @@ class AttributeService:
         if existing_attr_and_syn is not None:
             existing_attr, existing_syn = existing_attr_and_syn
 
-            raise business.SynAlreadyTaken(
+            raise SynAlreadyTaken(
                 existing_attr, existing_syn, existing_attr.name != existing_syn, True
             )
 
@@ -257,7 +260,7 @@ class AttributeService:
                     invalid_tasks[task] = slots
 
             if invalid_tasks:
-                raise business.TasksDoNotMatchMinOrMaxSlotCountCriteria(
+                raise TasksDoNotMatchMinOrMaxSlotCountCriteria(
                     field_config.min_slot_count,
                     field_config.max_slot_count,
                     invalid_tasks,
@@ -332,27 +335,27 @@ class AttributeService:
         if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot change collection for static attributes")
 
-        current_collection = (
-            self._collection_entry_repo.get_collection_by_attribute_id(
-                attr.attribute_id
-            )
+        current_collection = self._collection_entry_repo.get_collection_by_attribute_id(
+            attr.attribute_id
         )
 
         new_collection = self._edit_mode_service.handle_collection_edit(
             edit_mode, current_collection, new_collection
         )
 
-        if FieldSlotStr.sequences_requal(
+        if FieldSlotStr.sequence_real_equals(
             tuple(v for v, _ in current_collection), tuple(v for v, _ in new_collection)
         ) and all(
-            FieldSlotStr.sequences_requal(a, b)
+            FieldSlotStr.sequence_real_equals(a, b)
             for (_, a), (_, b) in zip(current_collection, new_collection)
         ):
-            raise business.CollectionNotDifferent(new_collection)
+            raise CollectionDidNotChange(new_collection)
 
         del current_collection
 
-        new_collection = self._collection_build_service.build(new_collection, community, attr.field_config.slot_type)
+        new_collection = self._collection_build_service.build(
+            new_collection, community, attr.field_config.slot_type
+        )
 
         if attr.type is AttributeType.TASK:
             syn_to_collection_entry_value: dict[FieldSlotStr, FieldSlotStr] = {
@@ -406,18 +409,17 @@ class AttributeService:
         creating_attribute: bool,
     ) -> None:
         if creating_attribute and field_config.min_slot_count != 0:
-            raise business.InitialSlotCountMustBeZero()
+            raise InitialSlotCountMustBeZero()
 
         # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
         if field_config.max_slot_count > community.limits.field_slot_count_max:
-            raise business.SlotCountDefinitionLimitExceeded(
+            raise SlotCountConfigLimitExceeded(
                 field_config.min_slot_count,
                 field_config.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
                 CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
                 community.limits.field_slot_count_max,
             )
-
 
     def _validate_basic_community_limits(
         self,
@@ -427,12 +429,12 @@ class AttributeService:
         list_attr_count: int,
     ) -> None:
         if list_attr_count >= community.limits.list_attribute_count_max:
-            raise business.CountLimitReached(
+            raise CountLimitReached(
                 community.limits.list_attribute_count_max, AttributeEntity
             )
 
         if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
-            raise business.AliasCountLimitReached(
+            raise AliasCountLimitSurpassed(
                 community.limits.attribute_alias_count_max, name, all_aliases_of_attr
             )
 

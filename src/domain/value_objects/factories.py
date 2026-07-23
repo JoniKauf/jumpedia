@@ -9,7 +9,7 @@ def make_length_limited_str_store_type(
     class ConstrainedStr(Str):
         def _validation(self) -> None:
             if len(self) < limit:
-                raise business.NameTooLong(self, limit, entity_type)
+                raise business.NameTooLong(entity_type, self, limit)
 
     ConstrainedStr.__name__ = name
     ConstrainedStr.__qualname__ = (

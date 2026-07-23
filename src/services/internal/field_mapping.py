@@ -534,7 +534,7 @@ class FieldMappingTransformationService:
                 attr = syn_to_attribute.get(attr_syn)
 
                 if attr is None:
-                    raise NotFoundByName(attr_syn, AttributeEntity)
+                    raise NotFoundByName(AttributeEntity, attr_syn)
 
                 # Examples: "a is _", "a is not _"
                 if isinstance(comp_filter, EmptyComparisonFilter):
@@ -953,10 +953,16 @@ class FieldMappingService:
             tasks = self._task_repo.get_all_by_list_id(lst.list_id)
         # User
         elif not missing:
-            tasks = self._task_repo.get_all_missing_by_list_id_and_member_id(lst.list_id, target_member.member_id)
+            tasks = self._task_repo.get_all_missing_by_list_id_and_member_id(
+                lst.list_id, target_member.member_id
+            )
         # User Missing
         else:
-            tasks, task_id_to_user_kinded_field_mapping, task_id_to_user_field_mapping = self._calc_user_field_mapping_data(lst, target_member, attrs_sorted)
+            (
+                tasks,
+                task_id_to_user_kinded_field_mapping,
+                task_id_to_user_field_mapping,
+            ) = self._calc_user_field_mapping_data(lst, target_member, attrs_sorted)
 
         task_id_to_task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_many(
@@ -1032,25 +1038,42 @@ class FieldMappingService:
             attr_id_to_coll_value_to_idx,
         )
 
-    def _calc_user_field_mapping_data(self, lst: ListEntity, target_member: MemberEntity, attrs_sorted: tuple[AttributeEntity[AnyAttributeTypeT], ...]) -> tuple[tuple[TaskEntity, ...], frozendict[TaskID, MutableFieldMappingIDToStringsT], frozendict[TaskID, FrozenFieldMappingIDToStringsT]]:
-        member_tasks_to_tasks = self._member_task_repo.get_member_tasks_and_tasks_by_list_id_and_member_id(
+    def _calc_user_field_mapping_data(
+        self,
+        lst: ListEntity,
+        target_member: MemberEntity,
+        attrs_sorted: tuple[AttributeEntity[AnyAttributeTypeT], ...],
+    ) -> tuple[
+        tuple[TaskEntity, ...],
+        frozendict[TaskID, MutableFieldMappingIDToStringsT],
+        frozendict[TaskID, FrozenFieldMappingIDToStringsT],
+    ]:
+        member_tasks_to_tasks = (
+            self._member_task_repo.get_member_tasks_and_tasks_by_list_id_and_member_id(
                 lst.list_id, target_member.member_id
             )
+        )
 
         member_tasks = tuple(member_tasks_to_tasks.keys())
         tasks = tuple(member_tasks_to_tasks.values())
 
-        task_id_to_user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
+        task_id_to_user_kinded_field_mapping = (
+            self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
                 member_tasks,
                 self._member_task_repo.get_given_by_member_by_list_id_and_member_id(
                     lst.list_id, target_member.member_id
                 ),
                 attrs_sorted,
             )
+        )
 
         task_id_to_user_field_mapping = (
-                self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
-                    target_member.member_id
-                )
+            self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
+                target_member.member_id
             )
-        return tasks, task_id_to_user_kinded_field_mapping, task_id_to_user_field_mapping
+        )
+        return (
+            tasks,
+            task_id_to_user_kinded_field_mapping,
+            task_id_to_user_field_mapping,
+        )

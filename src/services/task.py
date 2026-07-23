@@ -79,7 +79,7 @@ class TaskService:
         syns: tuple[FieldSlotStr, ...] = (task_name, *aliases)
 
         if len(aliases) > community.limits.field_slot_count_max:
-            raise business.AliasCountLimitReached(
+            raise business.AliasCountLimitSurpassed(
                 community.limits.field_slot_count_max, task_name, tuple(aliases)
             )
 
@@ -201,13 +201,13 @@ class TaskService:
         )
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
-        if FieldSlotStr.sequences_requal(current_aliases, new_aliases):
-            raise business.AliasesNotDifferent(new_aliases)
+        if FieldSlotStr.sequence_real_equals(current_aliases, new_aliases):
+            raise business.AliasesDidNotChange(new_aliases)
 
         del current_aliases
 
         if len(new_aliases) > community.limits.field_slot_count_max:
-            raise business.AliasCountLimitReached(
+            raise business.AliasCountLimitSurpassed(
                 community.limits.field_slot_count_max, task.name, new_aliases
             )
 

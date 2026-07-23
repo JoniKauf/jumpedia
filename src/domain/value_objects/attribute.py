@@ -1,16 +1,9 @@
-import annotationlib
-import itertools
 import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeSlotType
 from domain.errors import business
-from domain.typing.attribute import (
-    AnyAttributeTypeT,
-    TaskAttributeTypeT,
-    UserAttributeTypeT,
-)
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.position import Position
@@ -41,7 +34,7 @@ class AttributeFieldConfig:
             <= self.max_slot_count
             and self.max_slot_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
         ):
-            raise business.SlotCountDefinitionLimitExceeded(
+            raise business.SlotCountConfigLimitExceeded(
                 self.min_slot_count,
                 self.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,

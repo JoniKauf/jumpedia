@@ -1,11 +1,8 @@
-import enum
 from string.templatelib import Template
 
-import typing as t
-from discord import app_commands, ui
+from discord import app_commands
 
 from domain.entities.attribute import AttributeEntity
-from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
@@ -24,9 +21,7 @@ from interfaces.enums.edit_mode import (
     CollectionEditModeInterfaceEnum,
 )
 from interfaces.message.format import F
-from interfaces.message import messages, views
-from interfaces.message.views import DangerousConfirmView
-from services.dtos.attribute import AttributeSummary
+from interfaces.message import messages
 
 
 def _collection_to_representation(
@@ -34,7 +29,7 @@ def _collection_to_representation(
 ) -> tuple[str, ...]:
     # Python's repr of strings aligns well with our string tokens, so we can just use that and it will be parsable again :)
     return tuple(
-        f"({str(entry.value)!r}: {' '.join(repr(str(alias)) for alias in entry.aliases)})"
+        f"({str(entry[0])!r}: {' '.join(repr(str(alias)) for alias in entry[1])})"
         for entry in collection
     )
 
@@ -110,9 +105,9 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         )
 
         consequences: Template = (
-            t"Each field of every {F.type_name(TaskEntity, header=False)} for this specific {F.type_name(AttributeEntity, header=False)} will be deleted!"
+            t"Each field of every {F.type_name(TaskEntity)} for this specific {F.type_name(AttributeEntity)} will be deleted!"
             if attr.type is AttributeType.TASK
-            else t"Each custom field of every {F.type_name(MemberEntity, header=False)} who has given themselves this {F.type_name(TaskEntity, header=False)} will be deleted!"
+            else t"Each custom field of every {F.type_name(MemberEntity)} who has given themselves this {F.type_name(TaskEntity)} will be deleted!"
         )
 
         await messages.nuke_object_on_confirmation(
@@ -180,13 +175,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity, header=True)} Min And Max Slot Count Edited",
+            t"{F.type_name(AttributeEntity)} Min And Max Slot Count Edited",
             t"The min and max slot count for the {F.mention(attr)} has been set to "
             + t"{F.raw(str(attr.field_config.min_slot_count))} and {F.raw(str(attr.field_config.max_slot_count))} successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity, header=False)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
+                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
             ),
         )
 
@@ -208,12 +203,12 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity, header=True)} Collection Edited",
+            t"{F.type_name(AttributeEntity)} Collection Edited",
             t"The collection for the {F.mention(attr)} has been edited successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity, header=False)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
+                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
             ),
         )
 
@@ -270,6 +265,6 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity, header=True, plural=True)} Position Order Edited",
-            t"The positions and therefore the ordering of all {F.type_name(AttributeEntity, header=False, plural=True)} of the {F.mention(lst)} has been edited successfully!",
+            t"{F.type_name(AttributeEntity, plural=True)} Position Order Edited",
+            t"The positions and therefore the ordering of all {F.type_name(AttributeEntity, plural=True)} of the {F.mention(lst)} has been edited successfully!",
         )

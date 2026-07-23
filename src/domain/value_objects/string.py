@@ -176,49 +176,16 @@ class Str:
     def __str__(self) -> str:
         return str(self.real)
 
-    def requals(self, value: object) -> bool:
+    def real_equals(self, value: object) -> bool:
         if not isinstance(value, type(self)):
             return NotImplemented
 
         return self.real == value.real
 
     @classmethod
-    def norm_unique(cls, iterable: t.Iterable[str], /) -> tuple[t.Self, ...]:
-        mapping: dict[NormStr, Str] = {}
-
-        for s in iterable:
-            if isinstance(s, cls):
-                store = s
-            else:
-                store = cls(s)  # type: ignore
-
-            existing = mapping.get(store.norm)
-
-            if existing is not None:
-                raise business.DuplicateUniqueRequiredString(existing, store)
-
-            mapping[store.norm] = store
-
-        # Dict order is preserved
-        return tuple(
-            cls._create_from_real_and_norm(store.real, store.norm)
-            for store in mapping.values()
-        )
-
-    @classmethod
-    def raise_if_not_unique(cls, iterable: t.Iterable[t.Self]) -> None:
-        seen: dict[NormStr, t.Self] = {}
-
-        for elem in iterable:
-            existing = seen.get(elem.norm)
-
-            if existing is None:
-                seen[elem.norm] = elem
-            else:
-                raise business.DuplicateUniqueRequiredString(existing, elem)
-
-    @classmethod
-    def sequences_requal(cls, a: t.Sequence[t.Self], b: t.Sequence[t.Self], /) -> bool:
+    def sequence_real_equals(
+        cls, a: t.Sequence[t.Self], b: t.Sequence[t.Self], /
+    ) -> bool:
         """Return True if the two specified sequences are exactly equal (their real part)."""
 
         return len(a) == len(b) and all(aa.real == bb.real for aa, bb in zip(a, b))

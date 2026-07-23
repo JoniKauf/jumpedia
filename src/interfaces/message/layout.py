@@ -1,9 +1,11 @@
 import enum
+import string
 import typing as t
 from dataclasses import dataclass
 from string.templatelib import Interpolation, Template, convert
 
-from interfaces.message.format import F
+from domain.sentinels.default import DEFAULT
+from interfaces.message.format import F, FormatArgsEmpty, FormatArgsTypeName
 
 
 class Status(enum.StrEnum):
@@ -14,19 +16,32 @@ class Status(enum.StrEnum):
     ERROR = "x"
 
 
-def _parse_interpolation(interpolation: Interpolation[F]) -> str:
+def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     if interpolation.format_spec or interpolation.conversion:
         raise ValueError("Format or conversion not allowed rn")
 
-    obj = interpolation.value
+    f = interpolation.value
 
-    if not isinstance(obj, F):
+    if not isinstance(f, F):
         raise ValueError("Not F wrapped")
 
-    return obj._s
+    s = f._s
+    args = f._format_args
+
+    if isinstance(args, FormatArgsTypeName):
+        capitalize = header if args.capitalize is DEFAULT else args.capitalize
+
+        if capitalize:
+            s = string.capwords(s)
+    elif isinstance(args, FormatArgsEmpty):
+        pass
+    else:
+        t.assert_never(args)
+
+    return f._s
 
 
-def _parse_template(t: Template) -> str:
+def _parse_template(t: Template, header: bool) -> str:
     res: list[str] = []
 
     for elem in t:
@@ -35,16 +50,16 @@ def _parse_template(t: Template) -> str:
                 res.append(elem)
 
             case Interpolation():
-                res.append(_parse_interpolation(elem))
+                res.append(_parse_interpolation(elem, header))
 
     return "".join(res)
 
 
 def layout(header: Template, body: Template, status: Status) -> str:
-    sheader = _parse_template(header)
-    sbody = _parse_template(body)
-    sstatus = (
+    header_s = _parse_template(header, True)
+    body_s = _parse_template(body, False)
+    status_s = (
         "" if status is Status.NONE else f"-# :{status.value}:  {status.name.title()}"
     )
 
-    return f"## {sheader}\n{sbody}\n\n{sstatus}".rstrip()
+    return f"## {header_s}\n{body_s}\n\n{status_s}".rstrip()

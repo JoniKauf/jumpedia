@@ -38,7 +38,10 @@ class EditModeService:
         )
 
     def handle_collection_edit(
-        self, edit_mode: CollectionEditMode, current: AbstractCollectionT, new: AbstractCollectionT
+        self,
+        edit_mode: CollectionEditMode,
+        current: AbstractCollectionT,
+        new: AbstractCollectionT,
     ) -> AbstractCollectionT:
         if edit_mode is CollectionEditMode.REPLACE:
             return new

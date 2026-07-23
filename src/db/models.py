@@ -101,7 +101,8 @@ class ListModel(BaseModel):
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.LIST_NAME_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.LIST_NAME_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     real_name: Mapped[RealStr] = mapped_column(
@@ -124,7 +125,8 @@ class UserModel(BaseModel):
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.USER_NAME_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.USER_NAME_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
@@ -267,7 +269,8 @@ class CollectionEntryModel(BaseModel):
 
     norm_value: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     real_value: Mapped[RealStr] = mapped_column(
@@ -300,7 +303,8 @@ class CollectionEntryAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(
@@ -329,7 +333,8 @@ class TaskModel(BaseModel):
 
     norm_name: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     real_name: Mapped[RealStr] = mapped_column(
@@ -363,7 +368,8 @@ class TaskAliasModel(BaseModel):
 
     norm_alias: Mapped[NormStr] = mapped_column(
         NormStrType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
+            CommunityLimits.FIELD_SLOT_LENGTH_MAX
+            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
         )
     )
     real_alias: Mapped[RealStr] = mapped_column(

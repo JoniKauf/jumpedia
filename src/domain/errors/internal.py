@@ -1,14 +1,28 @@
-# --- Internal Errors --- #
+"""Internal errors that are mostly used for assertions.
 
+These should not be handled gracefully."""
+
+
+from dataclasses import dataclass
 
 from domain.entities.base import BaseEntity
 
-
+@dataclass()
 class InternalError(Exception):
     pass
 
 
+@dataclass()
 class NotFoundById(InternalError):
-    def __init__(self, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.type = type
+    type: type[BaseEntity]
+
+
+@dataclass()
+class IntOutOfRange(InternalError):
+    n: int
+    range: tuple[int, int] | tuple[int, None] | tuple[None, int]
+
+
+@dataclass()
+class ProgrammingError(InternalError):
+    msg: str

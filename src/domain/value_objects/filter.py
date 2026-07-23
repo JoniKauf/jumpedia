@@ -2,8 +2,6 @@ import enum
 import typing as t
 from dataclasses import dataclass
 
-from domain.value_objects.attribute import AttributeSynStr
-from domain.value_objects.field_slot import FieldSlotStr
 
 
 class OpType(enum.Enum):

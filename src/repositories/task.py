@@ -382,4 +382,7 @@ class TaskRepository(BaseRepository):
             ),
         )
 
-        return tuple(task_model_to_entity(model) for model in self._session.execute(stmt).scalars().all())
+        return tuple(
+            task_model_to_entity(model)
+            for model in self._session.execute(stmt).scalars().all()
+        )

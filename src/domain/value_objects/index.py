@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from domain.errors.internal import IntOutOfRange
+
 
 @dataclass(frozen=True, slots=True)
 class Index:
@@ -7,4 +9,4 @@ class Index:
 
     def __post_init__(self) -> None:
         if self.value < 0:
-            raise ValueError
+            raise IntOutOfRange(self.value, (0, None))

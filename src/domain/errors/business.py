@@ -1,3 +1,6 @@
+"""Expected business errors that should be handled gracefully."""
+
+from dataclasses import dataclass
 import typing as t
 from string.templatelib import Template
 
@@ -14,156 +17,122 @@ if t.TYPE_CHECKING:
     from domain.value_objects.string import Str
 
 
-# --- Base ---
+# --- Base --- #
+@dataclass()
 class BusinessError(Exception):
     pass
 
 
-# --- Invalid String ---
+# --- Invalid String --- #
+@dataclass()
 class EmptyString(BusinessError):
     pass
 
 
+@dataclass()
 class DoubleBacktick(BusinessError):
     pass
 
 
-# --- Context ---
+# --- Access --- #
+@dataclass()
 class NotInServer(BusinessError):
     pass
 
 
+@dataclass()
 class NotInCommunity(BusinessError):
     pass
 
 
+@dataclass()
 class InCommunity(BusinessError):
-    def __init__(self, community: CommunityEntity) -> None:
-        super().__init__()
-        self.community = community
+    community: CommunityEntity
 
 
-# --- Permission ---
+@dataclass()
+class NoDefaultSelectedList(BusinessError):
+    community: CommunityEntity
+
+
+
+# --- Permission --- #
+@dataclass()
 class NotAllowed(BusinessError):
-    def __init__(self, rank: AnyRankT, required: AnyRankT) -> None:
-        super().__init__()
-        self.rank = rank
-        self.required = required
+    rank: AnyRankT
+    required: AnyRankT
 
 
+# --- Not Found --- #
+@dataclass()
 class NotFoundByName(BusinessError):
-    def __init__(self, name: Str, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.name = name
-        self.type = type
+    type: type[BaseEntity]
+    name: Str
 
 
+@dataclass()
 class NotFoundBySyn(BusinessError):
-    def __init__(self, syn: Str, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.syn = syn
-        self.type = type
+    type: type[BaseEntity]
+    syn: Str
 
 
+# --- Invalid Input --- #
+@dataclass()
 class NameTooLong(BusinessError):
-    def __init__(self, name: Str, limit: int, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.name = name
-        self.limit = limit
-        self.type = type
+    type: type[BaseEntity]
+    name: Str
+    limit: int
 
 
-class SynAlreadyTaken(BusinessError):
-    def __init__(
-        self,
-        existing: BaseEntity,
-        new: Str,
-        existing_is_alias: bool,
-        new_is_alias: bool,
-    ) -> None:
-        super().__init__()
-        self.existing = existing
-        self.new = new
-        self.existing_is_alias = existing_is_alias
-        self.new_is_alias = new_is_alias
-
-
+# --- No Difference --- #
+@dataclass()
 class NameNotDifferent(BusinessError):
-    def __init__(self, name: Str, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.name = name
-        self.type = type
+    entity: BaseEntity
 
 
-class AliasesNotDifferent(BusinessError):
-    def __init__(self, aliases: tuple[Str, ...]) -> None:
-        super().__init__()
-        self.aliases = aliases
+@dataclass()
+class AliasesDidNotChange(BusinessError):
+    type: type[BaseEntity]
+    aliases: tuple[Str, ...]
 
 
-class CollectionNotDifferent(BusinessError):
-    def __init__(self, collection: AbstractCollectionT) -> None:
-        super().__init__()
-        self.collection = collection
+@dataclass()
+class CollectionDidNotChange(BusinessError):
+    collection: AbstractCollectionT
 
 
-class ServerAlreadyConnectedToACommunity(BusinessError):
-    def __init__(self, server_id: int, community: CommunityEntity) -> None:
-        super().__init__()
-        self.server_id = server_id
-        self.community = community
+# --- Slot Count Configuration --- #
+@dataclass()
+class SlotCountConfigLimitExceeded(BusinessError):
+    min: int
+    max: int
+    min_min: int
+    min_max: int
+    max_max: int | None
 
 
-class CountLimitReached(BusinessError):
-    def __init__(self, limit: int, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.limit = limit
-        self.type = type
-
-
-class AliasCountLimitReached(BusinessError):
-    def __init__(self, limit: int, entity_name: Str, aliases: t.Sequence[Str]) -> None:
-        super().__init__()
-        self.limit = limit
-        self.entity_name = entity_name
-        self.aliases = aliases
-
-
-class SlotCountDefinitionLimitExceeded(BusinessError):
-    def __init__(
-        self, min: int, max: int, min_min: int, min_max: int, max_max: int | None
-    ) -> None:
-        super().__init__()
-
-        self.min = min
-        self.max = max
-        self.min_min = min_min
-        self.min_max = min_max
-        self.max_max = max_max
-
-
+@dataclass()
 class InitialSlotCountMustBeZero(BusinessError):
     pass
 
 
-class DuplicateUniqueRequiredString(BusinessError):
-    def __init__(self, first: Str, second: Str) -> None:
-        super().__init__()
-        self.first = first
-        self.second = second
+# --- Task --- #
+@dataclass()
+class TasksDoNotMatchMinOrMaxSlotCountCriteria(BusinessError):
+    min_slot_count: int
+    max_slot_count: int
+    invalid: t.Mapping[TaskEntity, tuple[FieldSlotStr, ...]]
 
 
-class NoDefaultSelectedList(BusinessError):
-    def __init__(self) -> None:
-        pass
-
-
+# --- Member Task --- #
+@dataclass()
 class MemberDoesNotHaveTask(BusinessError):
     def __init__(self, member: MemberEntity) -> None:
         super().__init__()
         self.member = member
 
 
+@dataclass()
 class MemberAlreadyHasTask(BusinessError):
     def __init__(self, member: MemberEntity, task: TaskEntity) -> None:
         super().__init__()
@@ -171,14 +140,47 @@ class MemberAlreadyHasTask(BusinessError):
         self.task = task
 
 
-class TasksDoNotMatchMinOrMaxSlotCountCriteria(BusinessError):
-    def __init__(
-        self,
-        min_slot_count: int,
-        max_slot_count: int,
-        invalid: dict[TaskEntity, tuple[FieldSlotStr, ...]],
-    ) -> None:
+# --- Count Limit Reached --- #
+@dataclass()
+class CountLimitReached(BusinessError):
+    def __init__(self, limit: int, type: type[BaseEntity]) -> None:
         super().__init__()
-        self.min_slot_count = min_slot_count
-        self.max_slot_count = max_slot_count
-        self.invalid = invalid
+        self.limit = limit
+        self.type = type
+
+
+@dataclass()
+class AliasCountLimitSurpassed(BusinessError):
+    limit: int
+    entity_name: Str
+    aliases: t.Sequence[Str]
+
+# --- Server --- #
+@dataclass()
+class ServerAlreadyConnectedToACommunity(BusinessError):
+    server_id: int
+    community: CommunityEntity
+
+
+# --- Misc --- #
+@dataclass()
+class SynAlreadyTaken(BusinessError):
+    current: BaseEntity
+    new: Str
+    alias_of_current_collides: bool
+    alias_of_new_collides: bool
+
+
+@dataclass()
+class SynsNotUnique(BusinessError):
+    type: type[BaseEntity]
+    collision: Str
+
+
+@dataclass()
+class NotUniqueSynsAcrossNamesAndAliases(BusinessError):
+    type: type[BaseEntity]
+    first_name: Str
+    second_name: Str
+    first_colliding_alias: Str | None
+    second_colliding_alias: Str | None

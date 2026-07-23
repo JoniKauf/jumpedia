@@ -191,7 +191,7 @@ class ListAccessService:
         selected_list_id = member.selected_list_id or community.default_selected_list_id
 
         if selected_list_id is None:
-            raise business.NoDefaultSelectedList()
+            raise business.NoDefaultSelectedList(community)
 
         lst = self._list_repo.get_by_id(selected_list_id)
 

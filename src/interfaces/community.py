@@ -110,7 +110,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             ctx.interaction,
             to_nuke=community,
             parent=None,
-            consequences=t"Literally every piece of information about this community will be deleted! This includes all {F.type_name(ListEntity, header=False, plural=True)}, {F.type_name(AttributeEntity, header=False, plural=True)}, {F.type_name(TaskEntity, header=False, plural=True)} and more...\n**This is the ultimate hammer of destruction!**",
+            consequences=t"Literally every piece of information about this community will be deleted! This includes all {F.type_name(ListEntity, plural=True)}, {F.type_name(AttributeEntity, plural=True)}, {F.type_name(TaskEntity, plural=True)} and more...\n**This is the ultimate hammer of destruction!**",
             execute=lambda: ctx.services.community.delete(prepared),
         )
 
@@ -125,8 +125,8 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         await messages.success(
             ctx.interaction,
-            t"Default Selected {F.type_name(ListEntity, header=True)} Edited",
-            t"The default selected {F.type_name(ListEntity, header=False)} of the {F.mention(community)} has been "
+            t"Default Selected {F.type_name(ListEntity)} Edited",
+            t"The default selected {F.type_name(ListEntity)} of the {F.mention(community)} has been "
             + (t"unset" if lst is None else t"changed to {F.mention(lst)}")
             + t" successfully!",
         )

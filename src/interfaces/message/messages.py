@@ -58,8 +58,8 @@ async def object_info(
 
     await info(
         interaction,
-        t"{F.type_name(mentionable_type, header=True)} Info",
-        Template('\n'.join(links))
+        t"{F.type_name(mentionable_type)} Info",
+        Template("\n".join(links)),
     )
 
 
@@ -68,13 +68,13 @@ async def object_browse(
     mentionable_type: type[MentionableT],
     data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
-    header = t"{F.type_name(mentionable_type, header=True)} Browsed"
+    header = t"{F.type_name(mentionable_type)} Browsed"
 
     if not data:
         return await info(
             interaction,
             header,
-            t"No {F.type_name(mentionable_type, header=False)} with the specified criteria could be found!",
+            t"No {F.type_name(mentionable_type)} with the specified criteria could be found!",
         )
 
     links = pastee.table_to_pastee_strings(tuple(data), data.values())
@@ -87,7 +87,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {F.raw(str(count))} {F.type_name(mentionable_type, header=False, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
+        t"A total of {F.raw(str(count))} {F.type_name(mentionable_type, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
     )
 
 
@@ -97,7 +97,7 @@ async def object_created(
 ) -> None:
     await success(
         interaction,
-        t"{F.type_name(type(entity), header=True)} Created",
+        t"{F.type_name(type(entity))} Created",
         t"The {F.mention(entity)} has been created successfully!",
     )
 
@@ -110,8 +110,8 @@ async def object_name_edited(
 ) -> None:
     await success(
         interaction,
-        t"{F.type_name(entity_type, header=True)} Renamed",
-        t"The {F.type_name(entity_type, header=False)} {F.raw(str(before))} has been renamed to {F.raw(str(after))} successfully!",
+        t"{F.type_name(entity_type)} Renamed",
+        t"The {F.type_name(entity_type)} {F.raw(str(before))} has been renamed to {F.raw(str(after))} successfully!",
     )
 
 
@@ -120,7 +120,7 @@ async def object_aliases_edited(
 ) -> None:
     await success(
         interaction,
-        t"{F.type_name(type(entity), header=True)} Renamed",
+        t"{F.type_name(type(entity))} Renamed",
         t"The aliases of the {F.mention(entity)} have been edited successfully!\n",
     )
 
@@ -141,14 +141,14 @@ async def nuke_object_on_confirmation(
         user=interaction.user,
         on_confirm=execute,
         success_text=layout.layout(
-            t"{F.type_name(type(to_nuke), header=True)} Deleted",
+            t"{F.type_name(type(to_nuke))} Deleted",
             t"The {F.mention(to_nuke)}"
             + of_parent_text
             + t" has been deleted (nuked) successfully! 💣",
             Status.SUCCESS,
         ),
         cancel_text=layout.layout(
-            t"{F.type_name(type(to_nuke), header=True)} Deletion Aborted",
+            t"{F.type_name(type(to_nuke))} Deletion Aborted",
             t"The deletion (nuking) of the {F.mention(to_nuke)} has been aborted successfully!\nNothing changed.",
             Status.WARNING,
         ),
@@ -157,7 +157,7 @@ async def nuke_object_on_confirmation(
 
     view._message = await interaction.followup.send(
         layout.layout(
-            t"Confirm {F.type_name(type(to_nuke), header=True)} Deletion",
+            t"Confirm {F.type_name(type(to_nuke))} Deletion",
             t"Are you sure you want to delete (nuke) the {F.mention(to_nuke)}"
             + of_parent_text
             + t"?\n\n"

@@ -10,8 +10,10 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.entities.user import UserEntity
+from domain.sentinels.default import DEFAULT
 
 type MentionableT = CommunityEntity | ListEntity | AttributeEntity | TaskEntity | UserEntity | MemberEntity
+
 
 @dataclass(frozen=True, slots=True)
 class MentionableCases:
@@ -35,12 +37,8 @@ class MentionableCases:
 
     @classmethod
     def from_singular_regular(cls, singular: str) -> t.Self:
-        return cls(
-            singular,
-            singular + "s",
-            singular + "'s",
-            singular + "s'"
-        )
+        return cls(singular, singular + "s", singular + "'s", singular + "s'")
+
 
 def get_cases(mentionable_type: type[MentionableT]) -> MentionableCases:
     if issubclass(mentionable_type, UserEntity):
@@ -48,13 +46,10 @@ def get_cases(mentionable_type: type[MentionableT]) -> MentionableCases:
 
     if issubclass(mentionable_type, MemberEntity):
         return MentionableCases.from_singular_regular("community member")
-    
+
     if issubclass(mentionable_type, CommunityEntity):
         return MentionableCases(
-            "community",
-            "communities",
-            "community's",
-            "communities'"
+            "community", "communities", "community's", "communities'"
         )
     if issubclass(mentionable_type, ListEntity):
         return MentionableCases.from_singular_regular("list")
@@ -67,19 +62,34 @@ def get_cases(mentionable_type: type[MentionableT]) -> MentionableCases:
 
     t.assert_never(mentionable_type)
 
+
 def get_identifier(mentionable: MentionableT) -> str:
     match mentionable:
         case _:
             return str(mentionable.name)
 
+
 def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
     if len(ellipsis) > max:
         raise ValueError()
-    
+
     if len(s) <= max:
         return s
 
     return s[:max - len(ellipsis)] + ellipsis
+
+
+type FormatArgsT = FormatArgsEmpty | FormatArgsTypeName
+
+
+@dataclass(frozen=True, slots=True)
+class FormatArgsEmpty:
+    pass
+
+@dataclass(frozen=True, slots=True)
+class FormatArgsTypeName:
+    capitalize: bool | DEFAULT
+
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class F:
@@ -91,28 +101,33 @@ class F:
     """
 
     _s: str
+    _format_args: FormatArgsT
     
     @classmethod
     def mention(cls, mentionable: MentionableT, *, shorten: bool = True) -> t.Self:
         type_s = get_cases(type(mentionable)).singular
         inst_s = get_identifier(mentionable)
-        
+
         if shorten:
             inst_s = _shorten(inst_s)
 
         s = f"{type_s} ``{inst_s}``"
 
-        return cls(_s=s)
-    
+        return cls(_s=s, _format_args=FormatArgsEmpty())
+
     @classmethod
-    def type_name(cls, mentionable_type: type[MentionableT], *, header: bool, plural: bool = False, possessive: bool = False) -> t.Self:
+    def type_name(
+        cls,
+        mentionable_type: type[MentionableT],
+        *,
+        capitalize: bool | DEFAULT = DEFAULT,
+        plural: bool = False,
+        possessive: bool = False,
+    ) -> t.Self:
         s = get_cases(mentionable_type).case_from_bools(plural, possessive)
 
-        if header:
-            s = string.capwords(s)
-        
-        return cls(_s=s)
-    
+        return cls(_s=s, _format_args=FormatArgsTypeName(capitalize))
+
     @classmethod
     def raw(cls, value: str) -> t.Self:
-        return cls(_s=value)
+        return cls(_s=value, _format_args=FormatArgsEmpty())
