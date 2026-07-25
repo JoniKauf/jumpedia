@@ -1,11 +1,11 @@
-import typing as t
-
 from domain.entities.base import BaseEntity
-from domain.enums.attribute import AttributeKind, AttributeType
-from domain.typing.attribute import AnyAttributeTypeT, AttributeID
-from domain.typing.list import ListID
-from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
-from domain.value_objects.position import Position
+
+lazy from domain.enums.attribute import AttributeKind, AttributeType
+from domain.typing.attribute import AttributeID
+
+lazy from domain.typing.list import ListID
+lazy from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
+lazy from domain.value_objects.position import Position
 
 
 class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID]):

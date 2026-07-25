@@ -1,4 +1,3 @@
-import types as ts
 import typing as t
 
 from sqlalchemy import case, delete, func, or_, select, text, update
@@ -6,12 +5,11 @@ from sqlalchemy import case, delete, func, or_, select, text, update
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
-from domain.errors import business
+from domain.errors.internal import NotFoundById
 from domain.typing.attribute import AttributeID
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.value_objects.attribute import AttributeSynStr
-from domain.value_objects.index import Index
 from domain.value_objects.position import Position
 from domain.value_objects.string import Str
 from repositories.base import BaseRepository
@@ -80,7 +78,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise business.NotFoundById(AttributeEntity)
+            raise NotFoundById(AttributeEntity, attribute_id)
 
         self._session.delete(obj)
         self._session.flush()
@@ -397,7 +395,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise business.NotFoundById(AttributeEntity)
+            raise NotFoundById(AttributeEntity, attribute_id)
 
         obj.real_name = name.real
         obj.norm_name = name.norm
@@ -437,7 +435,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
 
         if obj is None:
-            raise business.NotFoundById(AttributeEntity)
+            raise NotFoundById(AttributeEntity, attribute_id)
 
         obj.min_slot_count = min_slot_count
         obj.max_slot_count = max_slot_count

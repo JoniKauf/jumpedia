@@ -1,9 +1,10 @@
 from domain.entities.base import BaseEntity
-from domain.typing.member import MemberID
+
+lazy from domain.typing.member import MemberID
 from domain.typing.member_task import MemberTaskID
-from domain.typing.task import TaskID
-from domain.value_objects.datetime import DateTimeWrapper
-from domain.value_objects.member import OptionalMemberWrapper
+
+lazy from domain.typing.task import TaskID
+lazy from domain.value_objects.datetime import DateTimeWrapper
 
 
 class MemberTaskEntity(BaseEntity[MemberTaskID]):

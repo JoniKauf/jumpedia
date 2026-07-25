@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from domain.errors.internal import IntOutOfRange
+lazy from domain.errors.internal import IntOutOfRange
 
 
 @dataclass(frozen=True, slots=True)

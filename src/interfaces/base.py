@@ -21,4 +21,6 @@ class InterfaceMeta(commands.CogMeta):
 
 
 class BaseInterface(commands.GroupCog, metaclass=InterfaceMeta, group_name="base"):
-    pass
+    def __init__(self, bot: commands.Bot) -> None:
+        super().__init__()
+        self.bot = bot

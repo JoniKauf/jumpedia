@@ -1,20 +1,13 @@
-import types as ts
 import typing as t
 
 from sqlalchemy import delete, select
 
 from db.models import AttributeModel, FieldSlotModel, TaskModel
-from domain.entities.field_slot import FieldSlotEntity
-from domain.enums.attribute import AttributeType
 from domain.typing.attribute import AttributeID
-from domain.typing.field_mapping import (
-    FrozenFieldMappingEntityToStrings,
-    FrozenFieldMappingIDToStringsT,
-)
+from domain.typing.field_mapping import FrozenFieldMappingIDToStringsT
 from domain.typing.list import ListID
 from domain.typing.task import TaskID
 from domain.value_objects.field_slot import FieldSlotStr, TaskEntity
-from domain.value_objects.index import Index
 from repositories.base import BaseRepository
 from repositories.dtos.field_slot import FieldSlotInsert
 from repositories.task import task_model_to_entity

@@ -1,8 +1,8 @@
 import decimal
 import typing as t
 
-from domain.enums.attribute import AttributeKind, AttributeType
-from domain.typing.common import ID
+lazy from domain.enums.attribute import AttributeKind, AttributeType
+lazy from domain.typing.common import ID
 
 AttributeID = t.NewType("AttributeID", ID)
 AttributeAliasID = t.NewType("AttributeAliasID", ID)

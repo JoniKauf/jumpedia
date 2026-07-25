@@ -1,17 +1,15 @@
-import types as ts
 import typing as t
 
 from sqlalchemy import delete, exists, func, not_, or_, select
 
 from db.models import ListModel, MemberID, MemberTaskModel, TaskAliasModel, TaskModel
 from domain.entities.task import TaskEntity
-from domain.errors import business
+from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.typing.task import TaskID
 from domain.value_objects.datetime import DateTimeWrapper
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.index import Index
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
 
 from .base import BaseRepository
@@ -209,7 +207,7 @@ class TaskRepository(BaseRepository):
         obj = self._session.get(TaskModel, task_id)
 
         if obj is None:
-            raise business.NotFoundById(TaskEntity)
+            raise NotFoundById(TaskEntity, task_id)
 
         self._session.delete(obj)
         self._session.flush()
@@ -331,7 +329,7 @@ class TaskRepository(BaseRepository):
         obj = self._session.get(TaskModel, task_id)
 
         if obj is None:
-            raise business.NotFoundById(TaskEntity)
+            raise NotFoundById(TaskEntity, task_id)
 
         obj.real_name = name.real
         obj.norm_name = name.norm

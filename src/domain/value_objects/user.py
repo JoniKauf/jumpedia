@@ -1,7 +1,10 @@
 import typing as t
 
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import Str
+
+lazy from domain.value_objects.string import Str
+from domain.entities.attribute import AttributeEntity
+from domain.value_objects import factories
 
 if t.TYPE_CHECKING:
 
@@ -9,6 +12,6 @@ if t.TYPE_CHECKING:
         pass
 
 else:
-    UserNameStr = factories.make_constrained_str_store_type(
+    UserNameStr = factories.make_length_limited_str_store_type(
         "UserNameStr", CommunityLimits.USER_NAME_LENGTH_MAX, AttributeEntity
     )

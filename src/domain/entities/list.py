@@ -1,7 +1,9 @@
 from domain.entities.base import BaseEntity
-from domain.typing.community import CommunityID
+
+lazy from domain.typing.community import CommunityID
 from domain.typing.list import ListID
-from domain.value_objects.list import ListNameStr
+
+lazy from domain.value_objects.list import ListNameStr
 
 
 class ListEntity(BaseEntity[ListID]):

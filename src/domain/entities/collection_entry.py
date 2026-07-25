@@ -1,7 +1,9 @@
 from domain.entities.base import BaseEntity
-from domain.typing.attribute import AttributeID
+
+lazy from domain.typing.attribute import AttributeID
 from domain.typing.collection_entry import CollectionEntryID
-from domain.value_objects.field_slot import FieldSlotStr
+
+lazy from domain.value_objects.field_slot import FieldSlotStr
 
 
 class CollectionEntryEntity(BaseEntity[CollectionEntryID]):

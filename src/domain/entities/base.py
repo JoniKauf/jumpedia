@@ -1,6 +1,3 @@
-import typing as t
-
-
 class BaseEntity[*Ts]:
     def __init__(self, *composite_key: *Ts) -> None:
         self._composite_key = composite_key

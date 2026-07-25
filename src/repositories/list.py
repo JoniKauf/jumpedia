@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from db.models import ListModel as ListModel
 from domain.entities.list import ListEntity
 from domain.errors import business
+from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.value_objects.list import ListNameStr
@@ -78,7 +79,7 @@ class ListRepository(BaseRepository):
         obj = self._session.get(ListModel, list_id)
 
         if obj is None:
-            raise business.NotFoundById(ListEntity)
+            raise NotFoundById(ListEntity, list_id)
 
         self._session.delete(obj)
         self._session.flush()
@@ -87,7 +88,7 @@ class ListRepository(BaseRepository):
         obj = self._session.get(ListModel, list.list_id)
 
         if obj is None:
-            raise business.NotFoundById(ListEntity)
+            raise NotFoundById(ListEntity, list.list_id)
 
         obj.norm_name = list.name.norm
         obj.real_name = list.name.real

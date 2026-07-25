@@ -6,6 +6,7 @@ from db.models import ServerModel as ServerModel
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.errors import business
+from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.typing.server import ServerID
@@ -73,7 +74,7 @@ class CommunityRepository(BaseRepository):
     def delete(self, community_id: CommunityID) -> None:
         obj = self._session.get(CommunityModel, community_id)
         if obj is None:
-            raise business.NotFoundById(CommunityEntity)
+            raise NotFoundById(CommunityEntity, community_id)
 
         self._session.delete(obj)
         self._session.flush()
@@ -106,7 +107,7 @@ class CommunityRepository(BaseRepository):
         obj = self._session.get(CommunityModel, community_id)
 
         if obj is None:
-            raise business.NotFoundById(CommunityEntity)
+            raise NotFoundById(CommunityEntity, community_id)
 
         obj.default_selected_list_id = default_selected_list_id
 

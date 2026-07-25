@@ -11,10 +11,13 @@ from domain.typing.collection_entry import AbstractCollectionT
 from domain.typing.field_mapping import AbstractFieldMappingIDToStringsT
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
+from services.internal.strs import StrsService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class EditModeService:
+    _strs_service: StrsService
+
     def handle_alias_edit[T: Str](
         self, edit_mode: AliasEditMode, current: tuple[T, ...], new: tuple[T, ...]
     ) -> tuple[T, ...]:
@@ -50,12 +53,9 @@ class EditModeService:
             edit_mode, t.Literal[CollectionEditMode.COMBINE_ERROR_ON_ANY_SYN_COLLISION]
         )
 
-        FieldSlotStr.raise_if_not_unique(
-            syn
-            for coll in (current, new)
-            for entry in coll
-            for syn in (entry[0], *entry[1])
-        )
+        combined = (*current, *new)
+
+        self._strs_service.validate_unique_names_and_aliases(combined, ...)
 
         return (*current, *new)
 

@@ -1,16 +1,13 @@
-import decimal
 import functools
-import types as ts
 import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
-from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
 from domain.errors.business import NotFoundByName
 from domain.sentinels.default import DEFAULT
@@ -24,7 +21,6 @@ from domain.typing.collection_entry import AbstractCollectionT
 from domain.typing.field_mapping import (
     AbstractFieldMappingIDToSlotTypeT,
     AbstractFieldMappingIDToStringsT,
-    FrozenFieldMappingEntityToSlotTypeT,
     FrozenFieldMappingEntityToStrings,
     FrozenFieldMappingIDToStringsT,
     MutableFieldMappingIDToStringsT,
@@ -88,8 +84,8 @@ _OP_TO_COMP_ANY_FUNC: t.Final[
 class FieldMappingBuildService:
     """Validate and build field mappings."""
 
-    _slot_type_service: SlotTypeService
     _edit_mode_service: EditModeService
+    _slot_type_service: SlotTypeService
 
     def build_raw[T: AttributeType](
         self,
@@ -736,19 +732,20 @@ class FieldMappingTransformationService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class FieldMappingService:
-    _task_repo: TaskRepository
-    _attribute_repo: AttributeRepository
-    _field_slot_repo: FieldSlotRepository
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+    _field_slot_repository: FieldSlotRepository
+    _member_field_slot_repository: MemberFieldSlotRepository
+    _member_repository: MemberRepository
+    _member_task_repository: MemberTaskRepository
+    _task_repository: TaskRepository
+
     _list_access_service: ListAccessService
-    _collection_entry_repo: CollectionEntryRepository
-    _member_field_slot_repo: MemberFieldSlotRepository
-    _member_existence_service: MemberExistenceService
-    _slot_type_service: SlotTypeService
-    _member_task_access_service: MemberTaskAccessService
-    _member_repo: MemberRepository
-    _member_task_repo: MemberTaskRepository
-    _field_mapping_transformation_service: FieldMappingTransformationService
     _field_mapping_extraction_service: FieldMappingExtractionService
+    _field_mapping_transformation_service: FieldMappingTransformationService
+    _member_existence_service: MemberExistenceService
+    _member_task_access_service: MemberTaskAccessService
+    _slot_type_service: SlotTypeService
     _task_access_service: TaskAccessService
 
     @t.overload
@@ -803,17 +800,17 @@ class FieldMappingService:
 
         del target_user
 
-        attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
+        attrs = self._attribute_repository.get_all_by_list_id_ordered_by_position(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
 
         task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_single(
-                task, self._task_repo.get_aliases_by_task_id(task.task_id), attrs
+                task, self._task_repository.get_aliases_by_task_id(task.task_id), attrs
             )
         )
 
-        task_field_mapping = self._field_slot_repo.get_field_mapping_by_task_id(
+        task_field_mapping = self._field_slot_repository.get_field_mapping_by_task_id(
             task.task_id
         )
 
@@ -825,14 +822,12 @@ class FieldMappingService:
 
             user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_single(
                 member_task,
-                self._member_repo.get_by_member_id(member_task.member_id),
+                self._member_repository.get_by_member_id(member_task.member_id),
                 attrs,
             )
 
-            user_field_mapping = (
-                self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(
-                    member_task.member_id, member_task.task_id
-                )
+            user_field_mapping = self._member_field_slot_repository.get_field_mapping_by_member_id_and_task_id(
+                member_task.member_id, member_task.task_id
             )
 
         field_mapping = (
@@ -933,7 +928,7 @@ class FieldMappingService:
 
         del target_user
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attrs_sorted = tuple(
@@ -950,10 +945,10 @@ class FieldMappingService:
 
         # Task
         if target_member is None:
-            tasks = self._task_repo.get_all_by_list_id(lst.list_id)
+            tasks = self._task_repository.get_all_by_list_id(lst.list_id)
         # User
         elif not missing:
-            tasks = self._task_repo.get_all_missing_by_list_id_and_member_id(
+            tasks = self._task_repository.get_all_missing_by_list_id_and_member_id(
                 lst.list_id, target_member.member_id
             )
         # User Missing
@@ -967,13 +962,13 @@ class FieldMappingService:
         task_id_to_task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_many(
                 tasks,
-                self._task_repo.get_grouped_aliases_by_list_id(lst.list_id),
+                self._task_repository.get_grouped_aliases_by_list_id(lst.list_id),
                 attrs_sorted,
             )
         )
 
         task_id_to_task_field_mapping = (
-            self._field_slot_repo.get_task_field_mapping_by_list_id(lst.list_id)
+            self._field_slot_repository.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
         # Combine all mappings into the final one (generator, one time use)
@@ -1024,7 +1019,7 @@ class FieldMappingService:
                     value_to_idx.values(),
                 )
             }
-            for attr_id, value_to_idx in self._collection_entry_repo.get_grouped_value_to_index_by_list_id(
+            for attr_id, value_to_idx in self._collection_entry_repository.get_grouped_value_to_index_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
             ).items()
         }
@@ -1048,27 +1043,23 @@ class FieldMappingService:
         frozendict[TaskID, MutableFieldMappingIDToStringsT],
         frozendict[TaskID, FrozenFieldMappingIDToStringsT],
     ]:
-        member_tasks_to_tasks = (
-            self._member_task_repo.get_member_tasks_and_tasks_by_list_id_and_member_id(
-                lst.list_id, target_member.member_id
-            )
+        member_tasks_to_tasks = self._member_task_repository.get_member_tasks_and_tasks_by_list_id_and_member_id(
+            lst.list_id, target_member.member_id
         )
 
         member_tasks = tuple(member_tasks_to_tasks.keys())
         tasks = tuple(member_tasks_to_tasks.values())
 
-        task_id_to_user_kinded_field_mapping = (
-            self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
-                member_tasks,
-                self._member_task_repo.get_given_by_member_by_list_id_and_member_id(
-                    lst.list_id, target_member.member_id
-                ),
-                attrs_sorted,
-            )
+        task_id_to_user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
+            member_tasks,
+            self._member_task_repository.get_given_by_member_by_list_id_and_member_id(
+                lst.list_id, target_member.member_id
+            ),
+            attrs_sorted,
         )
 
         task_id_to_user_field_mapping = (
-            self._member_field_slot_repo.get_grouped_field_mapping_by_member_id(
+            self._member_field_slot_repository.get_grouped_field_mapping_by_member_id(
                 target_member.member_id
             )
         )

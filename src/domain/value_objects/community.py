@@ -1,23 +1,11 @@
 import typing as t
-from dataclasses import dataclass
-
-from typing_extensions import Self
+from dataclasses import Field, dataclass
 
 from domain.entities.community import CommunityEntity
-from domain.errors import business
 from domain.value_objects import factories
-from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import Str
 
-if t.TYPE_CHECKING:
-
-    class CommunityNameStr(Str):
-        pass
-
-else:
-    CommunityNameStr = factories.make_length_limited_str_store_type(
-        "CommunityNameStr", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
-    )
+lazy from domain.value_objects.string import Str
+from infrastructure.types.classproperty import cached_classproperty
 
 
 @dataclass(frozen=True, unsafe_hash=True, kw_only=True, slots=True)
@@ -34,8 +22,10 @@ class CommunityLimits:
         if not (CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT <= self.field_slot_count_max):
             raise ValueError("Community limit of slot count max too high")
 
-        for name, limit in self.__dataclass_fields__.items():
-            limit: int
+        for name, field in self.__dataclass_fields__.items():
+            field: Field
+
+            limit: int = getattr(self, field.name)
 
             if limit < 0:
                 raise ValueError()
@@ -54,8 +44,10 @@ class CommunityLimits:
                 if limit > 255:
                     raise ValueError(f"{name} out of bounds ({limit})")
 
-    @classmethod
-    def default(cls) -> t.Self:
+    @cached_classproperty
+    def DEFAULT(cls) -> t.Self:
+        cls = t.cast(type[t.Self], cls)
+
         return cls(
             community_list_count_max=1,
             list_attribute_count_max=16,
@@ -79,4 +71,15 @@ class CommunityLimits:
     FIELD_MIN_MIN_SLOT_COUNT: t.ClassVar[t.Final[int]] = 0  # minimum number min may be
     FIELD_MIN_MAX_SLOT_COUNT: t.ClassVar[t.Final[int]] = (
         1  # minimum number max may be; max must also be bigger than min
+    )
+
+
+if t.TYPE_CHECKING:
+
+    class CommunityNameStr(Str):
+        pass
+
+else:
+    CommunityNameStr = factories.make_length_limited_str_store_type(
+        "CommunityNameStr", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
     )

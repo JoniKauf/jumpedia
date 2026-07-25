@@ -2,26 +2,25 @@ from string.templatelib import Template
 
 from discord import app_commands
 
-from domain.entities.attribute import AttributeEntity
-from domain.entities.member import MemberEntity
-from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.enums.concept import Concept
+from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.sentinels.default import DEFAULT
 from domain.typing.collection_entry import AbstractCollectionT
 from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.list import ListNameStr
 from interfaces import bindings
 from interfaces.base import BaseInterface
-from interfaces.command import groups
+from interfaces.command import cogs, groups
 from interfaces.contexts.command import CommandContext
-from interfaces.decorators.context import with_context
+from interfaces.decorators.with_context import with_context
 from interfaces.enums.attribute import AttributeTypeInterfaceEnum
 from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     CollectionEditModeInterfaceEnum,
 )
-from interfaces.message.format import F
 from interfaces.message import messages
+from interfaces.message.formatting import F
 
 
 def _collection_to_representation(
@@ -34,7 +33,10 @@ def _collection_to_representation(
     )
 
 
-class AttributeInterface(BaseInterface, group_name="attribute"):
+class AttributeInterface(
+    BaseInterface,
+    group_name=cogs.cog_concept_to_group_name(Concept.ATTRIBUTE, plural=False),
+):
     edit_group = groups.create_edit_group()
 
     @app_commands.command()
@@ -64,7 +66,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             "Collection": _collection_to_representation(info.collection),
         }
 
-        await messages.object_info(ctx.interaction, AttributeEntity, data)
+        await messages.object_info(ctx.interaction, Concept.ATTRIBUTE, data)
 
     @app_commands.command()
     @with_context()
@@ -87,7 +89,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         attr = ctx.services.attribute.create(
             AttributeSynStr(attribute_name),
             ListNameStr(list_name),
-            type.value,
+            AttributeType(type.value),  # pyright: ignore[reportArgumentType]
             AttributeFieldConfig(slot_type, 0, max_slot_count, unique_slots),
             aliases,
             collection,
@@ -105,9 +107,9 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         )
 
         consequences: Template = (
-            t"Each field of every {F.type_name(TaskEntity)} for this specific {F.type_name(AttributeEntity)} will be deleted!"
+            t"Each field of every {F.format(Concept.TASK)} for this specific {F.format(Concept.ATTRIBUTE)} will be deleted!"
             if attr.type is AttributeType.TASK
-            else t"Each custom field of every {F.type_name(MemberEntity)} who has given themselves this {F.type_name(TaskEntity)} will be deleted!"
+            else t"Each custom field of every {F.format(Concept.MEMBER)} who has given themselves this {F.format(Concept.TASK)} will be deleted!"
         )
 
         await messages.nuke_object_on_confirmation(
@@ -133,7 +135,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         )
 
         await messages.object_name_edited(
-            ctx.interaction, AttributeEntity, before, after
+            ctx.interaction, Concept.ATTRIBUTE, before, after
         )
 
     @edit_group.command(name="aliases")
@@ -151,7 +153,7 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
             AttributeSynStr(attribute_name),
             after,
             ListNameStr(list_name),
-            edit_mode.value,
+            AliasEditMode(edit_mode.value),
         )
 
         await messages.object_aliases_edited(ctx.interaction, attr)
@@ -175,13 +177,13 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity)} Min And Max Slot Count Edited",
+            t"{F.format(Concept.ATTRIBUTE)} Min And Max Slot Count Edited",
             t"The min and max slot count for the {F.mention(attr)} has been set to "
             + t"{F.raw(str(attr.field_config.min_slot_count))} and {F.raw(str(attr.field_config.max_slot_count))} successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
+                else t"\n\nUsers' field data for this {F.format(Concept.ATTRIBUTE)} was not validated and may therefore still exceed the new bounds. Manually edit their data if deemed necessary!"
             ),
         )
 
@@ -191,29 +193,35 @@ class AttributeInterface(BaseInterface, group_name="attribute"):
         self,
         ctx: CommandContext,
         attribute_name: str,
-        list_name: ListNameStr,
+        list_name: str,
         new_collection_dsl_mapping: str,
         edit_mode: CollectionEditModeInterfaceEnum,
     ) -> None:
         new_collection = bindings.mapping.collection(new_collection_dsl_mapping)
 
         attr = ctx.services.attribute.edit_collection(
-            AttributeSynStr(attribute_name), list_name, new_collection, edit_mode.value
+            AttributeSynStr(attribute_name),
+            ListNameStr(list_name),
+            new_collection,
+            CollectionEditMode(edit_mode.value),
         )
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity)} Collection Edited",
-            t"The collection for the {F.mention(attr)} has been edited successfully!"
+            t"{F.format(Concept.ATTRIBUTE)} {F.format(Concept.COLLECTION)} Edited",
+            t"The {F.format(Concept.COLLECTION)} for the {F.mention(attr)} has been edited successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
-                else t"\n\nUsers' field data for this {F.type_name(AttributeEntity)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
+                else t"\n\n{F.format(Concept.MEMBER, plural=True, possessive=True)} field data for this {F.format(Concept.ATTRIBUTE)} was not validated and may therefore be invalid for the new collection. Manually edit their data if deemed necessary!"
             ),
         )
 
 
-class AttributesInterface(BaseInterface, group_name="attributes"):
+class AttributesInterface(
+    BaseInterface,
+    group_name=cogs.cog_concept_to_group_name(Concept.ATTRIBUTE, plural=True),
+):
     edit_group = groups.create_edit_group()
 
     @app_commands.command()
@@ -251,7 +259,7 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
             ),
         }
 
-        await messages.object_browse(ctx.interaction, AttributeEntity, data)
+        await messages.object_browse(ctx.interaction, Concept.ATTRIBUTE, data)
 
     @edit_group.command(name="position_order")
     @with_context()
@@ -265,6 +273,6 @@ class AttributesInterface(BaseInterface, group_name="attributes"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.type_name(AttributeEntity, plural=True)} Position Order Edited",
-            t"The positions and therefore the ordering of all {F.type_name(AttributeEntity, plural=True)} of the {F.mention(lst)} has been edited successfully!",
+            t"{F.format(Concept.ATTRIBUTE, plural=True)} Position Order Edited",
+            t"The positions and therefore the ordering of all {F.format(Concept.ATTRIBUTE, plural=True)} of the {F.mention(lst)} has been edited successfully!",
         )

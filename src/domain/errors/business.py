@@ -1,20 +1,16 @@
 """Expected business errors that should be handled gracefully."""
 
-from dataclasses import dataclass
 import typing as t
-from string.templatelib import Template
+from dataclasses import dataclass
 
-from domain.entities.member import MemberEntity
-from domain.entities.task import TaskEntity
-from domain.enums.rank import AnyRankT
-from domain.typing.collection_entry import AbstractCollectionT
-from domain.value_objects.attribute import AttributeFieldConfig
-from domain.value_objects.field_slot import FieldSlotStr
-
-if t.TYPE_CHECKING:
-    from domain.entities.base import BaseEntity
-    from domain.entities.community import CommunityEntity
-    from domain.value_objects.string import Str
+lazy from domain.entities.member import MemberEntity
+lazy from domain.entities.task import TaskEntity
+lazy from domain.enums.rank import AnyRankT
+lazy from domain.typing.collection_entry import AbstractCollectionT
+lazy from domain.value_objects.field_slot import FieldSlotStr
+lazy from domain.entities.base import BaseEntity
+lazy from domain.entities.community import CommunityEntity
+lazy from domain.value_objects.string import Str
 
 
 # --- Base --- #
@@ -53,7 +49,6 @@ class InCommunity(BusinessError):
 @dataclass()
 class NoDefaultSelectedList(BusinessError):
     community: CommunityEntity
-
 
 
 # --- Permission --- #
@@ -127,26 +122,20 @@ class TasksDoNotMatchMinOrMaxSlotCountCriteria(BusinessError):
 # --- Member Task --- #
 @dataclass()
 class MemberDoesNotHaveTask(BusinessError):
-    def __init__(self, member: MemberEntity) -> None:
-        super().__init__()
-        self.member = member
+    member: MemberEntity
 
 
 @dataclass()
 class MemberAlreadyHasTask(BusinessError):
-    def __init__(self, member: MemberEntity, task: TaskEntity) -> None:
-        super().__init__()
-        self.member = member
-        self.task = task
+    member: MemberEntity
+    task: TaskEntity
 
 
 # --- Count Limit Reached --- #
 @dataclass()
 class CountLimitReached(BusinessError):
-    def __init__(self, limit: int, type: type[BaseEntity]) -> None:
-        super().__init__()
-        self.limit = limit
-        self.type = type
+    limit: int
+    type: type[BaseEntity]
 
 
 @dataclass()
@@ -154,6 +143,7 @@ class AliasCountLimitSurpassed(BusinessError):
     limit: int
     entity_name: Str
     aliases: t.Sequence[Str]
+
 
 # --- Server --- #
 @dataclass()

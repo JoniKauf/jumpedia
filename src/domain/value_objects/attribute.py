@@ -3,11 +3,13 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType
-from domain.errors import business
+
+lazy from domain.errors.business import SlotCountConfigLimitExceeded
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.position import Position
-from domain.value_objects.string import Str
+
+lazy from domain.value_objects.string import Str
 
 if t.TYPE_CHECKING:
 
@@ -34,7 +36,7 @@ class AttributeFieldConfig:
             <= self.max_slot_count
             and self.max_slot_count >= CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
         ):
-            raise business.SlotCountConfigLimitExceeded(
+            raise SlotCountConfigLimitExceeded(
                 self.min_slot_count,
                 self.max_slot_count,
                 CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
@@ -88,6 +90,17 @@ KindedAttributeDefaultProperties.DEFAULTS = (  # type: ignore
         Position(3),
     ),
     KindedAttributeDefaultProperties(
+        AttributeSynStr("Created At"),
+        AttributeKind.CREATED_AT,
+        AttributeFieldConfig(
+            AttributeSlotType.STRING,
+            1,
+            1,
+            False,
+        ),
+        Position(4),
+    ),
+    KindedAttributeDefaultProperties(
         AttributeSynStr("Given At"),
         AttributeKind.GIVEN_AT,
         AttributeFieldConfig(
@@ -96,7 +109,7 @@ KindedAttributeDefaultProperties.DEFAULTS = (  # type: ignore
             1,
             False,
         ),
-        Position(4),
+        Position(5),
     ),
     KindedAttributeDefaultProperties(
         AttributeSynStr("Given By"),
@@ -107,6 +120,11 @@ KindedAttributeDefaultProperties.DEFAULTS = (  # type: ignore
             1,
             False,
         ),
-        Position(5),
+        Position(6),
     ),
 )
+
+
+assert tuple(
+    default.kind for default in KindedAttributeDefaultProperties.DEFAULTS
+) == tuple(kind for kind in AttributeKind if kind is not AttributeKind.NONE)

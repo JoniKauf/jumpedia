@@ -18,10 +18,10 @@ class CommunityRank(enum.IntEnum):
 class MetaRank(enum.IntEnum):
     USER = 0
     ADMINISTRATOR = 1
-    JONIKAUF = 2
+    OWNER = 2
 
     LOWEST = USER
-    HIGHEST = JONIKAUF
+    HIGHEST = OWNER
     DEFAULT = LOWEST
 
 

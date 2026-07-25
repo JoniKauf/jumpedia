@@ -3,7 +3,6 @@ import typing as t
 from dataclasses import dataclass
 
 
-
 class OpType(enum.Enum):
     EQ = enum.auto()
     NEQ = enum.auto()

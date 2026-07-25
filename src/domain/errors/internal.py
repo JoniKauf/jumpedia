@@ -2,10 +2,11 @@
 
 These should not be handled gracefully."""
 
-
 from dataclasses import dataclass
 
-from domain.entities.base import BaseEntity
+lazy from domain.entities.base import BaseEntity
+lazy from domain.typing.common import ID
+
 
 @dataclass()
 class InternalError(Exception):
@@ -15,6 +16,7 @@ class InternalError(Exception):
 @dataclass()
 class NotFoundById(InternalError):
     type: type[BaseEntity]
+    id: ID
 
 
 @dataclass()

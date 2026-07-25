@@ -20,28 +20,28 @@ from services.task import TaskPrepareService, TaskQueryService, TaskService
 from services.user import UserService
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PublicServices:
-    server: ServerService
+    attribute: AttributeService
+    attribute_prepare: AttributePrepareService
+    attribute_query: AttributeQueryService
     community: CommunityService
     community_prepare: CommunityPrepareService
     community_query: CommunityQueryService
     list: ListService
     list_prepare: ListPrepareService
     list_query: ListQueryService
-    attribute: AttributeService
-    attribute_prepare: AttributePrepareService
-    attribute_query: AttributeQueryService
+    member: MemberService
+    member_task: MemberTaskService
+    member_task_query: MemberTaskQueryService
+    server: ServerService
     task: TaskService
     task_prepare: TaskPrepareService
     task_query: TaskQueryService
-    member_task: MemberTaskService
-    member_task_query: MemberTaskQueryService
     user: UserService
-    member: MemberService
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CommandContext:
     services: PublicServices
     interaction: discord.Interaction

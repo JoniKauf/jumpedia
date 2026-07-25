@@ -3,36 +3,39 @@ from dataclasses import dataclass
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.rank import CommunityRank
-from domain.errors import business
-from domain.sentinels.default import DEFAULT
-from domain.value_objects.attribute import (
-    AttributeFieldConfig,
-    AttributeSynStr,
-    KindedAttributeDefaultProperties,
+from domain.errors.business import (
+    CountLimitReached,
+    NoDefaultSelectedList,
+    NotFoundByName,
+    SynAlreadyTaken,
 )
+from domain.sentinels.default import DEFAULT
+from domain.value_objects.attribute import KindedAttributeDefaultProperties
 from domain.value_objects.community import CommunityNameStr
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.position import Position
-from repositories.attribute import AttributeRepository
+
+lazy from repositories.attribute import AttributeRepository
 from repositories.dtos.attribute import AttributeInsert
 from repositories.dtos.list import ListInsert
-from repositories.list import ListRepository
-from repositories.task import TaskRepository
-from services.community import CommunityAccessService
-from services.dtos.list import ListInfo, ListSummary, PreparedDeleteList
-from services.internal.permission import PermissionService
-from services.member import MemberAccessService
+
+lazy from repositories.list import ListRepository
+lazy from repositories.task import TaskRepository
+lazy from services.community import CommunityAccessService
+lazy from services.dtos.list import ListInfo, ListSummary, PreparedDeleteList
+lazy from services.internal.permission import PermissionService
+lazy from services.member import MemberAccessService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListService:
-    _list_repo: ListRepository
-    _attribute_repo: AttributeRepository
-    _permission_service: PermissionService
-    _member_access_service: MemberAccessService
+    _attribute_repository: AttributeRepository
+    _list_repository: ListRepository
+
     _list_access_service: ListAccessService
+    _member_access_service: MemberAccessService
+    _permission_service: PermissionService
 
     def create(self, name: ListNameStr) -> ListEntity:
         community, member = self._member_access_service.get_convenient(DEFAULT)
@@ -41,23 +44,23 @@ class ListService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        list_count = self._list_repo.count_by_community(community.community_id)
+        list_count = self._list_repository.count_by_community(community.community_id)
 
         if list_count >= community.limits.community_list_count_max:
-            raise business.CountLimitReached(
+            raise CountLimitReached(
                 community.limits.community_list_count_max, ListEntity
             )
 
-        if existing := self._list_repo.get_by_community_and_name(
+        if existing := self._list_repository.get_by_community_and_name(
             community.community_id, name
         ):
-            raise business.SynAlreadyTaken(existing, name, False, False)
+            raise SynAlreadyTaken(existing, name, False, False)
 
-        lst = self._list_repo.create(ListInsert(community.community_id, name))
+        lst = self._list_repository.create(ListInsert(community.community_id, name))
 
         # Create kinded attributes
         for attr in KindedAttributeDefaultProperties.DEFAULTS:
-            self._attribute_repo.create(
+            self._attribute_repository.create(
                 AttributeInsert(
                     lst.list_id,
                     attr.name,
@@ -71,7 +74,7 @@ class ListService:
         return lst
 
     def delete(self, prepared: PreparedDeleteList) -> None:
-        self._list_repo.delete(prepared.list_id)
+        self._list_repository.delete(prepared.list_id)
 
     def edit_name(
         self, current_name: ListNameStr, new_name: ListNameStr
@@ -82,14 +85,14 @@ class ListService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        name_taken_lst = self._list_repo.get_by_community_and_name(
+        name_taken_lst = self._list_repository.get_by_community_and_name(
             lst.community_id, new_name
         )
 
         if name_taken_lst is not None:
-            raise business.SynAlreadyTaken(name_taken_lst, lst.name, False, False)
+            raise SynAlreadyTaken(name_taken_lst, lst.name, False, False)
 
-        self._list_repo.update(lst)
+        self._list_repository.update(lst)
 
         return lst.name
 
@@ -113,19 +116,20 @@ class ListPrepareService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListQueryService:
-    _list_repo: ListRepository
-    _attribute_repo: AttributeRepository
-    _task_repo: TaskRepository
+    _attribute_repository: AttributeRepository
+    _list_repository: ListRepository
+    _task_repository: TaskRepository
+
     _community_access_service: CommunityAccessService
     _list_access_service: ListAccessService
 
     def get_info(self, name: ListNameStr) -> ListInfo:
         community, _, lst = self._list_access_service.get_convenient(DEFAULT, name)
 
-        attributes = self._attribute_repo.get_all_by_list_id_ordered_by_position(
+        attributes = self._attribute_repository.get_all_by_list_id_ordered_by_position(
             lst.list_id, AttributeType.ALL, AttributeKind.ALL
         )
-        task_count = self._task_repo.count_by_list(lst.list_id)
+        task_count = self._task_repository.count_by_list(lst.list_id)
         is_default = community.default_selected_list_id == lst.list_id
 
         return ListInfo(
@@ -138,15 +142,15 @@ class ListQueryService:
     def get_summaries(self) -> tuple[ListSummary, ...]:
         community = self._community_access_service.get_convenient(DEFAULT)
 
-        lists = self._list_repo.get_all_by_community(community.community_id)
+        lists = self._list_repository.get_all_by_community(community.community_id)
 
         attributes_by_list = (
-            self._attribute_repo.get_grouped_by_list_id_ordered_by_position(
+            self._attribute_repository.get_grouped_by_list_id_ordered_by_position(
                 community.community_id
             )
         )
 
-        task_counts = self._task_repo.count_grouped_by_list_id(
+        task_counts = self._task_repository.count_grouped_by_list_id(
             community.community_id,
         )
 
@@ -165,16 +169,19 @@ class ListQueryService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class ListAccessService:
-    _list_repo: ListRepository
+    _list_repository: ListRepository
+
     _member_access_service: MemberAccessService
 
     def get_by_community_and_name_or_raise(
         self, community: CommunityEntity, name: ListNameStr
     ) -> ListEntity:
-        lst = self._list_repo.get_by_community_and_name(community.community_id, name)
+        lst = self._list_repository.get_by_community_and_name(
+            community.community_id, name
+        )
 
         if lst is None:
-            raise business.NotFoundByName(name, ListEntity)
+            raise NotFoundByName(ListEntity, name)
 
         return lst
 
@@ -191,9 +198,9 @@ class ListAccessService:
         selected_list_id = member.selected_list_id or community.default_selected_list_id
 
         if selected_list_id is None:
-            raise business.NoDefaultSelectedList(community)
+            raise NoDefaultSelectedList(community)
 
-        lst = self._list_repo.get_by_id(selected_list_id)
+        lst = self._list_repository.get_by_id(selected_list_id)
 
         assert lst is not None
 

@@ -1,7 +1,8 @@
 from domain.entities.base import BaseEntity
 from domain.enums.rank import MetaRank
 from domain.typing.user import UserID
-from domain.value_objects.user import UserNameStr
+
+lazy from domain.value_objects.user import UserNameStr
 
 
 class UserEntity(BaseEntity[UserID]):

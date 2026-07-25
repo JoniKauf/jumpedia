@@ -2,6 +2,7 @@ from db.models import UserModel
 from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from domain.errors import business
+from domain.errors.internal import InternalError, NotFoundById
 from domain.typing.user import UserID
 from domain.value_objects.string import RealStr
 from domain.value_objects.user import UserNameStr
@@ -16,7 +17,7 @@ def user_model_to_entity(model: UserModel) -> UserEntity:
         name=UserNameStr._create_from_real_and_norm(
             RealStr(model.raw_name), model.norm_name
         ),
-        rank=MetaRank(model.power),
+        rank=MetaRank(model.rank),
     )
 
 
@@ -30,7 +31,7 @@ class UserRepository(BaseRepository):
             user_id=user.id,
             norm_name=user.name.norm,
             raw_name=user.name.raw,
-            power=user.rank,
+            rank=user.rank.value,
         )
 
         self._session.add(obj)
@@ -45,10 +46,10 @@ class UserRepository(BaseRepository):
         obj = self._session.get(UserModel, user.user_id)
 
         if obj is None:
-            raise business.InternalError("Tried updating a non existant user")
+            raise NotFoundById(UserEntity, user.user_id)
 
         obj.raw_name = user.name.raw
         obj.norm_name = user.name.norm
-        obj.power = user.meta_rank
+        obj.rank = user.meta_rank
 
         return user_model_to_entity(obj)

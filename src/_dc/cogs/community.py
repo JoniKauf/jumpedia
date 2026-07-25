@@ -8,10 +8,10 @@ import discord.ext.commands as cmds
 from _adapters._community import CommunityAdapter
 from _adapters.interaction import _InteractionAdapter
 from structures.community import Community
+from utils import text
 
 from _dc_utils import command, confirm, group, message, predicate, shortcuts
 from domain.enum.rank import CommunityRank, JumpediaRank, ServerRank
-from utils import text
 
 _CommunityRowTs = tuple[
     str,

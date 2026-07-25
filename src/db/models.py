@@ -110,8 +110,8 @@ class ListModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("community_id", "norm_name"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -130,13 +130,13 @@ class UserModel(BaseModel):
         )
     )
     raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
-    power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         CheckConstraint(
-            f"power BETWEEN {min(r for r in MetaRank)} AND {max(r for r in MetaRank)}"
+            f"rank BETWEEN {min(r for r in MetaRank)} AND {max(r for r in MetaRank)}"
         ),
+        *BaseModel.__table_args__,
     )
 
 
@@ -155,15 +155,15 @@ class MemberModel(BaseModel):
         ForeignKey("jumpedia_user.user_id", ondelete="CASCADE")
     )
 
-    power: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     selected_list_id: Mapped[ListID | None] = mapped_column(
         ForeignKey("list.list_id", ondelete="SET NULL")
     )
 
     __table_args__ = (
+        CheckConstraint(f"rank BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"),
         *BaseModel.__table_args__,
-        CheckConstraint(f"power BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"),
     )
 
 
@@ -206,7 +206,6 @@ class AttributeModel(BaseModel):
     position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "kind"),
         UniqueConstraint("list_id", "norm_name"),
         UniqueConstraint("list_id", "position"),
@@ -218,6 +217,7 @@ class AttributeModel(BaseModel):
         CheckConstraint(
             f"slot_type IN ({', '.join(str(slot_type.value) for slot_type in AttributeSlotType)})",
         ),
+        *BaseModel.__table_args__,
     )
 
 
@@ -246,8 +246,8 @@ class AttributeAliasModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_alias"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -278,9 +278,9 @@ class CollectionEntryModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
-        UniqueConstraint("attribute_id", "norm_slot"),
+        UniqueConstraint("attribute_id", "norm_value"),
         UniqueConstraint("attribute_id", "index"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -312,8 +312,8 @@ class CollectionEntryAliasModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("attribute_id", "norm_alias"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -348,8 +348,8 @@ class TaskModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_name"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -377,8 +377,8 @@ class TaskAliasModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("list_id", "norm_alias"),
+        *BaseModel.__table_args__,
     )
 
 
@@ -404,7 +404,6 @@ class FieldSlotModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         # Index for looking up all task slots for a given attribute
         Index(
             "ix_field_slot_attribute_task_index",
@@ -412,6 +411,7 @@ class FieldSlotModel(BaseModel):
             "task_id",
             "index",
         ),
+        *BaseModel.__table_args__,
     )
 
 
@@ -444,8 +444,8 @@ class MemberTaskModel(BaseModel):
     )
 
     __table_args__ = (
-        *BaseModel.__table_args__,
         UniqueConstraint("member_id", "task_id"),
+        *BaseModel.__table_args__,
     )
 
 

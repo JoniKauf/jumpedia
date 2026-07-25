@@ -17,46 +17,50 @@ from domain.typing.field_mapping import (
     FrozenFieldMappingEntityToStrings,
     RawFieldMappingT,
 )
-from domain.typing.member import MemberID
 from domain.typing.task import TaskID
+from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.filter import FilterT
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
-from repositories.attribute import AttributeRepository, AttributeSynStr
-from repositories.collection_entry import CollectionEntryRepository
-from repositories.community import CommunityNameStr
-from repositories.dtos.member import MemberInsert
+
+lazy from repositories.attribute import AttributeRepository
+lazy from repositories.collection_entry import CollectionEntryRepository
+lazy from repositories.community import CommunityNameStr
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 from repositories.dtos.member_task import MemberTaskInsert
-from repositories.field_slot import FieldSlotRepository
+
+lazy from repositories.field_slot import FieldSlotRepository
 from repositories.member import MemberRepository
-from repositories.member_field_slot import MemberFieldSlotRepository
-from repositories.member_task import MemberTaskRepository
-from repositories.task import TaskRepository
-from services.community import ListAccessService
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.member_field_slot import MemberFieldSlotRepository
+lazy from repositories.member_task import MemberTaskRepository
+lazy from repositories.task import TaskRepository
+lazy from services.community import ListAccessService
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
-from services.internal.field_mapping import (
+
+lazy from services.internal.field_mapping import (
     FieldMappingBuildService,
     FieldMappingExtractionService,
     FieldMappingService,
     FieldMappingTransformationService,
 )
-from services.internal.slot_type import SlotTypeService
-from services.member import MemberAccessService, MemberExistenceService, MemberService
-from services.task import TaskAccessService
+lazy from services.internal.slot_type import SlotTypeService
+lazy from services.member import MemberAccessService, MemberExistenceService
+lazy from services.task import TaskAccessService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskService:
-    _attribute_repo: AttributeRepository
-    _field_mapping_service: FieldMappingBuildService
-    _collection_entry_repo: CollectionEntryRepository
-    _task_access_service: TaskAccessService
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+    _member_field_slot_repository: MemberFieldSlotRepository
+    _member_task_repository: MemberTaskRepository
+
+    _field_mapping_build_service: FieldMappingBuildService
     _member_access_service: MemberAccessService
-    _member_task_repo: MemberTaskRepository
-    _member_field_slot_repo: MemberFieldSlotRepository
+    _task_access_service: TaskAccessService
 
     def give_to_user(
         self,
@@ -77,8 +81,10 @@ class MemberTaskService:
 
         del actor_member, target_user
 
-        existing_member_task = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member.member_id, task.task_id
+        existing_member_task = (
+            self._member_task_repository.get_by_member_id_and_task_id(
+                target_member.member_id, task.task_id
+            )
         )
 
         if existing_member_task is not None:
@@ -87,20 +93,20 @@ class MemberTaskService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
-        ufm = self._field_mapping_service.build_raw(
+        ufm = self._field_mapping_build_service.build_raw(
             user_field_mapping, syn_to_attr, attr_id_to_collection
         )
 
-        member_task = self._member_task_repo.create(
+        member_task = self._member_task_repository.create(
             MemberTaskInsert(target_member.member_id, task.task_id, given_by_id)
         )
 
@@ -119,7 +125,7 @@ class MemberTaskService:
                     )
 
             if inserts:
-                self._member_field_slot_repo.create_many(inserts)
+                self._member_field_slot_repository.create_many(inserts)
 
         return target_member, task
 
@@ -139,14 +145,16 @@ class MemberTaskService:
 
         del actor_member, target_user
 
-        existing_target_member = self._member_task_repo.get_by_member_id_and_task_id(
-            target_member.member_id, task.task_id
+        existing_target_member = (
+            self._member_task_repository.get_by_member_id_and_task_id(
+                target_member.member_id, task.task_id
+            )
         )
 
         if existing_target_member is None:
             raise business.MemberDoesNotHaveTask(target_member)
 
-        self._member_task_repo.delete(existing_target_member.member_task_id)
+        self._member_task_repository.delete(existing_target_member.member_task_id)
 
         return target_member, task
 
@@ -168,7 +176,7 @@ class MemberTaskService:
 
         del actor_member, target_user
 
-        member_task = self._member_task_repo.get_by_member_id_and_task_id(
+        member_task = self._member_task_repository.get_by_member_id_and_task_id(
             target_member.member_id, task.task_id
         )
 
@@ -178,18 +186,18 @@ class MemberTaskService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
-        new_mfm = self._field_mapping_service.build_edit(
+        new_mfm = self._field_mapping_build_service.build_edit(
             edit_mode,
-            self._member_field_slot_repo.get_field_mapping_by_member_id_and_task_id(
+            self._member_field_slot_repository.get_field_mapping_by_member_id_and_task_id(
                 target_member.member_id, task.task_id
             ),
             new_member_field_mapping,
@@ -199,7 +207,7 @@ class MemberTaskService:
 
         del new_member_field_mapping
 
-        self._member_field_slot_repo.replace_all_by_member_task_id(
+        self._member_field_slot_repository.replace_all_by_member_task_id(
             member_task.member_task_id,
             (
                 MemberFieldSlotInsert(
@@ -215,19 +223,6 @@ class MemberTaskService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskQueryService:
-    _task_repo: TaskRepository
-    _attribute_repo: AttributeRepository
-    _field_slot_repo: FieldSlotRepository
-    _list_access_service: ListAccessService
-    _collection_entry_repo: CollectionEntryRepository
-    _member_field_slot_repo: MemberFieldSlotRepository
-    _member_existence_service: MemberExistenceService
-    _slot_type_service: SlotTypeService
-    _member_task_access_service: MemberTaskAccessService
-    _member_repo: MemberRepository
-    _member_task_repo: MemberTaskRepository
-    _field_mapping_transformation_service: FieldMappingTransformationService
-    _field_mapping_extraction_service: FieldMappingExtractionService
     _field_mapping_service: FieldMappingService
 
     def get_info(
@@ -271,10 +266,9 @@ class MemberTaskQueryService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskAccessService:
-    _ctx: InteractingUserContext
-    _member_task_repo: MemberTaskRepository
-    _task_access_service: TaskAccessService
     _member_existence_service: MemberExistenceService
+    _member_task_repository: MemberTaskRepository
+    _task_access_service: TaskAccessService
 
     def get_member_task_or_raise(
         self, target_user: UserRef | DEFAULT, community_id: CommunityID, task_id: TaskID
@@ -282,7 +276,7 @@ class MemberTaskAccessService:
         target_member = self._member_existence_service.get_or_create_with_user_ref(
             target_user, community_id
         )
-        member_task = self._member_task_repo.get_by_member_id_and_task_id(
+        member_task = self._member_task_repository.get_by_member_id_and_task_id(
             target_member.member_id, task_id
         )
 

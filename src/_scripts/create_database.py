@@ -4,7 +4,6 @@ import mariadb
 from _adapters import interaction
 from structures import db
 from structures.jumpedia import Jumpedia
-
 from utils import orm, secret
 
 

@@ -1,20 +1,22 @@
 from string.templatelib import Template
 
 from discord import app_commands
-from message import format
 
 from domain.entities.attribute import AttributeEntity
 from domain.entities.list import ListEntity
 from domain.entities.task import TaskEntity
+from domain.enums.concept import Concept
 from domain.value_objects.list import ListNameStr
 from interfaces.base import BaseInterface
-from interfaces.command import groups
-from interfaces.decorators.context import CommandContext, with_context
+from interfaces.command import cogs, groups
+from interfaces.decorators.with_context import CommandContext, with_context
 from interfaces.message import messages
-from services.dtos.list import ListSummary
+from interfaces.message.formatting import F
 
 
-class ListInterface(BaseInterface, group_name="list"):
+class ListInterface(
+    BaseInterface, group_name=cogs.cog_concept_to_group_name(Concept.LIST, plural=False)
+):
     edit_group = groups.create_edit_group()
 
     @app_commands.command()
@@ -31,7 +33,7 @@ class ListInterface(BaseInterface, group_name="list"):
             "Task Count": (str(info.task_count),),
         }
 
-        await messages.object_info(ctx.interaction, type(info), data)
+        await messages.object_info(ctx.interaction, Concept.LIST, data)
 
     @app_commands.command()
     @with_context()
@@ -48,7 +50,7 @@ class ListInterface(BaseInterface, group_name="list"):
         )
 
         consequences: Template = (
-            t"All {format.type_name_for_body(TaskEntity, False)} and {format.type_name_for_body(AttributeEntity, False)} of this specific {format.type_name_for_body(ListEntity)} will be deleted! This also includes their sub-data like fields, user fields, collections and more!"
+            t"All {F.format(Concept.TASK, plural=True)} and {F.format(Concept.ATTRIBUTE, plural=True)} of this specific {F.format(Concept.LIST)} will be deleted! This also includes their sub-data like fields, user fields, collections and more!"
         )
 
         await messages.nuke_object_on_confirmation(
@@ -67,10 +69,12 @@ class ListInterface(BaseInterface, group_name="list"):
         after = ListNameStr(new_list_name)
         before = ctx.services.list.edit_name(ListNameStr(list_name), after)
 
-        await messages.object_name_edited(ctx.interaction, ListEntity, before, after)
+        await messages.object_name_edited(ctx.interaction, Concept.LIST, before, after)
 
 
-class ListsInterface(BaseInterface, group_name="lists"):
+class ListsInterface(
+    BaseInterface, group_name=cogs.cog_concept_to_group_name(Concept.LIST, plural=True)
+):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
@@ -91,4 +95,4 @@ class ListsInterface(BaseInterface, group_name="lists"):
             "Task Count": tuple((str(summary.task_count),) for summary in summaries),
         }
 
-        await messages.object_browse(ctx.interaction, ListSummary, data)
+        await messages.object_browse(ctx.interaction, Concept.LIST, data)

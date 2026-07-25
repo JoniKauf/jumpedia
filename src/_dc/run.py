@@ -12,7 +12,6 @@ import discord as dc
 from discord import HTTPException, InteractionResponded
 from discord import app_commands as acmds
 from discord.ext import commands as cmds
-
 from utils import secret, text
 
 BOT = cmds.Bot(command_prefix="j!", intents=dc.Intents.default())
@@ -37,13 +36,8 @@ async def on_ready():
 async def on_app_command_error(
     interaction: dc.Interaction, error: acmds.AppCommandError
 ) -> None:
-    from _dc_utils.errors import (
-        BaseUserReturnableError,
-        DoubleBacktick,
-        EmptyString,
-        FeedbackError,
-        Unhandled,
-    )
+    from _dc_utils.errors import (BaseUserReturnableError, DoubleBacktick,
+                                  EmptyString, FeedbackError, Unhandled)
 
     if isinstance(error, acmds.CommandInvokeError):
         e = error.original

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from domain.entities.member import MemberEntity
+lazy from domain.entities.member import MemberEntity
 
 
 @dataclass(frozen=True, slots=True)

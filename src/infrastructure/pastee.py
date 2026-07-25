@@ -1,14 +1,15 @@
 import enum
 import itertools
+import os
 import time
 import typing as t
 from collections import deque
 
+import dotenv
 import requests
 
-from utils import text
-
-__TOKEN = secret.listen().PASTEE_TOKEN
+from infrastructure.env import ENV
+from infrastructure.utils import text
 
 
 def create_pastee(
@@ -18,7 +19,7 @@ def create_pastee(
 ) -> str:
     headers = {
         "Content-Type": "application/json",
-        "X-Auth-Token": __TOKEN,
+        "X-Auth-Token": ENV["PASTEE_TOKEN"],
     }
 
     payload: dict[str, t.Any] = {

@@ -2,8 +2,6 @@ import re
 import string
 import typing as t
 
-from domain.errors import business
-
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
 
@@ -35,7 +33,7 @@ class BaseSingleStr:
         return self._str
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self._str!r})"
+        return f"{self.__class__.__qualname__}({self._str!r})"
 
     def __len__(self) -> int:
         return len(self._str)
@@ -175,6 +173,9 @@ class Str:
 
     def __str__(self) -> str:
         return str(self.real)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__qualname__}({repr(self.real.value)})"
 
     def real_equals(self, value: object) -> bool:
         if not isinstance(value, type(self)):

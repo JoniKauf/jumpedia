@@ -1,13 +1,12 @@
-from dataclasses import dataclass
-
 from domain.entities.base import BaseEntity
 from domain.entities.user import UserEntity
-from domain.enums.rank import CommunityRank, MetaRank
-from domain.typing.community import CommunityID
-from domain.typing.list import ListID
+
+lazy from domain.enums.rank import CommunityRank
+lazy from domain.typing.community import CommunityID
+lazy from domain.typing.list import ListID
 from domain.typing.member import MemberID
-from domain.value_objects.string import Str
-from domain.value_objects.user import UserNameStr
+
+lazy from domain.value_objects.user import UserNameStr
 
 
 class MemberEntity(BaseEntity[MemberID]):

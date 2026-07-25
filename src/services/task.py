@@ -9,7 +9,15 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
-from domain.errors import business
+from domain.errors.business import (
+    AliasCountLimitSurpassed,
+    AliasesDidNotChange,
+    CountLimitReached,
+    NameNotDifferent,
+    NotFoundByName,
+    NotFoundBySyn,
+    SynAlreadyTaken,
+)
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import SlotTypeT, TaskAttributeTypeT
 from domain.typing.field_mapping import (
@@ -22,36 +30,43 @@ from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.filter import FilterT
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
-from repositories.attribute import AttributeRepository
-from repositories.collection_entry import CollectionEntryRepository
+
+lazy from repositories.attribute import AttributeRepository
+lazy from repositories.collection_entry import CollectionEntryRepository
+from repositories.dtos.field_slot import FieldSlotInsert
 from repositories.dtos.task import TaskAliasInsert, TaskInsert
-from repositories.field_slot import FieldSlotInsert, FieldSlotRepository
-from repositories.task import TaskRepository
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.field_slot import FieldSlotRepository
+lazy from repositories.task import TaskRepository
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.task import PreparedDeleteTask
-from services.internal.edit_mode import EditModeService
-from services.internal.field_mapping import (
+
+lazy from services.internal.edit_mode import EditModeService
+lazy from services.internal.field_mapping import (
     FieldMappingBuildService,
     FieldMappingExtractionService,
     FieldMappingService,
     FieldMappingTransformationService,
 )
-from services.internal.permission import PermissionService
-from services.internal.slot_type import SlotTypeService
-from services.list import ListAccessService
+lazy from services.internal.permission import PermissionService
+lazy from services.internal.slot_type import SlotTypeService
+lazy from services.internal.strs import StrsService
+lazy from services.list import ListAccessService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskService:
-    _task_repo: TaskRepository
-    _attribute_repo: AttributeRepository
-    _permission_service: PermissionService
-    _list_access_service: ListAccessService
-    _field_mapping_service: FieldMappingBuildService
-    _collection_entry_repo: CollectionEntryRepository
-    _field_slot_repo: FieldSlotRepository
-    _task_access_service: TaskAccessService
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+    _field_slot_repository: FieldSlotRepository
+    _task_repository: TaskRepository
+
     _edit_mode_service: EditModeService
+    _field_mapping_build_service: FieldMappingBuildService
+    _list_access_service: ListAccessService
+    _permission_service: PermissionService
+    _strs_service: StrsService
+    _task_access_service: TaskAccessService
 
     def create(
         self,
@@ -69,31 +84,29 @@ class TaskService:
         self._permission_service.ensure_community_rank(member, CommunityRank.HELPER)
 
         # --- Verify Limit Of Count Not Exceeded --- #
-        task_count = self._task_repo.count_by_list(lst.list_id)
+        task_count = self._task_repository.count_by_list(lst.list_id)
 
         if task_count >= community.limits.list_task_count_max:
-            raise business.CountLimitReached(
-                community.limits.list_task_count_max, TaskEntity
-            )
+            raise CountLimitReached(community.limits.list_task_count_max, TaskEntity)
 
         syns: tuple[FieldSlotStr, ...] = (task_name, *aliases)
 
         if len(aliases) > community.limits.field_slot_count_max:
-            raise business.AliasCountLimitSurpassed(
+            raise AliasCountLimitSurpassed(
                 community.limits.field_slot_count_max, task_name, tuple(aliases)
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
-        FieldSlotStr.raise_if_not_unique(syns)
+        self._strs_service.validate_unique_syns(syns, TaskEntity)
 
-        existing_same_syn = self._task_repo.get_first_by_list_id_and_any_syn(
+        existing_same_syn = self._task_repository.get_first_by_list_id_and_any_syn(
             lst.list_id, syns, None
         )
 
         if existing_same_syn is not None:
             colliding_task, colliding_syn = existing_same_syn
 
-            raise business.SynAlreadyTaken(
+            raise SynAlreadyTaken(
                 *existing_same_syn,
                 colliding_task.name != colliding_syn,
                 colliding_syn != task_name,
@@ -104,26 +117,26 @@ class TaskService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
-        fm = self._field_mapping_service.build_raw(
+        fm = self._field_mapping_build_service.build_raw(
             field_mapping, syn_to_attr, attr_id_to_collection
         )
 
         del field_mapping
 
         # --- Create Task ---
-        task_entity = self._task_repo.create(TaskInsert(lst.list_id, task_name))
+        task_entity = self._task_repository.create(TaskInsert(lst.list_id, task_name))
 
         # --- Create Task Aliases ---
-        self._task_repo.create_many_aliases(
+        self._task_repository.create_many_aliases(
             TaskAliasInsert(task_entity.task_id, Index(i), lst.list_id, alias)
             for i, alias in enumerate(aliases)
         )
@@ -141,12 +154,12 @@ class TaskService:
                     )
 
             if inserts:
-                _ = self._field_slot_repo.create_many(inserts)
+                _ = self._field_slot_repository.create_many(inserts)
 
         return task_entity
 
     def delete(self, prepared: PreparedDeleteTask) -> None:
-        self._task_repo.delete(prepared.task_id)
+        self._task_repository.delete(prepared.task_id)
 
     def edit_name(
         self, new_name: FieldSlotStr, task_name: FieldSlotStr, list_name: ListNameStr
@@ -159,9 +172,9 @@ class TaskService:
 
         # Exactly equal (real matches, not just norm)
         if task.name.real == new_name.real:
-            raise business.NameNotDifferent(task_name)
+            raise NameNotDifferent(task)
 
-        existing_task_and_syn = self._task_repo.get_by_list_id_and_syn(
+        existing_task_and_syn = self._task_repository.get_by_list_id_and_syn(
             lst.list_id,
             new_name,
         )
@@ -171,11 +184,11 @@ class TaskService:
 
             # False if the current task has the same name but with different casing
             if not (existing_task == task and task.name == existing_syn):
-                raise business.SynAlreadyTaken(
+                raise SynAlreadyTaken(
                     existing_task, new_name, existing_task.name != existing_syn, False
                 )
 
-        self._task_repo.update_name(task.task_id, new_name)
+        self._task_repository.update_name(task.task_id, new_name)
 
         return task.name
 
@@ -192,9 +205,9 @@ class TaskService:
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
-        FieldSlotStr.raise_if_not_unique(new_aliases)
+        self._strs_service.validate_unique_syns(new_aliases, TaskEntity)
 
-        current_aliases = self._task_repo.get_aliases_by_task_id(task.task_id)
+        current_aliases = self._task_repository.get_aliases_by_task_id(task.task_id)
 
         new_aliases = self._edit_mode_service.handle_alias_edit(
             edit_mode, current_aliases, new_aliases
@@ -202,21 +215,21 @@ class TaskService:
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if FieldSlotStr.sequence_real_equals(current_aliases, new_aliases):
-            raise business.AliasesDidNotChange(new_aliases)
+            raise AliasesDidNotChange(TaskEntity, new_aliases)
 
         del current_aliases
 
         if len(new_aliases) > community.limits.field_slot_count_max:
-            raise business.AliasCountLimitSurpassed(
+            raise AliasCountLimitSurpassed(
                 community.limits.field_slot_count_max, task.name, new_aliases
             )
 
         # Check if name collision with current task
         for alias in new_aliases:
             if alias == task.name:
-                raise business.SynAlreadyTaken(task, alias, False, True)
+                raise SynAlreadyTaken(task, alias, False, True)
 
-        existing_task_and_syn = self._task_repo.get_first_by_list_id_and_any_syn(
+        existing_task_and_syn = self._task_repository.get_first_by_list_id_and_any_syn(
             lst.list_id, new_aliases, task.task_id
         )
 
@@ -224,11 +237,11 @@ class TaskService:
         if existing_task_and_syn is not None:
             existing_task, existing_syn = existing_task_and_syn
 
-            raise business.SynAlreadyTaken(
+            raise SynAlreadyTaken(
                 existing_task, existing_syn, existing_task.name != existing_syn, True
             )
 
-        self._task_repo.update_aliases(
+        self._task_repository.update_aliases(
             task.task_id,
             (
                 TaskAliasInsert(task.task_id, Index(i), lst.list_id, alias)
@@ -254,24 +267,24 @@ class TaskService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.TASK.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
 
-        syn_to_attr = self._attribute_repo.get_syn_to_attribute_by_list_id(
+        syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
         attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
 
-        new_fm = self._field_mapping_service.build_edit(
+        new_fm = self._field_mapping_build_service.build_edit(
             edit_mode,
-            self._field_slot_repo.get_field_mapping_by_task_id(task.task_id),
+            self._field_slot_repository.get_field_mapping_by_task_id(task.task_id),
             new_field_mapping,
             syn_to_attr,
             attr_id_to_collection,
         )
 
-        self._field_slot_repo.replace_all_by_task_id(
+        self._field_slot_repository.replace_all_by_task_id(
             task.task_id,
             (
                 FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
@@ -285,8 +298,8 @@ class TaskService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskPrepareService:
-    _task_access_service: TaskAccessService
     _permission_service: PermissionService
+    _task_access_service: TaskAccessService
 
     def delete(
         self, task_name: FieldSlotStr, list_name: ListNameStr
@@ -302,15 +315,6 @@ class TaskPrepareService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskQueryService:
-    _task_access_service: TaskAccessService
-    _task_repo: TaskRepository
-    _attribute_repo: AttributeRepository
-    _field_slot_repo: FieldSlotRepository
-    _list_access_service: ListAccessService
-    _collection_entry_repo: CollectionEntryRepository
-    _field_mapping_extraction_service: FieldMappingExtractionService
-    _field_mapping_transformation_service: FieldMappingTransformationService
-    _slot_type_service: SlotTypeService
     _field_mapping_service: FieldMappingService
 
     def get_info(
@@ -335,27 +339,27 @@ class TaskQueryService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class TaskAccessService:
-    _ctx: InteractingUserContext
-    _task_repo: TaskRepository
+    _task_repository: TaskRepository
+
     _list_access_service: ListAccessService
 
     def get_by_list_and_name_or_raise(
         self, lst: ListEntity, name: FieldSlotStr
     ) -> TaskEntity:
-        task = self._task_repo.get_by_list_id_and_name(lst.list_id, name)
+        task = self._task_repository.get_by_list_id_and_name(lst.list_id, name)
 
         if task is None:
-            raise business.NotFoundByName(name, TaskEntity)
+            raise NotFoundByName(TaskEntity, name)
 
         return task
 
     def get_by_list_and_syn_or_raise(
         self, lst: ListEntity, syn: FieldSlotStr
     ) -> TaskEntity:
-        tup = self._task_repo.get_by_list_id_and_syn(lst.list_id, syn)
+        tup = self._task_repository.get_by_list_id_and_syn(lst.list_id, syn)
 
         if tup is None:
-            raise business.NotFoundBySyn(syn, TaskEntity)
+            raise NotFoundBySyn(TaskEntity, syn)
 
         return tup[0]
 

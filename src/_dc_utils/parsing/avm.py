@@ -1,10 +1,10 @@
 import typing as t
 
 from structures.attribute import AnyAttributeT, BaseAttribute
-
-from _dc_utils import errors
 from utils import orm
 from utils.text import NormStr, RealStr
+
+from _dc_utils import errors
 
 from . import mapping
 

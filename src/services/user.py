@@ -4,17 +4,19 @@ from domain.entities.user import UserEntity
 from domain.enums.rank import MetaRank
 from domain.sentinels.default import DEFAULT
 from repositories.dtos.user import UserInsert
-from repositories.user import UserRepository
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.user import UserRepository
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
-from services.internal.permission import PermissionService
+
+lazy from services.internal.permission import PermissionService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class UserService:
-    _ctx: InteractingUserContext
+    _user_repository: UserRepository
+
     _permission_service: PermissionService
-    _user_repo: UserRepository
     _user_existence_server: UserExistenceService
 
     def set_meta_rank(self, user: UserRef, meta_rank: MetaRank) -> UserEntity:
@@ -26,17 +28,14 @@ class UserService:
             target_user=target_user, meta_rank=meta_rank
         )
 
-        target_user.meta_rank = meta_rank
-
-        self._user_repo.update(target_user)
+        self._user_repository.update(target_user)
 
         return target_user
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class UserExistenceService:
-    _ctx: InteractingUserContext
-    _user_repo: UserRepository
+    _user_repository: UserRepository
 
     def get_or_create(
         self,
@@ -45,10 +44,10 @@ class UserExistenceService:
         overwrite_name: bool = True,
         overwrite_rank: bool = False,
     ) -> UserEntity:
-        existing = self._user_repo.get_by_id(user.id)
+        existing = self._user_repository.get_by_id(user.id)
 
         if existing is None:
-            return self._user_repo.create(user)
+            return self._user_repository.create(user)
 
         overwrite_any: bool = False
 
@@ -63,11 +62,11 @@ class UserExistenceService:
         if not overwrite_any:
             return existing
 
-        return self._user_repo.update(existing)
+        return self._user_repository.update(existing)
 
-    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT) -> UserEntity:
+    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT, ctx: InteractingUserContext) -> UserEntity:
         return (
-            self._ctx.user
+            ctx.user
             if user is DEFAULT
             else self.get_or_create(UserInsert(user.id, user.name))
         )

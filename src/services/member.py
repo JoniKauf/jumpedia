@@ -8,20 +8,23 @@ from domain.typing.community import CommunityID
 from domain.value_objects.community import CommunityNameStr
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert
-from repositories.member import MemberRepository
-from services.community import CommunityAccessService
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.member import MemberRepository
+lazy from services.community import CommunityAccessService
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.user import UserRef
-from services.internal.permission import PermissionService
-from services.user import UserExistenceService
+
+lazy from services.internal.permission import PermissionService
+lazy from services.user import UserExistenceService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberService:
-    _permission_service: PermissionService
-    _member_repo: MemberRepository
-    _member_existence_service: MemberExistenceService
+    _member_repository: MemberRepository
+
     _member_access_service: MemberAccessService
+    _member_existence_service: MemberExistenceService
+    _permission_service: PermissionService
     _user_existence_service: UserExistenceService
 
     def set_community_rank(
@@ -46,9 +49,7 @@ class MemberService:
             community_rank=community_rank,
         )
 
-        target_member.community_rank = community_rank
-
-        self._member_repo.update(target_member)
+        self._member_repository.update(target_member)
 
         return target_member
 
@@ -56,11 +57,13 @@ class MemberService:
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberAccessService:
     _ctx: InteractingUserContext
-    _member_repo: MemberRepository
-    _member_existence_service: MemberExistenceService
+
+    _member_repository: MemberRepository
+
     _community_access_service: CommunityAccessService
-    _user_existence_service: UserExistenceService
+    _member_existence_service: MemberExistenceService
     _permission_service: PermissionService
+    _user_existence_service: UserExistenceService
 
     def get_target_member_if_actor_member_is_permitted_to_act_for_others(
         self, actor_member: MemberEntity, target_user: UserRef | DEFAULT
@@ -88,7 +91,7 @@ class MemberAccessService:
     def get_or_create_current_with_defaults(
         self, community: CommunityEntity
     ) -> MemberEntity:
-        return self._member_repo.create(
+        return self._member_repository.create(
             MemberInsert(
                 self._ctx.user,
                 community.community_id,
@@ -106,7 +109,10 @@ class MemberAccessService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberExistenceService:
-    _member_repo: MemberRepository
+    _ctx: InteractingUserContext
+
+    _member_repository: MemberRepository
+
     _user_existence_service: UserExistenceService
 
     def get_or_create(
@@ -116,12 +122,12 @@ class MemberExistenceService:
         overwrite_rank: bool = False,
         overwrite_selected_list: bool = False,
     ) -> MemberEntity:
-        existing = self._member_repo.get_by_user_and_community_id(
+        existing = self._member_repository.get_by_user_and_community_id(
             member.user, member.community_id
         )
 
         if existing is None:
-            return self._member_repo.create(member)
+            return self._member_repository.create(member)
 
         overwrite_any: bool = False
 
@@ -136,14 +142,14 @@ class MemberExistenceService:
         if not overwrite_any:
             return existing
 
-        return self._member_repo.update(existing)
+        return self._member_repository.update(existing)
 
     def get_or_create_with_user_ref(
         self, user: UserRef | DEFAULT, community_id: CommunityID
     ) -> MemberEntity:
         return self.get_or_create(
             MemberInsert(
-                self._user_existence_service.get_or_create_with_user_ref(user),
+                self._user_existence_service.get_or_create_with_user_ref(user, self._ctx),
                 community_id,
             )
         )

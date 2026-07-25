@@ -8,6 +8,17 @@ This README grows whenever we think of something worth documenting, so expect it
 
 ---
 
+# How To Run
+
+1. Install the uv package manager.
+2. Open the Jumpedia folder in VSCode or your preferred IDE (I use VSCode so no guarantees).
+3. Use the command `uv sync` to install all dependencies.
+4. At the root directory create the `.env` file with the same layout as in `.env.example` and fill out the fields.
+5. If I forgot something, extend this! :)
+6. Run with the command `uv run python -m src`.
+
+---
+
 # Domain-Specific Knowledge
 
 Like every codebase, Jumpedia has knowledge that is specific to its own architecture and terminology. We try to keep this "domain knowledge" to a minimum because every extra concept makes onboarding new contributors harder.

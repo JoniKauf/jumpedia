@@ -2,7 +2,7 @@ import decimal
 import enum
 import typing as t
 
-from domain.typing.attribute import (
+lazy from domain.typing.attribute import (
     AnyAttributeTypeT,
     NoneKindedAttributeT,
     SlotTypeT,

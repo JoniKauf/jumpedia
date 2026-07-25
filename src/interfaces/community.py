@@ -1,34 +1,31 @@
-import datetime as dt
 import typing as t
 from dataclasses import asdict
 
 import discord
 from discord import app_commands
 
-from domain.entities.attribute import AttributeEntity
-from domain.entities.community import CommunityEntity
-from domain.entities.list import ListEntity
-from domain.entities.task import TaskEntity
+from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
 from domain.typing.common import ID
 from domain.typing.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
-from domain.value_objects.string import Str
 from domain.value_objects.user import UserNameStr
 from interfaces.attribute import ListNameStr
 from interfaces.base import BaseInterface
-from interfaces.command import groups
-from interfaces.decorators.context import CommandContext, with_context
+from interfaces.command import cogs, groups
+from interfaces.decorators.with_context import CommandContext, with_context
 from interfaces.message import messages
-from interfaces.message.format import F
-from services.dtos.community import CommunitySummary
+from interfaces.message.formatting import F
 from services.dtos.user import UserRef
 
-_DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.default()
+_DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.DEFAULT
 
 
-class CommunityInterface(BaseInterface, group_name="community"):
+class CommunityInterface(
+    BaseInterface,
+    group_name=cogs.cog_concept_to_group_name(Concept.COMMUNITY, plural=False),
+):
     edit_group = groups.create_edit_group()
 
     @app_commands.command()
@@ -62,7 +59,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             if isinstance(value, int)
         }
 
-        await messages.object_info(ctx.interaction, CommunityEntity, data)
+        await messages.object_info(ctx.interaction, Concept.COMMUNITY, data)
 
     @app_commands.command()
     @with_context()
@@ -110,7 +107,7 @@ class CommunityInterface(BaseInterface, group_name="community"):
             ctx.interaction,
             to_nuke=community,
             parent=None,
-            consequences=t"Literally every piece of information about this community will be deleted! This includes all {F.type_name(ListEntity, plural=True)}, {F.type_name(AttributeEntity, plural=True)}, {F.type_name(TaskEntity, plural=True)} and more...\n**This is the ultimate hammer of destruction!**",
+            consequences=t"Literally every piece of information about this {F.format(Concept.COMMUNITY)} will be deleted! This includes all {F.format(Concept.LIST, plural=True)}, {F.format(Concept.ATTRIBUTE, plural=True)}, {F.format(Concept.TASK, plural=True)} and more...\n**This is the ultimate hammer of destruction!**",
             execute=lambda: ctx.services.community.delete(prepared),
         )
 
@@ -125,14 +122,17 @@ class CommunityInterface(BaseInterface, group_name="community"):
 
         await messages.success(
             ctx.interaction,
-            t"Default Selected {F.type_name(ListEntity)} Edited",
-            t"The default selected {F.type_name(ListEntity)} of the {F.mention(community)} has been "
+            t"Default Selected {F.format(Concept.LIST)} Edited",
+            t"The default selected {F.format(Concept.LIST)} of the {F.mention(community)} has been "
             + (t"unset" if lst is None else t"changed to {F.mention(lst)}")
             + t" successfully!",
         )
 
 
-class CommunitiesInterface(BaseInterface, group_name="communities"):
+class CommunitiesInterface(
+    BaseInterface,
+    group_name=cogs.cog_concept_to_group_name(Concept.COMMUNITY, plural=True),
+):
     @app_commands.command()
     @with_context()
     async def browse(self, ctx: CommandContext) -> None:
@@ -148,4 +148,4 @@ class CommunitiesInterface(BaseInterface, group_name="communities"):
             ),
         }
 
-        await messages.object_browse(ctx.interaction, CommunityEntity, data)
+        await messages.object_browse(ctx.interaction, Concept.COMMUNITY, data)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from string.templatelib import Interpolation, Template, convert
 
 from domain.sentinels.default import DEFAULT
-from interfaces.message.format import F, FormatArgsEmpty, FormatArgsTypeName
+from interfaces.message.formatting import F, FormatArgsEmpty, FormatArgsTypeName
 
 
 class Status(enum.StrEnum):
@@ -23,7 +23,9 @@ def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     f = interpolation.value
 
     if not isinstance(f, F):
-        raise ValueError("Not F wrapped")
+        raise ValueError(
+            f"All interpolations' values must be of type {F.__qualname__}, which {f!r} isn't!"
+        )
 
     s = f._s
     args = f._format_args

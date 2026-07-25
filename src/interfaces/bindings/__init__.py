@@ -1,4 +1,4 @@
-import filter
-import mapping
-import sequence
-import sort
+lazy import filter
+lazy import mapping
+lazy import sequence
+lazy import sort

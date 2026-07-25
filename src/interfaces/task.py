@@ -2,6 +2,8 @@ import discord
 from discord import app_commands
 
 from domain.entities.task import TaskEntity
+from domain.enums.concept import Concept
+from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.sentinels.default import DEFAULT
 from domain.typing.common import ID
 from domain.typing.user import UserID
@@ -10,18 +12,21 @@ from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
 from interfaces import bindings
 from interfaces.base import BaseInterface
-from interfaces.command import groups
+from interfaces.command import cogs, groups
 from interfaces.contexts.command import CommandContext
-from interfaces.decorators.context import with_context
+from interfaces.decorators.with_context import with_context
 from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     FieldMappingEditModeInterfaceEnum,
 )
-from interfaces.message import format, messages
+from interfaces.message import messages
+from interfaces.message.formatting import F
 from services.dtos.user import UserRef
 
 
-class TaskInterface(BaseInterface, group_name="task"):
+class TaskInterface(
+    BaseInterface, group_name=cogs.cog_concept_to_group_name(Concept.TASK, plural=False)
+):
     edit_group = groups.create_edit_group()
 
     @app_commands.command()
@@ -36,7 +41,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.object_info(
             ctx.interaction,
-            TaskEntity,
+            Concept.TASK,
             {
                 str(attr.name): tuple(str(slot) for slot in field)
                 for attr, field in info.items()
@@ -91,7 +96,7 @@ class TaskInterface(BaseInterface, group_name="task"):
             FieldSlotStr(task_name), after, ListNameStr(list_name)
         )
 
-        await messages.object_name_edited(ctx.interaction, TaskEntity, before, after)
+        await messages.object_name_edited(ctx.interaction, Concept.TASK, before, after)
 
     @edit_group.command(name="aliases")
     @with_context()
@@ -105,7 +110,10 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         after = bindings.sequence.task_aliases(new_task_aliases_dsl_sequence)
         task = ctx.services.task.edit_aliases(
-            after, edit_mode.value, FieldSlotStr(task_name), ListNameStr(list_name)
+            after,
+            AliasEditMode(edit_mode.value),
+            FieldSlotStr(task_name),
+            ListNameStr(list_name),
         )
 
         await messages.object_aliases_edited(ctx.interaction, task)
@@ -122,15 +130,15 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         task = ctx.services.task.edit_field_mapping(
             bindings.mapping.field_mapping(new_user_field_mapping_dsl),
-            edit_mode.value,
+            FieldMappingEditMode(edit_mode.value),
             FieldSlotStr(task_name),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
         await messages.success(
             ctx.interaction,
-            t"{F.name_of_type(type(task))} Field Mapping Edited",
-            t"The field mapping of the {format.mention_body(task)} was successfully edited!",
+            t"{F.format(Concept.TASK)} {F.format(Concept.FIELD_MAPPING)} Edited",
+            t"The field mapping of the {F.mention(task)} was successfully edited!",
         )
 
     # --- Member Task --- #
@@ -156,7 +164,7 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.object_info(
             ctx.interaction,
-            TaskEntity,
+            Concept.TASK,
             {
                 str(attr.name): tuple(str(slot) for slot in field)
                 for attr, field in info.items()
@@ -186,8 +194,8 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.name_of_type(TaskEntity)} Given",
-            t"The {format.mention_body(task)} has been given to the {format.mention_body(member)} successfully!",
+            t"{F.format(Concept.TASK)} Given",
+            t"The {F.mention(task)} has been given to the {F.mention(member)} successfully!",
         )
 
     @app_commands.command()
@@ -211,8 +219,8 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"{F.name_of_type(TaskEntity)} Taken",
-            t"The {format.mention_body(task)} has been taken from the {format.mention_body(member)} successfully!",
+            t"{F.format(Concept.TASK)} Taken",
+            t"The {F.mention(task)} has been taken from the {F.mention(member)} successfully!",
         )
 
     @app_commands.command()
@@ -228,7 +236,7 @@ class TaskInterface(BaseInterface, group_name="task"):
     ) -> None:
         member, task = ctx.services.member_task.edit_member_field_mapping(
             bindings.mapping.field_mapping(new_user_field_mapping),
-            edit_mode.value,
+            FieldMappingEditMode(edit_mode.value),
             (
                 DEFAULT
                 if user is None
@@ -240,12 +248,14 @@ class TaskInterface(BaseInterface, group_name="task"):
 
         await messages.success(
             ctx.interaction,
-            t"Given {F.name_of_type(type(task))} Updated",
-            t"The {format.mention_body(task)} the {format.mention_body(member)} had already given themselves was updated successfully!",
+            t"Given {F.format(Concept.TASK)} Updated",
+            t"The {F.mention(task)} the {F.mention(member)} had already given themselves was updated successfully!",
         )
 
 
-class TasksInterface(BaseInterface, group_name="tasks"):
+class TasksInterface(
+    BaseInterface, group_name=cogs.cog_concept_to_group_name(Concept.TASK, plural=True)
+):
     @app_commands.command()
     @with_context()
     async def browse(
@@ -265,7 +275,7 @@ class TasksInterface(BaseInterface, group_name="tasks"):
 
         await messages.object_browse(
             ctx.interaction,
-            TaskEntity,
+            Concept.TASK,
             {
                 str(attr.name): tuple(
                     tuple(str(slot) for slot in field) for field in fields
@@ -301,7 +311,7 @@ class TasksInterface(BaseInterface, group_name="tasks"):
 
         await messages.object_browse(
             ctx.interaction,
-            TaskEntity,
+            Concept.TASK,
             {
                 str(attr.name): tuple(
                     tuple(str(slot) for slot in field) for field in fields

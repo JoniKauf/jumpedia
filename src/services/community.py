@@ -10,36 +10,40 @@ from domain.errors import business
 from domain.sentinels.default import DEFAULT
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
-from repositories.community import CommunityRepository
+
+lazy from repositories.community import CommunityRepository
 from repositories.dtos.community import CommunityInsert
 from repositories.dtos.member import MemberInsert
-from repositories.list import ListRepository
-from repositories.member import MemberRepository
-from repositories.server import ServerRepository
-from repositories.task import TaskRepository
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.list import ListRepository
+lazy from repositories.member import MemberRepository
+lazy from repositories.server import ServerRepository
+lazy from repositories.task import TaskRepository
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.community import (
     CommunityInfo,
     CommunitySummary,
     PreparedDeleteCommunity,
 )
 from services.dtos.user import UserRef
-from services.internal.permission import PermissionService
-from services.list import ListAccessService, ListService
-from services.member import MemberAccessService, MemberExistenceService
+
+lazy from services.internal.permission import PermissionService
+lazy from services.list import ListAccessService, ListService
+lazy from services.member import MemberAccessService, MemberExistenceService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityService:
     _ctx: InteractingUserContext
-    _server_repo: ServerRepository
-    _community_repo: CommunityRepository
-    _permission_service: PermissionService
-    _community_access_service: CommunityAccessService
-    _member_access_service: MemberAccessService
-    _member_existence_service: MemberExistenceService
+
+    _community_repository: CommunityRepository
+    _server_repository: ServerRepository
+
     _list_access_service: ListAccessService
     _list_service: ListService
+    _member_access_service: MemberAccessService
+    _member_existence_service: MemberExistenceService
+    _permission_service: PermissionService
 
     def create(
         self,
@@ -49,12 +53,12 @@ class CommunityService:
     ) -> CommunityEntity:
         self._permission_service.ensure_meta_rank(MetaRank.ADMINISTRATOR, None)
 
-        existing = self._community_repo.get_by_name(name)
+        existing = self._community_repository.get_by_name(name)
 
         if existing is not None:
             raise business.SynAlreadyTaken(existing, name, False, False)
 
-        existing = self._community_repo.get_by_server_id(self._ctx.server_id)
+        existing = self._community_repository.get_by_server_id(self._ctx.server_id)
 
         if existing is not None:
             raise business.ServerAlreadyConnectedToACommunity(
@@ -63,9 +67,9 @@ class CommunityService:
 
         del existing
 
-        community = self._community_repo.create(CommunityInsert(name, limits))
+        community = self._community_repository.create(CommunityInsert(name, limits))
 
-        self._server_repo.link(community, self._ctx.server_id)
+        self._server_repository.link(community, self._ctx.server_id)
 
         self._member_existence_service.get_or_create(
             MemberInsert(
@@ -82,14 +86,14 @@ class CommunityService:
             ListNameStr("Main")
         ).list_id
 
-        self._community_repo.update_default_selected_list_id(
+        self._community_repository.update_default_selected_list_id(
             community.community_id, default_selected_list_id
         )
 
         return community
 
     def delete(self, prepared: PreparedDeleteCommunity) -> None:
-        self._community_repo.delete(prepared.community_id)
+        self._community_repository.delete(prepared.community_id)
 
     @t.overload
     def edit_default_selected_list(
@@ -122,7 +126,7 @@ class CommunityService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        self._community_repo.update_default_selected_list_id(
+        self._community_repository.update_default_selected_list_id(
             community.community_id, None if lst is None else lst.list_id
         )
 
@@ -144,18 +148,21 @@ class CommunityPrepareService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityQueryService:
-    _community_repo: CommunityRepository
-    _list_repo: ListRepository
-    _task_repo: TaskRepository
-    _member_repo: MemberRepository
+    _community_repository: CommunityRepository
+    _list_repository: ListRepository
+    _member_repository: MemberRepository
+    _task_repository: TaskRepository
+
     _community_access_service: CommunityAccessService
 
     def get_info(self, community_name: CommunityNameStr | DEFAULT) -> CommunityInfo:
         community = self._community_access_service.get_convenient(community_name)
 
-        members = self._member_repo.get_all_by_community_id(community.community_id)
-        lists = self._list_repo.get_all_by_community(community.community_id)
-        task_count = self._task_repo.count_by_community(community.community_id)
+        members = self._member_repository.get_all_by_community_id(
+            community.community_id
+        )
+        lists = self._list_repository.get_all_by_community(community.community_id)
+        task_count = self._task_repository.count_by_community(community.community_id)
 
         default_selected_list: ListEntity | None = None
 
@@ -178,12 +185,12 @@ class CommunityQueryService:
     def get_summaries(self) -> tuple[CommunitySummary, ...]:
         id_to_community = {
             community.community_id: community
-            for community in self._community_repo.get_all()
+            for community in self._community_repository.get_all()
         }
 
-        member_count = self._member_repo.count_grouped_by_community_id()
-        list_counts = self._list_repo.count_grouped_by_community_id()
-        task_counts = self._task_repo.count_grouped_by_community_id()
+        member_count = self._member_repository.count_grouped_by_community_id()
+        list_counts = self._list_repository.count_grouped_by_community_id()
+        task_counts = self._task_repository.count_grouped_by_community_id()
 
         return tuple(
             CommunitySummary(
@@ -200,18 +207,19 @@ class CommunityQueryService:
 @dataclass(frozen=True, slots=True, eq=False)
 class CommunityAccessService:
     _ctx: InteractingUserContext
-    _community_repo: CommunityRepository
+
+    _community_repository: CommunityRepository
 
     def get_by_name_or_raise(self, name: CommunityNameStr) -> CommunityEntity:
-        community = self._community_repo.get_by_name(name)
+        community = self._community_repository.get_by_name(name)
 
         if community is None:
-            raise business.NotFoundByName(name, CommunityEntity)
+            raise business.NotFoundByName(CommunityEntity, name)
 
         return community
 
     def get_current_or_raise(self) -> CommunityEntity:
-        community = self._community_repo.get_by_server_id(self._ctx.server_id)
+        community = self._community_repository.get_by_server_id(self._ctx.server_id)
 
         if community is None:
             raise business.NotInCommunity()

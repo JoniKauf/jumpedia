@@ -8,10 +8,10 @@ from discord.app_commands import CheckFailure
 from structures import BaseStructure, BaseStructureWithAliases, errors
 from structures.task import Task
 from structures.user import CommunityUser
+from utils import gist, text
 
 from _dc_utils import layouts
 from domain.enum.rank import AnyRankT
-from utils import gist, text
 
 from . import message
 

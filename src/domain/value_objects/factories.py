@@ -1,6 +1,7 @@
-from domain.entities.base import BaseEntity
-from domain.errors import business
-from domain.value_objects.string import Str
+lazy from domain.entities.base import BaseEntity
+from domain.errors.business import NameTooLong
+
+lazy from domain.value_objects.string import Str
 
 
 def make_length_limited_str_store_type(
@@ -8,8 +9,8 @@ def make_length_limited_str_store_type(
 ) -> type[Str]:
     class ConstrainedStr(Str):
         def _validation(self) -> None:
-            if len(self) < limit:
-                raise business.NameTooLong(entity_type, self, limit)
+            if len(self) >= limit:
+                raise NameTooLong(entity_type, self, limit)
 
     ConstrainedStr.__name__ = name
     ConstrainedStr.__qualname__ = (

@@ -8,6 +8,7 @@ from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank
 from domain.errors import business
+from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
 from domain.typing.member import MemberID
 from repositories import user
@@ -20,7 +21,7 @@ def member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntity
         member_id=model.member_id,
         user=user,
         community_id=model.community_id,
-        rank=CommunityRank(model.power),
+        rank=CommunityRank(model.rank),
         selected_list_id=model.selected_list_id,
     )
 
@@ -56,7 +57,7 @@ class MemberRepository(BaseRepository):
         obj = MemberModel(
             user_id=member.user.user_id,
             community_id=member.community_id,
-            power=member.rank,
+            rank=member.rank,
             selected_list_id=member.selected_list_id,
         )
 
@@ -72,9 +73,9 @@ class MemberRepository(BaseRepository):
         obj = self._session.get(MemberModel, member.member_id)
 
         if obj is None:
-            raise business.InternalError("Tried updating a non existant member")
+            raise NotFoundById(MemberEntity, member.member_id)
 
-        obj.power = member.community_rank.value
+        obj.rank = member.community_rank.value
         obj.selected_list_id = member.selected_list_id
 
         return member_model_to_entity(obj, member.user)

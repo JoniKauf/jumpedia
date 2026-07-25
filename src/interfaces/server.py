@@ -1,13 +1,21 @@
+import discord
 from discord import app_commands
+from discord.ext import commands
 
+from domain.enums.concept import Concept
 from domain.value_objects.community import CommunityNameStr
 from interfaces.base import BaseInterface
+from interfaces.command import cogs
 from interfaces.contexts.command import CommandContext
-from interfaces.decorators.context import with_context
-from interfaces.message import format, messages
+from interfaces.decorators.with_context import with_context
+from interfaces.message import messages
+from interfaces.message.formatting import F
 
 
-class ServerInterface(BaseInterface, group_name="server"):
+class ServerInterface(
+    BaseInterface,
+    group_name=cogs.cog_concept_to_group_name(Concept.SERVER, plural=False),
+):
     @app_commands.command()
     @with_context()
     async def link(
@@ -20,7 +28,7 @@ class ServerInterface(BaseInterface, group_name="server"):
         await messages.success(
             ctx.interaction,
             t"Server Connected",
-            t"The server was successfully connected to the community {format.mention_body(community_entity)}!",
+            t"The {F.format(Concept.SERVER)} was successfully linked to the {F.mention(community_entity)}!",
         )
 
     @app_commands.command()
@@ -34,5 +42,5 @@ class ServerInterface(BaseInterface, group_name="server"):
         await messages.success(
             ctx.interaction,
             t"Server Disconnected",
-            t"The server was successfully disconnected from the community {format.mention_body(community_entity)}!",
+            t"The {F.format(Concept.SERVER)} was successfully unlinked from the {F.mention(community_entity)}!",
         )

@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.enums.attribute import AttributeSlotType
-from domain.errors.business import AliasCountLimitSurpassed, CountLimitReached, SynsNotUnique, NotUniqueSynsAcrossNamesAndAliases
+from domain.errors.business import (
+    AliasCountLimitSurpassed,
+    CountLimitReached,
+    NotUniqueSynsAcrossNamesAndAliases,
+    SynsNotUnique,
+)
 from domain.typing.collection_entry import AbstractCollectionT, FrozenCollectionT
 from domain.value_objects.field_slot import FieldSlotStr
 from services.internal.slot_type import SlotTypeService
@@ -35,28 +40,8 @@ class CollectionBuildService:
                     entry[1],
                 )
 
-        syn_to_name_and_alias: dict[FieldSlotStr, tuple[FieldSlotStr, FieldSlotStr | None]] = {}
+        self._strs_service.validate_unique_names_and_aliases(collection, ...)
 
-        for name, aliases in collection:
-            syn_is_name: bool = True
-
-            for syn in (name, *aliases):
-                seen = syn_to_name_and_alias.get(syn)
-
-                if seen is not None:
-                    seen_name, seen_alias = seen
-
-                    raise NotUniqueSynsAcrossNamesAndAliases(
-                        seen_name,
-                        name,
-                        seen_alias,
-                        None if syn_is_name else syn
-                    )
-
-                syn_to_name_and_alias[syn] = (name, None if syn_is_name else syn)
-
-                syn_is_name = False
-                
         entries: list[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]]] = []
 
         for value, aliases in collection:

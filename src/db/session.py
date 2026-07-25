@@ -3,10 +3,10 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from utils import secret  # ensures all models are registered
 
 from db import models
 from db.base import BaseModel
-from utils import secret  # ensures all models are registered
 
 engine = create_engine(
     secret.listen().DATABASE_URL,

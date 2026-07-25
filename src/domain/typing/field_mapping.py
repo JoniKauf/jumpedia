@@ -1,10 +1,10 @@
 import typing as t
 
-from domain.entities.attribute import AttributeEntity
-from domain.enums.attribute import AttributeType
-from domain.typing.attribute import AnyAttributeTypeT, AttributeID, SlotTypeT
-from domain.value_objects.attribute import AttributeSynStr
-from domain.value_objects.field_slot import FieldSlotStr
+lazy from domain.entities.attribute import AttributeEntity
+lazy from domain.enums.attribute import AttributeType
+lazy from domain.typing.attribute import AnyAttributeTypeT, AttributeID, SlotTypeT
+lazy from domain.value_objects.attribute import AttributeSynStr
+lazy from domain.value_objects.field_slot import FieldSlotStr
 
 # We don't use a dict here but rather key-value tuples since the mapping dsl
 # is designed to return simple data (no domain specific types like AttributeSynStr).

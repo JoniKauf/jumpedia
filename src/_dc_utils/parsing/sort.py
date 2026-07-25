@@ -6,10 +6,10 @@ from structures.attribute import AnyAttributeT, BaseAttribute
 from structures.attribute.collection import Collection
 from structures.task import Task
 from structures.task.attribute_value_mapping import AttributeValueMapping
-
-from _dc_utils import errors
 from utils import orm
 from utils.text import NormStr, RealStr
+
+from _dc_utils import errors
 
 from . import factory
 

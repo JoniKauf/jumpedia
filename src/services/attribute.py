@@ -9,51 +9,62 @@ from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
-from domain.errors.business import AliasCountLimitSurpassed, AliasesDidNotChange, CollectionDidNotChange, CountLimitReached, InitialSlotCountMustBeZero, NameNotDifferent, SlotCountConfigLimitExceeded, SynAlreadyTaken, TasksDoNotMatchMinOrMaxSlotCountCriteria
+from domain.errors.business import (
+    AliasCountLimitSurpassed,
+    AliasesDidNotChange,
+    CollectionDidNotChange,
+    CountLimitReached,
+    InitialSlotCountMustBeZero,
+    NameNotDifferent,
+    NotFoundByName,
+    NotFoundBySyn,
+    SlotCountConfigLimitExceeded,
+    SynAlreadyTaken,
+    TasksDoNotMatchMinOrMaxSlotCountCriteria,
+)
 from domain.sentinels.default import DEFAULT
-from domain.typing.attribute import (
-    TaskAttributeTypeT,
-    UserAttributeTypeT,
-)
+from domain.typing.attribute import TaskAttributeTypeT, UserAttributeTypeT
 from domain.typing.collection_entry import AbstractCollectionT
-from domain.value_objects.attribute import (
-    AttributeFieldConfig,
-    AttributeSynStr,
-)
+from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.index import Index
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.position import Position
-from repositories.attribute import AttributeRepository
-from repositories.collection_entry import CollectionEntryRepository
+
+lazy from repositories.attribute import AttributeRepository
+lazy from repositories.collection_entry import CollectionEntryRepository
 from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 from repositories.dtos.field_slot import FieldSlotInsert
-from repositories.field_slot import FieldSlotRepository
-from services.community import CommunityAccessService
-from services.contexts.interacting_user import InteractingUserContext
+
+lazy from repositories.field_slot import FieldSlotRepository
+lazy from services.community import CommunityAccessService
+lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import (
     AttributeInfo,
     AttributeSummary,
     PreparedDeleteAttribute,
 )
-from services.internal.collection import CollectionBuildService
-from services.internal.edit_mode import EditModeService
-from services.internal.permission import PermissionService
-from services.internal.strs import StrsService
-from services.list import ListAccessService
-from services.member import MemberAccessService
+
+lazy from services.internal.collection import CollectionBuildService
+lazy from services.internal.edit_mode import EditModeService
+lazy from services.internal.permission import PermissionService
+lazy from services.internal.strs import StrsService
+lazy from services.list import ListAccessService
+lazy from services.member import MemberAccessService
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeService:
-    _attribute_repo: AttributeRepository
-    _collection_entry_repo: CollectionEntryRepository
-    _permission_service: PermissionService
-    _list_access_service: ListAccessService
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+    _field_slot_repository: FieldSlotRepository
+
     _attribute_access_service: AttributeAccessService
-    _field_slot_repo: FieldSlotRepository
-    _edit_mode_service: EditModeService
     _collection_build_service: CollectionBuildService
+    _edit_mode_service: EditModeService
+    _list_access_service: ListAccessService
+    _permission_service: PermissionService
     _strs_service: StrsService
 
     def create[T: TaskAttributeTypeT | UserAttributeTypeT](
@@ -73,7 +84,7 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        attr_count = self._attribute_repo.count_by_list(lst.list_id)
+        attr_count = self._attribute_repository.count_by_list(lst.list_id)
 
         self._validate_basic_community_limits(name, aliases, community, attr_count)
 
@@ -88,7 +99,7 @@ class AttributeService:
         del collection
 
         # --- Create Attribute ---
-        attr_entity = self._attribute_repo.create(
+        attr_entity = self._attribute_repository.create(
             AttributeInsert(
                 lst.list_id,
                 name,
@@ -100,21 +111,21 @@ class AttributeService:
         )
 
         # --- Create Attribute Aliases ---
-        self._attribute_repo.create_many_aliases(
+        self._attribute_repository.create_many_aliases(
             AttributeAliasInsert(attr_entity.attribute_id, Index(i), lst.list_id, alias)
             for i, alias in enumerate(aliases)
         )
 
         # --- Create Attribute Collection ---
-        self._collection_entry_repo.create_collection(
+        self._collection_entry_repository.create_collection(
             attr_entity.attribute_id, good_collection
         )
 
         return attr_entity
 
     def delete(self, prepared: PreparedDeleteAttribute) -> None:
-        self._attribute_repo.delete(prepared.attribute_id)
-        self._attribute_repo.decrement_positions_after(
+        self._attribute_repository.delete(prepared.attribute_id)
+        self._attribute_repository.decrement_positions_after(
             prepared.list_id, prepared.attribute_position
         )
 
@@ -136,7 +147,7 @@ class AttributeService:
         if attr.name.real == new_name.real:
             raise NameNotDifferent(attr)
 
-        existing_attr_and_syn = self._attribute_repo.get_by_list_id_and_syn(
+        existing_attr_and_syn = self._attribute_repository.get_by_list_id_and_syn(
             lst.list_id,
             new_name,
         )
@@ -150,7 +161,7 @@ class AttributeService:
                     existing_attr, new_name, existing_attr.name != existing_syn, False
                 )
 
-        self._attribute_repo.update_name(attr.attribute_id, new_name)
+        self._attribute_repository.update_name(attr.attribute_id, new_name)
 
         return attr.name
 
@@ -169,9 +180,9 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        self._strs_service.validate_unique_aliases(new_aliases, AttributeEntity)
+        self._strs_service.validate_unique_syns(new_aliases, AttributeEntity)
 
-        current_aliases = self._attribute_repo.get_aliases_by_attribute_id(
+        current_aliases = self._attribute_repository.get_aliases_by_attribute_id(
             attr.attribute_id
         )
 
@@ -195,8 +206,10 @@ class AttributeService:
             if alias == attr.name:
                 raise SynAlreadyTaken(attr, alias, False, True)
 
-        existing_attr_and_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
-            lst.list_id, new_aliases, attr.attribute_id
+        existing_attr_and_syn = (
+            self._attribute_repository.get_first_by_list_id_and_any_syn(
+                lst.list_id, new_aliases, attr.attribute_id
+            )
         )
 
         # Check syn collision for other attributes (collisions with aliases of current attr are allowed)
@@ -207,7 +220,7 @@ class AttributeService:
                 existing_attr, existing_syn, existing_attr.name != existing_syn, True
             )
 
-        self._attribute_repo.update_aliases(
+        self._attribute_repository.update_aliases(
             attr.attribute_id,
             (
                 AttributeAliasInsert(attr.attribute_id, Index(i), lst.list_id, alias)
@@ -248,7 +261,9 @@ class AttributeService:
 
         # Task fields are entirely in control for staff team. Enforce that all fields must fit first before allowing change.
         if attr.type is AttributeType.TASK:
-            task_to_slots = self._field_slot_repo.get_grouped_by_task(attr.attribute_id)
+            task_to_slots = self._field_slot_repository.get_grouped_by_task(
+                attr.attribute_id
+            )
 
             invalid_tasks: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
 
@@ -271,7 +286,7 @@ class AttributeService:
             # Keep it as a soft limit and staff can safely change it afterwards.
             t.assert_type(attr.type, UserAttributeTypeT)
 
-        self._attribute_repo.update_min_and_max_slot_count(
+        self._attribute_repository.update_min_and_max_slot_count(
             attr.attribute_id, field_config.min_slot_count, field_config.max_slot_count
         )
 
@@ -290,7 +305,7 @@ class AttributeService:
 
         name_to_attr = {
             attr.name: attr
-            for attr in self._attribute_repo.get_all_by_list_id_ordered_by_position(
+            for attr in self._attribute_repository.get_all_by_list_id_ordered_by_position(
                 lst.list_id, AttributeType.ALL, AttributeKind.ALL
             )
         }
@@ -311,7 +326,7 @@ class AttributeService:
         if len(new_order) < len(name_to_attr):
             raise ValueError("Missing attrs")
 
-        self._attribute_repo.update_positions(
+        self._attribute_repository.update_positions(
             lst.list_id, tuple(attr.attribute_id for attr in new_order)
         )
 
@@ -335,8 +350,10 @@ class AttributeService:
         if attr.kind is not AttributeKind.NONE:
             raise ValueError("Cannot change collection for static attributes")
 
-        current_collection = self._collection_entry_repo.get_collection_by_attribute_id(
-            attr.attribute_id
+        current_collection = (
+            self._collection_entry_repository.get_collection_by_attribute_id(
+                attr.attribute_id
+            )
         )
 
         new_collection = self._edit_mode_service.handle_collection_edit(
@@ -363,7 +380,9 @@ class AttributeService:
                 for entry in new_collection
                 for syn in (entry[0], *entry[1])
             }
-            task_to_slots = self._field_slot_repo.get_grouped_by_task(attr.attribute_id)
+            task_to_slots = self._field_slot_repository.get_grouped_by_task(
+                attr.attribute_id
+            )
 
             task_to_only_invalid_slots: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
 
@@ -383,7 +402,7 @@ class AttributeService:
                 for task, slots in task_to_slots.items()
             }
 
-            self._field_slot_repo.replace_all_by_attribute_id(
+            self._field_slot_repository.replace_all_by_attribute_id(
                 attr.attribute_id,
                 (
                     FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
@@ -396,7 +415,7 @@ class AttributeService:
             # Keep it as a soft limitation and staff can safely change it afterwards because users can't change it back to a now invalid collection entry.
             t.assert_type(attr.type, UserAttributeTypeT)
 
-        self._collection_entry_repo.replace_collection(
+        self._collection_entry_repository.replace_collection(
             attr.attribute_id, new_collection
         )
 
@@ -446,16 +465,16 @@ class AttributeService:
     ):
         syns: tuple[AttributeSynStr, ...] = (name, *all_aliases_of_attr)
 
-        AttributeSynStr.raise_if_not_unique(syns)
+        self._strs_service.validate_unique_syns(syns, AttributeEntity)
 
-        existing_same_syn = self._attribute_repo.get_first_by_list_id_and_any_syn(
+        existing_same_syn = self._attribute_repository.get_first_by_list_id_and_any_syn(
             lst.list_id, syns, None
         )
 
         if existing_same_syn is not None:
             colliding_attr, colliding_syn = existing_same_syn
 
-            raise business.SynAlreadyTaken(
+            raise SynAlreadyTaken(
                 *existing_same_syn,
                 colliding_attr.name != colliding_syn,
                 colliding_syn != name,
@@ -490,12 +509,12 @@ class AttributePrepareService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeQueryService:
-    _attribute_repo: AttributeRepository
-    _collection_entry_repo: CollectionEntryRepository
-    _community_access_service: CommunityAccessService
-    _member_access_service: MemberAccessService
-    _list_access_service: ListAccessService
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+
     _attribute_access_service: AttributeAccessService
+    _list_access_service: ListAccessService
+    _member_access_service: MemberAccessService
 
     def get_info(
         self, syn: AttributeSynStr, list_name: ListNameStr | DEFAULT
@@ -504,8 +523,10 @@ class AttributeQueryService:
             DEFAULT, list_name, syn, False
         )
 
-        aliases = self._attribute_repo.get_aliases_by_attribute_id(attr.attribute_id)
-        collection = self._collection_entry_repo.get_collection_by_attribute_id(
+        aliases = self._attribute_repository.get_aliases_by_attribute_id(
+            attr.attribute_id
+        )
+        collection = self._collection_entry_repository.get_collection_by_attribute_id(
             attr.attribute_id
         )
 
@@ -529,17 +550,17 @@ class AttributeQueryService:
         ATTRIBUTE_TYPES: t.Final = AttributeType.ALL
         ATTRIBUTE_KINDS: t.Final = AttributeKind.ALL
 
-        attrs = self._attribute_repo.get_all_by_list_id_ordered_by_position(
+        attrs = self._attribute_repository.get_all_by_list_id_ordered_by_position(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
 
         attr_id_to_aliases = (
-            self._attribute_repo.get_grouped_aliases_by_list_id_ordered_by_pos(
+            self._attribute_repository.get_grouped_aliases_by_list_id_ordered_by_pos(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
         attr_id_to_collection = (
-            self._collection_entry_repo.get_grouped_collections_by_list_id(
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
             )
         )
@@ -562,26 +583,30 @@ class AttributeQueryService:
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeAccessService:
     _ctx: InteractingUserContext
-    _repo: AttributeRepository
+
+    _repository: AttributeRepository
+
     _list_access_service: ListAccessService
 
     def get_by_list_and_name_or_raise(
         self, lst: ListEntity, name: AttributeSynStr
     ) -> AttributeEntity:
-        attr = self._repo.get_by_list_id_and_name(lst.list_id, name)
+        attr = self._repository.get_by_list_id_and_name(lst.list_id, name)
 
         if attr is None:
-            raise business.NotFoundByName(name, AttributeEntity)
+            raise NotFoundByName(AttributeEntity, name)
 
         return attr
 
     def get_by_list_and_syn_or_raise(
         self, lst: ListEntity, syn: AttributeSynStr
     ) -> AttributeEntity:
-        existing_attr_and_syn = self._repo.get_by_list_id_and_syn(lst.list_id, syn)
+        existing_attr_and_syn = self._repository.get_by_list_id_and_syn(
+            lst.list_id, syn
+        )
 
         if existing_attr_and_syn is None:
-            raise business.NotFoundBySyn(syn, AttributeEntity)
+            raise NotFoundBySyn(AttributeEntity, syn)
 
         return existing_attr_and_syn[0]
 

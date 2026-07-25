@@ -1,10 +1,9 @@
-from datetime import datetime
-
 from domain.entities.base import BaseEntity
 from domain.typing.community import CommunityID
-from domain.typing.list import ListID
-from domain.value_objects.community import CommunityLimits, CommunityNameStr
-from domain.value_objects.datetime import DateTimeWrapper
+
+lazy from domain.typing.list import ListID
+lazy from domain.value_objects.community import CommunityLimits, CommunityNameStr
+lazy from domain.value_objects.datetime import DateTimeWrapper
 
 
 class CommunityEntity(BaseEntity[CommunityID]):

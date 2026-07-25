@@ -8,14 +8,12 @@ from db.models import AttributeModel, CollectionEntryAliasModel, CollectionEntry
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.errors import business
-from domain.typing.attribute import (
-    AttributeID,
-    NoneKindedAttributeT,
-)
+from domain.errors.internal import NotFoundById
+from domain.typing.attribute import AttributeID, NoneKindedAttributeT
 from domain.typing.collection_entry import (
-    CollectionEntryID,
-    CollectionFrozenT,
     AbstractCollectionT,
+    CollectionEntryID,
+    FrozenCollectionT,
 )
 from domain.typing.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
@@ -180,7 +178,7 @@ class CollectionEntryRepository(BaseRepository):
         )
 
         if obj is None:
-            raise business.NotFoundById(CollectionEntryEntity)
+            raise NotFoundById(CollectionEntryEntity, entry_id)
 
         self._session.delete(obj)
         self._session.flush()
@@ -188,7 +186,7 @@ class CollectionEntryRepository(BaseRepository):
     def get_collection_by_attribute_id(
         self,
         attribute_id: AttributeID,
-    ) -> CollectionFrozenT:
+    ) -> FrozenCollectionT:
         stmt = (
             select(
                 CollectionEntryModel,
@@ -248,7 +246,7 @@ class CollectionEntryRepository(BaseRepository):
         list_id: ListID,
         types: t.AbstractSet[AttributeType],
         kinds: t.AbstractSet[t.Literal[AttributeKind.NONE]],
-    ) -> frozendict[AttributeID, CollectionFrozenT]:
+    ) -> frozendict[AttributeID, FrozenCollectionT]:
         stmt = (
             select(CollectionEntryModel, CollectionEntryAliasModel)
             .join(

@@ -58,7 +58,7 @@ class MemberTaskRepository(BaseRepository):
         obj = self._session.get(MemberTaskModel, member_task_id)
 
         if obj is None:
-            raise NotFoundById(MemberTaskEntity)
+            raise NotFoundById(MemberTaskEntity, member_task_id)
 
         self._session.delete(obj)
         self._session.flush()

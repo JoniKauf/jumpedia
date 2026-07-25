@@ -12,11 +12,11 @@ from structures.attribute import AnyAttributeT, TaskAttribute, UserAttribute
 from structures.community import CommunityLimits
 from structures.list import Kind, List
 from structures.task import Task
+from utils import numbers, orm, secret, text
+from utils.text import NormStr, RealStr
 
 from _dc_utils import connect
 from domain.enum.rank import CommunityRank, JumpediaRank
-from utils import numbers, orm, secret, text
-from utils.text import NormStr, RealStr
 
 DATA_PATH = os.path.join(os.path.abspath(__file__.removesuffix("__init__.py")), "data")
 

@@ -3,7 +3,6 @@ from string.templatelib import Template
 
 from structures import BaseStructure
 from structures.attribute.slot_str import SlotStr
-
 from utils import text
 
 from . import message
