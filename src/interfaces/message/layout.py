@@ -30,6 +30,8 @@ def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     s = f._s
     args = f._format_args
 
+    del f, interpolation
+
     if isinstance(args, FormatArgsTypeName):
         capitalize = header if args.capitalize is DEFAULT else args.capitalize
 
@@ -40,7 +42,7 @@ def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     else:
         t.assert_never(args)
 
-    return f._s
+    return s
 
 
 def _parse_template(t: Template, header: bool) -> str:

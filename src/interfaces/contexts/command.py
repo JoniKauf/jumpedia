@@ -13,7 +13,7 @@ from services.community import (
     CommunityService,
 )
 from services.list import ListPrepareService, ListQueryService, ListService
-from services.member import MemberService
+from services.member import MemberQueryService, MemberService
 from services.member_task import MemberTaskQueryService, MemberTaskService
 from services.server import ServerService
 from services.task import TaskPrepareService, TaskQueryService, TaskService
@@ -32,6 +32,7 @@ class PublicServices:
     list_prepare: ListPrepareService
     list_query: ListQueryService
     member: MemberService
+    member_query: MemberQueryService
     member_task: MemberTaskService
     member_task_query: MemberTaskQueryService
     server: ServerService

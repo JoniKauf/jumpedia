@@ -5,7 +5,7 @@ import typing as t
 import discord
 from sqlalchemy.orm import Session
 
-from domain.entities.user import UserEntity
+import db.session
 from domain.enums.rank import ServerRank
 from domain.errors.business import BusinessError, NotInServer
 from domain.errors.internal import InternalError
@@ -60,7 +60,12 @@ from services.list import (
     ListQueryService,
     ListService,
 )
-from services.member import MemberAccessService, MemberExistenceService, MemberService
+from services.member import (
+    MemberAccessService,
+    MemberExistenceService,
+    MemberQueryService,
+    MemberService,
+)
 from services.member_task import (
     MemberTaskAccessService,
     MemberTaskQueryService,
@@ -73,8 +78,7 @@ from services.task import (
     TaskQueryService,
     TaskService,
 )
-from services.user import UserExistenceService, UserService
-import db.session
+from services.user import UserAccessService, UserExistenceService, UserService
 
 
 async def _handle_domain_error(
@@ -149,13 +153,19 @@ def _create_public_services_object(
     server_repository = ServerRepository(session)
 
     user_existence_service = UserExistenceService(user_repository)
-    user_entity = user_existence_service.get_or_create(UserInsert(UserID(ID(member.id)), UserNameStr(member.name)))
-    ctx = InteractingUserContext(user_entity, _get_server_rank(member), ServerID(ID(member.guild.id)))
+
+    ctx = InteractingUserContext(
+        user_existence_service.get_or_create(
+            UserInsert(UserID(ID(member.id)), UserNameStr(member.name))
+        ),
+        _get_server_rank(member),
+        ServerID(ID(member.guild.id)),
+    )
+    user_access_service = UserAccessService(ctx, user_existence_service)
 
     community_access_service = CommunityAccessService(ctx, community_repository)
 
     member_existence_service = MemberExistenceService(
-        ctx,
         member_repository, user_existence_service
     )
     permission_service = PermissionService(ctx)
@@ -165,6 +175,7 @@ def _create_public_services_object(
         community_access_service,
         member_existence_service,
         permission_service,
+        user_access_service,
         user_existence_service,
     )
     list_access_service = ListAccessService(list_repository, member_access_service)
@@ -181,7 +192,7 @@ def _create_public_services_object(
     )
     task_access_service = TaskAccessService(task_repository, list_access_service)
     member_task_access_service = MemberTaskAccessService(
-        member_existence_service, member_task_repository, task_access_service
+        member_task_repository, member_access_service, task_access_service
     )
     field_mapping_service = FieldMappingService(
         attribute_repository,
@@ -266,6 +277,9 @@ def _create_public_services_object(
         permission_service,
         user_existence_service,
     )
+    member_query_service = MemberQueryService(
+        ctx, community_repository, list_repository, member_existence_service, user_access_service
+    )
     member_task_service = MemberTaskService(
         attribute_repository,
         collection_entry_repository,
@@ -312,6 +326,7 @@ def _create_public_services_object(
         list_prepare=list_prepare_service,
         list_query=list_query_service,
         member=member_service,
+        member_query=member_query_service,
         member_task=member_task_service,
         member_task_query=member_task_query_service,
         server=server_service,

@@ -266,14 +266,15 @@ class MemberTaskQueryService:
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberTaskAccessService:
-    _member_existence_service: MemberExistenceService
     _member_task_repository: MemberTaskRepository
+
+    _member_access_service: MemberAccessService
     _task_access_service: TaskAccessService
 
     def get_member_task_or_raise(
         self, target_user: UserRef | DEFAULT, community_id: CommunityID, task_id: TaskID
     ) -> tuple[MemberEntity, MemberTaskEntity]:
-        target_member = self._member_existence_service.get_or_create_with_user_ref(
+        target_member = self._member_access_service.get_or_create_with_user_ref(
             target_user, community_id
         )
         member_task = self._member_task_repository.get_by_member_id_and_task_id(

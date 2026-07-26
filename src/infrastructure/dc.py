@@ -19,6 +19,9 @@ class JumpediaBot(commands.Bot):
         await self.load_extension(interfaces.__name__)
 
     async def on_ready(self) -> None:
+        await self.tree.sync()
+        await self.wait_until_ready()
+
         print("\n---------- Running ----------")
 
         if self.user is None:

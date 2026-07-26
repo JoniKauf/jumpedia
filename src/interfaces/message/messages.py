@@ -1,3 +1,4 @@
+import enum
 import itertools
 import typing as t
 from string.templatelib import Template
@@ -54,8 +55,15 @@ async def object_info(
     formattable: FormattableT,
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
-    links = pastee.table_to_pastee_strings(
-        tuple(data), (itertools.zip_longest(*data.values(), fillvalue=""),)
+    links = pastee.create_pastee_with_retries(
+        {
+            f"#{i}": s
+            for i, s in enumerate(
+                pastee.table_to_pastee_strings(
+                    tuple(data), itertools.zip_longest(*data.values(), fillvalue="")
+                ),
+            )
+        }
     )
 
     await info(
@@ -70,16 +78,23 @@ async def object_browse(
     formattable: FormattableT,
     data: t.Mapping[str, tuple[tuple[str, ...], ...]],
 ) -> None:
-    header = t"{F.format(formattable)} Browsed"
+    header = t"{F.format(formattable, plural=True)} Browsed"
 
-    if not data:
+    if all(len(row) == 0 for row in data.values()):
         return await info(
             interaction,
             header,
             t"No {F.format(formattable)} with the specified criteria could be found!",
         )
 
-    links = pastee.table_to_pastee_strings(tuple(data), data.values())
+    links = pastee.create_pastee_with_retries(
+        {
+            f"#{i}": s
+            for i, s in enumerate(
+                pastee.table_to_pastee_strings(tuple(data), data.values()), start=1
+            )
+        }
+    )
     count: int = len(
         next(iter(data.values()))
     )  # Count length of first value in the mapping

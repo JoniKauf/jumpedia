@@ -26,29 +26,39 @@ def __main() -> None:
            to corruption due to dirty database reads and writes.
     """))
 
-    if _yes_no("Format Code?"):
-        subprocess.run(["isort", "."])
-        subprocess.run(["black", "."])
-
-    # --- Make CWD be "src/" --- #
+    # --- Make CWD Be "src/" --- #
     src_dir = Path(__file__).resolve().parent
 
     os.chdir(src_dir)
     sys.path.insert(0, str(src_dir))
 
+    import db.session
     from infrastructure.dc import JumpediaBot
     from infrastructure.env import ENV
+
+    if _yes_no("Format Code?"):
+        subprocess.run(["isort", "."])
+        subprocess.run(["black", "."])
+
+    if _yes_no("Try Create Database?"):
+        print("Creating database...")
+        db.session.init_db()
+        print("Database created!")
 
     bot = JumpediaBot()
     bot.run(ENV["DISCORD_TOKEN"])
 
 
-def _yes_no(question: str) -> bool:
-    answer: str = ""
+def _yes_no(question: str, default: bool = True) -> bool:
+    answer: str | None = None
+    y, n = "Yn" if default else "yN"
 
-    while len(answer) != 1 or answer not in "yn":
-        answer = input(f"{question} [Y/N]\n> ").lower()
+    while answer is None or answer not in ("y", "n", ""):
+        answer = input(f"{question} [{y}/{n}]\n> ").lower()
         print("\n\n")
+
+    if not answer:
+        return default
 
     return answer == "y"
 

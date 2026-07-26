@@ -34,6 +34,22 @@ class UserService:
 
 
 @dataclass(frozen=True, slots=True, eq=False)
+class UserAccessService:
+    _ctx: InteractingUserContext
+
+    _user_existence_service: UserExistenceService
+
+    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT) -> UserEntity:
+        return (
+            self._ctx.user
+            if user is DEFAULT
+            else self._user_existence_service.get_or_create(
+                UserInsert(user.id, user.name)
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class UserExistenceService:
     _user_repository: UserRepository
 
@@ -63,10 +79,3 @@ class UserExistenceService:
             return existing
 
         return self._user_repository.update(existing)
-
-    def get_or_create_with_user_ref(self, user: UserRef | DEFAULT, ctx: InteractingUserContext) -> UserEntity:
-        return (
-            ctx.user
-            if user is DEFAULT
-            else self.get_or_create(UserInsert(user.id, user.name))
-        )

@@ -145,10 +145,10 @@ class AttributeInterface(
         ctx: CommandContext,
         attribute_name: str,
         list_name: str,
-        new_attribute_aliases_dsl_sequence: str,
+        new_attr_aliases_dsl_sequence: str,
         edit_mode: AliasEditModeInterfaceEnum,
     ) -> None:
-        after = bindings.sequence.attribute_aliases(new_attribute_aliases_dsl_sequence)
+        after = bindings.sequence.attribute_aliases(new_attr_aliases_dsl_sequence)
         attr = ctx.services.attribute.edit_aliases(
             AttributeSynStr(attribute_name),
             after,

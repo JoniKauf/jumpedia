@@ -1,21 +1,26 @@
 from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
+from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
-from domain.enums.rank import CommunityRank
+from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.sentinels.default import DEFAULT
+from domain.sentinels.unknown import UNKNOWN
 from domain.typing.community import CommunityID
 from domain.value_objects.community import CommunityNameStr
+from repositories.community import CommunityRepository
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert
+from repositories.list import ListRepository
 
 lazy from repositories.member import MemberRepository
 lazy from services.community import CommunityAccessService
 lazy from services.contexts.interacting_user import InteractingUserContext
+from services.dtos.member import MemberInfo, UserAndMemberInfo
 from services.dtos.user import UserRef
 
 lazy from services.internal.permission import PermissionService
-lazy from services.user import UserExistenceService
+lazy from services.user import UserAccessService, UserExistenceService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -55,6 +60,48 @@ class MemberService:
 
 
 @dataclass(frozen=True, slots=True, eq=False)
+class MemberQueryService:
+    _ctx: InteractingUserContext
+
+    _community_repository: CommunityRepository
+    _list_repository: ListRepository
+
+    _member_existence_service: MemberExistenceService
+    _user_access_service: UserAccessService
+
+    def get_info(self, user: UserRef | DEFAULT) -> UserAndMemberInfo:
+        user_entity = self._user_access_service.get_or_create_with_user_ref(user)
+
+        del user
+
+        meta_rank: MetaRank = user_entity.meta_rank
+        server_rank: ServerRank | UNKNOWN = UNKNOWN
+        member_info: MemberInfo | None = None
+
+        community = self._community_repository.get_by_server_id(self._ctx.server_id)
+
+        if community is not None:
+            member = self._member_existence_service.get_or_create(
+                MemberInsert(user_entity, community.community_id)
+            )
+
+            selected_list = (
+                None
+                if member.selected_list_id is None
+                else self._list_repository.get_by_id(member.selected_list_id)
+            )
+            member_info = MemberInfo(member.community_rank, selected_list)
+
+        return UserAndMemberInfo(
+            user_entity.user_id,
+            user_entity.name,
+            server_rank,
+            meta_rank,
+            member_info,
+        )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class MemberAccessService:
     _ctx: InteractingUserContext
 
@@ -63,6 +110,7 @@ class MemberAccessService:
     _community_access_service: CommunityAccessService
     _member_existence_service: MemberExistenceService
     _permission_service: PermissionService
+    _user_access_service: UserAccessService
     _user_existence_service: UserExistenceService
 
     def get_target_member_if_actor_member_is_permitted_to_act_for_others(
@@ -106,11 +154,19 @@ class MemberAccessService:
 
         return (community, member)
 
+    def get_or_create_with_user_ref(
+        self, user: UserRef | DEFAULT, community_id: CommunityID
+    ) -> MemberEntity:
+        return self._member_existence_service.get_or_create(
+            MemberInsert(
+                self._user_access_service.get_or_create_with_user_ref(user),
+                community_id,
+            )
+        )
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class MemberExistenceService:
-    _ctx: InteractingUserContext
-
     _member_repository: MemberRepository
 
     _user_existence_service: UserExistenceService
@@ -143,13 +199,3 @@ class MemberExistenceService:
             return existing
 
         return self._member_repository.update(existing)
-
-    def get_or_create_with_user_ref(
-        self, user: UserRef | DEFAULT, community_id: CommunityID
-    ) -> MemberEntity:
-        return self.get_or_create(
-            MemberInsert(
-                self._user_existence_service.get_or_create_with_user_ref(user, self._ctx),
-                community_id,
-            )
-        )

@@ -1,16 +1,20 @@
 import enum
+import typing as t
 
 import discord
+from discord import app_commands
 
 from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank, MetaRank
+from domain.sentinels.default import DEFAULT
+from domain.sentinels.unknown import UNKNOWN
 from domain.typing.common import ID
 from domain.typing.user import UserID
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.command import cogs, groups
 from interfaces.decorators.with_context import CommandContext, with_context
-from interfaces.message import formatting, messages
+from interfaces.message import formatting, mentionable, messages
 from interfaces.message.formatting import F
 from services.dtos.user import UserRef
 
@@ -76,3 +80,55 @@ class UserInterface(
             + (t"demoted" if target_member.community_rank > new_rank else t"promoted")
             + t" to the {F.mention(new_rank)} successfully!",
         )
+
+    @app_commands.command()
+    @with_context()
+    async def info(self, ctx: CommandContext, user: discord.User | None = None) -> None:
+        info = ctx.services.member_query.get_info(
+            DEFAULT
+            if user is None
+            else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+        )
+
+        data: dict[str, tuple[str, ...]] = {
+            "ID": (str(info.user_id),),
+            "Name": (str(info.name),),
+            **(
+                {}
+                if info.server_rank is UNKNOWN
+                else {
+                    "Server Rank": (
+                        mentionable.get_name_of_mentionable(info.server_rank),
+                    )
+                }
+            ),
+            **(
+                {}
+                if info.member_info is None
+                else {
+                    "Community Rank": (
+                        mentionable.get_name_of_mentionable(
+                            info.member_info.community_rank
+                        ),
+                    ),
+                }
+            ),
+            "Meta Rank": (mentionable.get_name_of_mentionable(info.meta_rank),),
+            **(
+                {}
+                if info.member_info is None
+                else {
+                    "Selected List": (
+                        ()
+                        if info.member_info.selected_list is None
+                        else (
+                            mentionable.get_name_of_mentionable(
+                                info.member_info.selected_list
+                            ),
+                        )
+                    ),
+                }
+            ),
+        }
+
+        await messages.object_info(ctx.interaction, Concept.MEMBER, data)

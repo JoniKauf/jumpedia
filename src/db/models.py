@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from db.base import BaseModel
 from db.types import NormStrType, RealStrType
-from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeKind, AttributeSlotType
 from domain.enums.rank import CommunityRank, MetaRank
 from domain.typing.attribute import AttributeID
 from domain.typing.collection_entry import CollectionEntryID
@@ -61,7 +61,8 @@ class CommunityModel(BaseModel):
     )
 
     default_selected_list_id: Mapped[ListID | None] = mapped_column(
-        ForeignKey("list.list_id", ondelete="SET NULL")
+        Integer,
+        ForeignKey("list.list_id", ondelete="SET NULL", use_alter=True),
     )
 
     community_list_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
@@ -81,7 +82,7 @@ class ServerModel(BaseModel):
     server_id: Mapped[ServerID] = mapped_column(BigInteger, primary_key=True)
 
     community_id: Mapped[CommunityID] = mapped_column(
-        ForeignKey("community.community_id", ondelete="CASCADE")
+        Integer, ForeignKey(CommunityModel.community_id, ondelete="CASCADE")
     )
 
 
@@ -96,7 +97,7 @@ class ListModel(BaseModel):
     )
 
     community_id: Mapped[CommunityID] = mapped_column(
-        ForeignKey("community.community_id", ondelete="CASCADE")
+        Integer, ForeignKey(CommunityModel.community_id, ondelete="CASCADE")
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
@@ -119,7 +120,7 @@ class ListModel(BaseModel):
 
 
 class UserModel(BaseModel):
-    __tablename__ = "jumpedia_user"
+    __tablename__ = "user"
 
     user_id: Mapped[UserID] = mapped_column(BigInteger, primary_key=True)
 
@@ -148,17 +149,17 @@ class MemberModel(BaseModel):
     )
 
     community_id: Mapped[CommunityID] = mapped_column(
-        ForeignKey("community.community_id", ondelete="CASCADE")
+        Integer, ForeignKey(CommunityModel.community_id, ondelete="CASCADE")
     )
 
     user_id: Mapped[UserID] = mapped_column(
-        ForeignKey("jumpedia_user.user_id", ondelete="CASCADE")
+        BigInteger, ForeignKey(UserModel.user_id, ondelete="CASCADE")
     )
 
     rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     selected_list_id: Mapped[ListID | None] = mapped_column(
-        ForeignKey("list.list_id", ondelete="SET NULL")
+        Integer, ForeignKey(ListModel.list_id, ondelete="SET NULL")
     )
 
     __table_args__ = (
@@ -184,7 +185,7 @@ class AttributeModel(BaseModel):
     )
 
     list_id: Mapped[ListID] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+        Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
@@ -225,14 +226,15 @@ class AttributeAliasModel(BaseModel):
     __tablename__ = "attribute_alias"
 
     attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE"),
+        Integer,
+        ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE"),
         primary_key=True,
     )
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)
 
     list_id: Mapped[ListID] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+        Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
@@ -262,7 +264,7 @@ class CollectionEntryModel(BaseModel):
     )
 
     attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE")
+        Integer, ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE")
     )
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
@@ -288,8 +290,9 @@ class CollectionEntryAliasModel(BaseModel):
     __tablename__ = "collection_entry_alias"
 
     collection_entry_id: Mapped[CollectionEntryID] = mapped_column(
+        Integer,
         ForeignKey(
-            "collection_entry.collection_entry_id",
+            CollectionEntryModel.collection_entry_id,
             ondelete="CASCADE",
         ),
         primary_key=True,
@@ -298,7 +301,7 @@ class CollectionEntryAliasModel(BaseModel):
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)
 
     attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE")
+        Integer, ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE")
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
@@ -328,7 +331,7 @@ class TaskModel(BaseModel):
     )
 
     list_id: Mapped[ListID] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+        Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
     norm_name: Mapped[NormStr] = mapped_column(
@@ -357,13 +360,13 @@ class TaskAliasModel(BaseModel):
     __tablename__ = "task_alias"
 
     task_id: Mapped[TaskID] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
+        Integer, ForeignKey(TaskModel.task_id, ondelete="CASCADE"), primary_key=True
     )
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)
 
     list_id: Mapped[ListID] = mapped_column(
-        ForeignKey("list.list_id", ondelete="CASCADE")
+        Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
     norm_alias: Mapped[NormStr] = mapped_column(
@@ -386,11 +389,13 @@ class FieldSlotModel(BaseModel):
     __tablename__ = "field_slot"
 
     task_id: Mapped[TaskID] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
+        Integer, ForeignKey(TaskModel.task_id, ondelete="CASCADE"), primary_key=True
     )
 
     attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE"), primary_key=True
+        Integer,
+        ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE"),
+        primary_key=True,
     )
 
     index: Mapped[int] = mapped_column(primary_key=True)
@@ -426,11 +431,11 @@ class MemberTaskModel(BaseModel):
     )
 
     member_id: Mapped[MemberID] = mapped_column(
-        ForeignKey("member.member_id", ondelete="CASCADE")
+        Integer, ForeignKey(MemberModel.member_id, ondelete="CASCADE")
     )
 
     task_id: Mapped[TaskID] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE")
+        Integer, ForeignKey(TaskModel.task_id, ondelete="CASCADE")
     )
 
     given_at: Mapped[datetime] = mapped_column(
@@ -440,7 +445,7 @@ class MemberTaskModel(BaseModel):
     )
 
     given_by: Mapped[MemberID | None] = mapped_column(
-        ForeignKey("member.member_id", ondelete="SET NULL")
+        Integer, ForeignKey(MemberModel.member_id, ondelete="SET NULL")
     )
 
     __table_args__ = (
@@ -454,12 +459,14 @@ class MemberFieldSlotModel(BaseModel):
 
     member_task_id: Mapped[MemberTaskID] = mapped_column(
         BigInteger,
-        ForeignKey("member_task.member_task_id", ondelete="CASCADE"),
+        ForeignKey(MemberTaskModel.member_task_id, ondelete="CASCADE"),
         primary_key=True,
     )
 
     attribute_id: Mapped[AttributeID] = mapped_column(
-        ForeignKey("attribute.attribute_id", ondelete="CASCADE"), primary_key=True
+        Integer,
+        ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE"),
+        primary_key=True,
     )
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True), primary_key=True)

@@ -3,13 +3,12 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from utils import secret  # ensures all models are registered
 
-from db import models
 from db.base import BaseModel
+from infrastructure.env import ENV
 
 engine = create_engine(
-    secret.listen().DATABASE_URL,
+    ENV["DATABASE_URL"],
     pool_pre_ping=True,
     pool_recycle=3600,
     future=True,
