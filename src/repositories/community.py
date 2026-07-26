@@ -5,7 +5,6 @@ from db.models import ListModel
 from db.models import ServerModel as ServerModel
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
-from domain.errors import business
 from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID

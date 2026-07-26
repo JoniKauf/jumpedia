@@ -1,4 +1,4 @@
-from domain.typing.collection_entry import AbstractCollectionEntry, AbstractCollectionT
+from domain.typing.collection_entry import AbstractCollectionT
 from domain.typing.field_mapping import RawFieldMappingT
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -10,7 +10,7 @@ def collection(s: str | None) -> AbstractCollectionT:
         ()
         if s is None
         else tuple(
-            AbstractCollectionEntry(
+            (
                 FieldSlotStr(k),
                 tuple(FieldSlotStr(elem) for elem in v),
             )

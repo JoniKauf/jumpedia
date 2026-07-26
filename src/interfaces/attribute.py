@@ -178,7 +178,7 @@ class AttributeInterface(
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.ATTRIBUTE)} Min And Max Slot Count Edited",
-            t"The min and max slot count for the {F.mention(attr)} has been set to "
+            t"The min and max slot count for the {F.full_mention(attr)} has been set to "
             + t"{F.raw(str(attr.field_config.min_slot_count))} and {F.raw(str(attr.field_config.max_slot_count))} successfully!"
             + (
                 t""
@@ -209,7 +209,7 @@ class AttributeInterface(
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.ATTRIBUTE)} {F.format(Concept.COLLECTION)} Edited",
-            t"The {F.format(Concept.COLLECTION)} for the {F.mention(attr)} has been edited successfully!"
+            t"The {F.format(Concept.COLLECTION)} for the {F.full_mention(attr)} has been edited successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK
@@ -274,5 +274,5 @@ class AttributesInterface(
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.ATTRIBUTE, plural=True)} Position Order Edited",
-            t"The positions and therefore the ordering of all {F.format(Concept.ATTRIBUTE, plural=True)} of the {F.mention(lst)} has been edited successfully!",
+            t"The positions and therefore the ordering of all {F.format(Concept.ATTRIBUTE, plural=True)} of the {F.full_mention(lst)} has been edited successfully!",
         )

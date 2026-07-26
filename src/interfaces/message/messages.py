@@ -5,7 +5,8 @@ from string.templatelib import Template
 
 import discord
 
-from domain.errors.business import Str
+from domain.errors.business import ApiUnreachable
+from domain.value_objects.string import Str
 from infrastructure import pastee
 from interfaces.message import layout, views
 from interfaces.message.formattable import FormattableT
@@ -14,40 +15,57 @@ from interfaces.message.layout import Status
 from interfaces.message.mentionable import MentionableT
 
 
+class SendKwargsT(t.TypedDict):
+    ephemeral: t.NotRequired[bool]
+    suppress_embeds: t.NotRequired[bool]
+
+
 async def error(
     interaction: discord.Interaction,
     header: Template,
     body: Template,
     documentation: t.Sequence[str] = (),
     warning: bool = False,
-    ephemeral: bool = True,
-    **kwargs: t.Any,
+    send_kwargs: SendKwargsT = {},
 ) -> None:
     header = header + t" Error"
     body = Template(*body, "".join(f"\n- {doc}" for doc in documentation))
     status = Status.WARNING if warning else Status.ERROR
 
-    await interaction.followup.send(
-        layout.layout(header, body, status), ephemeral=ephemeral, **kwargs
-    )
+    await interaction.followup.send(layout.layout(header, body, status), **send_kwargs)
 
 
 async def success(
-    interaction: discord.Interaction, header: Template, body: Template
+    interaction: discord.Interaction,
+    header: Template,
+    body: Template,
+    send_kwargs: SendKwargsT | None = None,
 ) -> None:
-    await interaction.followup.send(layout.layout(header, body, Status.SUCCESS))
+    await interaction.followup.send(
+        layout.layout(header, body, Status.SUCCESS), **(send_kwargs or {})
+    )
 
 
 async def warning(
-    interaction: discord.Interaction, header: Template, body: Template
+    interaction: discord.Interaction,
+    header: Template,
+    body: Template,
+    send_kwargs: SendKwargsT | None = None,
 ) -> None:
-    await interaction.followup.send(layout.layout(header, body, Status.WARNING))
+    await interaction.followup.send(
+        layout.layout(header, body, Status.WARNING), **(send_kwargs or {})
+    )
 
 
 async def info(
-    interaction: discord.Interaction, header: Template, body: Template
+    interaction: discord.Interaction,
+    header: Template,
+    body: Template,
+    send_kwargs: SendKwargsT | None = None,
 ) -> None:
-    await interaction.followup.send(layout.layout(header, body, Status.INFO))
+    await interaction.followup.send(
+        layout.layout(header, body, Status.INFO), **(send_kwargs or {})
+    )
 
 
 async def object_info(
@@ -55,21 +73,28 @@ async def object_info(
     formattable: FormattableT,
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
-    links = pastee.create_pastee_with_retries(
-        {
-            f"#{i}": s
+    try:
+        links = tuple(
+            pastee.create_pastee_with_retries({f"#{i}": s})
             for i, s in enumerate(
                 pastee.table_to_pastee_strings(
-                    tuple(data), itertools.zip_longest(*data.values(), fillvalue="")
+                    tuple(data),
+                    (
+                        ((elem,) for elem in row)
+                        for row in itertools.zip_longest(*data.values(), fillvalue="")
+                    ),
                 ),
+                start=1,
             )
-        }
-    )
+        )
+    except ConnectionError:
+        raise ApiUnreachable(Str("pastee"))
 
     await info(
         interaction,
         t"{F.format(formattable)} Info",
         Template("\n".join(links)),
+        {"suppress_embeds": True},
     )
 
 
@@ -87,14 +112,19 @@ async def object_browse(
             t"No {F.format(formattable)} with the specified criteria could be found!",
         )
 
-    links = pastee.create_pastee_with_retries(
-        {
-            f"#{i}": s
+    try:
+        links = tuple(
+            pastee.create_pastee_with_retries({f"#{i}": s})
             for i, s in enumerate(
-                pastee.table_to_pastee_strings(tuple(data), data.values()), start=1
+                pastee.table_to_pastee_strings(
+                    tuple(data), zip(*data.values(), strict=True)
+                ),
+                start=1,
             )
-        }
-    )
+        )
+    except ConnectionError:
+        raise ApiUnreachable(Str("pastee"))
+
     count: int = len(
         next(iter(data.values()))
     )  # Count length of first value in the mapping
@@ -105,6 +135,7 @@ async def object_browse(
         interaction,
         header,
         t"A total of {F.raw(str(count))} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
+        {"suppress_embeds": True},
     )
 
 
@@ -115,7 +146,7 @@ async def object_created(
     await success(
         interaction,
         t"{F.format(mentionable_to_formattable(mentionable))} Created",
-        t"The {F.mention(mentionable)} has been created successfully!",
+        t"The {F.full_mention(mentionable)} has been created successfully!",
     )
 
 
@@ -138,7 +169,7 @@ async def object_aliases_edited(
     await success(
         interaction,
         t"{F.format(mentionable_to_formattable(mentionable))} Renamed",
-        t"The aliases of the {F.mention(mentionable)} have been edited successfully!\n",
+        t"The aliases of the {F.full_mention(mentionable)} have been edited successfully!\n",
     )
 
 
@@ -152,21 +183,21 @@ async def nuke_object_on_confirmation(
 ) -> None:
     TIMEOUT: t.Final[int] = 60
 
-    of_parent_text = t"" if parent is None else t" of the {F.mention(parent)}"
+    of_parent_text = t"" if parent is None else t" of the {F.full_mention(parent)}"
 
     view = views.DangerousConfirmView(
         user=interaction.user,
         on_confirm=execute,
         success_text=layout.layout(
             t"{F.format(mentionable_to_formattable(to_nuke))} Deleted",
-            t"The {F.mention(to_nuke)}"
+            t"The {F.full_mention(to_nuke)}"
             + of_parent_text
             + t" has been deleted (nuked) successfully! 💣",
             Status.SUCCESS,
         ),
         cancel_text=layout.layout(
             t"{F.format(mentionable_to_formattable(to_nuke))} Deletion Aborted",
-            t"The deletion (nuking) of the {F.mention(to_nuke)} has been aborted successfully!\nNothing changed.",
+            t"The deletion (nuking) of the {F.full_mention(to_nuke)} has been aborted successfully!\nNothing changed.",
             Status.WARNING,
         ),
         timeout=TIMEOUT,
@@ -175,7 +206,7 @@ async def nuke_object_on_confirmation(
     view._message = await interaction.followup.send(
         layout.layout(
             t"Confirm {F.format(mentionable_to_formattable(to_nuke))} Deletion",
-            t"Are you sure you want to delete (nuke) the {F.mention(to_nuke)}"
+            t"Are you sure you want to delete (nuke) the {F.full_mention(to_nuke)}"
             + of_parent_text
             + t"?\n\n"
             + consequences

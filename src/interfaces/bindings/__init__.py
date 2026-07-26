@@ -1,4 +1,1 @@
-lazy import filter
-lazy import mapping
-lazy import sequence
-lazy import sort
+from . import filter, mapping, sequence, sort

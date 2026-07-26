@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import db.session
 from domain.enums.rank import ServerRank
-from domain.errors.business import BusinessError, NotInServer
+from domain.errors.business import AnyBusinessErrorT, BusinessError, NotInServer
 from domain.errors.internal import InternalError
 from domain.typing.common import ID
 from domain.typing.server import ServerID
@@ -15,6 +15,7 @@ from domain.typing.user import UserID
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext, PublicServices
+from interfaces.decorators.with_context import _error_handling
 from interfaces.dsls.core.errors.base import DslError
 from interfaces.message import messages
 from interfaces.message.formatting import F
@@ -79,50 +80,6 @@ from services.task import (
     TaskService,
 )
 from services.user import UserAccessService, UserExistenceService, UserService
-
-
-async def _handle_domain_error(
-    interaction: discord.Interaction, e: BusinessError
-) -> None:
-    match e:
-        case NotInServer():
-            await messages.error(
-                interaction,
-                t"Not In A Server",
-                t"The specified command needs to be executed in a server!",
-            )
-
-        case NotInCommunity():
-            await messages.error(
-                interaction,
-                t"Not In A Community",
-                t"The specified command needs to be executed in a community!",
-            )
-
-        case NotAllowed():
-            await messages.error(
-                interaction,
-                t"Not Allowed",
-                t"You have the {F.mention(e.rank)}, but you at least need the {F.mention(e.required)} to perform this action!",
-            )
-
-        case EmptyString():
-            await messages.error(
-                interaction,
-                t"Empty String",
-                t'You entered an empty or whitespace-only string (`""`), which is not allowed!',
-            )
-
-        case DoubleBacktick():
-            await messages.error(
-                interaction,
-                t"Double Backtick",
-                t"You entered a string that contains a double backtick (`` ` `` `` ` ``), which is not allowed!\n"
-                + t"The reason it is not allowed is because otherwise it would be impossible to correctly format Discord messages.",
-            )
-
-        case _:
-            raise TypeError()
 
 
 def _get_server_rank(member: discord.Member) -> ServerRank:
@@ -205,7 +162,7 @@ def _create_public_services_object(
         list_access_service,
         field_mapping_extraction_service,
         field_mapping_transformation_service,
-        member_existence_service,
+        member_access_service,
         member_task_access_service,
         slot_type_service,
         task_access_service,
@@ -254,6 +211,7 @@ def _create_public_services_object(
         member_access_service,
         member_existence_service,
         permission_service,
+        user_existence_service,
     )
     community_query_service = CommunityQueryService(
         community_repository,
@@ -272,13 +230,18 @@ def _create_public_services_object(
     )
     member_service = MemberService(
         member_repository,
+        list_access_service,
         member_access_service,
         member_existence_service,
         permission_service,
         user_existence_service,
     )
     member_query_service = MemberQueryService(
-        ctx, community_repository, list_repository, member_existence_service, user_access_service
+        ctx,
+        community_repository,
+        list_repository,
+        member_existence_service,
+        user_access_service,
     )
     member_task_service = MemberTaskService(
         attribute_repository,
@@ -383,11 +346,15 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         *args,
                         **kwargs,
                     )
-                except BusinessError as e:
-                    await _handle_domain_error(interaction, e)
+                except t.get_args(AnyBusinessErrorT.__value__) as e:
+                    e = t.cast(AnyBusinessErrorT, e)
+                    await _error_handling.handle_domain_error(interaction, e)
                 except DslError as e:
-                    ...
-                except InternalError:
+                    await interaction.followup.send(
+                        f"Error: {e.__class__.__name__} {e.args}"
+                    )
+                    raise e
+                except InternalError, Exception:
                     await messages.error(
                         interaction,
                         t"Unhandled",

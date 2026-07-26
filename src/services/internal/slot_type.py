@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.errors.business import InvalidSlotForSlotType
 from domain.typing.attribute import SlotTypeT
 from domain.value_objects.field_slot import FieldSlotStr
 
@@ -34,16 +35,16 @@ class SlotTypeService:
                 if s == "true":
                     return FieldSlotStr("True")
 
-                raise ValueError("Invalid Slot Str Error")
+                raise InvalidSlotForSlotType(type, slot)
 
             case AttributeSlotType.INTEGER:
                 try:
                     n = int(str(slot))
                 except Exception:
-                    raise ValueError("Invalid Slot Str Error")
+                    raise InvalidSlotForSlotType(type, slot)
 
                 if not _is_number_in_range(n):
-                    raise ValueError("Invalid Slot Str Error")
+                    raise InvalidSlotForSlotType(type, slot)
 
                 return FieldSlotStr(str(n))
 
@@ -51,15 +52,15 @@ class SlotTypeService:
                 try:
                     n = decimal.Decimal(str(slot))
                 except decimal.InvalidOperation:
-                    raise ValueError("Invalid Slot Str Error")
+                    raise InvalidSlotForSlotType(type, slot)
 
                 try:
                     n = n.quantize(DECIMAL_SCALE, rounding=decimal.ROUND_DOWN)
                 except decimal.InvalidOperation:
-                    raise ValueError("Invalid Slot Str Error")
+                    raise InvalidSlotForSlotType(type, slot)
 
                 if not _is_number_in_range(n):
-                    raise ValueError("Invalid Slot Str Error")
+                    raise InvalidSlotForSlotType(type, slot)
 
                 return FieldSlotStr(format(n, "f"))
 

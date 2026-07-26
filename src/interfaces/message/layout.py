@@ -4,6 +4,7 @@ import typing as t
 from dataclasses import dataclass
 from string.templatelib import Interpolation, Template, convert
 
+from domain.errors.internal import ProgrammingError
 from domain.sentinels.default import DEFAULT
 from interfaces.message.formatting import F, FormatArgsEmpty, FormatArgsTypeName
 
@@ -18,12 +19,12 @@ class Status(enum.StrEnum):
 
 def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     if interpolation.format_spec or interpolation.conversion:
-        raise ValueError("Format or conversion not allowed rn")
+        raise ProgrammingError(f"Format or conversion not allowed! {interpolation!r}")
 
     f = interpolation.value
 
     if not isinstance(f, F):
-        raise ValueError(
+        raise ProgrammingError(
             f"All interpolations' values must be of type {F.__qualname__}, which {f!r} isn't!"
         )
 

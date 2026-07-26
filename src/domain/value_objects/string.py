@@ -87,7 +87,12 @@ class NormStr(BaseSingleStr):
         if isinstance(s, str):
             s = RealStr(s)
 
-        self._str = s._str.casefold()
+        self._str = self.normalize(s._str)
+
+    @classmethod
+    def normalize(cls, s: str) -> str:
+        """Algorithm used to normalize strings."""
+        return s.casefold()
 
 
 # Per definition in unicode 1 character maps to at most 3 characters after a casing operations

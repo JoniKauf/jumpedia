@@ -28,7 +28,7 @@ class ServerInterface(
         await messages.success(
             ctx.interaction,
             t"Server Connected",
-            t"The {F.format(Concept.SERVER)} was successfully linked to the {F.mention(community_entity)}!",
+            t"The {F.format(Concept.SERVER)} was successfully linked to the {F.full_mention(community_entity)}!",
         )
 
     @app_commands.command()
@@ -42,5 +42,5 @@ class ServerInterface(
         await messages.success(
             ctx.interaction,
             t"Server Disconnected",
-            t"The {F.format(Concept.SERVER)} was successfully unlinked from the {F.mention(community_entity)}!",
+            t"The {F.format(Concept.SERVER)} was successfully unlinked from the {F.full_mention(community_entity)}!",
         )

@@ -2,6 +2,7 @@ import decimal
 import enum
 import typing as t
 
+from domain.errors.internal import UndefinedTypeForKind
 lazy from domain.typing.attribute import (
     AnyAttributeTypeT,
     NoneKindedAttributeT,
@@ -89,7 +90,7 @@ class AttributeKind(enum.IntEnum):
                 return AttributeType.USER
 
             case AttributeKind.NONE:
-                raise ValueError(f"Indeterminable type from {AttributeKind.NONE}")
+                raise UndefinedTypeForKind(self)
 
             case _:
                 t.assert_never(self)

@@ -8,6 +8,7 @@ from domain.sentinels.default import DEFAULT
 from domain.sentinels.unknown import UNKNOWN
 from domain.typing.community import CommunityID
 from domain.value_objects.community import CommunityNameStr
+from domain.value_objects.list import ListNameStr
 from repositories.community import CommunityRepository
 from repositories.dtos.member import MemberInsert
 from repositories.dtos.user import UserInsert
@@ -16,10 +17,17 @@ from repositories.list import ListRepository
 lazy from repositories.member import MemberRepository
 lazy from services.community import CommunityAccessService
 lazy from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.member import MemberInfo, UserAndMemberInfo
+from services.dtos.member import (
+    CommunityRankEdited,
+    MemberInfo,
+    SelectedListEdited,
+    UserAndMemberInfo,
+)
 from services.dtos.user import UserRef
 
 lazy from services.internal.permission import PermissionService
+from services.list import ListAccessService
+
 lazy from services.user import UserAccessService, UserExistenceService
 
 
@@ -27,16 +35,17 @@ lazy from services.user import UserAccessService, UserExistenceService
 class MemberService:
     _member_repository: MemberRepository
 
+    _list_access_service: ListAccessService
     _member_access_service: MemberAccessService
     _member_existence_service: MemberExistenceService
     _permission_service: PermissionService
     _user_existence_service: UserExistenceService
 
-    def set_community_rank(
+    def edit_community_rank(
         self,
         user: UserRef,
         community_rank: CommunityRank,
-    ) -> MemberEntity:
+    ) -> CommunityRankEdited:
         community, actor_member = self._member_access_service.get_convenient(DEFAULT)
 
         target_member = self._member_existence_service.get_or_create(
@@ -54,9 +63,41 @@ class MemberService:
             community_rank=community_rank,
         )
 
-        self._member_repository.update(target_member)
+        del actor_member
 
-        return target_member
+        updated_member = self._member_repository.update_community_rank(
+            target_member.member_id, target_member.user, community_rank
+        )
+
+        return CommunityRankEdited(target_member, updated_member)
+
+    def edit_selected_list(
+        self, list_name: ListNameStr | None, user: UserRef | DEFAULT
+    ) -> SelectedListEdited:
+        actor_member: MemberEntity
+        lst: ListEntity | None
+
+        if list_name is None:
+            _, actor_member = self._member_access_service.get_convenient(DEFAULT)
+            lst = None
+        else:
+            _, actor_member, lst = self._list_access_service.get_convenient(
+                DEFAULT, list_name
+            )
+
+        target_member = self._member_access_service.get_target_member_if_actor_member_is_permitted_to_act_for_others(
+            actor_member, user
+        )
+
+        del actor_member
+
+        updated_member = self._member_repository.update_selected_list(
+            target_member.member_id,
+            target_member.user,
+            None if lst is None else lst.list_id,
+        )
+
+        return SelectedListEdited(target_member, updated_member, lst)
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -139,11 +180,8 @@ class MemberAccessService:
     def get_or_create_current_with_defaults(
         self, community: CommunityEntity
     ) -> MemberEntity:
-        return self._member_repository.create(
-            MemberInsert(
-                self._ctx.user,
-                community.community_id,
-            )
+        return self._member_existence_service.get_or_create(
+            MemberInsert(self._ctx.user, community.community_id)
         )
 
     def get_convenient(

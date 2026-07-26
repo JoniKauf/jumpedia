@@ -3,12 +3,25 @@ from dataclasses import dataclass
 
 from domain.entities.base import BaseEntity
 from domain.enums.concept import Concept
-from domain.errors.business import NotUniqueSynsAcrossNamesAndAliases, SynsNotUnique
+from domain.errors.business import (
+    AliasesNotUnique,
+    NotUniqueValuesAndAliasesAcrossCollection,
+    SynsNotUnique,
+)
+from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
 
 
 @dataclass(frozen=True, slots=True, eq=False)
 class StrsService:
+    def validate_unique_aliases(
+        self, iterable: t.Iterable[Str], concept: Concept
+    ) -> None:
+        try:
+            self.validate_unique_syns(iterable, concept)
+        except SynsNotUnique as e:
+            raise AliasesNotUnique(e.concept, e.collision)
+
     def validate_unique_syns(self, iterable: t.Iterable[Str], concept: Concept) -> None:
         seen: set[Str] = set()
 
@@ -18,10 +31,10 @@ class StrsService:
 
             seen.add(elem)
 
-    def validate_unique_names_and_aliases(
-        self, iterable: t.Iterable[tuple[Str, t.Iterable[Str]]], concept: Concept
+    def validate_unique_collection_syns(
+        self, iterable: t.Iterable[tuple[FieldSlotStr, t.Iterable[FieldSlotStr]]]
     ) -> None:
-        syn_to_name_and_alias: dict[Str, tuple[Str, Str | None]] = {}
+        syn_to_name_and_alias: dict[FieldSlotStr, tuple[FieldSlotStr, FieldSlotStr | None]] = {}
 
         for name, aliases in iterable:
             syn_is_name: bool = True
@@ -32,8 +45,7 @@ class StrsService:
                 if seen is not None:
                     seen_name, seen_alias = seen
 
-                    raise NotUniqueSynsAcrossNamesAndAliases(
-                        concept,
+                    raise NotUniqueValuesAndAliasesAcrossCollection(
                         seen_name,
                         name,
                         seen_alias,

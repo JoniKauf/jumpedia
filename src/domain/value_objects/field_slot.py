@@ -1,6 +1,7 @@
 import typing as t
 
 from domain.entities.task import TaskEntity
+from domain.enums.concept import Concept
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
 
@@ -20,5 +21,5 @@ else:
     FieldSlotStr = factories.make_length_limited_str_store_type(
         "FieldSlotStr",
         CommunityLimits.FIELD_SLOT_LENGTH_MAX,
-        TaskEntity,
+        Concept.FIELD_SLOT,
     )

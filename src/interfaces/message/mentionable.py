@@ -6,21 +6,13 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.entities.user import UserEntity
+from domain.enums.attribute import AttributeSlotType
 from domain.enums.concept import Concept
-from domain.enums.rank import CommunityRank, MetaRank, ServerRank
+from domain.enums.rank import AnyRankT, CommunityRank, MetaRank, ServerRank
+from domain.typing.entity import NamedEntityT
 from interfaces.message.formattable import FormattableT
 
-type MentionableT = (
-    AttributeEntity
-    | CommunityEntity
-    | CommunityRank
-    | ListEntity
-    | MemberEntity
-    | MetaRank
-    | ServerRank
-    | TaskEntity
-    | UserEntity
-)
+type MentionableT = NamedEntityT | AnyRankT | AttributeSlotType
 
 
 def get_name_of_mentionable(mentionable: MentionableT) -> str:
@@ -52,5 +44,7 @@ def mentionable_to_formattable(mentionable: MentionableT) -> FormattableT:
             return Concept.TASK
         case UserEntity():
             return Concept.USER
+        case AttributeSlotType():
+            return Concept.ATTRIBUTE_SLOT_TYPE
         case _:
             t.assert_never(mentionable)

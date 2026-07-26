@@ -4,6 +4,7 @@ from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank
 from domain.errors.business import (
     CountLimitReached,
@@ -48,7 +49,7 @@ class ListService:
 
         if list_count >= community.limits.community_list_count_max:
             raise CountLimitReached(
-                community.limits.community_list_count_max, ListEntity
+                Concept.LIST, community.limits.community_list_count_max
             )
 
         if existing := self._list_repository.get_by_community_and_name(
@@ -181,7 +182,7 @@ class ListAccessService:
         )
 
         if lst is None:
-            raise NotFoundByName(ListEntity, name)
+            raise NotFoundByName(Concept.LIST, name)
 
         return lst
 

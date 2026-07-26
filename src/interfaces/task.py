@@ -12,6 +12,7 @@ from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
 from interfaces import bindings
 from interfaces.base import BaseInterface
+from interfaces.bindings import user_ref
 from interfaces.command import cogs, groups
 from interfaces.contexts.command import CommandContext
 from interfaces.decorators.with_context import with_context
@@ -21,7 +22,6 @@ from interfaces.enums.edit_mode import (
 )
 from interfaces.message import messages
 from interfaces.message.formatting import F
-from services.dtos.user import UserRef
 
 
 class TaskInterface(
@@ -138,7 +138,7 @@ class TaskInterface(
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.TASK)} {F.format(Concept.FIELD_MAPPING)} Edited",
-            t"The field mapping of the {F.mention(task)} was successfully edited!",
+            t"The field mapping of the {F.full_mention(task)} was successfully edited!",
         )
 
     # --- Member Task --- #
@@ -154,11 +154,7 @@ class TaskInterface(
     ) -> None:
         info = ctx.services.member_task_query.get_info(
             FieldSlotStr(task_name_or_alias),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
+            user_ref.user_ref(user),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 
@@ -184,18 +180,14 @@ class TaskInterface(
         member, task = ctx.services.member_task.give_to_user(
             FieldSlotStr(task_name_or_alias),
             DEFAULT if list_name is None else ListNameStr(list_name),
-            (bindings.mapping.field_mapping(user_field_mapping_dsl)),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
+            bindings.mapping.field_mapping(user_field_mapping_dsl),
+            user_ref.user_ref(user),
         )
 
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.TASK)} Given",
-            t"The {F.mention(task)} has been given to the {F.mention(member)} successfully!",
+            t"The {F.full_mention(task)} has been given to the {F.full_mention(member)} successfully!",
         )
 
     @app_commands.command()
@@ -210,17 +202,13 @@ class TaskInterface(
         member, task = ctx.services.member_task.take_from_user(
             FieldSlotStr(task_name_or_alias),
             DEFAULT if list_name is None else ListNameStr(list_name),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
+            user_ref.user_ref(user),
         )
 
         await messages.success(
             ctx.interaction,
             t"{F.format(Concept.TASK)} Taken",
-            t"The {F.mention(task)} has been taken from the {F.mention(member)} successfully!",
+            t"The {F.full_mention(task)} has been taken from the {F.full_mention(member)} successfully!",
         )
 
     @app_commands.command()
@@ -237,11 +225,7 @@ class TaskInterface(
         member, task = ctx.services.member_task.edit_member_field_mapping(
             bindings.mapping.field_mapping(new_user_field_mapping),
             FieldMappingEditMode(edit_mode.value),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
+            user_ref.user_ref(user),
             FieldSlotStr(task_name_or_alias),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
@@ -249,7 +233,7 @@ class TaskInterface(
         await messages.success(
             ctx.interaction,
             t"Given {F.format(Concept.TASK)} Updated",
-            t"The {F.mention(task)} the {F.mention(member)} had already given themselves was updated successfully!",
+            t"The {F.full_mention(task)} the {F.full_mention(member)} had already given themselves was updated successfully!",
         )
 
 
@@ -301,11 +285,7 @@ class TasksInterface(
             bindings.filter.filter(filter_dsl),
             bindings.sort.sorts(sort_dsl),
             bindings.sequence.yield_(yield_dsl_sequence),
-            (
-                DEFAULT
-                if user is None
-                else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
-            ),
+            user_ref.user_ref(user),
             DEFAULT if list_name is None else ListNameStr(list_name),
         )
 

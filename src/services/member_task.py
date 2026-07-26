@@ -9,7 +9,7 @@ from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
 from domain.enums.edit_mode import FieldMappingEditMode
-from domain.errors import business
+from domain.errors.business import MemberAlreadyHasTask, MemberDoesNotHaveTask
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import AnyAttributeTypeT, SlotTypeT, TaskAttributeTypeT
 from domain.typing.community import CommunityID
@@ -88,7 +88,7 @@ class MemberTaskService:
         )
 
         if existing_member_task is not None:
-            raise business.MemberAlreadyHasTask(target_member, task)
+            raise MemberAlreadyHasTask(target_member, task)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
@@ -152,7 +152,7 @@ class MemberTaskService:
         )
 
         if existing_target_member is None:
-            raise business.MemberDoesNotHaveTask(target_member)
+            raise MemberDoesNotHaveTask(target_member)
 
         self._member_task_repository.delete(existing_target_member.member_task_id)
 
@@ -181,7 +181,7 @@ class MemberTaskService:
         )
 
         if member_task is None:
-            raise business.MemberDoesNotHaveTask(target_member)
+            raise MemberDoesNotHaveTask(target_member)
 
         ATTRIBUTE_TYPES: t.Final = AttributeType.USER.as_set()
         ATTRIBUTE_KINDS: t.Final = AttributeKind.NONE_KINDED
@@ -194,12 +194,16 @@ class MemberTaskService:
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
+        id_to_attr = {attr.attribute_id: attr for attr in syn_to_attr.values()}
 
         new_mfm = self._field_mapping_build_service.build_edit(
             edit_mode,
-            self._member_field_slot_repository.get_field_mapping_by_member_id_and_task_id(
-                target_member.member_id, task.task_id
-            ),
+            {
+                id_to_attr[attr_id]: field
+                for attr_id, field in self._member_field_slot_repository.get_field_mapping_by_member_id_and_task_id(
+                    target_member.member_id, task.task_id
+                ).items()
+            },
             new_member_field_mapping,
             syn_to_attr,
             attr_id_to_collection,
@@ -282,7 +286,7 @@ class MemberTaskAccessService:
         )
 
         if member_task is None:
-            raise ValueError("member doesn't have task")
+            raise MemberDoesNotHaveTask(target_member)
 
         return target_member, member_task
 

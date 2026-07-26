@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType
 
+from domain.enums.concept import Concept
 lazy from domain.errors.business import SlotCountConfigLimitExceeded
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits
@@ -18,7 +19,7 @@ if t.TYPE_CHECKING:
 
 else:
     AttributeSynStr = factories.make_length_limited_str_store_type(
-        "AttributeSynStr", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, AttributeEntity
+        "AttributeSynStr", CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX, Concept.ATTRIBUTE
     )
 
 

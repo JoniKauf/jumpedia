@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from domain.entities.community import CommunityEntity
 from domain.enums.rank import ServerRank
-from domain.errors.business import InCommunity
+from domain.errors.business import ServerAlreadyLinked
 from domain.value_objects.community import CommunityNameStr
 
 lazy from repositories.community import CommunityRepository
@@ -30,7 +30,7 @@ class ServerService:
         community = self._community_repository.get_by_server_id(self._ctx.server_id)
 
         if community is not None:
-            raise InCommunity(community)
+            raise ServerAlreadyLinked(community)
 
         community = self._community_access_service.get_by_name_or_raise(community_name)
 

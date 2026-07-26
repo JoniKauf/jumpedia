@@ -4,6 +4,8 @@ import typing as t
 
 import dotenv
 
+from domain.errors.internal import ProgrammingError
+
 dotenv.load_dotenv(r"..\.env")
 
 
@@ -17,7 +19,7 @@ def _get_or_throw_env(name: str) -> str:
     v = os.getenv(name)
 
     if v is None:
-        raise RuntimeError(f"Env variable {name!r} could not be found!")
+        raise ProgrammingError(f"Env variable {name!r} could not be found!")
 
     return v
 

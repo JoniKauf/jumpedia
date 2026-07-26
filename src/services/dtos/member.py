@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from domain.entities.list import ListEntity
+from domain.entities.member import MemberEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.sentinels.unknown import UNKNOWN
 from domain.typing.user import UserID
@@ -20,3 +21,16 @@ class UserAndMemberInfo:
 class MemberInfo:
     community_rank: CommunityRank
     selected_list: ListEntity | None
+
+
+@dataclass(frozen=True, slots=True)
+class CommunityRankEdited:
+    before: MemberEntity
+    after: MemberEntity
+
+
+@dataclass(frozen=True, slots=True)
+class SelectedListEdited:
+    before: MemberEntity
+    after: MemberEntity
+    list_after: ListEntity | None

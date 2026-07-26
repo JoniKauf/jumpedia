@@ -10,6 +10,7 @@ from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.errors.internal import NotFoundById
 from domain.typing.community import CommunityID
+from domain.typing.list import ListID
 from domain.typing.member import MemberID
 from repositories import user
 from repositories.base import BaseRepository
@@ -66,6 +67,39 @@ class MemberRepository(BaseRepository):
 
         return member_model_to_entity(obj, member.user)
 
+    def update_community_rank(
+        self,
+        member_id: MemberID,
+        user: UserEntity,
+        community_rank: CommunityRank,
+    ) -> MemberEntity:
+        obj = self._session.get(MemberModel, member_id)
+
+        if obj is None:
+            raise NotFoundById(MemberEntity, member_id)
+
+        obj.rank = community_rank.value
+        self._session.flush()
+
+        return member_model_to_entity(obj, user)
+
+    def update_selected_list(
+        self,
+        member_id: MemberID,
+        user: UserEntity,
+        selected_list_id: ListID | None,
+    ) -> MemberEntity:
+        obj = self._session.get(MemberModel, member_id)
+
+        if obj is None:
+            raise NotFoundById(MemberEntity, member_id)
+
+        obj.selected_list_id = selected_list_id
+        self._session.flush()
+
+        return member_model_to_entity(obj, user)
+
+    # This should only be used if everything is changed!!
     def update(
         self,
         member: MemberEntity,

@@ -3,11 +3,10 @@ from dataclasses import dataclass
 from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.enums.attribute import AttributeSlotType
+from domain.enums.concept import Concept
 from domain.errors.business import (
     AliasCountLimitSurpassed,
     CountLimitReached,
-    NotUniqueSynsAcrossNamesAndAliases,
-    SynsNotUnique,
 )
 from domain.typing.collection_entry import AbstractCollectionT, FrozenCollectionT
 from domain.value_objects.field_slot import FieldSlotStr
@@ -28,8 +27,8 @@ class CollectionBuildService:
     ) -> FrozenCollectionT:
         if len(collection) > community.limits.collection_entry_count_max:
             raise CountLimitReached(
+                Concept.COLLECTION,
                 community.limits.collection_entry_count_max,
-                CollectionEntryEntity,
             )
 
         for entry in collection:
@@ -40,7 +39,9 @@ class CollectionBuildService:
                     entry[1],
                 )
 
-        self._strs_service.validate_unique_names_and_aliases(collection, ...)
+        self._strs_service.validate_unique_collection_syns(
+            collection
+        )
 
         entries: list[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]]] = []
 

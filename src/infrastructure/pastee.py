@@ -56,10 +56,10 @@ def create_pastee_with_retries(
     between: float = 0.2,
 ) -> str:
     if tries < 1:
-        raise ValueError("tries")
+        raise ValueError("'tries' less than 1")
 
     if between < 0:
-        raise ValueError("between")
+        raise ValueError("'between' less than 0")
 
     err: ConnectionError | None = None
 
@@ -83,7 +83,7 @@ def table_to_pastee_strings(
     max_body_total_length_per_link: int = 1_500_000,
 ) -> list[str]:
     if len(headers) <= 0:
-        raise ValueError
+        raise ValueError("'headers' less than 1")
 
     col_count = len(headers)
     max_len_per_col = [len(h) for h in headers]

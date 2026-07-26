@@ -4,9 +4,14 @@ from dataclasses import dataclass
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
-from domain.entities.user import UserEntity
+from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.errors import business
+from domain.errors.business import (
+    NotFoundByName,
+    NotInCommunity,
+    ServerAlreadyConnectedToACommunity,
+    SynAlreadyTaken,
+)
 from domain.sentinels.default import DEFAULT
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
 from domain.value_objects.list import ListNameStr
@@ -14,6 +19,7 @@ from domain.value_objects.list import ListNameStr
 lazy from repositories.community import CommunityRepository
 from repositories.dtos.community import CommunityInsert
 from repositories.dtos.member import MemberInsert
+from repositories.dtos.user import UserInsert
 
 lazy from repositories.list import ListRepository
 lazy from repositories.member import MemberRepository
@@ -30,6 +36,7 @@ from services.dtos.user import UserRef
 lazy from services.internal.permission import PermissionService
 lazy from services.list import ListAccessService, ListService
 lazy from services.member import MemberAccessService, MemberExistenceService
+from services.user import UserExistenceService
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -44,6 +51,7 @@ class CommunityService:
     _member_access_service: MemberAccessService
     _member_existence_service: MemberExistenceService
     _permission_service: PermissionService
+    _user_existence_service: UserExistenceService
 
     def create(
         self,
@@ -56,14 +64,12 @@ class CommunityService:
         existing = self._community_repository.get_by_name(name)
 
         if existing is not None:
-            raise business.SynAlreadyTaken(existing, name, False, False)
+            raise SynAlreadyTaken(existing, name, False, False)
 
         existing = self._community_repository.get_by_server_id(self._ctx.server_id)
 
         if existing is not None:
-            raise business.ServerAlreadyConnectedToACommunity(
-                self._ctx.server_id, existing
-            )
+            raise ServerAlreadyConnectedToACommunity(self._ctx.server_id, existing)
 
         del existing
 
@@ -73,7 +79,9 @@ class CommunityService:
 
         self._member_existence_service.get_or_create(
             MemberInsert(
-                UserEntity(owner.id, owner.name),
+                self._user_existence_service.get_or_create(
+                    UserInsert(owner.id, owner.name)
+                ),
                 community.community_id,
                 CommunityRank.OWNER,
                 None,
@@ -214,7 +222,7 @@ class CommunityAccessService:
         community = self._community_repository.get_by_name(name)
 
         if community is None:
-            raise business.NotFoundByName(CommunityEntity, name)
+            raise NotFoundByName(Concept.COMMUNITY, name)
 
         return community
 
@@ -222,7 +230,7 @@ class CommunityAccessService:
         community = self._community_repository.get_by_server_id(self._ctx.server_id)
 
         if community is None:
-            raise business.NotInCommunity()
+            raise NotInCommunity()
 
         return community
 

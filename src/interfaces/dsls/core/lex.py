@@ -178,15 +178,11 @@ class Lexer:
                 continue
 
             # --- Lex Symbol --- #
-            symbol: str | None = None
-
-            for s in SYMBOLS_LONGEST_TO_SHORTEST:
-                if s.startswith(s, i):
-                    symbol = s
+            for symbol in SYMBOLS_LONGEST_TO_SHORTEST:
+                if s.startswith(symbol, i):
                     break
-
-            # End point of lexing, nothing matched
-            if symbol is None:
+            else:
+                # End point of lexing, nothing matched
                 raise UnknownChar(s, Span(i, i + 1))
 
             j = i + len(symbol)

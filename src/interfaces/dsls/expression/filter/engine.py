@@ -88,7 +88,7 @@ class FilterEngine(BaseEngine):
                     assert self._s is not None
                     raise UnexpectedNode(self._s, TEXT_NODE_TYPES, bin_op.left)
 
-                attr = self.get_string_from_text_node(bin_op.right)
+                attr = self.get_string_from_text_node(bin_op.left)
 
                 if (
                     isinstance(bin_op.right, IdentifierNode)

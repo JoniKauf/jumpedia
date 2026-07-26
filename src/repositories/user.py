@@ -39,6 +39,19 @@ class UserRepository(BaseRepository):
 
         return user_model_to_entity(obj)
 
+    def update_meta_rank(self, user_id: UserID, meta_rank: MetaRank) -> UserEntity:
+        obj = self._session.get(UserModel, user_id)
+
+        if obj is None:
+            raise NotFoundById(UserEntity, user_id)
+
+        obj.rank = meta_rank
+
+        self._session.flush()
+
+        return user_model_to_entity(obj)
+
+    # This should only be used if everything is changed!!
     def update(
         self,
         user: UserEntity,

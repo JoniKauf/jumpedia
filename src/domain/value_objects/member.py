@@ -11,5 +11,5 @@ class OptionalMemberWrapper:
         return (
             "<Deleted User>"
             if self.value is None
-            else f"{self.value.name} ({self.value.member_id})"
+            else f"{self.value.name} ({self.value.user.user_id})"
         )

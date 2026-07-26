@@ -7,7 +7,7 @@ from repositories.dtos.user import UserInsert
 
 lazy from repositories.user import UserRepository
 lazy from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.user import UserRef
+from services.dtos.user import MetaRankEdited, UserRef
 
 lazy from services.internal.permission import PermissionService
 
@@ -19,7 +19,7 @@ class UserService:
     _permission_service: PermissionService
     _user_existence_server: UserExistenceService
 
-    def set_meta_rank(self, user: UserRef, meta_rank: MetaRank) -> UserEntity:
+    def edit_meta_rank(self, user: UserRef, meta_rank: MetaRank) -> MetaRankEdited:
         target_user = self._user_existence_server.get_or_create(
             UserInsert(user.id, user.name)
         )
@@ -28,9 +28,11 @@ class UserService:
             target_user=target_user, meta_rank=meta_rank
         )
 
-        self._user_repository.update(target_user)
+        updated_user = self._user_repository.update_meta_rank(
+            target_user.user_id, meta_rank
+        )
 
-        return target_user
+        return MetaRankEdited(target_user, updated_user)
 
 
 @dataclass(frozen=True, slots=True, eq=False)

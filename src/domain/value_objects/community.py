@@ -2,6 +2,8 @@ import typing as t
 from dataclasses import Field, dataclass
 
 from domain.entities.community import CommunityEntity
+from domain.enums.concept import Concept
+from domain.errors.business import CommunityLimitOutOfRange
 from domain.value_objects import factories
 
 lazy from domain.value_objects.string import Str
@@ -19,30 +21,48 @@ class CommunityLimits:
     collection_entry_alias_count_max: int
 
     def __post_init__(self) -> None:
-        if not (CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT <= self.field_slot_count_max):
-            raise ValueError("Community limit of slot count max too high")
+        GENERAL_MIN: t.Final[int] = 0
+        GENERAL_MAX: t.Final[int] = 255
 
         for name, field in self.__dataclass_fields__.items():
             field: Field
 
             limit: int = getattr(self, field.name)
 
-            if limit < 0:
-                raise ValueError()
+            match name:
+                case "field_slot_count_max":
+                    if (
+                        limit < CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT
+                        or limit > GENERAL_MAX
+                    ):
+                        raise CommunityLimitOutOfRange(
+                            Str(name),
+                            limit,
+                            CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
+                            GENERAL_MAX,
+                        )
+                case "list_task_count_max":
+                    TASK_MAX: int = 2**31 - 1
 
-            if name == "list_task_count_max":
-                if limit > 2**31 - 1:
-                    raise ValueError
-            elif name == "list_attribute_count_max":
-                if limit > 127:
-                    raise RuntimeError(
-                        "Attribute count MUST be lower than half of max of "
-                        "TINYINT (255) because twice the space is needed for "
-                        "editing their position (temporarily all are offset)"
-                    )
-            else:
-                if limit > 255:
-                    raise ValueError(f"{name} out of bounds ({limit})")
+                    if limit < GENERAL_MIN or limit > TASK_MAX:
+                        raise CommunityLimitOutOfRange(
+                            Str(name), limit, GENERAL_MIN, TASK_MAX
+                        )
+
+                case "list_attribute_count_max":
+                    if limit < GENERAL_MIN or limit > 127:
+                        # Attribute count MUST be lower than half of max of
+                        # TINYINT (255) because twice the space is needed for
+                        # editing their position (temporarily all are offset)
+                        raise CommunityLimitOutOfRange(
+                            Str(name), limit, GENERAL_MIN, 127
+                        )
+
+                case _:
+                    if limit < GENERAL_MIN or limit > GENERAL_MAX:
+                        raise CommunityLimitOutOfRange(
+                            Str(name), limit, GENERAL_MIN, GENERAL_MAX
+                        )
 
     @cached_classproperty
     def DEFAULT(cls) -> t.Self:
@@ -81,5 +101,5 @@ if t.TYPE_CHECKING:
 
 else:
     CommunityNameStr = factories.make_length_limited_str_store_type(
-        "CommunityNameStr", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, CommunityEntity
+        "CommunityNameStr", CommunityLimits.COMMUNITY_NAME_LENGTH_MAX, Concept.COMMUNITY
     )

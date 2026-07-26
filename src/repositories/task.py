@@ -29,7 +29,7 @@ class TaskRepository(BaseRepository):
         obj = TaskModel(
             list_id=task.list_id,
             norm_name=task.name.norm,
-            slot_name=task.name.real,
+            real_name=task.name.real,
         )
 
         self._session.add(obj)

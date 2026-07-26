@@ -7,13 +7,14 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.concept import Concept
 from domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors.business import (
     AliasCountLimitSurpassed,
     AliasesDidNotChange,
     CountLimitReached,
-    NameNotDifferent,
+    NewNameEqualToCurrent,
     NotFoundByName,
     NotFoundBySyn,
     SynAlreadyTaken,
@@ -87,7 +88,7 @@ class TaskService:
         task_count = self._task_repository.count_by_list(lst.list_id)
 
         if task_count >= community.limits.list_task_count_max:
-            raise CountLimitReached(community.limits.list_task_count_max, TaskEntity)
+            raise CountLimitReached(Concept.TASK, community.limits.list_task_count_max)
 
         syns: tuple[FieldSlotStr, ...] = (task_name, *aliases)
 
@@ -97,7 +98,7 @@ class TaskService:
             )
 
         # --- Verify Syn Uniquness Across Each Other And Across All Tasks --- #
-        self._strs_service.validate_unique_syns(syns, TaskEntity)
+        self._strs_service.validate_unique_syns(syns, Concept.TASK)
 
         existing_same_syn = self._task_repository.get_first_by_list_id_and_any_syn(
             lst.list_id, syns, None
@@ -172,7 +173,7 @@ class TaskService:
 
         # Exactly equal (real matches, not just norm)
         if task.name.real == new_name.real:
-            raise NameNotDifferent(task)
+            raise NewNameEqualToCurrent(task)
 
         existing_task_and_syn = self._task_repository.get_by_list_id_and_syn(
             lst.list_id,
@@ -205,17 +206,17 @@ class TaskService:
 
         self._permission_service.ensure_community_rank(member, CommunityRank.MODERATOR)
 
-        self._strs_service.validate_unique_syns(new_aliases, TaskEntity)
+        self._strs_service.validate_unique_aliases(new_aliases, Concept.TASK)
 
         current_aliases = self._task_repository.get_aliases_by_task_id(task.task_id)
 
         new_aliases = self._edit_mode_service.handle_alias_edit(
-            edit_mode, current_aliases, new_aliases
+            edit_mode, current_aliases, new_aliases, Concept.TASK
         )
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if FieldSlotStr.sequence_real_equals(current_aliases, new_aliases):
-            raise AliasesDidNotChange(TaskEntity, new_aliases)
+            raise AliasesDidNotChange(task, new_aliases)
 
         del current_aliases
 
@@ -275,10 +276,16 @@ class TaskService:
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
             )
         )
+        id_to_attr = {attr.attribute_id: attr for attr in syn_to_attr.values()}
 
         new_fm = self._field_mapping_build_service.build_edit(
             edit_mode,
-            self._field_slot_repository.get_field_mapping_by_task_id(task.task_id),
+            {
+                id_to_attr[attr_id]: field
+                for attr_id, field in self._field_slot_repository.get_field_mapping_by_task_id(
+                    task.task_id
+                ).items()
+            },
             new_field_mapping,
             syn_to_attr,
             attr_id_to_collection,
@@ -349,7 +356,7 @@ class TaskAccessService:
         task = self._task_repository.get_by_list_id_and_name(lst.list_id, name)
 
         if task is None:
-            raise NotFoundByName(TaskEntity, name)
+            raise NotFoundByName(Concept.TASK, name)
 
         return task
 
@@ -359,7 +366,7 @@ class TaskAccessService:
         tup = self._task_repository.get_by_list_id_and_syn(lst.list_id, syn)
 
         if tup is None:
-            raise NotFoundBySyn(TaskEntity, syn)
+            raise NotFoundBySyn(Concept.TASK, syn)
 
         return tup[0]
 

@@ -10,19 +10,20 @@ from domain.sentinels.default import DEFAULT
 from domain.sentinels.unknown import UNKNOWN
 from domain.typing.common import ID
 from domain.typing.user import UserID
+from domain.value_objects.list import ListNameStr
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
+from interfaces.bindings import user_ref
 from interfaces.command import cogs, groups
 from interfaces.decorators.with_context import CommandContext, with_context
 from interfaces.message import formatting, mentionable, messages
 from interfaces.message.formatting import F
-from services.dtos.user import UserRef
 
 
 class UserInterface(
     BaseInterface, group_name=cogs.cog_concept_to_group_name(Concept.USER, plural=False)
 ):
-    set_group = groups.create_set_group()
+    edit_group = groups.create_edit_group()
 
     MetaRanksEnum = enum.Enum(
         "MetaRanksEnum",
@@ -30,25 +31,23 @@ class UserInterface(
         + [],
     )
 
-    @set_group.command(name="meta_rank")
+    @edit_group.command(name="meta_rank")
     @with_context()
-    async def set_meta_rank(
+    async def edit_meta_rank(
         self, ctx: CommandContext, user: discord.User, rank: MetaRanksEnum
     ) -> None:
         new_rank = MetaRank(rank.value)
 
         del rank
 
-        target_user = ctx.services.user.set_meta_rank(
-            UserRef(UserID(ID(user.id)), UserNameStr(user.name)), new_rank
-        )
+        edited = ctx.services.user.edit_meta_rank(user_ref.user_ref(user), new_rank)
 
         await messages.success(
             ctx.interaction,
-            t"{F.format(Concept.META_RANK)} Set",
-            t"The {F.mention(target_user)} has been "
-            + (t"demoted" if target_user.meta_rank > new_rank else t"promoted")
-            + t" to the {F.mention(new_rank)} successfully!",
+            t"{F.format(Concept.USER)} {F.format(Concept.META_RANK)} Edited",
+            t"The {F.full_mention(edited.before)} has been "
+            + (t"demoted" if edited.before.meta_rank > new_rank else t"promoted")
+            + t" to the {F.full_mention(new_rank)} successfully!",
         )
 
     CommunityRanksEnum = enum.Enum(
@@ -60,36 +59,36 @@ class UserInterface(
         + [],
     )
 
-    @set_group.command(name="community_rank")
+    @edit_group.command(name="community_rank")
     @with_context()
-    async def set_community_rank(
+    async def edit_community_rank(
         self, ctx: CommandContext, user: discord.User, rank: CommunityRanksEnum
     ) -> None:
         new_rank = CommunityRank(rank.value)
 
         del rank
 
-        target_member = ctx.services.member.set_community_rank(
-            UserRef(UserID(ID(user.id)), UserNameStr(user.name)), new_rank
+        edited = ctx.services.member.edit_community_rank(
+            user_ref.user_ref(user), new_rank
         )
 
         await messages.success(
             ctx.interaction,
-            t"{F.format(Concept.COMMUNITY_RANK)} Set",
-            t"The {F.mention(target_member)} has been "
-            + (t"demoted" if target_member.community_rank > new_rank else t"promoted")
-            + t" to the {F.mention(new_rank)} successfully!",
+            t"{F.format(Concept.COMMUNITY_RANK)} Edited",
+            t"The {F.full_mention(edited.before)} has been "
+            + (t"demoted" if edited.before.community_rank > new_rank else t"promoted")
+            + t" to the {F.full_mention(new_rank)} successfully!",
         )
 
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, user: discord.User | None = None) -> None:
         info = ctx.services.member_query.get_info(
-            DEFAULT
-            if user is None
-            else UserRef(UserID(ID(user.id)), UserNameStr(user.name))
+            user_ref.user_ref(user),
         )
 
+        # We unpack dicts instead of just adding items conditionally because
+        # like this we have the xact order we want
         data: dict[str, tuple[str, ...]] = {
             "ID": (str(info.user_id),),
             "Name": (str(info.name),),
@@ -132,3 +131,28 @@ class UserInterface(
         }
 
         await messages.object_info(ctx.interaction, Concept.MEMBER, data)
+
+    @edit_group.command(name="selected_list")
+    @with_context()
+    async def edit_selected_list(
+        self,
+        ctx: CommandContext,
+        list_name: str | None = None,
+        user: discord.User | None = None,
+    ) -> None:
+        edited = ctx.services.member.edit_selected_list(
+            None if list_name is None else ListNameStr(list_name),
+            user_ref.user_ref(user),
+        )
+
+        await messages.success(
+            ctx.interaction,
+            t"Selected {F.format(Concept.LIST)} Edited",
+            t"The selected {F.format(Concept.LIST)} of the {F.full_mention(edited.before)} has been "
+            + (
+                t"unset"
+                if edited.list_after is None
+                else t"set as the {F.full_mention(edited.list_after)}"
+            )
+            + t" successfully!",
+        )

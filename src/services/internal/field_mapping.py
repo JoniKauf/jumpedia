@@ -8,8 +8,18 @@ from domain.entities.member import MemberEntity
 from domain.entities.member_task import MemberTaskEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.concept import Concept
 from domain.enums.edit_mode import FieldMappingEditMode
-from domain.errors.business import NotFoundByName
+from domain.errors.business import (
+    AttributeMentionedMoreThanOnce,
+    AttributeNotMentioned,
+    CollectionEntryNotFoundViaSyn,
+    NotFoundByName,
+    NotFoundBySyn,
+    NotUniqueSlots,
+    SlotCountConfigNotFulfilled,
+)
+from domain.errors.internal import KindedAttributeMissing
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import (
     AnyAttributeTypeT,
@@ -49,10 +59,13 @@ from repositories.member_field_slot import MemberFieldSlotRepository
 from repositories.member_task import MemberTaskRepository
 from repositories.task import TaskRepository
 from services.dtos.user import UserRef
-from services.internal.edit_mode import EditModeService
+from services.internal.edit_mode import (
+    AbstractFieldMappingEntityToStringT,
+    EditModeService,
+)
 from services.internal.slot_type import SlotTypeService
 from services.list import ListAccessService
-from services.member import MemberExistenceService
+from services.member import MemberAccessService, MemberExistenceService
 from services.member_task import MemberTaskAccessService
 from services.task import TaskAccessService
 
@@ -114,7 +127,7 @@ class FieldMappingBuildService:
             attr = syn_to_attribute[attr_syn]
 
             if attr in unchecked_field_mapping:
-                raise ValueError("Attr mentioned more than once")
+                raise AttributeMentionedMoreThanOnce(attr)
 
             unchecked_field_mapping[attr.attribute_id] = tuple(value)
 
@@ -129,25 +142,25 @@ class FieldMappingBuildService:
         res: dict[AttributeEntity[T], tuple[FieldSlotStr, ...]] = {}
 
         for attr in attributes:
-            v = unchecked_field_mapping.get(attr.attribute_id)
+            field = unchecked_field_mapping.get(attr.attribute_id)
 
-            if v is None:
+            if field is None:
                 if attr.field_config.min_slot_count > 0:
-                    raise ValueError("Required attr missing")
+                    raise AttributeNotMentioned(attr)
 
-                v = ()
+                field = ()
 
-            if len(v) < attr.field_config.min_slot_count:
-                raise ValueError("attr min count underflow")
+            if (
+                len(field) < attr.field_config.min_slot_count
+                or len(field) > attr.field_config.max_slot_count
+            ):
+                raise SlotCountConfigNotFulfilled(attr, tuple(field))
 
-            if len(v) > attr.field_config.max_slot_count:
-                raise ValueError("attr max count overflow")
-
-            v = tuple(
+            field = tuple(
                 self._slot_type_service.single_to_slot_typed_str(
                     slot, attr.field_config.slot_type
                 )
-                for slot in v
+                for slot in field
             )
 
             collection = attr_id_to_collection.get(attr.attribute_id)
@@ -163,36 +176,44 @@ class FieldMappingBuildService:
                     )
                 }
 
-                collectionified_v: list[FieldSlotStr] = []
+                collectionified_field: list[FieldSlotStr] = []
 
-                for slot in v:
-                    slot = syn_to_value.get(slot)
+                for slot in field:
+                    value = syn_to_value.get(slot)
 
-                    if slot is None:
-                        raise ValueError("Unknown slot")
+                    if value is None:
+                        raise CollectionEntryNotFoundViaSyn(
+                            attr,
+                            tuple((entry[0], tuple(entry[1])) for entry in collection),
+                            slot,
+                        )
 
-                    collectionified_v.append(slot)
+                    collectionified_field.append(value)
 
-                v = tuple(collectionified_v)
+                field = tuple(collectionified_field)
 
-            if attr.field_config.unique_slots and len(v) > 1 and len(set(v)) != len(v):
-                raise ValueError("Not unique slots when attribute requires it")
+            if (
+                attr.field_config.unique_slots
+                and len(field) > 1
+                and len(set(field)) != len(field)
+            ):
+                raise NotUniqueSlots(attr, field)
 
-            res[attr] = v
+            res[attr] = field
 
         return frozendict(res)
 
     def build_edit[T: AttributeType](
         self,
         edit_mode: FieldMappingEditMode,
-        current_field_mapping: AbstractFieldMappingIDToStringsT,
+        current_field_mapping: AbstractFieldMappingEntityToStringT,
         new_field_mapping: RawFieldMappingT,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attribute_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
     ) -> FrozenFieldMappingEntityToStrings[T]:
         # Build the new mapping to see if even valid on its own
         new_fm = {
-            attr.attribute_id: v
+            attr: v
             for attr, v in self.build_raw(
                 new_field_mapping, syn_to_attribute, attribute_id_to_collection
             ).items()
@@ -209,7 +230,9 @@ class FieldMappingBuildService:
 
         # Rebuild combined mapping to see if end result is valid
         return self.build(
-            new_fm, frozenset(syn_to_attribute.values()), attribute_id_to_collection
+            {attr.attribute_id: f for attr, f in new_fm.items()},
+            frozenset(syn_to_attribute.values()),
+            attribute_id_to_collection,
         )
 
 
@@ -442,14 +465,27 @@ class FieldMappingTransformationService:
         if filter is None:
             return field_mappings
 
-        return tuple(
-            self._recursively_solve_filter(
-                {id(fm): fm for fm in field_mappings},
-                filter,
-                syn_to_attribute,
-                attribute_id_to_collection_value_to_entry_index,
-            ).values()
+        # Map field mappings to their own Python IDs for fast dict/set operations
+        # Normalize slots of type str to have their comparison be not case-sensitive
+        field_mappings_adjusted_for_filtering = {
+            id(fm): {
+                attribute_id: tuple(
+                    NormStr.normalize(slot) if isinstance(slot, str) else slot
+                    for slot in field
+                )
+                for attribute_id, field in fm.items()
+            }
+            for fm in field_mappings
+        }
+
+        filtered = self._recursively_solve_filter(
+            field_mappings_adjusted_for_filtering,
+            filter,
+            syn_to_attribute,
+            attribute_id_to_collection_value_to_entry_index,
         )
+
+        return tuple(fm for fm in field_mappings if id(fm) in filtered)
 
     def _recursively_solve_filter(
         self,
@@ -530,7 +566,7 @@ class FieldMappingTransformationService:
                 attr = syn_to_attribute.get(attr_syn)
 
                 if attr is None:
-                    raise NotFoundByName(AttributeEntity, attr_syn)
+                    raise NotFoundBySyn(Concept.ATTRIBUTE, attr_syn)
 
                 # Examples: "a is _", "a is not _"
                 if isinstance(comp_filter, EmptyComparisonFilter):
@@ -626,7 +662,8 @@ class FieldMappingTransformationService:
                     name_attr = attr
                     break
             else:
-                raise ValueError("Data error, no name attribute found!!!")
+                # CRITICAL!! THIS IS BAD!
+                raise KindedAttributeMissing(AttributeKind.NAME)
 
             clean_sorts = [(name_attr, True)]
 
@@ -743,7 +780,7 @@ class FieldMappingService:
     _list_access_service: ListAccessService
     _field_mapping_extraction_service: FieldMappingExtractionService
     _field_mapping_transformation_service: FieldMappingTransformationService
-    _member_existence_service: MemberExistenceService
+    _member_access_service: MemberAccessService
     _member_task_access_service: MemberTaskAccessService
     _slot_type_service: SlotTypeService
     _task_access_service: TaskAccessService
@@ -922,7 +959,7 @@ class FieldMappingService:
             ATTRIBUTE_TYPES = AttributeType.ALL
             ATTRIBUTE_KINDS = AttributeKind.ALL
 
-            target_member = self._member_existence_service.get_or_create_with_user_ref(
+            target_member = self._member_access_service.get_or_create_with_user_ref(
                 target_user, community.community_id
             )
 
@@ -936,10 +973,10 @@ class FieldMappingService:
         )
 
         tasks: tuple[TaskEntity, ...]
-        task_id_to_user_kinded_field_mapping: frozendict[
+        _task_id_to_user_kinded_field_mapping: frozendict[
             TaskID, MutableFieldMappingIDToStringsT
         ] = frozendict()
-        task_id_to_user_field_mapping: frozendict[
+        _task_id_to_user_field_mapping: frozendict[
             TaskID, FrozenFieldMappingIDToStringsT
         ] = frozendict()
 
@@ -948,18 +985,18 @@ class FieldMappingService:
             tasks = self._task_repository.get_all_by_list_id(lst.list_id)
         # User
         elif not missing:
+            (
+                tasks,
+                _task_id_to_user_kinded_field_mapping,
+                _task_id_to_user_field_mapping,
+            ) = self._calc_user_field_mapping_data(lst, target_member, attrs_sorted)
+        # User Missing
+        else:
             tasks = self._task_repository.get_all_missing_by_list_id_and_member_id(
                 lst.list_id, target_member.member_id
             )
-        # User Missing
-        else:
-            (
-                tasks,
-                task_id_to_user_kinded_field_mapping,
-                task_id_to_user_field_mapping,
-            ) = self._calc_user_field_mapping_data(lst, target_member, attrs_sorted)
 
-        task_id_to_task_kinded_field_mapping = (
+        _task_id_to_task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_many(
                 tasks,
                 self._task_repository.get_grouped_aliases_by_list_id(lst.list_id),
@@ -967,26 +1004,22 @@ class FieldMappingService:
             )
         )
 
-        task_id_to_task_field_mapping = (
+        _task_id_to_task_field_mapping = (
             self._field_slot_repository.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
-        # Combine all mappings into the final one (generator, one time use)
-        field_mappings_untyped_gen = (
+        # Combine all mappings into the final one
+        # DO NOT DEL these variables to clean up the namespace. This is a generator
+        # which means that when the generator is used, the variables must still have
+        # their value!
+        field_mappings_untyped_gen = tuple(
             (
-                task_id_to_task_kinded_field_mapping.get(task.task_id, frozendict())
-                | task_id_to_user_kinded_field_mapping.get(task.task_id, frozendict())
-                | task_id_to_task_field_mapping.get(task.task_id, frozendict())
-                | task_id_to_user_field_mapping.get(task.task_id, frozendict())
+                _task_id_to_task_kinded_field_mapping.get(task.task_id, frozendict())
+                | _task_id_to_user_kinded_field_mapping.get(task.task_id, frozendict())
+                | _task_id_to_task_field_mapping.get(task.task_id, frozendict())
+                | _task_id_to_user_field_mapping.get(task.task_id, frozendict())
             )
             for task in tasks
-        )
-
-        del (
-            task_id_to_task_kinded_field_mapping,
-            task_id_to_user_kinded_field_mapping,
-            task_id_to_task_field_mapping,
-            task_id_to_user_field_mapping,
         )
 
         attr_id_to_slot_type = {

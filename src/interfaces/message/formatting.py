@@ -1,7 +1,6 @@
 import typing as t
 from dataclasses import dataclass
 
-from domain.enums.concept import Concept
 from domain.sentinels.default import DEFAULT
 from interfaces.message.formattable import FormattableForms, FormattableT
 from interfaces.message.mentionable import (
@@ -13,12 +12,16 @@ from interfaces.message.mentionable import (
 
 def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
     if len(ellipsis) > max:
-        raise ValueError()
+        raise ValueError("'ellipsis' does not fit into max")
 
     if len(s) <= max:
         return s
 
     return s[: max - len(ellipsis)] + ellipsis
+
+
+def _embed(s: str) -> str:
+    return f"`` {s} ``"
 
 
 type FormatArgsT = FormatArgsEmpty | FormatArgsTypeName
@@ -47,16 +50,14 @@ class F:
     _format_args: FormatArgsT
 
     @classmethod
-    def mention(cls, mentionable: MentionableT, *, shorten: bool = True) -> t.Self:
-        formattable_str = FormattableForms.from_formattable(
-            mentionable_to_formattable(mentionable)
-        ).singular
-        mentionable_str = get_name_of_mentionable(mentionable)
+    def raw(cls, s: str, *, shorten: bool = True, embed: bool = True) -> t.Self:
+        """Interpolate any string."""
 
         if shorten:
-            mentionable_str = _shorten(mentionable_str)
+            s = _shorten(s)
 
-        s = f"{formattable_str} ``{mentionable_str}``"
+        if embed:
+            s = _embed(s)
 
         return cls(_s=s, _format_args=FormatArgsEmpty())
 
@@ -69,6 +70,8 @@ class F:
         plural: bool = False,
         possessive: bool = False,
     ) -> t.Self:
+        """Interpolate a formattable object into its valid representation."""
+
         s = FormattableForms.from_formattable(formattable).case_from_bools(
             plural, possessive
         )
@@ -76,8 +79,31 @@ class F:
         return cls(_s=s, _format_args=FormatArgsTypeName(capitalize))
 
     @classmethod
-    def raw(cls, s: str, *, embed: bool = False) -> t.Self:
+    def min_mention(
+        cls, mentionable: MentionableT, *, shorten: bool = True, embed: bool = True
+    ) -> t.Self:
+        s = get_name_of_mentionable(mentionable)
+
+        if shorten:
+            s = _shorten(s)
+
         if embed:
-            s = f"``{s}``"
+            s = _embed(s)
+
+        return cls(_s=s, _format_args=FormatArgsEmpty())
+
+    @classmethod
+    def full_mention(cls, mentionable: MentionableT, *, shorten: bool = True) -> t.Self:
+        """Mention a mentionable object.
+
+        For example, for a list this would be
+        <code>List &#96&#96 &lt;list name&gt; &#96&#96</code>
+        """
+
+        formattable_str = FormattableForms.from_formattable(
+            mentionable_to_formattable(mentionable)
+        ).singular
+
+        s = f"{formattable_str} {cls.min_mention(mentionable, shorten=shorten, embed=True)}"
 
         return cls(_s=s, _format_args=FormatArgsEmpty())

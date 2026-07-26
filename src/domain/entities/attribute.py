@@ -1,6 +1,7 @@
 from domain.entities.base import BaseEntity
 
 lazy from domain.enums.attribute import AttributeKind, AttributeType
+from domain.errors.internal import AttributeTypeKindMismatch
 from domain.typing.attribute import AttributeID
 
 lazy from domain.typing.list import ListID
@@ -22,7 +23,7 @@ class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID])
         super().__init__(attribute_id)
 
         if kind is not AttributeKind.NONE and kind.type is not type:
-            raise ValueError("Kind and type do not match:", type, kind)
+            raise AttributeTypeKindMismatch(attribute_id, type, kind)
 
         self._list_id = list_id
         self._type = type

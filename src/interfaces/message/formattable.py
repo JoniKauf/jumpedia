@@ -31,20 +31,32 @@ class FormattableForms:
         return cls(singular, singular + "s", singular + "'s", singular + "s'")
 
     @classmethod
+    def from_singular_ending_in_y_regular(cls, singular: str) -> t.Self:
+        return cls(
+            singular, singular[:-1] + "ies", singular + "'s", singular[:-1] + "ies'"
+        )
+
+    @classmethod
     def from_formattable(cls, formattable: FormattableT) -> FormattableForms:
         match formattable:
             case Concept.ATTRIBUTE:
                 return cls.from_singular_regular("attribute")
+            case Concept.ATTRIBUTE_SLOT_TYPE:
+                return cls.from_singular_regular("attribute slot type")
             case Concept.COLLECTION:
                 return cls.from_singular_regular("collection")
+            case Concept.COLLECTION_ENTRY:
+                return cls.from_singular_ending_in_y_regular("collection entry")
             case Concept.COMMUNITY:
-                return cls("community", "communities", "community's", "communities'")
+                return cls.from_singular_ending_in_y_regular("community")
             case Concept.COMMUNITY_RANK:
                 return cls.from_singular_regular("community rank")
             case Concept.FIELD:
                 return cls.from_singular_regular("field")
             case Concept.FIELD_MAPPING:
                 return cls.from_singular_regular("field mapping")
+            case Concept.FIELD_SLOT:
+                return cls.from_singular_regular("field slot")
             case Concept.MEMBER:
                 return cls.from_singular_regular("member")
             case Concept.LIST:

@@ -15,14 +15,16 @@ lazy from domain.value_objects.field_slot import FieldSlotStr
 # mapping.
 type RawFieldMappingT = t.Sequence[tuple[AttributeSynStr, t.Sequence[FieldSlotStr]]]
 
-type FrozenFieldMappingEntityToStrings[
-    T: AttributeType = AnyAttributeTypeT
-] = frozendict[AttributeEntity[T], tuple[FieldSlotStr, ...]]
+type FrozenFieldMappingEntityToStrings[T: AttributeType] = frozendict[
+    AttributeEntity[T], tuple[FieldSlotStr, ...]
+]
+type AbstractFieldMappingEntityToStringT[T: AttributeType] = t.Mapping[
+    AttributeEntity[T], t.Sequence[FieldSlotStr]
+]
 
 type AbstractFieldMappingIDToStringsT = t.Mapping[AttributeID, t.Sequence[FieldSlotStr]]
 type MutableFieldMappingIDToStringsT = dict[AttributeID, tuple[FieldSlotStr, ...]]
 type FrozenFieldMappingIDToStringsT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
-
 type AbstractFieldMappingIDToSlotTypeT = t.Mapping[AttributeID, tuple[SlotTypeT, ...]]
 type FrozenFieldMappingEntityToSlotTypeT = frozendict[
     AttributeEntity, tuple[SlotTypeT, ...]

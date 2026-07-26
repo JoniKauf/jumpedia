@@ -7,25 +7,25 @@ from interfaces.dsls.expression.parse import BinOp, BinOpType
 lazy from interfaces.dsls.core.parse import ExprNode
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass()
 class EvalError(DslError):
     """Base class of all errors that occur in the evaluaton phase."""
 
     s: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass()
 class UnexpectedNode(EvalError):
     expected: tuple[type[ExprNode], ...]
     received: ExprNode
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass()
 class UnexpectedBinOp(EvalError):
     expected: tuple[BinOpType, ...]
     received: BinOpType
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass()
 class EmptyAfterNonEqualityOperator(EvalError):
     received: BinOp

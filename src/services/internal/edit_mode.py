@@ -2,13 +2,18 @@ import itertools
 import typing as t
 from dataclasses import dataclass
 
+from domain.enums.concept import Concept
 from domain.enums.edit_mode import (
     AliasEditMode,
     CollectionEditMode,
     FieldMappingEditMode,
 )
+from domain.errors.business import FieldMappingAttributesNotUnique, SynsNotUnique
 from domain.typing.collection_entry import AbstractCollectionT
-from domain.typing.field_mapping import AbstractFieldMappingIDToStringsT
+from domain.typing.field_mapping import (
+    AbstractFieldMappingEntityToStringT,
+    AbstractFieldMappingIDToStringsT,
+)
 from domain.value_objects.field_slot import FieldSlotStr
 from domain.value_objects.string import Str
 from services.internal.strs import StrsService
@@ -19,7 +24,11 @@ class EditModeService:
     _strs_service: StrsService
 
     def handle_alias_edit[T: Str](
-        self, edit_mode: AliasEditMode, current: tuple[T, ...], new: tuple[T, ...]
+        self,
+        edit_mode: AliasEditMode,
+        current: tuple[T, ...],
+        new: tuple[T, ...],
+        concept: Concept,
     ) -> tuple[T, ...]:
         if edit_mode is AliasEditMode.REPLACE:
             return new
@@ -29,10 +38,10 @@ class EditModeService:
         if not intersection:
             return (*current, *new)
 
-        del intersection
-
         if edit_mode is AliasEditMode.COMBINE_ERROR_ON_COLLISION:
-            raise ValueError("Error collision")
+            raise SynsNotUnique(concept, next(iter(intersection)))
+
+        del intersection
 
         t.assert_type(edit_mode, t.Literal[AliasEditMode.COMBINE_OVERRIDE_ON_COLLISION])
 
@@ -55,27 +64,31 @@ class EditModeService:
 
         combined = (*current, *new)
 
-        self._strs_service.validate_unique_names_and_aliases(combined, ...)
+        self._strs_service.validate_unique_collection_syns(
+            combined
+        )
 
         return (*current, *new)
 
     def handle_field_mapping_edit(
         self,
         edit_mode: FieldMappingEditMode,
-        current: AbstractFieldMappingIDToStringsT,
-        new: AbstractFieldMappingIDToStringsT,
-    ) -> AbstractFieldMappingIDToStringsT:
+        current: AbstractFieldMappingEntityToStringT,
+        new: AbstractFieldMappingEntityToStringT,
+    ) -> AbstractFieldMappingEntityToStringT:
         if edit_mode is FieldMappingEditMode.REPLACE:
             return new
 
         current = {k: v for k, v in current.items() if v}
         new = {k: v for k, v in current.items() if v}
 
-        if current.keys().isdisjoint(new.keys()):
+        intersection = set(current).intersection(new)
+
+        if not intersection:
             return current | new
 
         if edit_mode is FieldMappingEditMode.COMBINE_ERROR_ON_COLLISION:
-            raise ValueError("Intersecting")
+            raise FieldMappingAttributesNotUnique(next(iter(intersection)))
 
         t.assert_type(
             edit_mode, t.Literal[FieldMappingEditMode.COMBINE_OVERRIDE_ON_COLLISION]

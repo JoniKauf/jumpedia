@@ -7,21 +7,26 @@ from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
 from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeKind, AttributeType
+from domain.enums.concept import Concept
 from domain.enums.edit_mode import AliasEditMode, CollectionEditMode
 from domain.enums.rank import CommunityRank
 from domain.errors.business import (
     AliasCountLimitSurpassed,
     AliasesDidNotChange,
+    AttributeMentionedMoreThanOnce,
+    AttributeNotMentioned,
     CollectionDidNotChange,
     CountLimitReached,
-    InitialSlotCountMustBeZero,
-    NameNotDifferent,
+    NewCollectionUnfittingForExistingFieldSlots,
+    NewNameEqualToCurrent,
     NotFoundByName,
     NotFoundBySyn,
     SlotCountConfigLimitExceeded,
     SynAlreadyTaken,
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
+    NotDoableForKindedAttribute,
 )
+from domain.errors.internal import InitialSlotCountMustBeZero
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import TaskAttributeTypeT, UserAttributeTypeT
 from domain.typing.collection_entry import AbstractCollectionT
@@ -145,7 +150,7 @@ class AttributeService:
 
         # Exactly equal (real matches, not just norm)
         if attr.name.real == new_name.real:
-            raise NameNotDifferent(attr)
+            raise NewNameEqualToCurrent(attr)
 
         existing_attr_and_syn = self._attribute_repository.get_by_list_id_and_syn(
             lst.list_id,
@@ -180,19 +185,19 @@ class AttributeService:
             member, CommunityRank.ADMINISTRATOR
         )
 
-        self._strs_service.validate_unique_syns(new_aliases, AttributeEntity)
+        self._strs_service.validate_unique_aliases(new_aliases, Concept.ATTRIBUTE)
 
         current_aliases = self._attribute_repository.get_aliases_by_attribute_id(
             attr.attribute_id
         )
 
         new_aliases = self._edit_mode_service.handle_alias_edit(
-            edit_mode, current_aliases, new_aliases
+            edit_mode, current_aliases, new_aliases, Concept.ATTRIBUTE
         )
 
         # If aliases exactly equal to existing ones (including order even tho technically unimportant)
         if AttributeSynStr.sequence_real_equals(current_aliases, new_aliases):
-            raise AliasesDidNotChange(AttributeEntity, new_aliases)
+            raise AliasesDidNotChange(attr, new_aliases)
 
         del current_aliases
 
@@ -246,7 +251,7 @@ class AttributeService:
         )
 
         if attr.kind is not AttributeKind.NONE:
-            raise ValueError("Cannot change slot count for static attributes")
+            raise NotDoableForKindedAttribute(attr)
 
         field_config = AttributeFieldConfig(
             attr.field_config.slot_type,
@@ -276,8 +281,7 @@ class AttributeService:
 
             if invalid_tasks:
                 raise TasksDoNotMatchMinOrMaxSlotCountCriteria(
-                    field_config.min_slot_count,
-                    field_config.max_slot_count,
+                    attr,
                     invalid_tasks,
                 )
 
@@ -316,15 +320,16 @@ class AttributeService:
             attr = name_to_attr[name]
 
             if attr in seen:
-                raise ValueError("Attribute specified more than once")
+                raise AttributeMentionedMoreThanOnce(attr)
 
             new_order.append(attr)
             seen.add(attr)
 
         assert len(new_order) <= len(name_to_attr)
 
-        if len(new_order) < len(name_to_attr):
-            raise ValueError("Missing attrs")
+        for attr in name_to_attr.values():
+            if attr not in seen:
+                raise AttributeNotMentioned(attr)
 
         self._attribute_repository.update_positions(
             lst.list_id, tuple(attr.attribute_id for attr in new_order)
@@ -348,7 +353,7 @@ class AttributeService:
         )
 
         if attr.kind is not AttributeKind.NONE:
-            raise ValueError("Cannot change collection for static attributes")
+            raise NotDoableForKindedAttribute(attr)
 
         current_collection = (
             self._collection_entry_repository.get_collection_by_attribute_id(
@@ -395,7 +400,10 @@ class AttributeService:
                     task_to_only_invalid_slots[task] = only_invalid_slots
 
             if task_to_only_invalid_slots:
-                raise ValueError()
+                raise NewCollectionUnfittingForExistingFieldSlots(
+                    attr,
+                    new_collection, frozendict(task_to_only_invalid_slots)
+                )
 
             tasks_to_new_data: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {
                 task: tuple(syn_to_collection_entry_value[slot] for slot in slots)
@@ -449,7 +457,7 @@ class AttributeService:
     ) -> None:
         if list_attr_count >= community.limits.list_attribute_count_max:
             raise CountLimitReached(
-                community.limits.list_attribute_count_max, AttributeEntity
+                Concept.ATTRIBUTE, community.limits.list_attribute_count_max
             )
 
         if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
@@ -465,7 +473,7 @@ class AttributeService:
     ):
         syns: tuple[AttributeSynStr, ...] = (name, *all_aliases_of_attr)
 
-        self._strs_service.validate_unique_syns(syns, AttributeEntity)
+        self._strs_service.validate_unique_syns(syns, Concept.ATTRIBUTE)
 
         existing_same_syn = self._attribute_repository.get_first_by_list_id_and_any_syn(
             lst.list_id, syns, None
@@ -498,7 +506,7 @@ class AttributePrepareService:
         )
 
         if attr.kind is not AttributeKind.NONE:
-            raise ValueError("Cannot delete attribute of type static")
+            raise NotDoableForKindedAttribute(attr)
 
         return (
             PreparedDeleteAttribute(lst.list_id, attr.attribute_id, attr.position),
@@ -594,7 +602,7 @@ class AttributeAccessService:
         attr = self._repository.get_by_list_id_and_name(lst.list_id, name)
 
         if attr is None:
-            raise NotFoundByName(AttributeEntity, name)
+            raise NotFoundByName(Concept.ATTRIBUTE, name)
 
         return attr
 
@@ -606,7 +614,7 @@ class AttributeAccessService:
         )
 
         if existing_attr_and_syn is None:
-            raise NotFoundBySyn(AttributeEntity, syn)
+            raise NotFoundBySyn(Concept.ATTRIBUTE, syn)
 
         return existing_attr_and_syn[0]
 

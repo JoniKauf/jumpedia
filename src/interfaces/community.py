@@ -7,17 +7,14 @@ from discord import app_commands
 from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank
 from domain.sentinels.default import DEFAULT
-from domain.typing.common import ID
-from domain.typing.user import UserID
 from domain.value_objects.community import CommunityLimits, CommunityNameStr
-from domain.value_objects.user import UserNameStr
 from interfaces.attribute import ListNameStr
 from interfaces.base import BaseInterface
+from interfaces.bindings import user_ref
 from interfaces.command import cogs, groups
 from interfaces.decorators.with_context import CommandContext, with_context
 from interfaces.message import messages
 from interfaces.message.formatting import F
-from services.dtos.user import UserRef
 
 _DEFAULT_LIMITS: t.Final[CommunityLimits] = CommunityLimits.DEFAULT
 
@@ -38,7 +35,7 @@ class CommunityInterface(
         data: dict[str, tuple[str, ...]] = {
             "Name": (str(info.name),),
             "Created": (str(info.created_at),),
-            "Owners": tuple(
+            "Owner": tuple(
                 str(user.name)
                 for user in info.members
                 if user.community_rank is CommunityRank.OWNER
@@ -78,10 +75,7 @@ class CommunityInterface(
     ) -> None:
         community = ctx.services.community.create(
             CommunityNameStr(community_name),
-            UserRef(
-                UserID(ID(community_owner.id)),
-                UserNameStr(community_owner.name),
-            ),
+            user_ref.user_ref(community_owner),
             CommunityLimits(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
@@ -123,8 +117,8 @@ class CommunityInterface(
         await messages.success(
             ctx.interaction,
             t"Default Selected {F.format(Concept.LIST)} Edited",
-            t"The default selected {F.format(Concept.LIST)} of the {F.mention(community)} has been "
-            + (t"unset" if lst is None else t"changed to {F.mention(lst)}")
+            t"The default selected {F.format(Concept.LIST)} of the {F.full_mention(community)} has been "
+            + (t"unset" if lst is None else t"changed to {F.full_mention(lst)}")
             + t" successfully!",
         )
 
