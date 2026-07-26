@@ -39,9 +39,7 @@ class CollectionBuildService:
                     entry[1],
                 )
 
-        self._strs_service.validate_unique_collection_syns(
-            collection
-        )
+        self._strs_service.validate_unique_collection_syns(collection)
 
         entries: list[tuple[FieldSlotStr, tuple[FieldSlotStr, ...]]] = []
 

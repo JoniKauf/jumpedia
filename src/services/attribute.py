@@ -401,8 +401,7 @@ class AttributeService:
 
             if task_to_only_invalid_slots:
                 raise NewCollectionUnfittingForExistingFieldSlots(
-                    attr,
-                    new_collection, frozendict(task_to_only_invalid_slots)
+                    attr, new_collection, frozendict(task_to_only_invalid_slots)
                 )
 
             tasks_to_new_data: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {

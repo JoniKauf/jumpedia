@@ -12,7 +12,6 @@ lazy from domain.enums.rank import AnyRankT
 lazy from domain.typing.collection_entry import AbstractCollectionT, FrozenCollectionT
 from domain.typing.entity import NamedEntityT
 lazy from domain.value_objects.field_slot import FieldSlotStr
-lazy from domain.entities.base import BaseEntity
 lazy from domain.entities.community import CommunityEntity
 lazy from domain.value_objects.string import Str
 
@@ -58,10 +57,12 @@ type AnyBusinessErrorT = (
     | InvalidSlotForSlotType
 )
 
+
 # --- Base --- #
 @dataclass()
 class BusinessError(Exception):
     pass
+
 
 # --- Invalid String --- #
 @dataclass()

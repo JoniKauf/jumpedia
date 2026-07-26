@@ -48,7 +48,6 @@ from domain.errors.business import (
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
     UserAlreadyHasRank,
 )
-from domain.errors.internal import ProgrammingError
 from infrastructure import pastee
 from interfaces.message import mentionable, messages
 from interfaces.message.formattable import FormattableForms
@@ -234,7 +233,11 @@ async def handle_domain_error(
             await messages.error(
                 interaction,
                 t"Name Or Alias Already Taken",
-                t"The specified " + (t"alias" if e.alias_of_new_collides else t"name") + t" {F.raw(str(e.new))} is already used by " + (t"an alias" if e.alias_of_current_collides else t"the name") + t"of the {F.full_mention(e.current)}!",
+                t"The specified "
+                + (t"alias" if e.alias_of_new_collides else t"name")
+                + t" {F.raw(str(e.new))} is already used by "
+                + (t"an alias" if e.alias_of_current_collides else t"the name")
+                + t"of the {F.full_mention(e.current)}!",
             )
 
         case AliasesNotUnique():
@@ -257,8 +260,20 @@ async def handle_domain_error(
             await messages.error(
                 interaction,
                 t"Not Unique Values And Aliases Across {F.format(Concept.COLLECTION)}",
-                t"The specified values and aliases of the collection are not fully unique!\n" +
-                t"The " + (t"" if e.first_colliding_alias is None else t"alias {F.raw(str(e.first_colliding_alias))} of the ") + t"value {F.raw(str(e.first_value))} collides with the " + (t"" if e.second_colliding_alias is None else t"alias {F.raw(str(e.second_colliding_alias))} of the ") + t"value {F.raw(str(e.second_value))}."
+                t"The specified values and aliases of the collection are not fully unique!\n"
+                + t"The "
+                + (
+                    t""
+                    if e.first_colliding_alias is None
+                    else t"alias {F.raw(str(e.first_colliding_alias))} of the "
+                )
+                + t"value {F.raw(str(e.first_value))} collides with the "
+                + (
+                    t""
+                    if e.second_colliding_alias is None
+                    else t"alias {F.raw(str(e.second_colliding_alias))} of the "
+                )
+                + t"value {F.raw(str(e.second_value))}.",
             )
 
         case CommunityLimitOutOfRange():
@@ -320,11 +335,12 @@ async def handle_domain_error(
                     t"All invalid {F.format(Concept.FIELD_SLOT, plural=True)}:"
                     + Template("\n".join(links))
                 )
-            
+
             await messages.error(
                 interaction,
                 t"Invalid Existing {F.format(Concept.FIELD_SLOT, plural=True)}",
-                t"The new {F.format(Concept.COLLECTION)} cannot be applied because some existing {F.format(Concept.TASK, plural=True)} would contain invalid field slots!\n\n" + debug_msg,
+                t"The new {F.format(Concept.COLLECTION)} cannot be applied because some existing {F.format(Concept.TASK, plural=True)} would contain invalid field slots!\n\n"
+                + debug_msg,
             )
 
         case FieldMappingAttributesNotUnique():
@@ -340,7 +356,7 @@ async def handle_domain_error(
                 interaction,
                 t"Slot Count Requirement Not Fulfilled",
                 t"The {F.full_mention(e.attribute)} requires between {F.raw(str(field_config.min_slot_count))} and {F.raw(str(field_config.max_slot_count))} {F.format(Concept.FIELD_SLOT, plural=True)}!\n"
-                + t"The specified {F.format(Concept.FIELD)} has {F.raw(str(len(e.field)))} {F.format(Concept.FIELD_SLOT, plural=True)} and does therefore not fulfill this requirement."
+                + t"The specified {F.format(Concept.FIELD)} has {F.raw(str(len(e.field)))} {F.format(Concept.FIELD_SLOT, plural=True)} and does therefore not fulfill this requirement.",
             )
 
         case CollectionEntryNotFoundViaSyn():
@@ -368,16 +384,16 @@ async def handle_domain_error(
             await messages.error(
                 interaction,
                 t"Insufficient Rank",
-                t"You cannot change the rank of a user with an equal or higher rank than your own!\n" +
-                t"You have the {F.full_mention(e.actor_rank)}, but the target user has the {F.full_mention(e.target_rank)}."
+                t"You cannot change the rank of a user with an equal or higher rank than your own!\n"
+                + t"You have the {F.full_mention(e.actor_rank)}, but the target user has the {F.full_mention(e.target_rank)}.",
             )
 
         case CannotChangeToRankOfEqualOrHigherPower():
             await messages.error(
                 interaction,
                 t"Insufficient Rank",
-                t"You cannot assign a rank that is equal to or higher than your own!\n" +
-                t"You have the {F.full_mention(e.actor_rank)}, but attempted to assign the {F.full_mention(e.target_rank)}."
+                t"You cannot assign a rank that is equal to or higher than your own!\n"
+                + t"You have the {F.full_mention(e.actor_rank)}, but attempted to assign the {F.full_mention(e.target_rank)}.",
             )
 
         case UserAlreadyHasRank():

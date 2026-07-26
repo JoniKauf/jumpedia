@@ -64,9 +64,7 @@ class EditModeService:
 
         combined = (*current, *new)
 
-        self._strs_service.validate_unique_collection_syns(
-            combined
-        )
+        self._strs_service.validate_unique_collection_syns(combined)
 
         return (*current, *new)
 

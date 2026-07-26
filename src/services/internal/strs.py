@@ -34,7 +34,9 @@ class StrsService:
     def validate_unique_collection_syns(
         self, iterable: t.Iterable[tuple[FieldSlotStr, t.Iterable[FieldSlotStr]]]
     ) -> None:
-        syn_to_name_and_alias: dict[FieldSlotStr, tuple[FieldSlotStr, FieldSlotStr | None]] = {}
+        syn_to_name_and_alias: dict[
+            FieldSlotStr, tuple[FieldSlotStr, FieldSlotStr | None]
+        ] = {}
 
         for name, aliases in iterable:
             syn_is_name: bool = True
