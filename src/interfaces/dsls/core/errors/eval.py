@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 
-from domain.value_objects.filter import OpType
 from interfaces.dsls.core.errors.base import DslError
 from interfaces.dsls.expression.parse import BinOp, BinOpType
 
 lazy from interfaces.dsls.core.parse import ExprNode
 
+
+type AnyEvalErrorT = UnexpectedNode | UnexpectedBinOp | EmptyAfterNonEqualityOperator
 
 @dataclass()
 class EvalError(DslError):

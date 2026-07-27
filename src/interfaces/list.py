@@ -25,7 +25,7 @@ class ListInterface(
         info = ctx.services.list_query.get_info(ListNameStr(list_name))
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (str(info.name),),
+            "Name": (str(info.list.name),),
             "Is Default Selected List": (
                 "True" if info.is_default_selected_list else "False",
             ),
@@ -33,7 +33,7 @@ class ListInterface(
             "Task Count": (str(info.task_count),),
         }
 
-        await messages.object_info(ctx.interaction, Concept.LIST, data)
+        await messages.object_info(ctx.interaction, info.list, data)
 
     @app_commands.command()
     @with_context()

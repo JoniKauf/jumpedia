@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from domain.entities.community import CommunityEntity
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
+from domain.entities.user import UserEntity
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.sentinels.default import DEFAULT
 from domain.sentinels.unknown import UNKNOWN
@@ -110,34 +111,33 @@ class MemberQueryService:
     _member_existence_service: MemberExistenceService
     _user_access_service: UserAccessService
 
-    def get_info(self, user: UserRef | DEFAULT) -> UserAndMemberInfo:
+    def get_user_and_member_info(self, user: UserRef | DEFAULT) -> UserAndMemberInfo:
         user_entity = self._user_access_service.get_or_create_with_user_ref(user)
 
         del user
 
-        meta_rank: MetaRank = user_entity.meta_rank
         server_rank: ServerRank | UNKNOWN = UNKNOWN
         member_info: MemberInfo | None = None
 
         community = self._community_repository.get_by_server_id(self._ctx.server_id)
 
+        member_entity: MemberEntity | None = None
+
         if community is not None:
-            member = self._member_existence_service.get_or_create(
+            member_entity = self._member_existence_service.get_or_create(
                 MemberInsert(user_entity, community.community_id)
             )
 
             selected_list = (
                 None
-                if member.selected_list_id is None
-                else self._list_repository.get_by_id(member.selected_list_id)
+                if member_entity.selected_list_id is None
+                else self._list_repository.get_by_id(member_entity.selected_list_id)
             )
-            member_info = MemberInfo(member.community_rank, selected_list)
+            member_info = MemberInfo(member_entity, selected_list)
 
         return UserAndMemberInfo(
-            user_entity.user_id,
-            user_entity.name,
+            user_entity,
             server_rank,
-            meta_rank,
             member_info,
         )
 

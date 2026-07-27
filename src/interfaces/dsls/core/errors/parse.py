@@ -4,6 +4,8 @@ from interfaces.dsls.core.errors.base import DslError
 from interfaces.dsls.core.lex import Token, TokenType
 
 
+type AnyParseErrorT = ParseError | UnexpectedToken | DepthLimitSurpassed
+
 @dataclass()
 class ParseError(DslError):
     """Base class of all errors that occur in the parsing phase."""

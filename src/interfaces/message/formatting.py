@@ -21,7 +21,7 @@ def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
 
 
 def _embed(s: str) -> str:
-    return f"`` {s} ``"
+    return f"`` {s} ``" if s.startswith("`") or s.endswith("`") else f"``{s}``"
 
 
 type FormatArgsT = FormatArgsEmpty | FormatArgsTypeName
@@ -50,7 +50,11 @@ class F:
     _format_args: FormatArgsT
 
     @classmethod
-    def raw(cls, s: str, *, shorten: bool = True, embed: bool = True) -> t.Self:
+    def raw(cls, s: str) -> t.Self:
+        return cls(_s=s, _format_args=FormatArgsEmpty())
+
+    @classmethod
+    def string(cls, s: str, *, shorten: bool = True, embed: bool = True) -> t.Self:
         """Interpolate any string."""
 
         if shorten:
@@ -97,13 +101,13 @@ class F:
         """Mention a mentionable object.
 
         For example, for a list this would be
-        <code>List &#96&#96 &lt;list name&gt; &#96&#96</code>
+        <code>List &#96&#96&lt;list name&gt;&#96&#96</code>
         """
 
         formattable_str = FormattableForms.from_formattable(
             mentionable_to_formattable(mentionable)
         ).singular
 
-        s = f"{formattable_str} {cls.min_mention(mentionable, shorten=shorten, embed=True)}"
+        s = f"{formattable_str} {cls.min_mention(mentionable, shorten=shorten, embed=True)._s}"
 
         return cls(_s=s, _format_args=FormatArgsEmpty())

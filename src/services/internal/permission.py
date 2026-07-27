@@ -7,8 +7,8 @@ from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank, MetaRank, ServerRank
 from domain.errors.business import (
     CannotChangeOwnRank,
-    CannotChangeToRankOfEqualOrHigherPower,
     CannotChangeRankOfUserWithEqualOrHigherPower,
+    CannotChangeToRankOfEqualOrHigherPower,
     NotAllowed,
     UserAlreadyHasRank,
 )

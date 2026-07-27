@@ -4,10 +4,9 @@ These DON'T need to be handled gracefully."""
 
 from dataclasses import dataclass
 
-from domain.entities.attribute import AttributeEntity
 lazy from domain.entities.base import BaseEntity
-from domain.enums.attribute import AttributeKind, AttributeType
-from domain.typing.attribute import AttributeID
+lazy from domain.enums.attribute import AttributeKind, AttributeType
+lazy from domain.typing.attribute import AttributeID
 lazy from domain.typing.common import ID
 
 

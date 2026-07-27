@@ -19,12 +19,12 @@ from domain.errors.business import (
     CountLimitReached,
     NewCollectionUnfittingForExistingFieldSlots,
     NewNameEqualToCurrent,
+    NotDoableForKindedAttribute,
     NotFoundByName,
     NotFoundBySyn,
     SlotCountConfigLimitExceeded,
     SynAlreadyTaken,
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
-    NotDoableForKindedAttribute,
 )
 from domain.errors.internal import InitialSlotCountMustBeZero
 from domain.sentinels.default import DEFAULT
@@ -537,16 +537,7 @@ class AttributeQueryService:
             attr.attribute_id
         )
 
-        return AttributeInfo(
-            attr.name,
-            aliases,
-            lst,
-            attr.type,
-            attr.kind,
-            attr.field_config,
-            attr.position,
-            collection,
-        )
+        return AttributeInfo(attr, aliases, collection, lst)
 
     def get_summaries(
         self,

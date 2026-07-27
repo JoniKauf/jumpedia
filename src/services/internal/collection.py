@@ -4,10 +4,7 @@ from domain.entities.collection_entry import CollectionEntryEntity
 from domain.entities.community import CommunityEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.enums.concept import Concept
-from domain.errors.business import (
-    AliasCountLimitSurpassed,
-    CountLimitReached,
-)
+from domain.errors.business import AliasCountLimitSurpassed, CountLimitReached
 from domain.typing.collection_entry import AbstractCollectionT, FrozenCollectionT
 from domain.value_objects.field_slot import FieldSlotStr
 from services.internal.slot_type import SlotTypeService

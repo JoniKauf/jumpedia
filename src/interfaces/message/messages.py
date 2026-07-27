@@ -70,7 +70,7 @@ async def info(
 
 async def object_info(
     interaction: discord.Interaction,
-    formattable: FormattableT,
+    mentionable: MentionableT,
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
     try:
@@ -92,8 +92,9 @@ async def object_info(
 
     await info(
         interaction,
-        t"{F.format(formattable)} Info",
-        Template("\n".join(links)),
+        t"{F.format(mentionable_to_formattable(mentionable))} Info",
+        t"Here if the info for the {F.full_mention(mentionable)}:\n"
+        + Template("\n".join(links)),
         {"suppress_embeds": True},
     )
 
@@ -134,7 +135,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {F.raw(str(count))} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
+        t"A total of {F.string(str(count), embed=False)} {F.format(formattable, plural=plural)} {F.string("were" if plural else "was", embed=False, shorten=False)} found with the specified criteria!\n\n{F.string('\n'.join(links))}",
         {"suppress_embeds": True},
     )
 
@@ -159,7 +160,7 @@ async def object_name_edited(
     await success(
         interaction,
         t"{F.format(formattable)} Renamed",
-        t"The {F.format(formattable)} {F.raw(str(before))} has been renamed to {F.raw(str(after))} successfully!",
+        t"The {F.format(formattable)} {F.string(str(before))} has been renamed to {F.string(str(after))} successfully!",
     )
 
 
@@ -211,9 +212,13 @@ async def nuke_object_on_confirmation(
             + t"?\n\n"
             + consequences
             + t"\n\n### This action cannot be undone!"
-            + t"\n\nThis interaction will timeout after {F.raw(str(TIMEOUT))} seconds!",
+            + t"\n\nThis interaction will timeout after {F.string(str(TIMEOUT))} seconds!",
             Status.WARNING,
         ),
         view=view,
         wait=True,
     )
+
+    # If we don't wait, as soon as we send the message for confirmation we leave and
+    # ultimately commit. We want to wait until the interaction is finished though!
+    await view.wait()

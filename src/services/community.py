@@ -181,10 +181,8 @@ class CommunityQueryService:
                     break
 
         return CommunityInfo(
-            community.name,
+            community,
             default_selected_list,
-            community.created,
-            community.limits,
             tuple(members),
             tuple(lists),
             task_count,
@@ -203,7 +201,7 @@ class CommunityQueryService:
         return tuple(
             CommunitySummary(
                 community.name,
-                community.created,
+                community.created_at,
                 member_count.get(id, 0),
                 list_counts.get(id, 0),
                 task_counts.get(id, 0),

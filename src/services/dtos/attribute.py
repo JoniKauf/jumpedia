@@ -13,14 +13,10 @@ from domain.value_objects.position import Position
 
 @dataclass(frozen=True, slots=True)
 class AttributeInfo:
-    name: AttributeSynStr
+    attribute: AttributeEntity
     aliases: tuple[AttributeSynStr, ...]
-    list: ListEntity
-    type: AttributeType
-    kind: AttributeKind
-    field_config: AttributeFieldConfig
-    position: Position
     collection: FrozenCollectionT
+    list: ListEntity
 
 
 @dataclass(frozen=True, slots=True)

@@ -41,10 +41,10 @@ class TaskInterface(
 
         await messages.object_info(
             ctx.interaction,
-            Concept.TASK,
+            info.task,
             {
                 str(attr.name): tuple(str(slot) for slot in field)
-                for attr, field in info.items()
+                for attr, field in info.data.items()
             },
         )
 
@@ -160,10 +160,10 @@ class TaskInterface(
 
         await messages.object_info(
             ctx.interaction,
-            Concept.TASK,
+            info.task,
             {
                 str(attr.name): tuple(str(slot) for slot in field)
-                for attr, field in info.items()
+                for attr, field in info.data.items()
             },
         )
 

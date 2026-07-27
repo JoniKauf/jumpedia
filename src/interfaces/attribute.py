@@ -19,8 +19,9 @@ from interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     CollectionEditModeInterfaceEnum,
 )
-from interfaces.message import messages
+from interfaces.message import mentionable, messages
 from interfaces.message.formatting import F
+from interfaces.message.mentionable import MentionableT
 
 
 def _collection_to_representation(
@@ -53,20 +54,22 @@ class AttributeInterface(
         )
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (str(info.name),),
+            "Name": (str(info.attribute.name),),
             "Alias": tuple(str(syn) for syn in info.aliases),
             "List": (str(info.list.name),),
-            "Type": (info.type.name.title(),),
-            "Kind": (info.kind.name.title(),),
-            "Slot Type": (info.field_config.slot_type.name.title(),),
-            "Minimum Slot Count": (str(info.field_config.min_slot_count),),
-            "Maximum Slot Count": (str(info.field_config.max_slot_count),),
-            "Unique Slots": ("True" if info.field_config.unique_slots else "False",),
-            "Position": (str(info.position.value),),
+            "Type": (mentionable.get_name_of_mentionable(info.attribute.type),),
+            "Kind": (mentionable.get_name_of_mentionable(info.attribute.kind),),
+            "Slot Type": (info.attribute.field_config.slot_type.name.title(),),
+            "Minimum Slot Count": (str(info.attribute.field_config.min_slot_count),),
+            "Maximum Slot Count": (str(info.attribute.field_config.max_slot_count),),
+            "Unique Slots": (
+                "True" if info.attribute.field_config.unique_slots else "False",
+            ),
+            "Position": (str(info.attribute.position.value),),
             "Collection": _collection_to_representation(info.collection),
         }
 
-        await messages.object_info(ctx.interaction, Concept.ATTRIBUTE, data)
+        await messages.object_info(ctx.interaction, info.attribute, data)
 
     @app_commands.command()
     @with_context()
@@ -179,7 +182,7 @@ class AttributeInterface(
             ctx.interaction,
             t"{F.format(Concept.ATTRIBUTE)} Min And Max Slot Count Edited",
             t"The min and max slot count for the {F.full_mention(attr)} has been set to "
-            + t"{F.raw(str(attr.field_config.min_slot_count))} and {F.raw(str(attr.field_config.max_slot_count))} successfully!"
+            + t"{F.string(str(attr.field_config.min_slot_count))} and {F.string(str(attr.field_config.max_slot_count))} successfully!"
             + (
                 t""
                 if attr.type is AttributeType.TASK

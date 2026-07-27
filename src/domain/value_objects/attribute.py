@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
 from domain.enums.attribute import AttributeKind, AttributeSlotType
-
 from domain.enums.concept import Concept
+
 lazy from domain.errors.business import SlotCountConfigLimitExceeded
 from domain.value_objects import factories
 from domain.value_objects.community import CommunityLimits

@@ -134,7 +134,7 @@ class ListQueryService:
         is_default = community.default_selected_list_id == lst.list_id
 
         return ListInfo(
-            name=lst.name,
+            lst,
             attributes=tuple(attributes),
             task_count=task_count,
             is_default_selected_list=is_default,

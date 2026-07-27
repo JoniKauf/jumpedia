@@ -2,24 +2,21 @@ from dataclasses import dataclass
 
 from domain.entities.list import ListEntity
 from domain.entities.member import MemberEntity
-from domain.enums.rank import CommunityRank, MetaRank, ServerRank
+from domain.entities.user import UserEntity
+from domain.enums.rank import ServerRank
 from domain.sentinels.unknown import UNKNOWN
-from domain.typing.user import UserID
-from domain.value_objects.user import UserNameStr
 
 
 @dataclass(frozen=True, slots=True)
 class UserAndMemberInfo:
-    user_id: UserID
-    name: UserNameStr
+    user: UserEntity
     server_rank: ServerRank | UNKNOWN
-    meta_rank: MetaRank
     member_info: MemberInfo | None
 
 
 @dataclass(frozen=True, slots=True)
 class MemberInfo:
-    community_rank: CommunityRank
+    member: MemberEntity
     selected_list: ListEntity | None
 
 

@@ -33,8 +33,8 @@ class CommunityInterface(
         )
 
         data: dict[str, tuple[str, ...]] = {
-            "Name": (str(info.name),),
-            "Created": (str(info.created_at),),
+            "Name": (str(info.community.name),),
+            "Created": (str(info.community.created_at),),
             "Owner": tuple(
                 str(user.name)
                 for user in info.members
@@ -52,11 +52,11 @@ class CommunityInterface(
 
         data |= {
             "Limit - " + name.replace("_", " ").title(): (str(value),)
-            for name, value in asdict(info.limits).items()
+            for name, value in asdict(info.community.limits).items()
             if isinstance(value, int)
         }
 
-        await messages.object_info(ctx.interaction, Concept.COMMUNITY, data)
+        await messages.object_info(ctx.interaction, info.community, data)
 
     @app_commands.command()
     @with_context()

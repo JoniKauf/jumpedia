@@ -58,6 +58,8 @@ from repositories.member import MemberRepository
 from repositories.member_field_slot import MemberFieldSlotRepository
 from repositories.member_task import MemberTaskRepository
 from repositories.task import TaskRepository
+from services.dtos.member_task import MemberTaskInfo
+from services.dtos.task import TaskInfo
 from services.dtos.user import UserRef
 from services.internal.edit_mode import (
     AbstractFieldMappingEntityToStringT,
@@ -790,7 +792,7 @@ class FieldMappingService:
         self,
         syn: FieldSlotStr,
         list_name: ListNameStr | DEFAULT,
-    ) -> FrozenFieldMappingEntityToStrings[TaskAttributeTypeT]:
+    ) -> TaskInfo:
         pass
 
     @t.overload
@@ -798,8 +800,8 @@ class FieldMappingService:
         self,
         syn: FieldSlotStr,
         list_name: ListNameStr | DEFAULT,
-        target_user: UserRef | DEFAULT | None,
-    ) -> FrozenFieldMappingEntityToStrings[AnyAttributeTypeT]:
+        target_user: UserRef | DEFAULT,
+    ) -> MemberTaskInfo:
         pass
 
     def get_info(
@@ -807,10 +809,7 @@ class FieldMappingService:
         syn: FieldSlotStr,
         list_name: ListNameStr | DEFAULT,
         target_user: UserRef | DEFAULT | None = None,
-    ) -> (
-        FrozenFieldMappingEntityToStrings[TaskAttributeTypeT]
-        | FrozenFieldMappingEntityToStrings[AnyAttributeTypeT]
-    ):
+    ) -> TaskInfo | MemberTaskInfo:
         community, _, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, syn, False
         )
@@ -876,9 +875,26 @@ class FieldMappingService:
 
         del task_kinded_field_mapping, task_field_mapping, user_field_mapping
 
-        return frozendict(
+        final_data = frozendict(
             (attr, field_mapping.get(attr.attribute_id, ())) for attr in attrs
         )
+
+        if target_member_and_member_task is not None:
+            return MemberTaskInfo(
+                task,
+                target_member_and_member_task[1],
+                target_member_and_member_task[0],
+                final_data,
+            )
+
+        # Assert type is what we think the type checker assumes and then cast to what we
+        # know it is. It is only task data, no user data.
+        t.assert_type(final_data, FrozenFieldMappingEntityToStrings[AnyAttributeTypeT])
+        final_data = t.cast(
+            FrozenFieldMappingEntityToStrings[TaskAttributeTypeT], final_data
+        )
+
+        return TaskInfo(task, final_data)
 
     @t.overload
     def get_summaries(

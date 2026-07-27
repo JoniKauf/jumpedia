@@ -35,7 +35,7 @@ class CommunityEntity(BaseEntity[CommunityID]):
         self._name = value
 
     @property
-    def created(self) -> DateTimeWrapper:
+    def created_at(self) -> DateTimeWrapper:
         return self._created_at
 
     @property

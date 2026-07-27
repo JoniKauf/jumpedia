@@ -3,6 +3,8 @@ import enum
 
 class Concept(enum.Enum):
     ATTRIBUTE = enum.auto()
+    ATTRIBUTE_KIND = enum.auto()
+    ATTRIBUTE_TYPE = enum.auto()
     ATTRIBUTE_SLOT_TYPE = enum.auto()
     COLLECTION = enum.auto()
     COLLECTION_ENTRY = enum.auto()

@@ -3,6 +3,7 @@ import enum
 import typing as t
 
 from domain.errors.internal import UndefinedTypeForKind
+
 lazy from domain.typing.attribute import (
     AnyAttributeTypeT,
     NoneKindedAttributeT,

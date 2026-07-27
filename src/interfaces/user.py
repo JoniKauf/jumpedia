@@ -83,15 +83,15 @@ class UserInterface(
     @app_commands.command()
     @with_context()
     async def info(self, ctx: CommandContext, user: discord.User | None = None) -> None:
-        info = ctx.services.member_query.get_info(
+        info = ctx.services.member_query.get_user_and_member_info(
             user_ref.user_ref(user),
         )
 
         # We unpack dicts instead of just adding items conditionally because
         # like this we have the xact order we want
         data: dict[str, tuple[str, ...]] = {
-            "ID": (str(info.user_id),),
-            "Name": (str(info.name),),
+            "ID": (str(info.user.user_id),),
+            "Name": (str(info.user.name),),
             **(
                 {}
                 if info.server_rank is UNKNOWN
@@ -107,12 +107,12 @@ class UserInterface(
                 else {
                     "Community Rank": (
                         mentionable.get_name_of_mentionable(
-                            info.member_info.community_rank
+                            info.member_info.member.community_rank
                         ),
                     ),
                 }
             ),
-            "Meta Rank": (mentionable.get_name_of_mentionable(info.meta_rank),),
+            "Meta Rank": (mentionable.get_name_of_mentionable(info.user.meta_rank),),
             **(
                 {}
                 if info.member_info is None
@@ -130,7 +130,11 @@ class UserInterface(
             ),
         }
 
-        await messages.object_info(ctx.interaction, Concept.MEMBER, data)
+        await messages.object_info(
+            ctx.interaction,
+            info.user if info.member_info is None else info.member_info.member,
+            data,
+        )
 
     @edit_group.command(name="selected_list")
     @with_context()

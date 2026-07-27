@@ -13,10 +13,7 @@ from domain.errors.business import MemberAlreadyHasTask, MemberDoesNotHaveTask
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import AnyAttributeTypeT, SlotTypeT, TaskAttributeTypeT
 from domain.typing.community import CommunityID
-from domain.typing.field_mapping import (
-    FrozenFieldMappingEntityToStrings,
-    RawFieldMappingT,
-)
+from domain.typing.field_mapping import RawFieldMappingT
 from domain.typing.task import TaskID
 from domain.value_objects.attribute import AttributeSynStr
 from domain.value_objects.field_slot import FieldSlotStr
@@ -30,24 +27,16 @@ lazy from repositories.community import CommunityNameStr
 from repositories.dtos.member_field_slot import MemberFieldSlotInsert
 from repositories.dtos.member_task import MemberTaskInsert
 
-lazy from repositories.field_slot import FieldSlotRepository
-from repositories.member import MemberRepository
-
 lazy from repositories.member_field_slot import MemberFieldSlotRepository
 lazy from repositories.member_task import MemberTaskRepository
-lazy from repositories.task import TaskRepository
-lazy from services.community import ListAccessService
-lazy from services.contexts.interacting_user import InteractingUserContext
+from services.dtos.member_task import MemberTaskInfo
 from services.dtos.user import UserRef
 
 lazy from services.internal.field_mapping import (
     FieldMappingBuildService,
-    FieldMappingExtractionService,
     FieldMappingService,
-    FieldMappingTransformationService,
 )
-lazy from services.internal.slot_type import SlotTypeService
-lazy from services.member import MemberAccessService, MemberExistenceService
+lazy from services.member import MemberAccessService
 lazy from services.task import TaskAccessService
 
 
@@ -234,7 +223,7 @@ class MemberTaskQueryService:
         syn: FieldSlotStr,
         target_user: UserRef | DEFAULT,
         list_name: ListNameStr | DEFAULT,
-    ) -> FrozenFieldMappingEntityToStrings[AnyAttributeTypeT]:
+    ) -> MemberTaskInfo:
         return self._field_mapping_service.get_info(syn, list_name, target_user)
 
     def get_summaries(

@@ -40,7 +40,7 @@ from repositories.dtos.task import TaskAliasInsert, TaskInsert
 lazy from repositories.field_slot import FieldSlotRepository
 lazy from repositories.task import TaskRepository
 lazy from services.contexts.interacting_user import InteractingUserContext
-from services.dtos.task import PreparedDeleteTask
+from services.dtos.task import PreparedDeleteTask, TaskInfo
 
 lazy from services.internal.edit_mode import EditModeService
 lazy from services.internal.field_mapping import (
@@ -324,9 +324,7 @@ class TaskPrepareService:
 class TaskQueryService:
     _field_mapping_service: FieldMappingService
 
-    def get_info(
-        self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT
-    ) -> FrozenFieldMappingEntityToStrings[TaskAttributeTypeT]:
+    def get_info(self, syn: FieldSlotStr, list_name: ListNameStr | DEFAULT) -> TaskInfo:
         return self._field_mapping_service.get_info(syn, list_name)
 
     def get_summaries(

@@ -70,10 +70,12 @@ class DangerousConfirmView(ui.View):
         self.stop()
 
         self._on_confirm()
-        await interaction.response.edit_message(
-            content=self._success_text,
-            view=None,
-        )
+
+        if self._message is not None:
+            await self._message.edit(
+                content=self._success_text,
+                view=None,
+            )
 
     @ui.button(
         emoji="✖️",

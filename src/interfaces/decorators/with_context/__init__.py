@@ -15,7 +15,7 @@ from domain.typing.user import UserID
 from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.contexts.command import CommandContext, PublicServices
-from interfaces.decorators.with_context import _error_handling
+from interfaces.decorators.with_context import _domain_error_handling
 from interfaces.dsls.core.errors.base import DslError
 from interfaces.message import messages
 from interfaces.message.formatting import F
@@ -348,7 +348,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     )
                 except t.get_args(AnyBusinessErrorT.__value__) as e:
                     e = t.cast(AnyBusinessErrorT, e)
-                    await _error_handling.handle_domain_error(interaction, e)
+                    await _domain_error_handling.handle_domain_error(interaction, e)
                 except DslError as e:
                     await interaction.followup.send(
                         f"Error: {e.__class__.__name__} {e.args}"

@@ -4,13 +4,16 @@ import typing as t
 from dataclasses import dataclass
 
 from domain.entities.attribute import AttributeEntity
+
 lazy from domain.entities.member import MemberEntity
 lazy from domain.entities.task import TaskEntity
 from domain.enums.attribute import AttributeSlotType
 from domain.enums.concept import Concept
+
 lazy from domain.enums.rank import AnyRankT
 lazy from domain.typing.collection_entry import AbstractCollectionT, FrozenCollectionT
 from domain.typing.entity import NamedEntityT
+
 lazy from domain.value_objects.field_slot import FieldSlotStr
 lazy from domain.entities.community import CommunityEntity
 lazy from domain.value_objects.string import Str

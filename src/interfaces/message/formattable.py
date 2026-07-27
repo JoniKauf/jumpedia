@@ -41,8 +41,12 @@ class FormattableForms:
         match formattable:
             case Concept.ATTRIBUTE:
                 return cls.from_singular_regular("attribute")
+            case Concept.ATTRIBUTE_KIND:
+                return cls.from_singular_regular("attribute kind")
             case Concept.ATTRIBUTE_SLOT_TYPE:
                 return cls.from_singular_regular("attribute slot type")
+            case Concept.ATTRIBUTE_TYPE:
+                return cls.from_singular_regular("attribute type")
             case Concept.COLLECTION:
                 return cls.from_singular_regular("collection")
             case Concept.COLLECTION_ENTRY:
