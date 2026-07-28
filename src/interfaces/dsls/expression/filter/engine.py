@@ -1,3 +1,4 @@
+import logging
 import typing as t
 
 from domain.value_objects.filter import (
@@ -19,6 +20,8 @@ from interfaces.dsls.core.parse import TEXT_NODE_TYPES, ExprNode, IdentifierNode
 from interfaces.dsls.expression import parse
 from interfaces.dsls.expression.parse import BinOpType, ExpressionParser
 
+logger = logging.getLogger(__name__)
+
 
 class FilterEngine(BaseEngine):
     def __init__(self) -> None:
@@ -26,12 +29,17 @@ class FilterEngine(BaseEngine):
         self._s: str | None = None
 
     def eval(self, s: str) -> FilterT:
+        logger.info(f"--- {self.eval.__qualname__} ---")
+        logger.info("Lexing...")
         toks = Lexer(multiline_strings=False).lex(s)
+
+        logger.info("Parsing...")
         ast = ExpressionParser(s, 16).parse(toks)
 
         self._s = s
 
         try:
+            logger.info("Evaluating...")
             return self._eval_recursively(ast)
         finally:
             self._s = None

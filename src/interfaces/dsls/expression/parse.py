@@ -1,4 +1,5 @@
 import enum
+import logging
 import typing as t
 from dataclasses import dataclass
 
@@ -12,6 +13,8 @@ from interfaces.dsls.core.parse import (
     StringNode,
 )
 from interfaces.dsls.core.value_objects import Span
+
+logger = logging.getLogger(__name__)
 
 
 class BoolOpType(enum.Enum):
@@ -67,6 +70,8 @@ class ExpressionParser(BaseParser):
         self._depth = 0
 
     def parse(self, tokens: t.Iterable[Token]) -> ExprNode:
+        logger.info(self.parse.__qualname__)
+
         stream = PushbackTokenStream(tokens)
 
         result = self._parse_expr(stream)
@@ -80,6 +85,7 @@ class ExpressionParser(BaseParser):
 
     def _parse_expr(self, tokens: PushbackTokenStream) -> ExprNode:
         self._depth += 1
+        logger.info(f"{self._parse_expr.__qualname__} (depth = {self._depth})")
 
         try:
             if self._depth > self._max_depth:
@@ -90,6 +96,8 @@ class ExpressionParser(BaseParser):
             self._depth -= 1
 
     def _parse_conditional(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_conditional.__qualname__)
+
         true_value = self._parse_or(tokens)
 
         if not _try_consume_token(tokens, TokenType.IF):
@@ -112,6 +120,8 @@ class ExpressionParser(BaseParser):
         )
 
     def _parse_or(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_or.__qualname__)
+
         elements: list[ExprNode] = [self._parse_and(tokens)]
 
         while _try_consume_token(tokens, TokenType.OR):
@@ -129,6 +139,8 @@ class ExpressionParser(BaseParser):
         )
 
     def _parse_and(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_and.__qualname__)
+
         elements: list[ExprNode] = [self._parse_comparison(tokens)]
 
         while _try_consume_token(tokens, TokenType.AND):
@@ -146,6 +158,8 @@ class ExpressionParser(BaseParser):
         )
 
     def _parse_comparison(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_comparison.__qualname__)
+
         left = self._parse_additive(tokens)
 
         if _try_consume_token(tokens, TokenType.IS):
@@ -188,6 +202,8 @@ class ExpressionParser(BaseParser):
         return left
 
     def _parse_additive(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_additive.__qualname__)
+
         left = self._parse_atom(tokens)
 
         while tokens.peek().type in (TokenType.PLUS, TokenType.MINUS):
@@ -204,6 +220,8 @@ class ExpressionParser(BaseParser):
         return left
 
     def _parse_atom(self, tokens: PushbackTokenStream) -> ExprNode:
+        logger.info(self._parse_atom.__qualname__)
+
         tok = tokens.pop()
 
         match tok.type:

@@ -1,3 +1,5 @@
+import logging
+
 from discord.ext import commands
 
 from .attribute import AttributeInterface, AttributesInterface
@@ -7,9 +9,11 @@ from .server import ServerInterface
 from .task import TaskInterface, TasksInterface
 from .user import UserInterface
 
+logger = logging.getLogger(__name__)
+
 
 async def setup(bot: commands.Bot):
-    print("Loading interfaces...")
+    logger.info("Loading interfaces...")
 
     for cog in [
         AttributeInterface,
@@ -23,7 +27,7 @@ async def setup(bot: commands.Bot):
         TasksInterface,
         UserInterface,
     ]:
-        print(f"Loading {cog.__name__}...")
+        logger.info(f"Loading interface {cog.__name__}...")
         await bot.add_cog(cog(bot))
 
-    print("All interfaces loaded!")
+    logger.info("All interfaces loaded!")

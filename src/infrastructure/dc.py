@@ -1,9 +1,12 @@
+import logging
 from typing import Any
 
 import discord
 from discord.ext import commands
 
 import interfaces
+
+logger = logging.getLogger(__name__)
 
 
 class JumpediaBot(commands.Bot):
@@ -22,10 +25,11 @@ class JumpediaBot(commands.Bot):
         await self.tree.sync()
         await self.wait_until_ready()
 
-        print("\n---------- Running ----------")
+        logger.info("")
+        logger.info("---------- Running ----------")
 
         if self.user is None:
-            print("Not logged in")
+            logger.critical("Not logged in!")
             exit()
 
-        print(f"Logged in as {self.user} ({self.user.id})")
+        logger.info(f"Logged in as {self.user} ({self.user.id})")

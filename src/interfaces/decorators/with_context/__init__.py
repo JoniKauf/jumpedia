@@ -20,6 +20,9 @@ from interfaces.decorators.with_context import (
     _dsl_error_handling,
 )
 from interfaces.dsls.core.errors.base import AnyDslErrorT, DslError
+from interfaces.dsls.core.errors.eval import AnyEvalErrorT
+from interfaces.dsls.core.errors.lex import AnyLexErrorT
+from interfaces.dsls.core.errors.parse import AnyParseErrorT
 from interfaces.message import messages
 from interfaces.message.formatting import F
 from repositories.attribute import AttributeRepository
@@ -181,6 +184,7 @@ def _create_public_services_object(
         attribute_repository,
         collection_entry_repository,
         field_slot_repository,
+        task_repository,
         attribute_access_service,
         collection_build_service,
         edit_mode_service,
@@ -352,9 +356,22 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                 except t.get_args(AnyBusinessErrorT.__value__) as e:
                     e = t.cast(AnyBusinessErrorT, e)
                     await _domain_error_handling.handle_domain_error(interaction, e)
+
                 except DslError as e:
-                    e = t.cast(AnyDslErrorT, e)
-                    await _dsl_error_handling.handle_dsl_error(interaction, e)
+                    if isinstance(e, t.get_args(AnyLexErrorT.__value__)):
+                        e = t.cast(AnyLexErrorT, e)
+                        await _dsl_error_handling.handle_lex_error(interaction, e)
+
+                    elif isinstance(e, t.get_args(AnyParseErrorT.__value__)):
+                        e = t.cast(AnyParseErrorT, e)
+                        await _dsl_error_handling.handle_parse_error(interaction, e)
+
+                    elif isinstance(e, t.get_args(AnyEvalErrorT.__value__)):
+                        e = t.cast(AnyEvalErrorT, e)
+                        await _dsl_error_handling.handle_eval_error(interaction, e)
+
+                    assert False
+
                 except InternalError, Exception:
                     await messages.error(
                         interaction,
@@ -367,3 +384,6 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
         return wrapper
 
     return decorator
+
+
+AnyParseErrorT.__value__

@@ -1,14 +1,32 @@
+import logging
 import os
 import platform
-import runpy
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
 
 
-def __main() -> None:
+def _correct_path() -> None:
+    """Set the current working directory (CWD) to be inside 'src' instead of outside."""
 
+    src_dir = Path(__file__).resolve().parent
+
+    os.chdir(src_dir)
+    sys.path.insert(0, str(src_dir))
+
+
+def _setup_logging() -> logging.Logger:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    return logging.getLogger(__name__)
+
+
+def __main() -> None:
     if sys.version_info < (3, 15):
         raise RuntimeError("Developed for Python 3.15 or higher")
 
@@ -26,24 +44,21 @@ def __main() -> None:
            to corruption due to dirty database reads and writes.
     """))
 
-    # --- Make CWD Be "src/" --- #
-    src_dir = Path(__file__).resolve().parent
+    _correct_path()
 
-    os.chdir(src_dir)
-    sys.path.insert(0, str(src_dir))
+    logger = _setup_logging()
 
     import db.session
     from infrastructure.dc import JumpediaBot
     from infrastructure.env import ENV
 
-    if _yes_no("Format Code?"):
-        subprocess.run(["isort", "."])
-        subprocess.run(["black", "."])
+    # if _yes_no("Format Code?"):
+    logger.info("Formatting Code")
+    subprocess.run(["isort", "."])
+    subprocess.run(["black", "."])
 
-    if _yes_no("Try Create Database?"):
-        print("Creating database...")
-        db.session.init_db()
-        print("Database created!")
+    logger.info("Initializing Database")
+    db.session.init_db()
 
     bot = JumpediaBot()
     bot.run(ENV["DISCORD_TOKEN"])

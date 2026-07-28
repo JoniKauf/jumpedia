@@ -107,6 +107,8 @@ class FieldMappingBuildService:
         field_mapping: RawFieldMappingT,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
+        *,
+        complete: bool = True,
     ) -> FrozenFieldMappingEntityToStrings[T]:
         unchecked_field_mapping = self._try_convert_syns_to_attr_ids(
             field_mapping, syn_to_attribute
@@ -116,6 +118,7 @@ class FieldMappingBuildService:
             unchecked_field_mapping,
             frozenset(syn_to_attribute.values()),
             attr_id_to_collection,
+            complete=complete,
         )
 
     def _try_convert_syns_to_attr_ids(
@@ -143,23 +146,20 @@ class FieldMappingBuildService:
         unchecked_field_mapping: AbstractFieldMappingIDToStringsT,
         attributes: t.AbstractSet[AttributeEntity[T]],
         attr_id_to_collection: t.Mapping[AttributeID, AbstractCollectionT],
+        *,
+        complete: bool = True,
     ) -> FrozenFieldMappingEntityToStrings[T]:
         res: dict[AttributeEntity[T], tuple[FieldSlotStr, ...]] = {}
 
         for attr in attributes:
-            field = unchecked_field_mapping.get(attr.attribute_id)
+            field = unchecked_field_mapping.get(attr.attribute_id, ())
 
-            if field is None:
-                if attr.field_config.min_slot_count > 0:
-                    raise AttributeNotMentioned(attr)
-
-                field = ()
-
-            if (
-                len(field) < attr.field_config.min_slot_count
-                or len(field) > attr.field_config.max_slot_count
-            ):
-                raise SlotCountConfigNotFulfilled(attr, tuple(field))
+            if complete:
+                if (
+                    len(field) < attr.field_config.min_slot_count
+                    or len(field) > attr.field_config.max_slot_count
+                ):
+                    raise SlotCountConfigNotFulfilled(attr, tuple(field))
 
             field = tuple(
                 self._slot_type_service.single_to_slot_typed_str(
@@ -220,7 +220,14 @@ class FieldMappingBuildService:
         new_fm = {
             attr: v
             for attr, v in self.build_raw(
-                new_field_mapping, syn_to_attribute, attribute_id_to_collection
+                new_field_mapping,
+                syn_to_attribute,
+                attribute_id_to_collection,
+                complete=edit_mode
+                not in (
+                    FieldMappingEditMode.COMBINE_OVERRIDE_ON_COLLISION,
+                    FieldMappingEditMode.COMBINE_ERROR_ON_COLLISION,
+                ),
             ).items()
         }
 
@@ -765,7 +772,8 @@ class FieldMappingTransformationService:
             (
                 attr,
                 tuple(
-                    field_mapping.get(attr.attribute_id, ()) for field_mapping in field_mappings
+                    field_mapping.get(attr.attribute_id, ())
+                    for field_mapping in field_mappings
                 ),
             )
             for attr in final_yield

@@ -1,3 +1,4 @@
+import logging
 import typing as t
 from dataclasses import dataclass
 
@@ -43,6 +44,8 @@ from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 from repositories.dtos.field_slot import FieldSlotInsert
 
 lazy from repositories.field_slot import FieldSlotRepository
+from repositories.task import TaskRepository
+
 lazy from services.community import CommunityAccessService
 lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.attribute import (
@@ -58,12 +61,15 @@ lazy from services.internal.strs import StrsService
 lazy from services.list import ListAccessService
 lazy from services.member import MemberAccessService
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class AttributeService:
     _attribute_repository: AttributeRepository
     _collection_entry_repository: CollectionEntryRepository
     _field_slot_repository: FieldSlotRepository
+    _task_repository: TaskRepository
 
     _attribute_access_service: AttributeAccessService
     _collection_build_service: CollectionBuildService
@@ -242,13 +248,17 @@ class AttributeService:
         min_slot_count: int,
         max_slot_count: int,
     ) -> AttributeEntity:
-        community, member, _, attr = self._attribute_access_service.get_convenient(
+        logger.info(f"--- {self.edit_min_and_max_slot_count.__qualname__} ---")
+
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
         )
 
         self._permission_service.ensure_community_rank(
             member, CommunityRank.ADMINISTRATOR
         )
+
+        logger.info(attr.kind)
 
         if attr.kind is not AttributeKind.NONE:
             raise NotDoableForKindedAttribute(attr)
@@ -264,10 +274,22 @@ class AttributeService:
 
         self._validate_field_config(field_config, community, False)
 
+        logger.info(attr.type)
+
         # Task fields are entirely in control for staff team. Enforce that all fields must fit first before allowing change.
         if attr.type is AttributeType.TASK:
-            task_to_slots = self._field_slot_repository.get_grouped_by_task(
-                attr.attribute_id
+            task_to_slots = self._task_repository.get_all_tasks_mapped_to_slots(
+                lst.list_id, attr.attribute_id
+            )
+
+            logger.info(
+                "tasks_to_slots: "
+                + repr(
+                    {
+                        str(task.name): tuple(str(slot) for slot in slots)
+                        for task, slots in task_to_slots.items()
+                    }
+                )
             )
 
             invalid_tasks: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
@@ -278,6 +300,16 @@ class AttributeService:
                     or len(slots) > field_config.max_slot_count
                 ):
                     invalid_tasks[task] = slots
+
+            logger.info(
+                f"invalid_tasks: "
+                + repr(
+                    {
+                        str(task.name): tuple(str(slot) for slot in slots)
+                        for task, slots in task_to_slots.items()
+                    }
+                )
+            )
 
             if invalid_tasks:
                 raise TasksDoNotMatchMinOrMaxSlotCountCriteria(
@@ -344,7 +376,7 @@ class AttributeService:
         new_collection: AbstractCollectionT,
         edit_mode: CollectionEditMode,
     ) -> AttributeEntity:
-        community, member, _, attr = self._attribute_access_service.get_convenient(
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
             DEFAULT, list_name, name, True
         )
 
@@ -385,8 +417,8 @@ class AttributeService:
                 for entry in new_collection
                 for syn in (entry[0], *entry[1])
             }
-            task_to_slots = self._field_slot_repository.get_grouped_by_task(
-                attr.attribute_id
+            task_to_slots = self._task_repository.get_all_tasks_mapped_to_slots(
+                lst.list_id, attr.attribute_id
             )
 
             task_to_only_invalid_slots: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}

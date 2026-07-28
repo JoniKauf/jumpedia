@@ -182,7 +182,7 @@ async def handle_domain_error(
                 debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD, plural=True)} cannot be shown!"
             else:
                 debug_msg = (
-                    t"All invalid {F.format(Concept.FIELD, plural=True)}:"
+                    t"All invalid {F.format(Concept.FIELD, plural=True)}:\n"
                     + Template("\n".join(links))
                 )
             await messages.error(

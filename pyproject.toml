@@ -37,3 +37,9 @@ dependencies = [
     "urllib3==2.5.0",
     "yarl==1.22.0",
 ]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"

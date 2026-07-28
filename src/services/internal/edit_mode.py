@@ -78,7 +78,7 @@ class EditModeService:
             return new
 
         current = {k: v for k, v in current.items() if v}
-        new = {k: v for k, v in current.items() if v}
+        new = {k: v for k, v in new.items() if v}
 
         intersection = set(current).intersection(new)
 

@@ -1,5 +1,6 @@
 import typing as t
 from dataclasses import dataclass
+from string import Template
 
 from domain.sentinels.default import DEFAULT
 from interfaces.message.formattable import FormattableForms, FormattableT
@@ -21,7 +22,13 @@ def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
 
 
 def _embed(s: str) -> str:
-    return f"`` {s} ``" if s.startswith("`") or s.endswith("`") else f"``{s}``"
+    if not s:
+        return "`` ``"
+
+    if s.startswith("`") or s.endswith("`"):
+        return f"`` {s} ``"
+
+    return f"``{s}``"
 
 
 type FormatArgsT = FormatArgsEmpty | FormatArgsTypeName

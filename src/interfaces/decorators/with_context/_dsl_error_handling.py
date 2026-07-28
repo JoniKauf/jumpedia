@@ -1,47 +1,59 @@
 import textwrap
 import typing as t
-from string.templatelib import Template
+from string.templatelib import Interpolation, Template
 
 import discord
 
 from interfaces.dsls.core.errors.base import AnyDslErrorT
-from interfaces.dsls.core.errors.lex import InvalidEscape
+from interfaces.dsls.core.errors.eval import AnyEvalErrorT
+from interfaces.dsls.core.errors.lex import (
+    AnyLexErrorT,
+    InvalidEscape,
+    MultilineStringsDisallowed,
+    UnknownChar,
+    UnterminatedString,
+)
+from interfaces.dsls.core.errors.parse import (
+    AnyParseErrorT,
+    DepthLimitSurpassed,
+    UnexpectedToken,
+)
 from interfaces.dsls.core.value_objects import Span
 from interfaces.message import messages
 from interfaces.message.formatting import F
+from interfaces.message.mentionable import get_name_of_mentionable
 
 
 def _highlight_error(s: str, span: Span) -> Template:
-    underline: str = ""
-
-    print(span.end, span.begin, span.end - span.begin, "^" * (span.end - span.begin))
     if span.begin == span.end:
         underline = "|"
     else:
         underline = "^" * (span.end - span.begin)
 
-    slce = slice(
-        max(0, span.begin - 8), max(min(span.begin + 20, span.end + 8), len(s))
+    slice_start = max(0, span.begin - 8)
+    slice_end = min(len(s), span.end + 8)
+
+    view = s[slice_start:slice_end]
+
+    ellipsis_start = "… " if slice_start > 0 else ""
+    ellipsis_end = " …" if slice_end < len(s) else ""
+
+    relative_begin = span.begin - slice_start + len(ellipsis_start)
+
+    return Template(
+        "\n".join(
+            [
+                "```",
+                f"{ellipsis_start}{view.strip()}{ellipsis_end}",
+                f"{' ' * relative_begin}{underline}",
+                "```",
+            ]
+        )
+        + "\n"
     )
 
-    opt_ellipsis_start: str = ""
-    opt_ellipsis_end: str = ""
 
-    if slce.start > 0:
-        opt_ellipsis_start = "… "
-
-    if slce.stop < len(s):
-        opt_ellipsis_end = " …"
-
-    return Template(textwrap.dedent(f"""
-        ```
-        {opt_ellipsis_start}{s[slce]}{opt_ellipsis_end}
-        {" " * span.begin}{underline}{underline}
-        ```
-    """).strip() + "\n")
-
-
-async def handle_dsl_error(interaction: discord.Interaction, e: AnyDslErrorT) -> None:
+async def handle_lex_error(interaction: discord.Interaction, e: AnyLexErrorT) -> None:
     match e:
         case InvalidEscape():
             await messages.error(
@@ -50,5 +62,68 @@ async def handle_dsl_error(interaction: discord.Interaction, e: AnyDslErrorT) ->
                 _highlight_error(e.s, e.span)
                 + t"The escaped character {F.string(e.substring[-1])} is not escapable!",
             )
+
+        case MultilineStringsDisallowed():
+            await messages.error(
+                interaction,
+                t"Multiline Strings Disallowed",
+                _highlight_error(e.s, e.span)
+                + t"Multiline strings are not allowed for this DSL!",
+            )
+
+        case UnterminatedString():
+            await messages.error(
+                interaction,
+                t"Unterminated String",
+                _highlight_error(e.s, e.span)
+                + (
+                    t"The string contains an unterminated escape sequence!"
+                    if e.unterminated_escape
+                    else t"The string was not closed!"
+                ),
+            )
+
+        case UnknownChar():
+            await messages.error(
+                interaction,
+                t"Unknown Character",
+                _highlight_error(e.s, e.span)
+                + t"The character {F.string(e.substring)} is generally invalid!\n"
+                + t"Maybe try wrapping the expression in 'single quotes' or \"double quotes\"?",
+            )
+
         case _:
             t.assert_never(e)
+
+
+async def handle_parse_error(
+    interaction: discord.Interaction, e: AnyParseErrorT
+) -> None:
+    match e:
+        case UnexpectedToken():
+            await messages.error(
+                interaction,
+                t"Unexpected Token",
+                _highlight_error(e.s, e.received.span)
+                + t"Expected one of the following token types: "
+                + Template(
+                    ", ".join(get_name_of_mentionable(elem) for elem in e.expected)
+                )
+                + t" - but received the {F.full_mention(e.received.type)}!",
+            )
+
+        case DepthLimitSurpassed():
+            await messages.error(
+                interaction,
+                t"Maximum Nesting Depth Exceeded",
+                _highlight_error(e.s, e.at.span)
+                + t"The maximum nesting depth of {e.max_depth} was surpassed!",
+            )
+
+        case _:
+            t.assert_never(e)
+
+
+async def handle_eval_error(
+    interaction: discord.Interaction, e: AnyEvalErrorT
+) -> None: ...

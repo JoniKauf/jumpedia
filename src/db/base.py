@@ -1,8 +1,9 @@
-
-from sqlalchemy.orm import DeclarativeBase
 import typing as t
 
+from sqlalchemy.orm import DeclarativeBase
+
 SCHEMA_NAME: t.Final[str] = "jumpedia"
+
 
 class BaseModel(DeclarativeBase):
     __abstract__ = True

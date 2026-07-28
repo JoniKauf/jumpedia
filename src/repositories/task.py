@@ -2,9 +2,17 @@ import typing as t
 
 from sqlalchemy import delete, exists, func, not_, or_, select
 
-from db.models import ListModel, MemberID, MemberTaskModel, TaskAliasModel, TaskModel
+from db.models import (
+    FieldSlotModel,
+    ListModel,
+    MemberID,
+    MemberTaskModel,
+    TaskAliasModel,
+    TaskModel,
+)
 from domain.entities.task import TaskEntity
 from domain.errors.internal import NotFoundById
+from domain.typing.attribute import AttributeID
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.typing.task import TaskID
@@ -384,3 +392,43 @@ class TaskRepository(BaseRepository):
             task_model_to_entity(model)
             for model in self._session.execute(stmt).scalars().all()
         )
+
+    def get_all_tasks_mapped_to_slots(
+        self,
+        list_id: ListID,
+        attribute_id: AttributeID,
+    ) -> frozendict[TaskEntity, tuple[FieldSlotStr, ...]]:
+        stmt = (
+            select(TaskModel, FieldSlotModel)
+            .outerjoin(
+                FieldSlotModel,
+                (FieldSlotModel.task_id == TaskModel.task_id)
+                & (FieldSlotModel.attribute_id == attribute_id),
+            )
+            .where(TaskModel.list_id == list_id)
+            .order_by(
+                TaskModel.task_id.asc(),
+                FieldSlotModel.index.asc(),
+            )
+        )
+
+        tasks: dict[TaskID, TaskEntity] = {}
+        res: dict[TaskEntity, list[FieldSlotStr]] = {}
+
+        for task_obj, slot_obj in self._session.execute(stmt).tuples():
+            task = tasks.get(task_obj.task_id)
+
+            if task is None:
+                task = task_model_to_entity(task_obj)
+                tasks[task_obj.task_id] = task
+                res[task] = []
+
+            if slot_obj is not None:
+                res[task].append(
+                    FieldSlotStr._create_from_real_and_norm(
+                        slot_obj.real_slot,
+                        slot_obj.norm_slot,
+                    )
+                )
+
+        return frozendict({task: tuple(slots) for task, slots in res.items()})

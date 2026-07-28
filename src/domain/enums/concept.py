@@ -19,4 +19,6 @@ class Concept(enum.Enum):
     SERVER = enum.auto()
     SERVER_RANK = enum.auto()
     TASK = enum.auto()
+    TOKEN = enum.auto()
+    TOKEN_TYPE = enum.auto()
     USER = enum.auto()

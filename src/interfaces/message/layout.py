@@ -17,6 +17,17 @@ class Status(enum.StrEnum):
     ERROR = "x"
 
 
+MAX_DISCORD_CODE_UNITS: int = 2000
+
+
+def utf16_code_units(s: str) -> int:
+    return len(s.encode("utf-16-le")) // 2
+
+
+def discord_message_too_long(s: str) -> bool:
+    return utf16_code_units(s) > MAX_DISCORD_CODE_UNITS
+
+
 def _parse_interpolation(interpolation: Interpolation[F], header: bool) -> str:
     if interpolation.format_spec or interpolation.conversion:
         raise ProgrammingError(f"Format or conversion not allowed! {interpolation!r}")

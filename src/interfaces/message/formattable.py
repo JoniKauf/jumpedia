@@ -63,6 +63,8 @@ class FormattableForms:
                 return cls.from_singular_regular("field slot")
             case Concept.MEMBER:
                 return cls.from_singular_regular("member")
+            case Concept.META_RANK:
+                return cls.from_singular_regular("meta rank")
             case Concept.LIST:
                 return cls.from_singular_regular("list")
             case Concept.TASK:
@@ -71,8 +73,10 @@ class FormattableForms:
                 return cls.from_singular_regular("server")
             case Concept.SERVER_RANK:
                 return cls.from_singular_regular("server rank")
-            case Concept.META_RANK:
-                return cls.from_singular_regular("meta rank")
+            case Concept.TOKEN:
+                return cls.from_singular_regular("token")
+            case Concept.TOKEN_TYPE:
+                return cls.from_singular_regular("token type")
             case Concept.USER:
                 return cls.from_singular_regular("user")
             case _:
