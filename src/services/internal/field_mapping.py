@@ -126,7 +126,10 @@ class FieldMappingBuildService:
         unchecked_field_mapping: AbstractFieldMappingIDToStringsT = {}
 
         for attr_syn, value in field_mapping:
-            attr = syn_to_attribute[attr_syn]
+            attr = syn_to_attribute.get(attr_syn)
+
+            if attr is None:
+                raise NotFoundBySyn(Concept.ATTRIBUTE, attr_syn)
 
             if attr in unchecked_field_mapping:
                 raise AttributeMentionedMoreThanOnce(attr)
@@ -762,7 +765,7 @@ class FieldMappingTransformationService:
             (
                 attr,
                 tuple(
-                    field_mapping[attr.attribute_id] for field_mapping in field_mappings
+                    field_mapping.get(attr.attribute_id, ()) for field_mapping in field_mappings
                 ),
             )
             for attr in final_yield

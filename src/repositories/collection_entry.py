@@ -17,6 +17,7 @@ from domain.typing.collection_entry import (
 )
 from domain.typing.list import ListID
 from domain.value_objects.field_slot import FieldSlotStr
+from repositories.attribute import attribute_kind_filter
 from repositories.base import BaseRepository
 
 
@@ -261,7 +262,7 @@ class CollectionEntryRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
-                AttributeModel.kind.in_(kinds),
+                attribute_kind_filter(kinds),
             )
             .order_by(
                 CollectionEntryModel.attribute_id.asc(),
@@ -327,7 +328,7 @@ class CollectionEntryRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
-                AttributeModel.kind.in_(kinds),
+                attribute_kind_filter(kinds),
             )
             .order_by(
                 CollectionEntryModel.attribute_id.asc(),

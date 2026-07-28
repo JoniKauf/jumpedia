@@ -135,7 +135,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {F.string(str(count), embed=False)} {F.format(formattable, plural=plural)} {F.string("were" if plural else "was", embed=False, shorten=False)} found with the specified criteria!\n\n{F.string('\n'.join(links))}",
+        t"A total of {F.string(str(count), embed=False)} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
         {"suppress_embeds": True},
     )
 

@@ -6,6 +6,7 @@ lazy from interfaces.dsls.core.errors.parse import AnyParseErrorT
 
 type AnyDslErrorT = AnyEvalErrorT | AnyLexErrorT | AnyParseErrorT
 
+
 @dataclass()
 class DslError(Exception):
     """Base class of all DSL errors."""

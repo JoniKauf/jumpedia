@@ -163,7 +163,7 @@ class TaskService:
         self._task_repository.delete(prepared.task_id)
 
     def edit_name(
-        self, new_name: FieldSlotStr, task_name: FieldSlotStr, list_name: ListNameStr
+        self, task_name: FieldSlotStr, new_name: FieldSlotStr, list_name: ListNameStr
     ) -> FieldSlotStr:
         _, member, lst, task = self._task_access_service.get_convenient(
             DEFAULT, list_name, task_name, True
@@ -271,6 +271,7 @@ class TaskService:
         syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
+
         attr_id_to_collection = (
             self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS

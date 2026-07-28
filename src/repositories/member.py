@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from db.models import MemberModel, UserModel
 from domain.entities.member import MemberEntity
 from domain.entities.user import UserEntity
+from domain.enums.attribute import AttributeKind
 from domain.enums.rank import CommunityRank
 from domain.errors import business
 from domain.errors.internal import NotFoundById

@@ -2,6 +2,7 @@ import typing as t
 
 from sqlalchemy import case, delete, func, or_, select, text, update
 
+from db.base import SCHEMA_NAME
 from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
@@ -33,6 +34,20 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
         ),
         position=Position(model.position),
     )
+
+
+def attribute_kind_filter(
+    kinds: t.AbstractSet[AttributeKind],
+):
+    conditions = []
+
+    if AttributeKind.NONE in kinds:
+        conditions.append(AttributeModel.kind.is_(None))
+
+    if normal_kinds := kinds - {AttributeKind.NONE}:
+        conditions.append(AttributeModel.kind.in_(normal_kinds))
+
+    return or_(*conditions)
 
 
 class AttributeRepository(BaseRepository):
@@ -98,7 +113,7 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
-                AttributeModel.kind.in_(kinds),
+                attribute_kind_filter(kinds),
             )
             .order_by(AttributeModel.position.asc())
         )
@@ -277,6 +292,7 @@ class AttributeRepository(BaseRepository):
         # We use mariadbs order by which is made for this reason. Though not directly supported
         # by sqlalchemy, so we use raw sql
 
+        self._session.execute(text(f"USE {SCHEMA_NAME}"))
         self._session.execute(
             text("""
                 UPDATE attribute
@@ -308,7 +324,7 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
-                AttributeModel.kind.in_(kinds),
+                attribute_kind_filter(kinds),
             )
         )
 
@@ -368,7 +384,7 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 AttributeModel.type.in_(types),
-                AttributeModel.kind.in_(kinds),
+                attribute_kind_filter(kinds),
             )
             .order_by(AttributeModel.position.asc(), AttributeAliasModel.index.asc())
         )

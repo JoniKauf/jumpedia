@@ -5,8 +5,8 @@ from interfaces.dsls.expression.parse import BinOp, BinOpType
 
 lazy from interfaces.dsls.core.parse import ExprNode
 
-
 type AnyEvalErrorT = UnexpectedNode | UnexpectedBinOp | EmptyAfterNonEqualityOperator
+
 
 @dataclass()
 class EvalError(DslError):

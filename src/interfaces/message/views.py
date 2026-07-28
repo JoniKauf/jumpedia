@@ -6,7 +6,6 @@ from discord import ButtonStyle, ui
 
 
 class DangerousConfirmView(ui.View):
-
     def __init__(
         self,
         *,
@@ -54,7 +53,8 @@ class DangerousConfirmView(ui.View):
         self.stop()
 
     @ui.button(
-        emoji="✅",
+        emoji="💣",
+        label="Nuke",
         style=ButtonStyle.danger,
         disabled=True,
     )
@@ -67,8 +67,6 @@ class DangerousConfirmView(ui.View):
             return
 
         self._enable_task.cancel()
-        self.stop()
-
         self._on_confirm()
 
         if self._message is not None:
@@ -77,8 +75,12 @@ class DangerousConfirmView(ui.View):
                 view=None,
             )
 
+        # STOP AFTER OTHERWISE WE COMMIT BEFORE CHANGES!
+        self.stop()
+
     @ui.button(
         emoji="✖️",
+        label="Abort",
         style=ButtonStyle.primary,
     )
     async def cancel(
@@ -90,9 +92,10 @@ class DangerousConfirmView(ui.View):
             return
 
         self._enable_task.cancel()
-        self.stop()
 
         await interaction.response.edit_message(
             content=self._cancel_text,
             view=None,
         )
+
+        self.stop()

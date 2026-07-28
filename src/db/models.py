@@ -405,7 +405,7 @@ class FieldSlotModel(BaseModel):
     )
 
     norm_slot: Mapped[NormStr] = mapped_column(
-        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
+        NormStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
     )
 
     __table_args__ = (

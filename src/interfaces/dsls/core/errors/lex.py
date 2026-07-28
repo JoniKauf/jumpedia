@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from interfaces.dsls.core.errors.base import DslError
 from interfaces.dsls.core.value_objects import Span
 
-
 type AnyLexErrorT = InvalidEscape | MultilineStringsDisallowed | UnterminatedString | UnknownChar
+
 
 @dataclass()
 class LexError(DslError):
@@ -15,7 +15,7 @@ class LexError(DslError):
 
     @property
     def substring(self) -> str:
-        return self.s[self.span.begin:self.span.end]
+        return self.s[self.span.begin : self.span.end]
 
 
 @dataclass()

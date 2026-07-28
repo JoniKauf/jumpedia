@@ -1,6 +1,8 @@
-# db/base.py
-from sqlalchemy.orm import DeclarativeBase
 
+from sqlalchemy.orm import DeclarativeBase
+import typing as t
+
+SCHEMA_NAME: t.Final[str] = "jumpedia"
 
 class BaseModel(DeclarativeBase):
     __abstract__ = True
@@ -9,6 +11,6 @@ class BaseModel(DeclarativeBase):
         {
             "mysql_charset": "utf8mb4",
             "mysql_collate": "utf8mb4_bin",
-            "schema": "jumpedia",
+            "schema": SCHEMA_NAME,
         },
     )

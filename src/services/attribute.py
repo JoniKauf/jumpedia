@@ -566,13 +566,13 @@ class AttributeQueryService:
         return tuple(
             AttributeSummary(
                 attr.name,
-                attr_id_to_aliases[attr.attribute_id],
+                attr_id_to_aliases.get(attr.attribute_id, ()),
                 lst,
                 attr.type,
                 attr.kind,
                 attr.field_config,
                 attr.position,
-                attr_id_to_collection[attr.attribute_id],
+                attr_id_to_collection.get(attr.attribute_id, ()),
             )
             for attr in attrs
         )

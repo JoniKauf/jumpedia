@@ -125,11 +125,11 @@ class TaskInterface(
         ctx: CommandContext,
         task_name: str,
         list_name: str,
-        new_user_field_mapping_dsl: str,
+        new_field_mapping_dsl: str,
         edit_mode: FieldMappingEditModeInterfaceEnum,
     ) -> None:
         task = ctx.services.task.edit_field_mapping(
-            bindings.mapping.field_mapping(new_user_field_mapping_dsl),
+            bindings.mapping.field_mapping(new_field_mapping_dsl),
             FieldMappingEditMode(edit_mode.value),
             FieldSlotStr(task_name),
             DEFAULT if list_name is None else ListNameStr(list_name),
