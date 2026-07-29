@@ -25,7 +25,7 @@ from .base import BaseRepository
 
 def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
-        task_id=model.task_id,
+        key=(model.task_id,),
         list_id=model.list_id,
         name=FieldSlotStr._create_from_real_and_norm(model.real_name, model.norm_name),
         created_at=DateTimeWrapper(model.created_at),

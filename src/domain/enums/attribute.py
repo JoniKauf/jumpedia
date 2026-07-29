@@ -75,7 +75,7 @@ class AttributeKind(enum.IntEnum):
     GIVEN_BY = 10
 
     @property
-    def type(self) -> AttributeType:
+    def type(self) -> AnyAttributeTypeT:
         """Will throw for NONE because NONE can be both!"""
 
         match self:

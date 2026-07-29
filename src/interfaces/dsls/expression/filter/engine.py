@@ -85,7 +85,7 @@ class FilterEngine(BaseEngine):
                                 BinOpType.GT,
                                 BinOpType.GTE,
                             ),
-                            bin_op.type,
+                            bin_op,
                         )
 
                 if not isinstance(bin_op.right, TEXT_NODE_TYPES):

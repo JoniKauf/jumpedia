@@ -5,7 +5,12 @@ from string.templatelib import Interpolation, Template
 import discord
 
 from interfaces.dsls.core.errors.base import AnyDslErrorT
-from interfaces.dsls.core.errors.eval import AnyEvalErrorT
+from interfaces.dsls.core.errors.eval import (
+    AnyEvalErrorT,
+    EmptyAfterNonEqualityOperator,
+    UnexpectedBinOp,
+    UnexpectedNode,
+)
 from interfaces.dsls.core.errors.lex import (
     AnyLexErrorT,
     InvalidEscape,
@@ -117,13 +122,45 @@ async def handle_parse_error(
                 interaction,
                 t"Maximum Nesting Depth Exceeded",
                 _highlight_error(e.s, e.at.span)
-                + t"The maximum nesting depth of {e.max_depth} was surpassed!",
+                + t"The maximum nesting depth of {F.raw(str(e.max_depth))} was surpassed!",
             )
 
         case _:
             t.assert_never(e)
 
 
-async def handle_eval_error(
-    interaction: discord.Interaction, e: AnyEvalErrorT
-) -> None: ...
+# TODO:
+# With new formattable and mentionable api rework this so it is not hard codes and uses
+# internal names!
+async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) -> None:
+    match e:
+        case UnexpectedNode():
+            await messages.error(
+                interaction,
+                t"Unexpected Node",
+                _highlight_error(e.s, e.received.span)
+                + t"Expected one of the following nodes: "
+                + Template(", ".join(elem.__name__ for elem in e.expected))
+                + t" - but received {F.raw(type(e.received).__name__)}!",
+            )
+
+        case UnexpectedBinOp():
+            await messages.error(
+                interaction,
+                t"Unexpected Binary Operator",
+                _highlight_error(e.s, e.received.span)
+                + t"Expected one of the following binary operators: "
+                + Template(", ".join(op.name for op in e.expected))
+                + t" - but received {F.raw(e.received.type.name)}!",
+            )
+
+        case EmptyAfterNonEqualityOperator():
+            await messages.error(
+                interaction,
+                t"Missing Expression",
+                _highlight_error(e.s, e.received.span)
+                + t"The binary operator {F.raw(e.received.type.name)} requires an expression after it!",
+            )
+
+        case _:
+            t.assert_never(e)

@@ -16,7 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.base import BaseModel
+from db.base import SCHEMA_NAME, BaseModel
 from db.types import NormStrType, RealStrType
 from domain.enums.attribute import AttributeKind, AttributeSlotType
 from domain.enums.rank import CommunityRank, MetaRank
@@ -62,7 +62,7 @@ class CommunityModel(BaseModel):
 
     default_selected_list_id: Mapped[ListID | None] = mapped_column(
         Integer,
-        ForeignKey("list.list_id", ondelete="SET NULL", use_alter=True),
+        ForeignKey(f"{SCHEMA_NAME}.list.list_id", ondelete="SET NULL", use_alter=True),
     )
 
     community_list_count_max: Mapped[int] = mapped_column(INTEGER(unsigned=True))
@@ -131,11 +131,11 @@ class UserModel(BaseModel):
         )
     )
     raw_name: Mapped[str] = mapped_column(String(CommunityLimits.USER_NAME_LENGTH_MAX))
-    rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    meta_rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     __table_args__ = (
         CheckConstraint(
-            f"rank BETWEEN {min(r for r in MetaRank)} AND {max(r for r in MetaRank)}"
+            f"meta_rank BETWEEN {min(r for r in MetaRank)} AND {max(r for r in MetaRank)}"
         ),
         *BaseModel.__table_args__,
     )
@@ -156,14 +156,16 @@ class MemberModel(BaseModel):
         BigInteger, ForeignKey(UserModel.user_id, ondelete="CASCADE")
     )
 
-    rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    community_rank: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
     selected_list_id: Mapped[ListID | None] = mapped_column(
         Integer, ForeignKey(ListModel.list_id, ondelete="SET NULL")
     )
 
     __table_args__ = (
-        CheckConstraint(f"rank BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"),
+        CheckConstraint(
+            f"community_rank BETWEEN {min(CommunityRank)} AND {max(CommunityRank)}"
+        ),
         *BaseModel.__table_args__,
     )
 
@@ -205,6 +207,7 @@ class AttributeModel(BaseModel):
     max_slot_count: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     unique_slots: Mapped[bool] = mapped_column(Boolean)
     position: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    # visibility: Mapped[int] = mapped_column(TINYINT(unsigned=True))  # TODO: coming soon!
 
     __table_args__ = (
         UniqueConstraint("list_id", "kind"),
@@ -476,5 +479,5 @@ class MemberFieldSlotModel(BaseModel):
     )
 
     norm_slot: Mapped[NormStr] = mapped_column(
-        RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
+        NormStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
     )

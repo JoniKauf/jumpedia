@@ -1,17 +1,19 @@
-import inspect
+import typing as t
+from dataclasses import dataclass, field
 
 
+@dataclass(init=False, frozen=True, slots=True)
 class BaseEntity[*Ts]:
-    def __init__(self, *composite_key: *Ts) -> None:
-        self._composite_key = composite_key
+    key: tuple[*Ts]
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return False
-        return self._composite_key == other._composite_key
+
+        return self.key == other.key
 
     def __hash__(self) -> int:
-        return hash(self._composite_key)
+        return hash(self.key)
 
     def __repr__(self) -> str:
         s = type(self).__qualname__ + "("
@@ -23,3 +25,6 @@ class BaseEntity[*Ts]:
         )
 
         return s + ")"
+
+    def __str__(self) -> str:
+        return self.__repr__()

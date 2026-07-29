@@ -29,37 +29,37 @@ def get_name_of_mentionable(mentionable: MentionableT) -> str:
                 case TokenType.IDENT:
                     return "Identifier"
                 case TokenType.LPAREN:
-                    return "Symbol: Left Parenthesis ('(')"
+                    return "Symbol Left Parenthesis ('(')"
                 case TokenType.RPAREN:
-                    return "Symbol: Right Parenthesis (')')"
+                    return "Symbol Right Parenthesis (')')"
                 case TokenType.LT:
-                    return "Symbol: Lower Than Operator ('<')"
+                    return "Symbol Lower Than Operator ('<')"
                 case TokenType.LTE:
-                    return "Symbol: Lower Than Or Equal Operator ('<=')"
+                    return "Symbol Lower Than Or Equal Operator ('<=')"
                 case TokenType.GT:
-                    return "Symbol: Greater Than Operator ('>')"
+                    return "Symbol Greater Than Operator ('>')"
                 case TokenType.GTE:
-                    return "Symbol: Greater Than Or Equal Operator ('>=')"
+                    return "Symbol Greater Than Or Equal Operator ('>=')"
                 case TokenType.PLUS:
-                    return "Symbol: Plus ('+')"
+                    return "Symbol Plus ('+')"
                 case TokenType.MINUS:
-                    return "Symbol: Minus ('-')"
+                    return "Symbol Minus ('-')"
                 case TokenType.COLON:
-                    return "Symbol: Colon (':')"
+                    return "Symbol Colon (':')"
                 case TokenType.COMMA:
-                    return "Symbol: Comma (',')"
+                    return "Symbol Comma (',')"
                 case TokenType.IF:
-                    return "Keyword: If ('if')"
+                    return "Keyword If ('if')"
                 case TokenType.ELSE:
-                    return "Keyword: Else ('else')"
+                    return "Keyword Else ('else')"
                 case TokenType.IS:
-                    return "Keyword: Is ('is')"
+                    return "Keyword Is ('is')"
                 case TokenType.NOT:
-                    return "Keyword: Not ('not')"
+                    return "Keyword Not ('not')"
                 case TokenType.OR:
-                    return "Keyword: Or ('or')"
+                    return "Keyword Or ('or')"
                 case TokenType.AND:
-                    return "Keyword: And ('and')"
+                    return "Keyword And ('and')"
                 case _:
                     t.assert_never(token_type)
 

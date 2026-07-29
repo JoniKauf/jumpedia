@@ -24,7 +24,7 @@ class UnexpectedNode(EvalError):
 @dataclass()
 class UnexpectedBinOp(EvalError):
     expected: tuple[BinOpType, ...]
-    received: BinOpType
+    received: BinOp
 
 
 @dataclass()

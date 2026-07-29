@@ -20,10 +20,10 @@ from repositories.dtos.member import MemberInsert
 
 def member_model_to_entity(model: MemberModel, user: UserEntity) -> MemberEntity:
     return MemberEntity(
-        member_id=model.member_id,
+        key=(model.member_id,),
         user=user,
         community_id=model.community_id,
-        rank=CommunityRank(model.rank),
+        community_rank=CommunityRank(model.community_rank),
         selected_list_id=model.selected_list_id,
     )
 
@@ -59,7 +59,7 @@ class MemberRepository(BaseRepository):
         obj = MemberModel(
             user_id=member.user.user_id,
             community_id=member.community_id,
-            rank=member.rank,
+            community_rank=member.community_rank,
             selected_list_id=member.selected_list_id,
         )
 
@@ -79,7 +79,7 @@ class MemberRepository(BaseRepository):
         if obj is None:
             raise NotFoundById(MemberEntity, member_id)
 
-        obj.rank = community_rank.value
+        obj.community_rank = community_rank.value
         self._session.flush()
 
         return member_model_to_entity(obj, user)
@@ -110,7 +110,7 @@ class MemberRepository(BaseRepository):
         if obj is None:
             raise NotFoundById(MemberEntity, member.member_id)
 
-        obj.rank = member.community_rank.value
+        obj.community_rank = member.community_rank.value
         obj.selected_list_id = member.selected_list_id
 
         return member_model_to_entity(obj, member.user)

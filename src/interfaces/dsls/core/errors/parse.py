@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from interfaces.dsls.core.errors.base import DslError
 from interfaces.dsls.core.lex import Token, TokenType
 
-type AnyParseErrorT = ParseError | UnexpectedToken | DepthLimitSurpassed
+type AnyParseErrorT = UnexpectedToken | DepthLimitSurpassed
 
 
 @dataclass()

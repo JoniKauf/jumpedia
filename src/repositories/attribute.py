@@ -7,7 +7,7 @@ from db.models import AttributeAliasModel, AttributeModel, ListModel
 from domain.entities.attribute import AttributeEntity, AttributeFieldConfig
 from domain.enums.attribute import AttributeKind, AttributeSlotType, AttributeType
 from domain.errors.internal import NotFoundById
-from domain.typing.attribute import AttributeID
+from domain.typing.attribute import AnyAttributeTypeT, AttributeID
 from domain.typing.community import CommunityID
 from domain.typing.list import ListID
 from domain.value_objects.attribute import AttributeSynStr
@@ -19,7 +19,7 @@ from repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
 
 def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
     return AttributeEntity(
-        attribute_id=model.attribute_id,
+        key=(model.attribute_id,),
         list_id=model.list_id,
         name=AttributeSynStr._create_from_real_and_norm(
             model.real_name, model.norm_name
@@ -51,7 +51,7 @@ def attribute_kind_filter(
 
 
 class AttributeRepository(BaseRepository):
-    def create[T: AttributeType](
+    def create[T: AnyAttributeTypeT](
         self, attribute: AttributeInsert[T]
     ) -> AttributeEntity[T]:
         obj = AttributeModel(
@@ -102,7 +102,7 @@ class AttributeRepository(BaseRepository):
         obj = self._session.get(AttributeModel, attribute_id)
         return None if obj is None else attribute_model_to_entity(obj)
 
-    def get_all_by_list_id_ordered_by_position[T: AttributeType](
+    def get_all_by_list_id_ordered_by_position[T: AnyAttributeTypeT](
         self,
         list_id: ListID,
         types: t.AbstractSet[T],
@@ -309,7 +309,7 @@ class AttributeRepository(BaseRepository):
 
         self._session.flush()
 
-    def get_syn_to_attribute_by_list_id[T: AttributeType](
+    def get_syn_to_attribute_by_list_id[T: AnyAttributeTypeT](
         self,
         list_id: ListID,
         types: t.AbstractSet[T],

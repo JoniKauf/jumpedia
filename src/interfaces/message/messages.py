@@ -1,5 +1,7 @@
+import asyncio
 import enum
 import itertools
+import logging
 import typing as t
 from string.templatelib import Template
 
@@ -13,6 +15,8 @@ from interfaces.message.formattable import FormattableT
 from interfaces.message.formatting import F, mentionable_to_formattable
 from interfaces.message.layout import Status
 from interfaces.message.mentionable import MentionableT
+
+logger = logging.getLogger(__name__)
 
 
 class SendKwargsT(t.TypedDict):
@@ -114,13 +118,19 @@ async def object_browse(
         )
 
     try:
-        links = tuple(
-            pastee.create_pastee_with_retries({f"#{i}": s})
-            for i, s in enumerate(
-                pastee.table_to_pastee_strings(
-                    tuple(data), zip(*data.values(), strict=True)
-                ),
-                start=1,
+        logger.info("Creating pastee tables...")
+        paste_strings = pastee.table_to_pastee_strings(
+            tuple(data), zip(*data.values(), strict=True)
+        )
+
+        logger.info("Creating pastee links...")
+        links = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    pastee.create_pastee_with_retries,
+                    {f"#{i}": s},
+                )
+                for i, s in enumerate(paste_strings, start=1)
             )
         )
     except ConnectionError:
@@ -132,6 +142,7 @@ async def object_browse(
 
     plural: bool = count != 1
 
+    logger.info("Sending browse pastees...")
     await info(
         interaction,
         header,
@@ -212,7 +223,7 @@ async def nuke_object_on_confirmation(
             + t"?\n\n"
             + consequences
             + t"\n\n### This action cannot be undone!"
-            + t"\n\nThis interaction will timeout after {F.string(str(TIMEOUT))} seconds!",
+            + t"\n\nThis interaction will timeout after {F.raw(str(TIMEOUT))} seconds!",
             Status.WARNING,
         ),
         view=view,

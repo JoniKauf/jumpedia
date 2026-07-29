@@ -7,51 +7,19 @@ lazy from domain.typing.list import ListID
 from domain.typing.member import MemberID
 
 lazy from domain.value_objects.user import UserNameStr
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True, slots=True)
 class MemberEntity(BaseEntity[MemberID]):
-    def __init__(
-        self,
-        member_id: MemberID,
-        user: UserEntity,
-        community_id: CommunityID,
-        rank: CommunityRank = CommunityRank.DEFAULT,
-        selected_list_id: ListID | None = None,
-    ) -> None:
-        super().__init__(member_id)
-
-        self._user = user
-        self._community_id = community_id
-        self.community_rank = rank
-        self.selected_list_id = selected_list_id
+    user: UserEntity
+    community_id: CommunityID
+    community_rank: CommunityRank = CommunityRank.DEFAULT
+    selected_list_id: ListID | None = None
 
     @property
     def member_id(self) -> MemberID:
-        return self._composite_key[0]
-
-    @property
-    def community_id(self) -> CommunityID:
-        return self._community_id
-
-    @property
-    def community_rank(self) -> CommunityRank:
-        return self._rank
-
-    @community_rank.setter
-    def community_rank(self, value: CommunityRank) -> None:
-        self._rank = value
-
-    @property
-    def selected_list_id(self) -> ListID | None:
-        return self._selected_list_id
-
-    @selected_list_id.setter
-    def selected_list_id(self, value: ListID | None) -> None:
-        self._selected_list_id = value
-
-    @property
-    def user(self) -> UserEntity:
-        return self._user
+        return self.key[0]
 
     @property
     def name(self) -> UserNameStr:

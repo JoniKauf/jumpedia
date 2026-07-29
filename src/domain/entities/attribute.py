@@ -2,75 +2,32 @@ from domain.entities.base import BaseEntity
 
 lazy from domain.enums.attribute import AttributeKind, AttributeType
 from domain.errors.internal import AttributeTypeKindMismatch
-from domain.typing.attribute import AttributeID
+from domain.typing.attribute import AnyAttributeTypeT, AttributeID
 
 lazy from domain.typing.list import ListID
 lazy from domain.value_objects.attribute import AttributeFieldConfig, AttributeSynStr
 lazy from domain.value_objects.position import Position
+from dataclasses import dataclass
 
 
-class AttributeEntity[T: AttributeType = AttributeType](BaseEntity[AttributeID]):
-    def __init__(
-        self,
-        attribute_id: AttributeID,
-        list_id: ListID,
-        name: AttributeSynStr,
-        type: T,
-        kind: AttributeKind,
-        field_config: AttributeFieldConfig,
-        position: Position,
-    ) -> None:
-        super().__init__(attribute_id)
+@dataclass(frozen=True, slots=True)
+class AttributeEntity[T: AnyAttributeTypeT = AnyAttributeTypeT](
+    BaseEntity[AttributeID]
+):
+    list_id: ListID
+    type: T
+    kind: AttributeKind
+    name: AttributeSynStr
+    field_config: AttributeFieldConfig
+    position: Position
 
-        if kind is not AttributeKind.NONE and kind.type is not type:
-            raise AttributeTypeKindMismatch(attribute_id, type, kind)
-
-        self._list_id = list_id
-        self._type = type
-        self._kind = kind
-        self.name = name
-        self.field_config = field_config
-        self.position = position
+    def __post_init__(self) -> None:
+        if self.kind is not AttributeKind.NONE and self.kind.type is not self.type:
+            raise AttributeTypeKindMismatch(self.attribute_id, self.type, self.kind)
 
     @property
     def attribute_id(self) -> AttributeID:
-        return self._composite_key[0]
-
-    @property
-    def list_id(self) -> ListID:
-        return self._list_id
-
-    @property
-    def type(self) -> T:
-        return self._type
-
-    @property
-    def kind(self) -> AttributeKind:
-        return self._kind
-
-    @property
-    def name(self) -> AttributeSynStr:
-        return self._name
-
-    @name.setter
-    def name(self, value: AttributeSynStr) -> None:
-        self._name = value
-
-    @property
-    def field_config(self) -> AttributeFieldConfig:
-        return self._field_config
-
-    @field_config.setter
-    def field_config(self, value: AttributeFieldConfig) -> None:
-        self._field_config = value
-
-    @property
-    def position(self) -> Position:
-        return self._position
-
-    @position.setter
-    def position(self, value: Position) -> None:
-        self._position = value
+        return self.key[0]
 
     @property
     def slot_unique_across_list(self) -> bool:

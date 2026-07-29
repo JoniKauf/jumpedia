@@ -326,9 +326,15 @@ class AttributeService:
             attr.attribute_id, field_config.min_slot_count, field_config.max_slot_count
         )
 
-        attr.field_config = field_config
-
-        return attr
+        return AttributeEntity(
+            attr.key,
+            attr.list_id,
+            attr.type,
+            attr.kind,
+            attr.name,
+            field_config,
+            attr.position,
+        )
 
     def edit_position_order(
         self, attribute_names: tuple[AttributeSynStr, ...], list_name: ListNameStr

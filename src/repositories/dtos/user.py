@@ -9,4 +9,4 @@ from domain.value_objects.user import UserNameStr
 class UserInsert:
     id: UserID
     name: UserNameStr
-    rank: MetaRank = MetaRank.DEFAULT
+    meta_rank: MetaRank = MetaRank.DEFAULT

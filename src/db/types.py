@@ -13,7 +13,7 @@ class RealStrType(TypeDecorator):
     def process_bind_param(
         self, value: string.RealStr | None, dialect: Dialect
     ) -> str | None:
-        assert isinstance(value, string.RealStr | None)
+        assert value is None or isinstance(value, string.RealStr)
 
         if value is None:
             return None
@@ -23,7 +23,7 @@ class RealStrType(TypeDecorator):
     def process_result_value(
         self, value: str | None, dialect: Dialect
     ) -> string.RealStr | None:
-        assert isinstance(value, str | None)
+        assert value is None or isinstance(value, str)
 
         if value is None:
             return None
@@ -38,7 +38,7 @@ class NormStrType(TypeDecorator):
     def process_bind_param(
         self, value: string.NormStr | None, dialect: Dialect
     ) -> str | None:
-        assert isinstance(value, string.NormStr | None)
+        assert value is None or isinstance(value, string.NormStr)
 
         if value is None:
             return None
@@ -48,7 +48,7 @@ class NormStrType(TypeDecorator):
     def process_result_value(
         self, value: str | None, dialect: Dialect
     ) -> string.NormStr | None:
-        assert isinstance(value, str | None)
+        assert value is None or isinstance(value, str)
 
         if value is None:
             return None

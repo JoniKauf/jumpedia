@@ -10,5 +10,5 @@ from domain.typing.list import ListID
 class MemberInsert:
     user: UserEntity
     community_id: CommunityID
-    rank: CommunityRank = CommunityRank.DEFAULT
+    community_rank: CommunityRank = CommunityRank.DEFAULT
     selected_list_id: ListID | None = None

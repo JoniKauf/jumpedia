@@ -67,17 +67,15 @@ class UserExistenceService:
         if existing is None:
             return self._user_repository.create(user)
 
-        overwrite_any: bool = False
-
-        if overwrite_name:
-            existing.name = user.name
-            overwrite_any = True
-
-        if overwrite_rank:
-            existing.meta_rank = user.rank
-            overwrite_any = True
-
-        if not overwrite_any:
+        if not overwrite_name and not overwrite_rank:
             return existing
 
-        return self._user_repository.update(existing)
+        new = UserEntity(
+            (user.id,),
+            user.name if overwrite_name else existing.name,
+            user.meta_rank if overwrite_rank else existing.meta_rank,
+        )
+
+        del existing
+
+        return self._user_repository.update(new)

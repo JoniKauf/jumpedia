@@ -35,7 +35,7 @@ def __main() -> None:
             "Developed for CPython, other Python implementation may not be compatible!"
         )
 
-    input(textwrap.dedent("""
+    print(textwrap.dedent("""
         Before starting, please consider the following infos first!
                           
         1. Jumpedia is currently only desgined to run in one process at a time. 
@@ -52,12 +52,17 @@ def __main() -> None:
     from infrastructure.dc import JumpediaBot
     from infrastructure.env import ENV
 
-    # if _yes_no("Format Code?"):
-    logger.info("Formatting Code")
+    if _yes_no("Run old_to_new script?", False):
+        from _scripts.old_to_new import __main__ as old_to_new
+
+        old_to_new.main()
+        return
+
+    logger.info("Formatting Code...")
     subprocess.run(["isort", "."])
     subprocess.run(["black", "."])
 
-    logger.info("Initializing Database")
+    logger.info("Initializing Database...")
     db.session.init_db()
 
     bot = JumpediaBot()

@@ -223,17 +223,21 @@ class MemberExistenceService:
         if existing is None:
             return self._member_repository.create(member)
 
-        overwrite_any: bool = False
-
-        if overwrite_rank:
-            existing.community_rank = member.rank
-            overwrite_any = True
-
-        if overwrite_selected_list:
-            existing.selected_list_id = member.selected_list_id
-            overwrite_any = True
-
-        if not overwrite_any:
+        if not overwrite_rank and not overwrite_selected_list:
             return existing
 
-        return self._member_repository.update(existing)
+        new = MemberEntity(
+            (existing.member_id,),
+            existing.user,
+            existing.community_id,
+            member.community_rank if overwrite_rank else existing.community_rank,
+            (
+                member.selected_list_id
+                if overwrite_selected_list
+                else existing.selected_list_id
+            ),
+        )
+
+        del existing
+
+        return self._member_repository.update(new)

@@ -19,7 +19,7 @@ from .base import BaseRepository
 
 def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
-        community_id=model.community_id,
+        key=(model.community_id,),
         name=CommunityNameStr._create_from_real_and_norm(
             model.real_name, model.norm_name
         ),

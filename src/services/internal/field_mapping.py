@@ -1,4 +1,5 @@
 import functools
+import logging
 import typing as t
 from dataclasses import dataclass
 
@@ -71,6 +72,8 @@ from services.member import MemberAccessService, MemberExistenceService
 from services.member_task import MemberTaskAccessService
 from services.task import TaskAccessService
 
+logger = logging.getLogger(__name__)
+
 # Type checkers do not know that values passed in share the same SlotTypeT every time
 # They complain because comparisons between the different types is obviously not always valid
 _OP_TO_COMP_ANY_FUNC: t.Final[
@@ -102,7 +105,7 @@ class FieldMappingBuildService:
     _edit_mode_service: EditModeService
     _slot_type_service: SlotTypeService
 
-    def build_raw[T: AttributeType](
+    def build_raw[T: AnyAttributeTypeT](
         self,
         field_mapping: RawFieldMappingT,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
@@ -141,7 +144,7 @@ class FieldMappingBuildService:
 
         return unchecked_field_mapping
 
-    def build[T: AttributeType](
+    def build[T: AnyAttributeTypeT](
         self,
         unchecked_field_mapping: AbstractFieldMappingIDToStringsT,
         attributes: t.AbstractSet[AttributeEntity[T]],
@@ -208,7 +211,7 @@ class FieldMappingBuildService:
 
         return frozendict(res)
 
-    def build_edit[T: AttributeType](
+    def build_edit[T: AnyAttributeTypeT](
         self,
         edit_mode: FieldMappingEditMode,
         current_field_mapping: AbstractFieldMappingEntityToStringT,
@@ -439,7 +442,7 @@ class FieldMappingTransformationService:
 
     _slot_type_service: SlotTypeService
 
-    def filter_sort_yield[T: AttributeType](
+    def filter_sort_yield[T: AnyAttributeTypeT](
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         filter: FilterT | None,
@@ -449,29 +452,39 @@ class FieldMappingTransformationService:
         attribute_id_to_collection_value_to_entry_index: t.Mapping[
             AttributeID, t.Mapping[SlotTypeT, int]
         ],
+        attribute_id_to_collection_entry_syn_to_index: t.Mapping[
+            AttributeID, t.Mapping[FieldSlotStr, int]
+        ],
     ) -> frozendict[AttributeEntity[T], tuple[tuple[SlotTypeT, ...], ...]]:
+        logger.info("Filtering...")
         fms = self._filter(
             field_mappings,
             filter,
             syn_to_attribute,
             attribute_id_to_collection_value_to_entry_index,
+            attribute_id_to_collection_entry_syn_to_index,
         )
+        logger.info("Sorting...")
         fms = self._sort(
             fms,
             sort,
             syn_to_attribute,
             attribute_id_to_collection_value_to_entry_index,
         )
+        logger.info("Yielding...")
         fms = self._yield(fms, yield_, syn_to_attribute)
         return fms
 
-    def _filter[T: AttributeType](
+    def _filter[T: AnyAttributeTypeT](
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         filter: FilterT | None,
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
         attribute_id_to_collection_value_to_entry_index: t.Mapping[
             AttributeID, t.Mapping[SlotTypeT, int]
+        ],
+        attribute_id_to_collection_entry_syn_to_index: t.Mapping[
+            AttributeID, t.Mapping[FieldSlotStr, int]
         ],
     ) -> t.Sequence[AbstractFieldMappingIDToSlotTypeT]:
         if filter is None:
@@ -495,6 +508,7 @@ class FieldMappingTransformationService:
             filter,
             syn_to_attribute,
             attribute_id_to_collection_value_to_entry_index,
+            attribute_id_to_collection_entry_syn_to_index,
         )
 
         return tuple(fm for fm in field_mappings if id(fm) in filtered)
@@ -506,6 +520,9 @@ class FieldMappingTransformationService:
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity],
         attribute_id_to_collection_value_to_entry_index: t.Mapping[
             AttributeID, t.Mapping[SlotTypeT, int]
+        ],
+        attribute_id_to_collection_entry_syn_to_index: t.Mapping[
+            AttributeID, t.Mapping[FieldSlotStr, int]
         ],
     ) -> t.Mapping[int, AbstractFieldMappingIDToSlotTypeT]:
         """Recursively run through the filter and short circuit where possible.
@@ -540,6 +557,7 @@ class FieldMappingTransformationService:
                         operand,
                         syn_to_attribute,
                         attribute_id_to_collection_value_to_entry_index,
+                        attribute_id_to_collection_entry_syn_to_index,
                     )
 
                     for k in new_valid:
@@ -566,6 +584,7 @@ class FieldMappingTransformationService:
                         operand,
                         syn_to_attribute,
                         attribute_id_to_collection_value_to_entry_index,
+                        attribute_id_to_collection_entry_syn_to_index,
                     )
 
                 return still_valid
@@ -595,9 +614,7 @@ class FieldMappingTransformationService:
                 # Examples: "a is value", "a >= value", "a < value"
                 elif isinstance(comp_filter, NonEmptyComparisonFilter):
                     comp_any = _OP_TO_COMP_ANY_FUNC[comp_filter.op]
-                    value = self._slot_type_service.single_to_slot_type(
-                        FieldSlotStr(comp_filter.value), attr.field_config.slot_type
-                    )
+                    value = FieldSlotStr(comp_filter.value)
 
                     coll_value_to_idx = (
                         attribute_id_to_collection_value_to_entry_index.get(
@@ -607,7 +624,12 @@ class FieldMappingTransformationService:
 
                     # Attribute has collection, compare collection index
                     if coll_value_to_idx:
-                        value_idx = coll_value_to_idx[value]
+                        value_idx = attribute_id_to_collection_entry_syn_to_index[
+                            attr.attribute_id
+                        ].get(value)
+
+                        if value_idx is None:
+                            raise NotFoundBySyn(Concept.COLLECTION_ENTRY, value)
 
                         return {
                             id: field_mapping
@@ -632,7 +654,7 @@ class FieldMappingTransformationService:
 
         t.assert_never(filter)
 
-    def _sort[T: AttributeType](
+    def _sort[T: AnyAttributeTypeT](
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         sort: t.Sequence[tuple[AttributeSynStr, bool]],
@@ -749,7 +771,7 @@ class FieldMappingTransformationService:
             )
         )
 
-    def _yield[T: AttributeType](
+    def _yield[T: AnyAttributeTypeT](
         self,
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         yield_: t.Sequence[AttributeSynStr],
@@ -970,6 +992,7 @@ class FieldMappingService:
             tuple[tuple[SlotTypeT, ...], ...],
         ]
     ):
+        logger.info(self.get_summaries.__qualname__)
         community, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
 
         ATTRIBUTE_TYPES: t.AbstractSet[AttributeType]
@@ -992,6 +1015,7 @@ class FieldMappingService:
 
         del target_user
 
+        logger.info("Generating data")
         syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
@@ -1053,6 +1077,7 @@ class FieldMappingService:
             attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted
         }
 
+        logger.info("Generating field mapping to transform later")
         # Iterate generator to create typed mappings
         field_mappings = tuple(
             {
@@ -1066,24 +1091,39 @@ class FieldMappingService:
             for fm in field_mappings_untyped_gen
         )
 
+        logger.info("Generating attr_id_to_coll_value_to_idx")
+        attr_to_collection = (
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
+                lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
+            )
+        )
+
         # Map each attribute to a mapping which maps the collections value to its index in the collection
         # Used for sorting and filtering
-        # Highly complicated comprehension but not worth making it 10x longer than it needs to be
-        attr_id_to_coll_value_to_idx = {
-            attr_id: {
-                slot_typed: idx
-                for slot_typed, idx in zip(
+        attr_id_to_coll_value_to_idx: dict[AttributeID, dict[SlotTypeT, int]] = {}
+
+        for attr_id, coll in attr_to_collection.items():
+            values = [entry[0] for entry in coll]
+
+            attr_id_to_coll_value_to_idx[attr_id] = {
+                slot: idx
+                for idx, slot in enumerate(
                     self._slot_type_service.many_to_slot_type(
-                        value_to_idx, attr_id_to_slot_type[attr_id], validate=False
-                    ),
-                    value_to_idx.values(),
+                        values,
+                        attr_id_to_slot_type[attr_id],
+                        validate=False,
+                    )
                 )
             }
-            for attr_id, value_to_idx in self._collection_entry_repository.get_grouped_value_to_index_by_list_id(
-                lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
-            ).items()
+
+        attr_id_to_entry_syn_to_idx: dict[AttributeID, dict[FieldSlotStr, int]] = {
+            attr_id: {
+                syn: i for i, entry in enumerate(coll) for syn in (entry[0], *entry[1])
+            }
+            for attr_id, coll in attr_to_collection.items()
         }
 
+        logger.info("Filter, Sort, Yield...")
         return self._field_mapping_transformation_service.filter_sort_yield(
             field_mappings,
             filter,
@@ -1091,6 +1131,7 @@ class FieldMappingService:
             yield_,
             syn_to_attr,
             attr_id_to_coll_value_to_idx,
+            attr_id_to_entry_syn_to_idx,
         )
 
     def _calc_user_field_mapping_data(

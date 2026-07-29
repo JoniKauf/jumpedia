@@ -19,7 +19,7 @@ from repositories.user import user_model_to_entity
 
 def member_task_model_to_entity(model: MemberTaskModel) -> MemberTaskEntity:
     return MemberTaskEntity(
-        member_task_id=model.member_task_id,
+        key=(model.member_task_id,),
         member_id=model.member_id,
         task_id=model.task_id,
         given_at=DateTimeWrapper(model.given_at),

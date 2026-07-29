@@ -25,7 +25,7 @@ def collection_entry_model_to_entity(
     model: CollectionEntryModel,
 ) -> CollectionEntryEntity:
     return CollectionEntryEntity(
-        model.collection_entry_id,
+        (model.collection_entry_id,),
         model.attribute_id,
         FieldSlotStr._create_from_real_and_norm(model.real_value, model.norm_value),
     )
