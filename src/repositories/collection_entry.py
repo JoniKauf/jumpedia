@@ -41,7 +41,7 @@ class CollectionEntryRepository(BaseRepository):
             CollectionEntryModel(
                 attribute_id=attribute_id,
                 index=i,
-                norm_value=value.norm,
+                norm_value=value.hash,
                 real_value=value.real,
             )
             for i, (value, _) in enumerate(collection)
@@ -58,7 +58,7 @@ class CollectionEntryRepository(BaseRepository):
                 collection_entry_id=entry_obj.collection_entry_id,
                 index=j,
                 attribute_id=attribute_id,
-                norm_alias=alias.norm,
+                norm_alias=alias.hash,
                 real_alias=alias.real,
             )
             for entry_obj, (_, aliases) in zip(entry_objs, collection, strict=True)
@@ -99,7 +99,7 @@ class CollectionEntryRepository(BaseRepository):
     ) -> CollectionEntryEntity | None:
         stmt = select(CollectionEntryModel).where(
             CollectionEntryModel.attribute_id == attribute_id,
-            CollectionEntryModel.norm_value == name.norm,
+            CollectionEntryModel.norm_value == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -117,7 +117,7 @@ class CollectionEntryRepository(BaseRepository):
         ]
         | None
     ):
-        norm_to_store = {syn.norm: syn for syn in syns}
+        norm_to_store = {syn.hash: syn for syn in syns}
 
         if not norm_to_store:
             return None

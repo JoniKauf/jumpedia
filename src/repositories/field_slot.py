@@ -21,7 +21,7 @@ class FieldSlotRepository(BaseRepository):
                 task_id=slot.task_id,
                 attribute_id=slot.attribute_id,
                 index=slot.index.value,
-                norm_slot=slot.slot.norm,
+                norm_slot=slot.slot.hash,
                 real_slot=slot.slot.real,
             )
             for slot in field_slots

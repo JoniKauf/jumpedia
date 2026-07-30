@@ -370,7 +370,7 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         e = t.cast(AnyEvalErrorT, e)
                         await _dsl_error_handling.handle_eval_error(interaction, e)
 
-                    assert False
+                    raise AssertionError(f"'{e=}' is not any of the 3 DSL error types")
 
                 except InternalError, Exception:
                     await messages.error(

@@ -56,7 +56,7 @@ class AttributeRepository(BaseRepository):
     ) -> AttributeEntity[T]:
         obj = AttributeModel(
             list_id=attribute.list_id,
-            norm_name=attribute.name.norm,
+            norm_name=attribute.name.hash,
             real_name=attribute.name.real,
             type=attribute.type,
             kind=None if attribute.kind is AttributeKind.NONE else attribute.kind.value,
@@ -80,7 +80,7 @@ class AttributeRepository(BaseRepository):
                 attribute_id=attr_alias.attribute_id,
                 index=attr_alias.index.value,
                 list_id=attr_alias.list_id,
-                norm_alias=attr_alias.alias.norm,
+                norm_alias=attr_alias.alias.hash,
                 real_alias=attr_alias.alias.real,
             )
             for attr_alias in attribute_aliases
@@ -131,7 +131,7 @@ class AttributeRepository(BaseRepository):
     ) -> AttributeEntity | None:
         stmt = select(AttributeModel).where(
             AttributeModel.list_id == list_id,
-            AttributeModel.norm_name == name.norm,
+            AttributeModel.norm_name == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -145,7 +145,7 @@ class AttributeRepository(BaseRepository):
         exclude: AttributeID | None,
     ) -> tuple[AttributeEntity, AttributeSynStr] | None:
         syns = tuple(syns)
-        norms = {syn.norm for syn in syns}
+        norms = {syn.hash for syn in syns}
 
         if not norms:
             return None
@@ -208,8 +208,8 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 or_(
-                    AttributeModel.norm_name == syn.norm,
-                    AttributeAliasModel.norm_alias == syn.norm,
+                    AttributeModel.norm_name == syn.hash,
+                    AttributeAliasModel.norm_alias == syn.hash,
                 ),
             )
             .limit(1)
@@ -226,7 +226,7 @@ class AttributeRepository(BaseRepository):
 
         entity = attribute_model_to_entity(attr_obj)
 
-        if attr_obj.norm_name == syn.norm:
+        if attr_obj.norm_name == syn.hash:
             colliding_syn = AttributeSynStr._create_from_real_and_norm(
                 attr_obj.real_name,
                 attr_obj.norm_name,
@@ -253,7 +253,7 @@ class AttributeRepository(BaseRepository):
             )
             .where(
                 AttributeModel.list_id == list_id,
-                AttributeAliasModel.norm_alias == alias.norm,
+                AttributeAliasModel.norm_alias == alias.hash,
             )
         )
 
@@ -414,7 +414,7 @@ class AttributeRepository(BaseRepository):
             raise NotFoundById(AttributeEntity, attribute_id)
 
         obj.real_name = name.real
-        obj.norm_name = name.norm
+        obj.norm_name = name.hash
 
         self._session.flush()
 
@@ -435,7 +435,7 @@ class AttributeRepository(BaseRepository):
                 index=alias.index.value,
                 list_id=alias.list_id,
                 real_alias=alias.alias.real,
-                norm_alias=alias.alias.norm,
+                norm_alias=alias.alias.hash,
             )
             for alias in aliases
         )

@@ -21,7 +21,7 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
         key=(model.community_id,),
         name=CommunityNameStr._create_from_real_and_norm(
-            model.real_name, model.norm_name
+            model.name, model.hash
         ),
         default_selected_list_id=model.default_selected_list_id,
         created_at=DateTimeWrapper(model.created_at),
@@ -40,7 +40,7 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
 class CommunityRepository(BaseRepository):
     def create(self, community: CommunityInsert) -> CommunityEntity:
         obj = CommunityModel(
-            norm_name=community.name.norm,
+            norm_name=community.name.hash,
             real_name=community.name.real,
             default_selected_list_id=None,
             community_list_count_max=community.limits.community_list_count_max,
@@ -58,7 +58,7 @@ class CommunityRepository(BaseRepository):
         return community_model_to_entity(obj)
 
     def get_by_name(self, name: CommunityNameStr) -> CommunityEntity | None:
-        stmt = select(CommunityModel).where(CommunityModel.norm_name == name.norm)
+        stmt = select(CommunityModel).where(CommunityModel.hash == name.hash)
         obj = self._session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 

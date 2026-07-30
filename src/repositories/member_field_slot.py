@@ -23,7 +23,7 @@ class MemberFieldSlotRepository(BaseRepository):
                 member_task_id=slot.member_task_id,
                 attribute_id=slot.attribute_id,
                 index=slot.index.value,
-                norm_slot=slot.slot.norm,
+                norm_slot=slot.slot.hash,
                 real_slot=slot.slot.real,
             )
             for slot in member_field_slots

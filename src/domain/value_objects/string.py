@@ -1,6 +1,9 @@
+from hashlib import sha256
+import hashlib
 import re
 import string
 import typing as t
+import unicodedata
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
 IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
@@ -26,50 +29,50 @@ class DoubleBacktickError(ValueError):
     pass
 
 
-class BaseSingleStr:
-    _str: str
+class BaseStrWrapper[T: (str, bytes)]:
+    _value: T
 
-    def __str__(self) -> str:
-        return self._str
+    def __str__(self) -> T:
+        return self._value
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__qualname__}({self._str!r})"
+        return f"{self.__class__.__qualname__}({self._value!r})"
 
     def __len__(self) -> int:
-        return len(self._str)
+        return len(self._value)
 
-    def __bool__(self) -> t.Literal[True]:
-        return True
+    def __bool__(self) -> bool:
+        return bool(self._value)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, type(self)):
-            return self._str == other._str
+            return self._value == other._value
 
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(self._str)
+        return hash(self._value)
 
     @property
-    def value(self) -> str:
-        return self._str
+    def value(self) -> T:
+        return self._value
 
     @classmethod
-    def _create(cls, s: str) -> t.Self:
+    def _create(cls, s: T) -> t.Self:
         """Create an instance of this :class:`~t.Self` but skip all forms of validation. Only use previously validated input!"""
         self = super().__new__(cls)
-        self._str = s
+        self._value = s
 
         return self
 
-
-class RealStr(BaseSingleStr):
+class RealStr(BaseStrWrapper[str]):
     """String wrapper to sanitize a string."""
 
     def __init__(self, s: str) -> None:
         s = _replace_whitespace_groups(s, " ", True)
         s = _replace_bad_chars(s)
         s = "".join(c for c in s if c.isprintable())
+        s = unicodedata.normalize("NFC", s)
 
         if not s:
             raise EmptyStringError()
@@ -77,22 +80,29 @@ class RealStr(BaseSingleStr):
         if "``" in s:
             raise DoubleBacktickError()
 
-        self._str = s
+        self._value = s
 
 
-class NormStr(BaseSingleStr):
-    """String wrapper to normalize a :class:`~RealStr`."""
+class NormHash(BaseStrWrapper[bytes]):
+    """String wrapper to normalize and hash a :class:`~RealStr` for fast equality 
+    checks.
+    """
 
     def __init__(self, s: str | RealStr) -> None:
         if isinstance(s, str):
             s = RealStr(s)
 
-        self._str = self.normalize(s._str)
+        self._value = self.hash(self.normalize(s.value))
 
     @classmethod
     def normalize(cls, s: str) -> str:
         """Algorithm used to normalize strings."""
         return s.casefold()
+
+    @classmethod
+    def hash(cls, s: str) -> bytes:
+        """Algorithm used for hashing strings after normalization."""
+        return hashlib.sha256(s.encode("utf-8")).digest()
 
 
 # Per definition in unicode 1 character maps to at most 3 characters after a casing operations
@@ -106,15 +116,15 @@ UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING: t.Final[int] = 3
 class Str:
     """A string wrapper used inside the entire domain.
 
-    It holds a raw, :class:`~RealStr` and :class:`~NormStr` version of the wrapped string.
+    It holds a raw string, :class:`~RealStr` and :class:`~NormHash` of the wrapped string.
 
     The length and str(...) is returned from the real version of the string, while equality and
-    the hash is based off the norm version of the string.
+    the hash is based off the hash version of the string.
     """
 
     _raw: str
     _real: RealStr | None
-    _norm: NormStr | None
+    _hash: NormHash | None
 
     def __init__(self, s: str | RealStr) -> None:
         if isinstance(s, RealStr):
@@ -124,7 +134,7 @@ class Str:
             self._raw = s
             self._real = None  # Calculate lazily
 
-        self._norm = None
+        self._hash = None
 
         self._validation()
 
@@ -132,14 +142,14 @@ class Str:
     def _create_from_real_and_norm(
         cls,
         real: RealStr,
-        norm: NormStr,
+        hash: NormHash,
     ) -> t.Self:
         """Create an instance of this :class:`~t.Self` but skip all forms of validation. Only use previously validated input!"""
         self = cls.__new__(cls)
 
-        self._raw = real._str
+        self._raw = real._value
         self._real = real
-        self._norm = norm
+        self._hash = hash
 
         return self
 
@@ -155,11 +165,11 @@ class Str:
         return self._real
 
     @property
-    def norm(self) -> NormStr:
-        if self._norm is None:
-            self._norm = NormStr(self.real)
+    def hash(self) -> NormHash:
+        if self._hash is None:
+            self._hash = NormHash(self.real)
 
-        return self._norm
+        return self._hash
 
     def _validation(self) -> None:
         pass
@@ -171,10 +181,10 @@ class Str:
         if not isinstance(value, type(self)):
             return NotImplemented
 
-        return self.norm == value.norm
+        return self.hash == value.hash
 
     def __hash__(self) -> int:
-        return hash(self.norm)
+        return hash(self.hash)
 
     def __str__(self) -> str:
         return str(self.real)

@@ -7,6 +7,7 @@ from domain.enums.attribute import AttributeSlotType, AttributeType
 from domain.errors.business import InvalidSlotForSlotType
 from domain.typing.attribute import SlotTypeT
 from domain.value_objects.field_slot import FieldSlotStr
+from domain.value_objects.string import NormStr
 
 NUMBER_MAX: t.Final[int] = 2**63 - 1
 NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1
@@ -95,3 +96,9 @@ class SlotTypeService:
                 return (str(slot) for slot in slots)
 
         t.assert_never(type)
+
+    def normalize(self, slot: SlotTypeT) -> SlotTypeT:
+        if isinstance(slot, str):
+            return NormStr.normalize(slot)
+
+        return slot

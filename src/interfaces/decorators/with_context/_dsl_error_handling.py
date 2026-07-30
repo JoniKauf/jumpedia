@@ -122,7 +122,7 @@ async def handle_parse_error(
                 interaction,
                 t"Maximum Nesting Depth Exceeded",
                 _highlight_error(e.s, e.at.span)
-                + t"The maximum nesting depth of {F.raw(str(e.max_depth))} was surpassed!",
+                + t"The maximum nesting depth of {F.string(str(e.max_depth))} was surpassed!",
             )
 
         case _:
@@ -141,7 +141,7 @@ async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) 
                 _highlight_error(e.s, e.received.span)
                 + t"Expected one of the following nodes: "
                 + Template(", ".join(elem.__name__ for elem in e.expected))
-                + t" - but received {F.raw(type(e.received).__name__)}!",
+                + t" - but received {F.string(type(e.received).__name__)}!",
             )
 
         case UnexpectedBinOp():
@@ -151,7 +151,7 @@ async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) 
                 _highlight_error(e.s, e.received.span)
                 + t"Expected one of the following binary operators: "
                 + Template(", ".join(op.name for op in e.expected))
-                + t" - but received {F.raw(e.received.type.name)}!",
+                + t" - but received {F.string(e.received.type.name)}!",
             )
 
         case EmptyAfterNonEqualityOperator():
@@ -159,7 +159,7 @@ async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) 
                 interaction,
                 t"Missing Expression",
                 _highlight_error(e.s, e.received.span)
-                + t"The binary operator {F.raw(e.received.type.name)} requires an expression after it!",
+                + t"The binary operator {F.string(e.received.type.name)} requires an expression after it!",
             )
 
         case _:

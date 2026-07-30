@@ -494,10 +494,7 @@ class FieldMappingTransformationService:
         # Normalize slots of type str to have their comparison be not case-sensitive
         field_mappings_adjusted_for_filtering = {
             id(fm): {
-                attribute_id: tuple(
-                    NormStr.normalize(slot) if isinstance(slot, str) else slot
-                    for slot in field
-                )
+                attribute_id: tuple(map(self._slot_type_service.normalize, field))
                 for attribute_id, field in fm.items()
             }
             for fm in field_mappings
@@ -507,7 +504,13 @@ class FieldMappingTransformationService:
             field_mappings_adjusted_for_filtering,
             filter,
             syn_to_attribute,
-            attribute_id_to_collection_value_to_entry_index,
+            {
+                attr_id: {
+                    self._slot_type_service.normalize(val): idx
+                    for val, idx in val_to_idx.items()
+                }
+                for attr_id, val_to_idx in attribute_id_to_collection_value_to_entry_index.items()
+            },
             attribute_id_to_collection_entry_syn_to_index,
         )
 
@@ -644,10 +647,22 @@ class FieldMappingTransformationService:
                         }
                     # Attribute has no collection, compare actual value
                     else:
+                        typed_value = self._slot_type_service.single_to_slot_type(
+                            value, attr.field_config.slot_type
+                        )
+                        typed_value_normed = (
+                            NormStr.normalize(typed_value)
+                            if isinstance(typed_value, str)
+                            else typed_value
+                        )
+
                         return {
                             id: field_mapping
                             for id, field_mapping in id_to_field_mappings.items()
-                            if comp_any(value, field_mapping.get(attr.attribute_id, ()))
+                            if comp_any(
+                                typed_value_normed,
+                                field_mapping.get(attr.attribute_id, ()),
+                            )
                         }
 
                 t.assert_never(comp_filter)

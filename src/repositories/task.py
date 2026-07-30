@@ -36,7 +36,7 @@ class TaskRepository(BaseRepository):
     def create(self, task: TaskInsert) -> TaskEntity:
         obj = TaskModel(
             list_id=task.list_id,
-            norm_name=task.name.norm,
+            norm_name=task.name.hash,
             real_name=task.name.real,
         )
 
@@ -147,7 +147,7 @@ class TaskRepository(BaseRepository):
         self, list_id: ListID, syns: t.Iterable[FieldSlotStr], exclude: TaskID | None
     ) -> tuple[TaskEntity, FieldSlotStr] | None:
         syns = tuple(syns)
-        norms = {syn.norm for syn in syns}
+        norms = {syn.hash for syn in syns}
 
         if not norms:
             return None
@@ -202,7 +202,7 @@ class TaskRepository(BaseRepository):
                 task_id=task_alias.task_id,
                 index=task_alias.index.value,
                 list_id=task_alias.list_id,
-                norm_alias=task_alias.alias.norm,
+                norm_alias=task_alias.alias.hash,
                 real_alias=task_alias.alias.real,
             )
             for task_alias in task_aliases
@@ -227,7 +227,7 @@ class TaskRepository(BaseRepository):
     ) -> TaskEntity | None:
         stmt = select(TaskModel).where(
             TaskModel.list_id == list_id,
-            TaskModel.norm_name == name.norm,
+            TaskModel.norm_name == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -248,8 +248,8 @@ class TaskRepository(BaseRepository):
             .where(
                 TaskModel.list_id == list_id,
                 or_(
-                    TaskModel.norm_name == syn.norm,
-                    TaskAliasModel.norm_alias == syn.norm,
+                    TaskModel.norm_name == syn.hash,
+                    TaskAliasModel.norm_alias == syn.hash,
                 ),
             )
             .limit(1)
@@ -266,7 +266,7 @@ class TaskRepository(BaseRepository):
 
         entity = task_model_to_entity(task_obj)
 
-        if task_obj.norm_name == syn.norm:
+        if task_obj.norm_name == syn.hash:
             colliding_syn = FieldSlotStr._create_from_real_and_norm(
                 task_obj.real_name,
                 task_obj.norm_name,
@@ -340,7 +340,7 @@ class TaskRepository(BaseRepository):
             raise NotFoundById(TaskEntity, task_id)
 
         obj.real_name = name.real
-        obj.norm_name = name.norm
+        obj.norm_name = name.hash
 
         self._session.flush()
 
@@ -361,7 +361,7 @@ class TaskRepository(BaseRepository):
                 index=alias.index.value,
                 list_id=alias.list_id,
                 real_alias=alias.alias.real,
-                norm_alias=alias.alias.norm,
+                norm_alias=alias.alias.hash,
             )
             for alias in aliases
         )

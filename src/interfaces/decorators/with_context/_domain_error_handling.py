@@ -156,7 +156,7 @@ async def handle_domain_error(
                 interaction,
                 t"Invalid Slot Count Configuration",
                 t"The specified slot count configuration is invalid!\n"
-                + t"The minimum slot count must be between {e.min_min} and {e.min_max}.\n"
+                + t"The minimum slot count must be between {F.string(str(e.min_min))} and {F.string(str(e.min_max))}.\n"
                 + t"The maximum slot count must be at least the minimum slot count"
                 + (t" and at most {e.max_max}." if e.max_max is not None else t"."),
             )
@@ -217,7 +217,7 @@ async def handle_domain_error(
             await messages.error(
                 interaction,
                 t"Too Many Aliases",
-                t"The specified aliases exceed the maximum allowed alias count of {e.limit} for {F.string(str(e.entity_name))}!",
+                t"The specified aliases exceed the maximum allowed alias count of {F.string(str(e.limit))} for {F.string(str(e.entity_name))}!",
             )
 
         case ServerAlreadyConnectedToACommunity():
@@ -278,7 +278,7 @@ async def handle_domain_error(
             await messages.error(
                 interaction,
                 t"Limit Out Of Range",
-                t"The community limit {F.string(str(e.name))} must be between {e.min} and {e.max}, but {e.limit} was specified!",
+                t"The community limit {F.string(str(e.name))} must be between {F.string(str(e.min))} and {F.string(str(e.max))}, but {F.string(str(e.limit))} was specified!",
             )
 
         case ApiUnreachable():
