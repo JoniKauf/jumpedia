@@ -1,23 +1,21 @@
 import decimal
+import math
 import typing as t
 from dataclasses import dataclass
 
-from domain.entities.attribute import AttributeEntity
-from domain.enums.attribute import AttributeSlotType, AttributeType
+from domain.enums.attribute import AttributeSlotType
 from domain.errors.business import InvalidSlotForSlotType
 from domain.typing.attribute import SlotTypeT
+from domain.value_objects.community import CommunityLimits
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.string import NormStr
+from domain.value_objects.string import NormHash
 
-NUMBER_MAX: t.Final[int] = 2**63 - 1
-NUMBER_MIN: t.Final[int] = -NUMBER_MAX - 1
-DECIMAL_PRECISION: t.Final[int] = 9  # <- adjust as needed
+DECIMAL_PRECISION: t.Final[int] = 9
 DECIMAL_SCALE: t.Final[decimal.Decimal] = decimal.Decimal(f"1e-{DECIMAL_PRECISION}")
 
 
-def _is_number_in_range(v: int | decimal.Decimal) -> bool:
-    return NUMBER_MIN <= v <= NUMBER_MAX
-
+FALSE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr("False")
+TRUE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr("True")
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotTypeService:
@@ -32,9 +30,9 @@ class SlotTypeService:
                 s = str(slot).lower()
 
                 if s == "false":
-                    return FieldSlotStr("False")
+                    return FALSE_SLOT
                 if s == "true":
-                    return FieldSlotStr("True")
+                    return TRUE_SLOT
 
                 raise InvalidSlotForSlotType(type, slot)
 
@@ -44,10 +42,12 @@ class SlotTypeService:
                 except Exception:
                     raise InvalidSlotForSlotType(type, slot)
 
-                if not _is_number_in_range(n):
+                s = str(n)
+
+                if len(s) > CommunityLimits.FIELD_SLOT_LENGTH_MAX
                     raise InvalidSlotForSlotType(type, slot)
 
-                return FieldSlotStr(str(n))
+                return FieldSlotStr(s)
 
             case AttributeSlotType.DECIMAL:
                 try:
@@ -99,6 +99,6 @@ class SlotTypeService:
 
     def normalize(self, slot: SlotTypeT) -> SlotTypeT:
         if isinstance(slot, str):
-            return NormStr.normalize(slot)
+            return NormHash.normalize(slot)
 
         return slot

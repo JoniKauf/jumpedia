@@ -27,7 +27,7 @@ def task_model_to_entity(model: TaskModel) -> TaskEntity:
     return TaskEntity(
         key=(model.task_id,),
         list_id=model.list_id,
-        name=FieldSlotStr._create_from_real_and_norm(model.real_name, model.norm_name),
+        name=FieldSlotStr._create_from_real_and_hash(model.name, model.name_hash),
         created_at=DateTimeWrapper(model.created_at),
     )
 
@@ -36,8 +36,8 @@ class TaskRepository(BaseRepository):
     def create(self, task: TaskInsert) -> TaskEntity:
         obj = TaskModel(
             list_id=task.list_id,
-            norm_name=task.name.hash,
-            real_name=task.name.real,
+            name_hash=task.name.hash,
+            name=task.name.real,
         )
 
         self._session.add(obj)
@@ -135,9 +135,9 @@ class TaskRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    FieldSlotStr._create_from_real_and_norm(
-                        alias_obj.real_alias,
-                        alias_obj.norm_alias,
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
                     )
                 ] = entity
 
@@ -161,8 +161,8 @@ class TaskRepository(BaseRepository):
             .where(
                 TaskModel.list_id == list_id,
                 or_(
-                    TaskModel.norm_name.in_(norms),
-                    TaskAliasModel.norm_alias.in_(norms),
+                    TaskModel.name_hash.in_(norms),
+                    TaskAliasModel.alias_hash.in_(norms),
                 ),
             )
             .limit(1)
@@ -182,16 +182,16 @@ class TaskRepository(BaseRepository):
 
         entity = task_model_to_entity(task_obj)
 
-        if task_obj.norm_name in norms:
-            syn = FieldSlotStr._create_from_real_and_norm(
-                task_obj.real_name,
-                task_obj.norm_name,
+        if task_obj.name_hash in norms:
+            syn = FieldSlotStr._create_from_real_and_hash(
+                task_obj.name,
+                task_obj.name_hash,
             )
         else:
             assert alias_obj is not None
-            syn = FieldSlotStr._create_from_real_and_norm(
-                alias_obj.real_alias,
-                alias_obj.norm_alias,
+            syn = FieldSlotStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
             )
 
         return entity, syn
@@ -202,8 +202,8 @@ class TaskRepository(BaseRepository):
                 task_id=task_alias.task_id,
                 index=task_alias.index.value,
                 list_id=task_alias.list_id,
-                norm_alias=task_alias.alias.hash,
-                real_alias=task_alias.alias.real,
+                alias_hash=task_alias.alias.hash,
+                alias=task_alias.alias.real,
             )
             for task_alias in task_aliases
         )
@@ -227,7 +227,7 @@ class TaskRepository(BaseRepository):
     ) -> TaskEntity | None:
         stmt = select(TaskModel).where(
             TaskModel.list_id == list_id,
-            TaskModel.norm_name == name.hash,
+            TaskModel.name_hash == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -248,8 +248,8 @@ class TaskRepository(BaseRepository):
             .where(
                 TaskModel.list_id == list_id,
                 or_(
-                    TaskModel.norm_name == syn.hash,
-                    TaskAliasModel.norm_alias == syn.hash,
+                    TaskModel.name_hash == syn.hash,
+                    TaskAliasModel.alias_hash == syn.hash,
                 ),
             )
             .limit(1)
@@ -266,16 +266,16 @@ class TaskRepository(BaseRepository):
 
         entity = task_model_to_entity(task_obj)
 
-        if task_obj.norm_name == syn.hash:
-            colliding_syn = FieldSlotStr._create_from_real_and_norm(
-                task_obj.real_name,
-                task_obj.norm_name,
+        if task_obj.name_hash == syn.hash:
+            colliding_syn = FieldSlotStr._create_from_real_and_hash(
+                task_obj.name,
+                task_obj.name_hash,
             )
         else:
             assert alias_obj is not None
-            colliding_syn = FieldSlotStr._create_from_real_and_norm(
-                alias_obj.real_alias,
-                alias_obj.norm_alias,
+            colliding_syn = FieldSlotStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
             )
 
         return entity, colliding_syn
@@ -291,9 +291,9 @@ class TaskRepository(BaseRepository):
         )
 
         return tuple(
-            FieldSlotStr._create_from_real_and_norm(
-                obj.real_alias,
-                obj.norm_alias,
+            FieldSlotStr._create_from_real_and_hash(
+                obj.alias,
+                obj.alias_hash,
             )
             for obj in self._session.scalars(stmt)
         )
@@ -321,9 +321,9 @@ class TaskRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.task_id, []).append(
-                FieldSlotStr._create_from_real_and_norm(
-                    obj.real_alias,
-                    obj.norm_alias,
+                FieldSlotStr._create_from_real_and_hash(
+                    obj.alias,
+                    obj.alias_hash,
                 )
             )
 
@@ -339,8 +339,8 @@ class TaskRepository(BaseRepository):
         if obj is None:
             raise NotFoundById(TaskEntity, task_id)
 
-        obj.real_name = name.real
-        obj.norm_name = name.hash
+        obj.name = name.real
+        obj.name_hash = name.hash
 
         self._session.flush()
 
@@ -360,8 +360,8 @@ class TaskRepository(BaseRepository):
                 task_id=task_id,
                 index=alias.index.value,
                 list_id=alias.list_id,
-                real_alias=alias.alias.real,
-                norm_alias=alias.alias.hash,
+                alias=alias.alias.real,
+                alias_hash=alias.alias.hash,
             )
             for alias in aliases
         )
@@ -425,9 +425,9 @@ class TaskRepository(BaseRepository):
 
             if slot_obj is not None:
                 res[task].append(
-                    FieldSlotStr._create_from_real_and_norm(
-                        slot_obj.real_slot,
-                        slot_obj.norm_slot,
+                    FieldSlotStr._create_from_real_and_hash(
+                        slot_obj.slot,
+                        slot_obj.slot_hash,
                     )
                 )
 

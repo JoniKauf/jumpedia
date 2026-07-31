@@ -1,13 +1,10 @@
-from hashlib import sha256
 import hashlib
 import re
-import string
 import typing as t
 import unicodedata
+from hashlib import sha256
 
 ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
-IDENTIFIER_CHARS = set(string.ascii_letters + string.digits + "_")
-
 BAD_CHAR_MAPPING = str.maketrans(
     {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}
 )
@@ -32,8 +29,8 @@ class DoubleBacktickError(ValueError):
 class BaseStrWrapper[T: (str, bytes)]:
     _value: T
 
-    def __str__(self) -> T:
-        return self._value
+    def __str__(self) -> str:
+        return str(self._value)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__qualname__}({self._value!r})"
@@ -65,6 +62,7 @@ class BaseStrWrapper[T: (str, bytes)]:
 
         return self
 
+
 class RealStr(BaseStrWrapper[str]):
     """String wrapper to sanitize a string."""
 
@@ -84,7 +82,7 @@ class RealStr(BaseStrWrapper[str]):
 
 
 class NormHash(BaseStrWrapper[bytes]):
-    """String wrapper to normalize and hash a :class:`~RealStr` for fast equality 
+    """String wrapper to normalize and hash a :class:`~RealStr` for fast equality
     checks.
     """
 
@@ -103,14 +101,6 @@ class NormHash(BaseStrWrapper[bytes]):
     def hash(cls, s: str) -> bytes:
         """Algorithm used for hashing strings after normalization."""
         return hashlib.sha256(s.encode("utf-8")).digest()
-
-
-# Per definition in unicode 1 character maps to at most 3 characters after a casing operations
-# So if we casefold our real str we can at most expect 3 times the length. That means
-# every place where a real str is accepted in the DB, we need to have 3x the space for
-# the norm str version and we are safe.
-# I searched a while in the unicode docs to find this info but can't find it again LOL
-UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING: t.Final[int] = 3
 
 
 class Str:
@@ -139,7 +129,7 @@ class Str:
         self._validation()
 
     @classmethod
-    def _create_from_real_and_norm(
+    def _create_from_real_and_hash(
         cls,
         real: RealStr,
         hash: NormHash,

@@ -51,7 +51,7 @@ from domain.value_objects.filter import (
 )
 from domain.value_objects.list import ListNameStr
 from domain.value_objects.member import OptionalMemberWrapper
-from domain.value_objects.string import NormStr, RealStr
+from domain.value_objects.string import NormHash, RealStr
 from repositories.attribute import AttributeRepository
 from repositories.collection_entry import CollectionEntryRepository
 from repositories.field_slot import FieldSlotRepository
@@ -271,9 +271,9 @@ class FieldMappingExtractionService:
                     static_field_mapping[attr.attribute_id] = (
                         # It's just an integer so nothing is different in normalized version
                         # No need to convert
-                        FieldSlotStr._create_from_real_and_norm(
-                            RealStr._create(task_id_str),
-                            NormStr._create(task_id_str),
+                        FieldSlotStr._create_from_real_and_hash(
+                            real := RealStr._create(task_id_str),
+                            NormHash(real),
                         ),
                     )
 
@@ -353,9 +353,9 @@ class FieldMappingExtractionService:
                         task_id_str = str(task.task_id)
 
                         mapping[task.task_id][attr.attribute_id] = (
-                            FieldSlotStr._create_from_real_and_norm(
-                                RealStr._create(task_id_str),
-                                NormStr._create(task_id_str),
+                            FieldSlotStr._create_from_real_and_hash(
+                                real := RealStr._create(task_id_str),
+                                NormHash(real),
                             ),
                         )
 
@@ -650,10 +650,8 @@ class FieldMappingTransformationService:
                         typed_value = self._slot_type_service.single_to_slot_type(
                             value, attr.field_config.slot_type
                         )
-                        typed_value_normed = (
-                            NormStr.normalize(typed_value)
-                            if isinstance(typed_value, str)
-                            else typed_value
+                        typed_value_normed = self._slot_type_service.normalize(
+                            typed_value
                         )
 
                         return {
@@ -906,7 +904,7 @@ class FieldMappingService:
 
             user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_single(
                 member_task,
-                self._member_repository.get_by_member_id(member_task.member_id),
+                None if member_task.given_by is None else self._member_repository.get_by_member_id(member_task.given_by),
                 attrs,
             )
 

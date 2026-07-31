@@ -20,9 +20,7 @@ from .base import BaseRepository
 def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
     return CommunityEntity(
         key=(model.community_id,),
-        name=CommunityNameStr._create_from_real_and_norm(
-            model.name, model.hash
-        ),
+        name=CommunityNameStr._create_from_real_and_hash(model.name, model.name_hash),
         default_selected_list_id=model.default_selected_list_id,
         created_at=DateTimeWrapper(model.created_at),
         limits=CommunityLimits(
@@ -40,8 +38,8 @@ def community_model_to_entity(model: CommunityModel) -> CommunityEntity:
 class CommunityRepository(BaseRepository):
     def create(self, community: CommunityInsert) -> CommunityEntity:
         obj = CommunityModel(
-            norm_name=community.name.hash,
-            real_name=community.name.real,
+            name_hash=community.name.hash,
+            name=community.name.real,
             default_selected_list_id=None,
             community_list_count_max=community.limits.community_list_count_max,
             list_attribute_count_max=community.limits.list_attribute_count_max,
@@ -58,7 +56,7 @@ class CommunityRepository(BaseRepository):
         return community_model_to_entity(obj)
 
     def get_by_name(self, name: CommunityNameStr) -> CommunityEntity | None:
-        stmt = select(CommunityModel).where(CommunityModel.hash == name.hash)
+        stmt = select(CommunityModel).where(CommunityModel.name_hash == name.hash)
         obj = self._session.scalar(stmt)
         return None if obj is None else community_model_to_entity(obj)
 

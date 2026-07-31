@@ -87,6 +87,7 @@ class PermissionService:
         if actor_member == target_member:
             raise CannotChangeOwnRank()
 
+        # Meta Admins are more powerful
         if actor_member.user.meta_rank < MetaRank.ADMINISTRATOR:
             if actor_member.community_rank <= target_member.community_rank:
                 raise CannotChangeRankOfUserWithEqualOrHigherPower(

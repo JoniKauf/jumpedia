@@ -14,9 +14,7 @@ from .base import BaseRepository
 def user_model_to_entity(model: UserModel) -> UserEntity:
     return UserEntity(
         key=(model.user_id,),
-        name=UserNameStr._create_from_real_and_norm(
-            RealStr(model.name), model.norm_name
-        ),
+        name=UserNameStr(RealStr._create(model.name)),
         meta_rank=MetaRank(model.meta_rank),
     )
 
@@ -29,8 +27,7 @@ class UserRepository(BaseRepository):
     def create(self, user: UserInsert) -> UserEntity:
         obj = UserModel(
             user_id=user.id,
-            norm_name=user.name.hash,
-            raw_name=user.name.raw,
+            name=user.name.real,
             meta_rank=user.meta_rank.value,
         )
 
@@ -62,7 +59,6 @@ class UserRepository(BaseRepository):
             raise NotFoundById(UserEntity, user.user_id)
 
         obj.name = user.name.raw
-        obj.norm_name = user.name.hash
         obj.meta_rank = user.meta_rank
 
         return user_model_to_entity(obj)

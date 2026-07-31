@@ -1,4 +1,3 @@
-# db/models.py
 import typing as t
 from datetime import UTC, datetime
 
@@ -31,7 +30,7 @@ from domain.typing.task import TaskID
 from domain.typing.user import UserID
 from domain.value_objects import string
 from domain.value_objects.community import CommunityLimits
-from domain.value_objects.string import RealStr, NormHash
+from domain.value_objects.string import NormHash, RealStr
 
 # --- Community ---
 
@@ -47,10 +46,7 @@ class CommunityModel(BaseModel):
         RealStrType(CommunityLimits.COMMUNITY_NAME_LENGTH_MAX)
     )
     name_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.COMMUNITY_NAME_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        ),
+        NormHashType,
         unique=True,
     )
 
@@ -103,12 +99,7 @@ class ListModel(BaseModel):
     name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.LIST_NAME_LENGTH_MAX)
     )
-    name_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.LIST_NAME_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
+    name_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         UniqueConstraint("community_id", "name_hash"),
@@ -185,15 +176,10 @@ class AttributeModel(BaseModel):
         Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
-    name_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
+    name_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     type: Mapped[int] = mapped_column(TINYINT(unsigned=True))
     kind: Mapped[int | None] = mapped_column(TINYINT(unsigned=True))
@@ -235,15 +221,10 @@ class AttributeAliasModel(BaseModel):
         Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
-    alias_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.ATTRIBUTE_SYN_LENGTH_MAX)
     )
+    alias_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         UniqueConstraint("list_id", "alias_hash"),
@@ -267,15 +248,10 @@ class CollectionEntryModel(BaseModel):
 
     index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
 
-    value_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     value: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
+    value_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         UniqueConstraint("attribute_id", "value_hash"),
@@ -302,15 +278,10 @@ class CollectionEntryAliasModel(BaseModel):
         Integer, ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE")
     )
 
-    alias_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
+    alias_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         UniqueConstraint("attribute_id", "alias_hash"),
@@ -332,15 +303,10 @@ class TaskModel(BaseModel):
         Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
-    name_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     name: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
+    name_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -367,15 +333,10 @@ class TaskAliasModel(BaseModel):
         Integer, ForeignKey(ListModel.list_id, ondelete="CASCADE")
     )
 
-    alias_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(
-            CommunityLimits.FIELD_SLOT_LENGTH_MAX
-            * string.UNICODE_STR_LENGTH_MULTIPLE_MAX_AFTER_CASING
-        )
-    )
     alias: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
+    alias_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         UniqueConstraint("list_id", "alias_hash"),
@@ -401,10 +362,7 @@ class FieldSlotModel(BaseModel):
     slot: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
-
-    slot_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
-    )
+    slot_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
         # Index for looking up all task slots for a given attribute
@@ -422,7 +380,7 @@ class FieldSlotModel(BaseModel):
 
 
 class MemberTaskModel(BaseModel):
-    __tablename__ = "user_task"
+    __tablename__ = "member_task"
 
     member_task_id: Mapped[MemberTaskID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
@@ -472,7 +430,4 @@ class MemberFieldSlotModel(BaseModel):
     slot: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
     )
-
-    slot_hash: Mapped[NormHash] = mapped_column(
-        NormHashType(CommunityLimits.FIELD_SLOT_LENGTH_MAX * 3)
-    )
+    slot_hash: Mapped[NormHash] = mapped_column(NormHashType)

@@ -18,7 +18,7 @@ def list_model_to_entity(model: ListModel) -> ListEntity:
     return ListEntity(
         key=(model.list_id,),
         community_id=model.community_id,
-        name=ListNameStr._create_from_real_and_norm(model.real_name, model.norm_name),
+        name=ListNameStr._create_from_real_and_hash(model.name, model.name_hash),
     )
 
 
@@ -26,8 +26,8 @@ class ListRepository(BaseRepository):
     def create(self, list: ListInsert) -> ListEntity:
         obj = ListModel(
             community_id=list.community_id,
-            norm_name=list.name.hash,
-            real_name=list.name.real,
+            name_hash=list.name.hash,
+            name=list.name.real,
         )
 
         self._session.add(obj)
@@ -44,7 +44,7 @@ class ListRepository(BaseRepository):
     ) -> ListEntity | None:
         stmt = select(ListModel).where(
             ListModel.community_id == community_id,
-            ListModel.norm_name == name.hash,
+            ListModel.name_hash == name.hash,
         )
         obj = self._session.scalar(stmt)
         return None if obj is None else list_model_to_entity(obj)
@@ -90,7 +90,7 @@ class ListRepository(BaseRepository):
         if obj is None:
             raise NotFoundById(ListEntity, list.list_id)
 
-        obj.norm_name = list.name.hash
-        obj.real_name = list.name.real
+        obj.name_hash = list.name.hash
+        obj.name = list.name.real
 
         self._session.flush()

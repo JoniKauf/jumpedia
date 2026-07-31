@@ -21,9 +21,7 @@ def attribute_model_to_entity(model: AttributeModel) -> AttributeEntity[t.Any]:
     return AttributeEntity(
         key=(model.attribute_id,),
         list_id=model.list_id,
-        name=AttributeSynStr._create_from_real_and_norm(
-            model.real_name, model.norm_name
-        ),
+        name=AttributeSynStr._create_from_real_and_hash(model.name, model.name_hash),
         type=AttributeType(model.type),
         kind=AttributeKind.NONE if model.kind is None else AttributeKind(model.kind),
         field_config=AttributeFieldConfig(
@@ -56,8 +54,8 @@ class AttributeRepository(BaseRepository):
     ) -> AttributeEntity[T]:
         obj = AttributeModel(
             list_id=attribute.list_id,
-            norm_name=attribute.name.hash,
-            real_name=attribute.name.real,
+            name=attribute.name.real,
+            name_hash=attribute.name.hash,
             type=attribute.type,
             kind=None if attribute.kind is AttributeKind.NONE else attribute.kind.value,
             slot_type=attribute.field_config.slot_type,
@@ -80,8 +78,8 @@ class AttributeRepository(BaseRepository):
                 attribute_id=attr_alias.attribute_id,
                 index=attr_alias.index.value,
                 list_id=attr_alias.list_id,
-                norm_alias=attr_alias.alias.hash,
-                real_alias=attr_alias.alias.real,
+                alias_hash=attr_alias.alias.hash,
+                alias=attr_alias.alias.real,
             )
             for attr_alias in attribute_aliases
         )
@@ -131,7 +129,7 @@ class AttributeRepository(BaseRepository):
     ) -> AttributeEntity | None:
         stmt = select(AttributeModel).where(
             AttributeModel.list_id == list_id,
-            AttributeModel.norm_name == name.hash,
+            AttributeModel.name_hash == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -159,8 +157,8 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 or_(
-                    AttributeModel.norm_name.in_(norms),
-                    AttributeAliasModel.norm_alias.in_(norms),
+                    AttributeModel.name_hash.in_(norms),
+                    AttributeAliasModel.alias_hash.in_(norms),
                 ),
             )
             .limit(1)
@@ -180,16 +178,16 @@ class AttributeRepository(BaseRepository):
 
         entity = attribute_model_to_entity(attr_obj)
 
-        if attr_obj.norm_name in norms:
-            syn = AttributeSynStr._create_from_real_and_norm(
-                attr_obj.real_name,
-                attr_obj.norm_name,
+        if attr_obj.name_hash in norms:
+            syn = AttributeSynStr._create_from_real_and_hash(
+                attr_obj.name,
+                attr_obj.name_hash,
             )
         else:
             assert alias_obj is not None
-            syn = AttributeSynStr._create_from_real_and_norm(
-                alias_obj.real_alias,
-                alias_obj.norm_alias,
+            syn = AttributeSynStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
             )
 
         return entity, syn
@@ -208,8 +206,8 @@ class AttributeRepository(BaseRepository):
             .where(
                 AttributeModel.list_id == list_id,
                 or_(
-                    AttributeModel.norm_name == syn.hash,
-                    AttributeAliasModel.norm_alias == syn.hash,
+                    AttributeModel.name_hash == syn.hash,
+                    AttributeAliasModel.alias_hash == syn.hash,
                 ),
             )
             .limit(1)
@@ -226,16 +224,16 @@ class AttributeRepository(BaseRepository):
 
         entity = attribute_model_to_entity(attr_obj)
 
-        if attr_obj.norm_name == syn.hash:
-            colliding_syn = AttributeSynStr._create_from_real_and_norm(
-                attr_obj.real_name,
-                attr_obj.norm_name,
+        if attr_obj.name_hash == syn.hash:
+            colliding_syn = AttributeSynStr._create_from_real_and_hash(
+                attr_obj.name,
+                attr_obj.name_hash,
             )
         else:
             assert alias_obj is not None
-            colliding_syn = AttributeSynStr._create_from_real_and_norm(
-                alias_obj.real_alias,
-                alias_obj.norm_alias,
+            colliding_syn = AttributeSynStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
             )
 
         return entity, colliding_syn
@@ -253,7 +251,7 @@ class AttributeRepository(BaseRepository):
             )
             .where(
                 AttributeModel.list_id == list_id,
-                AttributeAliasModel.norm_alias == alias.hash,
+                AttributeAliasModel.alias_hash == alias.hash,
             )
         )
 
@@ -294,12 +292,12 @@ class AttributeRepository(BaseRepository):
 
         self._session.execute(text(f"USE {SCHEMA_NAME}"))
         self._session.execute(
-            text("""
-                UPDATE attribute
-                SET position = position - 1
-                WHERE list_id = :list_id
-                AND position > :position
-                ORDER BY position ASC
+            text(f"""
+                UPDATE {AttributeModel}
+                SET {AttributeModel.position} = {AttributeModel.position} - 1
+                WHERE {AttributeModel.list_id} = :list_id
+                AND {AttributeModel.position} > :position
+                ORDER BY {AttributeModel.position} ASC
                 """),
             {
                 "list_id": list_id,
@@ -344,8 +342,8 @@ class AttributeRepository(BaseRepository):
 
             if alias_obj is not None:
                 res[
-                    AttributeSynStr._create_from_real_and_norm(
-                        alias_obj.real_alias, alias_obj.norm_alias
+                    AttributeSynStr._create_from_real_and_hash(
+                        alias_obj.alias, alias_obj.alias_hash
                     )
                 ] = entity
 
@@ -362,9 +360,9 @@ class AttributeRepository(BaseRepository):
         )
 
         return tuple(
-            AttributeSynStr._create_from_real_and_norm(
-                obj.real_alias,
-                obj.norm_alias,
+            AttributeSynStr._create_from_real_and_hash(
+                obj.alias,
+                obj.alias_hash,
             )
             for obj in self._session.scalars(stmt)
         )
@@ -393,9 +391,9 @@ class AttributeRepository(BaseRepository):
 
         for obj in self._session.scalars(stmt):
             res.setdefault(obj.attribute_id, []).append(
-                AttributeSynStr._create_from_real_and_norm(
-                    obj.real_alias,
-                    obj.norm_alias,
+                AttributeSynStr._create_from_real_and_hash(
+                    obj.alias,
+                    obj.alias_hash,
                 )
             )
 
@@ -413,8 +411,8 @@ class AttributeRepository(BaseRepository):
         if obj is None:
             raise NotFoundById(AttributeEntity, attribute_id)
 
-        obj.real_name = name.real
-        obj.norm_name = name.hash
+        obj.name = name.real
+        obj.name_hash = name.hash
 
         self._session.flush()
 
@@ -434,8 +432,8 @@ class AttributeRepository(BaseRepository):
                 attribute_id=attribute_id,
                 index=alias.index.value,
                 list_id=alias.list_id,
-                real_alias=alias.alias.real,
-                norm_alias=alias.alias.hash,
+                alias=alias.alias.real,
+                alias_hash=alias.alias.hash,
             )
             for alias in aliases
         )

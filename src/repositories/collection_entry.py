@@ -27,7 +27,7 @@ def collection_entry_model_to_entity(
     return CollectionEntryEntity(
         (model.collection_entry_id,),
         model.attribute_id,
-        FieldSlotStr._create_from_real_and_norm(model.real_value, model.norm_value),
+        FieldSlotStr._create_from_real_and_hash(model.value, model.value_hash),
     )
 
 
@@ -41,8 +41,8 @@ class CollectionEntryRepository(BaseRepository):
             CollectionEntryModel(
                 attribute_id=attribute_id,
                 index=i,
-                norm_value=value.hash,
-                real_value=value.real,
+                value_hash=value.hash,
+                value=value.real,
             )
             for i, (value, _) in enumerate(collection)
         )
@@ -58,8 +58,8 @@ class CollectionEntryRepository(BaseRepository):
                 collection_entry_id=entry_obj.collection_entry_id,
                 index=j,
                 attribute_id=attribute_id,
-                norm_alias=alias.hash,
-                real_alias=alias.real,
+                alias_hash=alias.hash,
+                alias=alias.real,
             )
             for entry_obj, (_, aliases) in zip(entry_objs, collection, strict=True)
             for j, alias in enumerate(aliases)
@@ -99,7 +99,7 @@ class CollectionEntryRepository(BaseRepository):
     ) -> CollectionEntryEntity | None:
         stmt = select(CollectionEntryModel).where(
             CollectionEntryModel.attribute_id == attribute_id,
-            CollectionEntryModel.norm_value == name.hash,
+            CollectionEntryModel.value_hash == name.hash,
         )
 
         obj = self._session.scalar(stmt)
@@ -117,16 +117,16 @@ class CollectionEntryRepository(BaseRepository):
         ]
         | None
     ):
-        norm_to_store = {syn.hash: syn for syn in syns}
+        hash_to_str = {syn.hash: syn for syn in syns}
 
-        if not norm_to_store:
+        if not hash_to_str:
             return None
 
         stmt = (
             select(
                 CollectionEntryModel,
-                CollectionEntryModel.norm_value,
-                CollectionEntryAliasModel.norm_alias,
+                CollectionEntryModel.value_hash,
+                CollectionEntryAliasModel.alias_hash,
             )
             .outerjoin(
                 CollectionEntryAliasModel,
@@ -136,8 +136,8 @@ class CollectionEntryRepository(BaseRepository):
             .where(
                 CollectionEntryModel.attribute_id == attribute_id,
                 or_(
-                    CollectionEntryModel.norm_value.in_(tuple(norm_to_store)),
-                    CollectionEntryAliasModel.norm_alias.in_(tuple(norm_to_store)),
+                    CollectionEntryModel.value_hash.in_(tuple(hash_to_str)),
+                    CollectionEntryAliasModel.alias_hash.in_(tuple(hash_to_str)),
                 ),
             )
             .limit(1)
@@ -148,13 +148,13 @@ class CollectionEntryRepository(BaseRepository):
         if row is None:
             return None
 
-        obj, entry_norm, alias_norm = row
+        obj, value_hash, alias_hash = row.tuple()
 
-        matched_norm = entry_norm if entry_norm in norm_to_store else alias_norm
+        matched_norm = value_hash if value_hash in hash_to_str else alias_hash
 
         return (
             collection_entry_model_to_entity(obj),
-            norm_to_store[matched_norm],
+            hash_to_str[matched_norm],
         )
 
     def count_by_attribute_id(
@@ -231,9 +231,9 @@ class CollectionEntryRepository(BaseRepository):
 
             if alias_obj is not None:
                 entry_aliases.setdefault(entry.collection_entry_id, []).append(
-                    FieldSlotStr._create_from_real_and_norm(
-                        alias_obj.real_alias,
-                        alias_obj.norm_alias,
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
                     )
                 )
 
@@ -294,9 +294,9 @@ class CollectionEntryRepository(BaseRepository):
 
             if alias_obj is not None:
                 entry_aliases.setdefault(entry.collection_entry_id, []).append(
-                    FieldSlotStr._create_from_real_and_norm(
-                        alias_obj.real_alias,
-                        alias_obj.norm_alias,
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
                     )
                 )
 
@@ -341,9 +341,9 @@ class CollectionEntryRepository(BaseRepository):
                 attribute_id,
                 frozendict(
                     (
-                        FieldSlotStr._create_from_real_and_norm(
-                            obj.real_value,
-                            obj.norm_value,
+                        FieldSlotStr._create_from_real_and_hash(
+                            obj.value,
+                            obj.value_hash,
                         ),
                         obj.index,
                     )

@@ -23,8 +23,8 @@ class MemberFieldSlotRepository(BaseRepository):
                 member_task_id=slot.member_task_id,
                 attribute_id=slot.attribute_id,
                 index=slot.index.value,
-                norm_slot=slot.slot.hash,
-                real_slot=slot.slot.real,
+                slot=slot.slot.real,
+                slot_hash=slot.slot.hash,
             )
             for slot in member_field_slots
         )
@@ -52,9 +52,7 @@ class MemberFieldSlotRepository(BaseRepository):
             (
                 k,
                 tuple(
-                    FieldSlotStr._create_from_real_and_norm(
-                        obj.real_slot, obj.norm_slot
-                    )
+                    FieldSlotStr._create_from_real_and_hash(obj.slot, obj.slot_hash)
                     for obj in g
                 ),
             )
@@ -90,9 +88,9 @@ class MemberFieldSlotRepository(BaseRepository):
                     (
                         attr_id,
                         tuple(
-                            FieldSlotStr._create_from_real_and_norm(
-                                obj.real_slot,
-                                obj.norm_slot,
+                            FieldSlotStr._create_from_real_and_hash(
+                                obj.slot,
+                                obj.slot_hash,
                             )
                             for _, obj in attr_group
                         ),
