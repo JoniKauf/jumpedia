@@ -145,7 +145,11 @@ class TaskService:
                 for i, slot in enumerate(field):
                     inserts.append(
                         FieldSlotInsert(
-                            task_entity.task_id, attr.attribute_id, Index(i), slot
+                            task_entity.list_id,
+                            task_entity.task_id,
+                            attr.attribute_id,
+                            Index(i),
+                            slot,
                         )
                     )
 
@@ -290,7 +294,9 @@ class TaskService:
         self._field_slot_repository.replace_all_by_task_id(
             task.task_id,
             (
-                FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
+                FieldSlotInsert(
+                    task.list_id, task.task_id, attr.attribute_id, Index(i), slot
+                )
                 for attr, field in new_fm.items()
                 for i, slot in enumerate(field)
             ),

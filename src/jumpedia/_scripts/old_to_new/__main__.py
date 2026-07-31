@@ -285,6 +285,7 @@ def main() -> None:
         logger.info(new.FieldSlotModel.__name__)
         session.add_all(
             new.FieldSlotModel(
+                list_id=value.list_id,
                 task_id=value.task_id,
                 attribute_id=value.attribute_id,
                 index=value.index,
@@ -298,6 +299,7 @@ def main() -> None:
         logger.info(new.MemberTaskModel.__name__)
         session.add_all(
             new.MemberTaskModel(
+                list_id=community_user_task.list_id,
                 member_task_id=community_user_task.id,
                 member_id=community_user_task.community_user_id,
                 task_id=community_user_task.task_id,

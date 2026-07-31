@@ -1,4 +1,5 @@
 from jumpedia.domain.entities.base import BaseEntity
+from jumpedia.domain.typing.list import ListID
 
 lazy from jumpedia.domain.typing.member import MemberID
 from jumpedia.domain.typing.member_task import MemberTaskID
@@ -11,6 +12,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class MemberTaskEntity(BaseEntity[MemberTaskID]):
     member_id: MemberID
+    list_id: ListID
     task_id: TaskID
     given_at: DateTimeWrapper
     given_by: MemberID | None

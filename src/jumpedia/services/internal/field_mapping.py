@@ -1070,7 +1070,7 @@ class FieldMappingService:
 
         del target_user
 
-        logger.info("Generating data")
+        logger.info("Fetching get_syn_to_attribute_by_list_id...")
         syn_to_attr = self._attribute_repository.get_syn_to_attribute_by_list_id(
             lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
         )
@@ -1086,6 +1086,7 @@ class FieldMappingService:
             TaskID, FrozenFieldMappingIDToStringsT
         ] = frozendict()
 
+        logger.info("Fetching tasks...")
         # Task
         if target_member is None:
             tasks = self._task_repository.get_all_by_list_id(lst.list_id)
@@ -1102,6 +1103,7 @@ class FieldMappingService:
                 lst.list_id, target_member.member_id
             )
 
+        logger.info("Fetching task kinded field mappings...")
         _task_id_to_task_kinded_field_mapping = (
             self._field_mapping_extraction_service.get_task_kinded_field_mapping_many(
                 tasks,
@@ -1110,10 +1112,12 @@ class FieldMappingService:
             )
         )
 
+        logger.info("Fetching task field mappings...")
         _task_id_to_task_field_mapping = (
             self._field_slot_repository.get_task_field_mapping_by_list_id(lst.list_id)
         )
 
+        logger.info("Combining field mappings...")
         # Combine all mappings into the final one
         # DO NOT DEL these variables to clean up the namespace. This is a generator
         # which means that when the generator is used, the variables must still have
@@ -1132,7 +1136,7 @@ class FieldMappingService:
             attr.attribute_id: attr.field_config.slot_type for attr in attrs_sorted
         }
 
-        logger.info("Generating field mapping to transform later")
+        logger.info("Generating combined and typed field mapping...")
         # Iterate generator to create typed mappings
         field_mappings = tuple(
             {
@@ -1146,7 +1150,7 @@ class FieldMappingService:
             for fm in field_mappings_untyped_gen
         )
 
-        logger.info("Generating attr_id_to_coll_value_to_idx")
+        logger.info("Generating attr_id_to_coll_value_to_idx...")
         attr_to_collection = (
             self._collection_entry_repository.get_grouped_collections_by_list_id(
                 lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
@@ -1206,6 +1210,7 @@ class FieldMappingService:
         member_tasks = tuple(member_tasks_to_tasks.keys())
         tasks = tuple(member_tasks_to_tasks.values())
 
+        logger.info("Fetching user kinded field mappings...")
         task_id_to_user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_many(
             member_tasks,
             self._member_task_repository.get_given_by_member_by_list_id_and_member_id(
@@ -1214,10 +1219,9 @@ class FieldMappingService:
             attrs_sorted,
         )
 
-        task_id_to_user_field_mapping = (
-            self._member_field_slot_repository.get_grouped_field_mapping_by_member_id(
-                target_member.member_id
-            )
+        logger.info("Fetching user field mappings...")
+        task_id_to_user_field_mapping = self._member_field_slot_repository.get_grouped_field_mapping_by_member_id_and_list_id(
+            target_member.member_id, lst.list_id
         )
         return (
             tasks,

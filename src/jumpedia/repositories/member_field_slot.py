@@ -1,11 +1,13 @@
 import itertools
 import typing as t
+from operator import itemgetter
 
 from sqlalchemy import delete, select
 
 from jumpedia.db.models import MemberFieldSlotModel, MemberTaskModel
 from jumpedia.domain.typing.attribute import AttributeID
 from jumpedia.domain.typing.field_mapping import FrozenFieldMappingIDToStringsT
+from jumpedia.domain.typing.list import ListID
 from jumpedia.domain.typing.member import MemberID
 from jumpedia.domain.typing.member_task import MemberTaskID
 from jumpedia.domain.typing.task import TaskID
@@ -61,51 +63,60 @@ class MemberFieldSlotRepository(BaseRepository):
             )
         )
 
-    def get_grouped_field_mapping_by_member_id(
+    from operator import itemgetter
+
+    def get_grouped_field_mapping_by_member_id_and_list_id(
         self,
         member_id: MemberID,
+        list_id: ListID,
     ) -> frozendict[TaskID, FrozenFieldMappingIDToStringsT]:
         stmt = (
-            select(MemberTaskModel.task_id, MemberFieldSlotModel)
+            select(
+                MemberTaskModel.task_id,
+                MemberFieldSlotModel.attribute_id,
+                MemberFieldSlotModel.slot,
+                MemberFieldSlotModel.slot_hash,
+            )
             .join(
                 MemberTaskModel,
                 MemberTaskModel.member_task_id == MemberFieldSlotModel.member_task_id,
             )
             .where(
                 MemberTaskModel.member_id == member_id,
+                MemberTaskModel.list_id == list_id,
             )
             .order_by(
-                MemberTaskModel.task_id.asc(),
-                MemberFieldSlotModel.attribute_id.asc(),
-                MemberFieldSlotModel.index.asc(),
+                MemberTaskModel.task_id,
+                MemberFieldSlotModel.attribute_id,
+                MemberFieldSlotModel.index,
             )
         )
 
-        return frozendict(
-            (
-                task_id,
-                frozendict(
-                    (
-                        attr_id,
-                        tuple(
-                            FieldSlotStr._create_from_real_and_hash(
-                                obj.slot,
-                                obj.slot_hash,
-                            )
-                            for _, obj in attr_group
-                        ),
-                    )
-                    for attr_id, attr_group in itertools.groupby(
-                        task_group,
-                        lambda row: row[1].attribute_id,
-                    )
-                ),
-            )
-            for task_id, task_group in itertools.groupby(
-                self._session.execute(stmt).tuples(),
-                lambda row: row[0],
-            )
-        )
+        create = FieldSlotStr._create_from_real_and_hash
+        get_task_id = itemgetter(0)
+        get_attr_id = itemgetter(1)
+
+        res: dict[TaskID, FrozenFieldMappingIDToStringsT] = {}
+
+        rows = self._session.execute(stmt).tuples()
+
+        for task_id, task_group in itertools.groupby(
+            rows,
+            key=get_task_id,
+        ):
+            attr_map: dict[AttributeID, tuple[FieldSlotStr, ...]] = {}
+
+            for attr_id, attr_group in itertools.groupby(
+                task_group,
+                key=get_attr_id,
+            ):
+                attr_map[attr_id] = tuple(
+                    create(slot, slot_hash) for _, _, slot, slot_hash in attr_group
+                )
+
+            res[task_id] = frozendict(attr_map)
+
+        return frozendict(res)
 
     def replace_all_by_member_task_id(
         self,

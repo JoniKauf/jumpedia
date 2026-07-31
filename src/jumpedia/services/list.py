@@ -93,7 +93,7 @@ class ListService:
         if name_taken_lst is not None:
             raise SynAlreadyTaken(name_taken_lst, lst.name, False, False)
 
-        self._list_repository.update(lst)
+        self._list_repository.update(ListEntity(lst.key, lst.community_id, new_name))
 
         return lst.name
 

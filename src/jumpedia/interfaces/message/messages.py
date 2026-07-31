@@ -97,7 +97,7 @@ async def object_info(
     await info(
         interaction,
         t"{F.format(mentionable_to_formattable(mentionable))} Info",
-        t"Here if the info for the {F.full_mention(mentionable)}:\n"
+        t"Here is the info for the {F.full_mention(mentionable)}:\n"
         + Template("\n".join(links)),
         {"suppress_embeds": True},
     )

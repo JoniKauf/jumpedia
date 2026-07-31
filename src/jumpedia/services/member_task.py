@@ -100,7 +100,9 @@ class MemberTaskService:
         )
 
         member_task = self._member_task_repository.create(
-            MemberTaskInsert(target_member.member_id, task.task_id, given_by_id)
+            MemberTaskInsert(
+                target_member.member_id, task.list_id, task.task_id, given_by_id
+            )
         )
 
         if ufm:

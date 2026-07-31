@@ -1,10 +1,8 @@
-import textwrap
 import typing as t
-from string.templatelib import Interpolation, Template
+from string.templatelib import Template
 
 import discord
 
-from jumpedia.interfaces.dsls.core.errors.base import AnyDslErrorT
 from jumpedia.interfaces.dsls.core.errors.eval import (
     AnyEvalErrorT,
     EmptyAfterNonEqualityOperator,

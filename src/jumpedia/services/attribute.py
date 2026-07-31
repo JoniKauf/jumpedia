@@ -453,7 +453,9 @@ class AttributeService:
             self._field_slot_repository.replace_all_by_attribute_id(
                 attr.attribute_id,
                 (
-                    FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
+                    FieldSlotInsert(
+                        task.list_id, task.task_id, attr.attribute_id, Index(i), slot
+                    )
                     for task, slots in tasks_to_new_data.items()
                     for i, slot in enumerate(slots)
                 ),

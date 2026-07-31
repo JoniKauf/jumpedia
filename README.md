@@ -24,4 +24,4 @@ ON jumpedia.*
 TO 'jumpedia'@'%';
 ```
 7. If I forgot something, extend this! :)
-8. Run with the command `uv run python -m src` and create the DB when prompted.
+8. Run with the command `uv run jumpedia`.

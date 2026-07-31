@@ -347,6 +347,11 @@ class TaskAliasModel(BaseModel):
 class FieldSlotModel(BaseModel):
     __tablename__ = "field_slot"
 
+    # Purely for faster queries (bottleneck)
+    list_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(ListModel.list_id, ondelete="CASCADE"),
+    )
     task_id: Mapped[TaskID] = mapped_column(
         Integer, ForeignKey(TaskModel.task_id, ondelete="CASCADE"), primary_key=True
     )
@@ -356,7 +361,6 @@ class FieldSlotModel(BaseModel):
         ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE"),
         primary_key=True,
     )
-
     index: Mapped[int] = mapped_column(primary_key=True)
 
     slot: Mapped[RealStr] = mapped_column(
@@ -365,11 +369,11 @@ class FieldSlotModel(BaseModel):
     slot_hash: Mapped[NormHash] = mapped_column(NormHashType)
 
     __table_args__ = (
-        # Index for looking up all task slots for a given attribute
         Index(
-            "ix_field_slot_attribute_task_index",
-            "attribute_id",
+            "ix_field_slot_list_task_attribute_index",
+            "list_id",
             "task_id",
+            "attribute_id",
             "index",
         ),
         *BaseModel.__table_args__,
@@ -385,9 +389,13 @@ class MemberTaskModel(BaseModel):
     member_task_id: Mapped[MemberTaskID] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
-
     member_id: Mapped[MemberID] = mapped_column(
         Integer, ForeignKey(MemberModel.member_id, ondelete="CASCADE")
+    )
+    # Purely for faster queries (bottleneck)
+    list_id: Mapped[ListID] = mapped_column(
+        Integer,
+        ForeignKey(ListModel.list_id, ondelete="CASCADE"),
     )
 
     task_id: Mapped[TaskID] = mapped_column(
@@ -405,6 +413,11 @@ class MemberTaskModel(BaseModel):
     )
 
     __table_args__ = (
+        Index(
+            "ix_member_task_member_list_task",
+            "member_id",
+            "list_id", 
+        ),
         UniqueConstraint("member_id", "task_id"),
         *BaseModel.__table_args__,
     )

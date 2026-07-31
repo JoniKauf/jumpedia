@@ -21,6 +21,7 @@ def member_task_model_to_entity(model: MemberTaskModel) -> MemberTaskEntity:
     return MemberTaskEntity(
         key=(model.member_task_id,),
         member_id=model.member_id,
+        list_id=model.list_id,
         task_id=model.task_id,
         given_at=DateTimeWrapper(model.given_at),
         given_by=model.given_by,
@@ -31,6 +32,7 @@ class MemberTaskRepository(BaseRepository):
     def create(self, member_task: MemberTaskInsert) -> MemberTaskEntity:
         obj = MemberTaskModel(
             member_id=member_task.member_id,
+            list_id=member_task.list_id,
             task_id=member_task.task_id,
             given_by=member_task.given_by,
         )
@@ -73,7 +75,7 @@ class MemberTaskRepository(BaseRepository):
             .join(TaskModel, MemberTaskModel.task_id == TaskModel.task_id)
             .where(
                 MemberTaskModel.member_id == member_id,
-                TaskModel.list_id == list_id,
+                MemberTaskModel.list_id == list_id,
             )
         )
 
@@ -89,12 +91,11 @@ class MemberTaskRepository(BaseRepository):
     ) -> frozendict[MemberTaskID, MemberEntity]:
         stmt = (
             select(MemberTaskModel, MemberModel, UserModel)
-            .join(TaskModel, MemberTaskModel.task_id == TaskModel.task_id)
             .join(MemberModel, MemberTaskModel.given_by == MemberModel.member_id)
             .join(UserModel, MemberModel.user_id == UserModel.user_id)
             .where(
                 MemberTaskModel.member_id == member_id,
-                TaskModel.list_id == list_id,
+                MemberTaskModel.list_id == list_id,
             )
         )
 
