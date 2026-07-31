@@ -1,0 +1,668 @@
+import logging
+import typing as t
+from dataclasses import dataclass
+
+from jumpedia.domain.entities.attribute import AttributeEntity
+from jumpedia.domain.entities.community import CommunityEntity
+from jumpedia.domain.entities.list import ListEntity
+from jumpedia.domain.entities.member import MemberEntity
+from jumpedia.domain.entities.task import TaskEntity
+from jumpedia.domain.enums.attribute import AttributeKind, AttributeType
+from jumpedia.domain.enums.concept import Concept
+from jumpedia.domain.enums.edit_mode import AliasEditMode, CollectionEditMode
+from jumpedia.domain.enums.rank import CommunityRank
+from jumpedia.domain.errors.business import (
+    AliasCountLimitSurpassed,
+    AliasesDidNotChange,
+    AttributeMentionedMoreThanOnce,
+    AttributeNotMentioned,
+    CollectionDidNotChange,
+    CountLimitReached,
+    NewCollectionUnfittingForExistingFieldSlots,
+    NewNameEqualToCurrent,
+    NotDoableForKindedAttribute,
+    NotFoundByName,
+    NotFoundBySyn,
+    SlotCountConfigLimitExceeded,
+    SynAlreadyTaken,
+    TasksDoNotMatchMinOrMaxSlotCountCriteria,
+)
+from jumpedia.domain.errors.internal import InitialSlotCountMustBeZero
+from jumpedia.domain.sentinels.default import DEFAULT
+from jumpedia.domain.typing.attribute import TaskAttributeTypeT, UserAttributeTypeT
+from jumpedia.domain.typing.collection_entry import AbstractCollectionT
+from jumpedia.domain.value_objects.attribute import (
+    AttributeFieldConfig,
+    AttributeSynStr,
+)
+from jumpedia.domain.value_objects.community import CommunityLimits, CommunityNameStr
+from jumpedia.domain.value_objects.field_slot import FieldSlotStr
+from jumpedia.domain.value_objects.index import Index
+from jumpedia.domain.value_objects.list import ListNameStr
+from jumpedia.domain.value_objects.position import Position
+
+lazy from jumpedia.repositories.attribute import AttributeRepository
+lazy from jumpedia.repositories.collection_entry import CollectionEntryRepository
+from jumpedia.repositories.dtos.attribute import AttributeAliasInsert, AttributeInsert
+from jumpedia.repositories.dtos.field_slot import FieldSlotInsert
+
+lazy from jumpedia.repositories.field_slot import FieldSlotRepository
+from jumpedia.repositories.task import TaskRepository
+
+lazy from jumpedia.services.community import CommunityAccessService
+lazy from jumpedia.services.contexts.interacting_user import InteractingUserContext
+from jumpedia.services.dtos.attribute import (
+    AttributeInfo,
+    AttributeSummary,
+    PreparedDeleteAttribute,
+)
+
+lazy from jumpedia.services.internal.collection import CollectionBuildService
+lazy from jumpedia.services.internal.edit_mode import EditModeService
+lazy from jumpedia.services.internal.permission import PermissionService
+lazy from jumpedia.services.internal.strs import StrsService
+lazy from jumpedia.services.list import ListAccessService
+lazy from jumpedia.services.member import MemberAccessService
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class AttributeService:
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+    _field_slot_repository: FieldSlotRepository
+    _task_repository: TaskRepository
+
+    _attribute_access_service: AttributeAccessService
+    _collection_build_service: CollectionBuildService
+    _edit_mode_service: EditModeService
+    _list_access_service: ListAccessService
+    _permission_service: PermissionService
+    _strs_service: StrsService
+
+    def create[T: TaskAttributeTypeT | UserAttributeTypeT](
+        self,
+        name: AttributeSynStr,
+        list_name: ListNameStr,
+        type: T,
+        field_config: AttributeFieldConfig,
+        aliases: tuple[AttributeSynStr, ...],
+        collection: AbstractCollectionT,
+    ) -> AttributeEntity[T]:
+        community, member, lst = self._list_access_service.get_convenient(
+            DEFAULT, list_name
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        attr_count = self._attribute_repository.count_by_list(lst.list_id)
+
+        self._validate_basic_community_limits(name, aliases, community, attr_count)
+
+        self._validate_syn_uniqueness(name, aliases, lst)
+
+        self._validate_field_config(field_config, community, True)
+
+        good_collection = self._collection_build_service.build(
+            collection, community, field_config.slot_type
+        )
+
+        del collection
+
+        # --- Create Attribute ---
+        attr_entity = self._attribute_repository.create(
+            AttributeInsert(
+                lst.list_id,
+                name,
+                type,
+                AttributeKind.NONE,
+                field_config,
+                Position(attr_count + 1),
+            )
+        )
+
+        # --- Create Attribute Aliases ---
+        self._attribute_repository.create_many_aliases(
+            AttributeAliasInsert(attr_entity.attribute_id, Index(i), lst.list_id, alias)
+            for i, alias in enumerate(aliases)
+        )
+
+        # --- Create Attribute Collection ---
+        self._collection_entry_repository.create_collection(
+            attr_entity.attribute_id, good_collection
+        )
+
+        return attr_entity
+
+    def delete(self, prepared: PreparedDeleteAttribute) -> None:
+        self._attribute_repository.delete(prepared.attribute_id)
+        self._attribute_repository.decrement_positions_after(
+            prepared.list_id, prepared.attribute_position
+        )
+
+    def edit_name(
+        self,
+        current_name: AttributeSynStr,
+        new_name: AttributeSynStr,
+        list_name: ListNameStr,
+    ) -> AttributeSynStr:
+        _, member, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, current_name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        # Exactly equal (real matches, not just norm)
+        if attr.name.real == new_name.real:
+            raise NewNameEqualToCurrent(attr)
+
+        existing_attr_and_syn = self._attribute_repository.get_by_list_id_and_syn(
+            lst.list_id,
+            new_name,
+        )
+
+        if existing_attr_and_syn is not None:
+            existing_attr, existing_syn = existing_attr_and_syn
+
+            # False if the current attribute has the same name but with different casing
+            if not (existing_attr == attr and attr.name == existing_syn):
+                raise SynAlreadyTaken(
+                    existing_attr, new_name, existing_attr.name != existing_syn, False
+                )
+
+        self._attribute_repository.update_name(attr.attribute_id, new_name)
+
+        return attr.name
+
+    def edit_aliases(
+        self,
+        name: AttributeSynStr,
+        new_aliases: tuple[AttributeSynStr, ...],
+        list_name: ListNameStr,
+        edit_mode: AliasEditMode,
+    ) -> AttributeEntity:
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        self._strs_service.validate_unique_aliases(new_aliases, Concept.ATTRIBUTE)
+
+        current_aliases = self._attribute_repository.get_aliases_by_attribute_id(
+            attr.attribute_id
+        )
+
+        new_aliases = self._edit_mode_service.handle_alias_edit(
+            edit_mode, current_aliases, new_aliases, Concept.ATTRIBUTE
+        )
+
+        # If aliases exactly equal to existing ones (including order even tho technically unimportant)
+        if AttributeSynStr.sequence_real_equals(current_aliases, new_aliases):
+            raise AliasesDidNotChange(attr, new_aliases)
+
+        del current_aliases
+
+        if len(new_aliases) > community.limits.attribute_alias_count_max:
+            raise AliasCountLimitSurpassed(
+                community.limits.attribute_alias_count_max, attr.name, new_aliases
+            )
+
+        # Check if name collision with current attribute
+        for alias in new_aliases:
+            if alias == attr.name:
+                raise SynAlreadyTaken(attr, alias, False, True)
+
+        existing_attr_and_syn = (
+            self._attribute_repository.get_first_by_list_id_and_any_syn(
+                lst.list_id, new_aliases, attr.attribute_id
+            )
+        )
+
+        # Check syn collision for other attributes (collisions with aliases of current attr are allowed)
+        if existing_attr_and_syn is not None:
+            existing_attr, existing_syn = existing_attr_and_syn
+
+            raise SynAlreadyTaken(
+                existing_attr, existing_syn, existing_attr.name != existing_syn, True
+            )
+
+        self._attribute_repository.update_aliases(
+            attr.attribute_id,
+            (
+                AttributeAliasInsert(attr.attribute_id, Index(i), lst.list_id, alias)
+                for i, alias in enumerate(new_aliases)
+            ),
+        )
+
+        return attr
+
+    def edit_min_and_max_slot_count(
+        self,
+        name: AttributeSynStr,
+        list_name: ListNameStr,
+        min_slot_count: int,
+        max_slot_count: int,
+    ) -> AttributeEntity:
+        logger.info(f"--- {self.edit_min_and_max_slot_count.__qualname__} ---")
+
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        logger.info(attr.kind)
+
+        if attr.kind is not AttributeKind.NONE:
+            raise NotDoableForKindedAttribute(attr)
+
+        field_config = AttributeFieldConfig(
+            attr.field_config.slot_type,
+            min_slot_count,
+            max_slot_count,
+            attr.field_config.unique_slots,
+        )
+
+        del min_slot_count, max_slot_count
+
+        self._validate_field_config(field_config, community, False)
+
+        logger.info(attr.type)
+
+        # Task fields are entirely in control for staff team. Enforce that all fields must fit first before allowing change.
+        if attr.type is AttributeType.TASK:
+            task_to_slots = self._task_repository.get_all_tasks_mapped_to_slots(
+                lst.list_id, attr.attribute_id
+            )
+
+            logger.info(
+                "tasks_to_slots: "
+                + repr(
+                    {
+                        str(task.name): tuple(str(slot) for slot in slots)
+                        for task, slots in task_to_slots.items()
+                    }
+                )
+            )
+
+            invalid_tasks: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
+
+            for task, slots in task_to_slots.items():
+                if (
+                    len(slots) < field_config.min_slot_count
+                    or len(slots) > field_config.max_slot_count
+                ):
+                    invalid_tasks[task] = slots
+
+            logger.info(
+                f"invalid_tasks: "
+                + repr(
+                    {
+                        str(task.name): tuple(str(slot) for slot in slots)
+                        for task, slots in task_to_slots.items()
+                    }
+                )
+            )
+
+            if invalid_tasks:
+                raise TasksDoNotMatchMinOrMaxSlotCountCriteria(
+                    attr,
+                    invalid_tasks,
+                )
+
+        else:
+            # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
+            # Keep it as a soft limit and staff can safely change it afterwards.
+            t.assert_type(attr.type, UserAttributeTypeT)
+
+        self._attribute_repository.update_min_and_max_slot_count(
+            attr.attribute_id, field_config.min_slot_count, field_config.max_slot_count
+        )
+
+        return AttributeEntity(
+            attr.key,
+            attr.list_id,
+            attr.type,
+            attr.kind,
+            attr.name,
+            field_config,
+            attr.position,
+        )
+
+    def edit_position_order(
+        self, attribute_names: tuple[AttributeSynStr, ...], list_name: ListNameStr
+    ) -> ListEntity:
+        _, member, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        name_to_attr = {
+            attr.name: attr
+            for attr in self._attribute_repository.get_all_by_list_id_ordered_by_position(
+                lst.list_id, AttributeType.ALL, AttributeKind.ALL
+            )
+        }
+        new_order: list[AttributeEntity] = []
+        seen: set[AttributeEntity] = set()
+
+        for name in attribute_names:
+            attr = name_to_attr[name]
+
+            if attr in seen:
+                raise AttributeMentionedMoreThanOnce(attr)
+
+            new_order.append(attr)
+            seen.add(attr)
+
+        assert len(new_order) <= len(name_to_attr)
+
+        for attr in name_to_attr.values():
+            if attr not in seen:
+                raise AttributeNotMentioned(attr)
+
+        self._attribute_repository.update_positions(
+            lst.list_id, tuple(attr.attribute_id for attr in new_order)
+        )
+
+        return lst
+
+    def edit_collection(
+        self,
+        name: AttributeSynStr,
+        list_name: ListNameStr,
+        new_collection: AbstractCollectionT,
+        edit_mode: CollectionEditMode,
+    ) -> AttributeEntity:
+        community, member, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        if attr.kind is not AttributeKind.NONE:
+            raise NotDoableForKindedAttribute(attr)
+
+        current_collection = (
+            self._collection_entry_repository.get_collection_by_attribute_id(
+                attr.attribute_id
+            )
+        )
+
+        new_collection = self._edit_mode_service.handle_collection_edit(
+            edit_mode, current_collection, new_collection
+        )
+
+        if FieldSlotStr.sequence_real_equals(
+            tuple(v for v, _ in current_collection), tuple(v for v, _ in new_collection)
+        ) and all(
+            FieldSlotStr.sequence_real_equals(a, b)
+            for (_, a), (_, b) in zip(current_collection, new_collection)
+        ):
+            raise CollectionDidNotChange(new_collection)
+
+        del current_collection
+
+        new_collection = self._collection_build_service.build(
+            new_collection, community, attr.field_config.slot_type
+        )
+
+        if attr.type is AttributeType.TASK:
+            syn_to_collection_entry_value: dict[FieldSlotStr, FieldSlotStr] = {
+                syn: entry[0]
+                for entry in new_collection
+                for syn in (entry[0], *entry[1])
+            }
+            task_to_slots = self._task_repository.get_all_tasks_mapped_to_slots(
+                lst.list_id, attr.attribute_id
+            )
+
+            task_to_only_invalid_slots: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {}
+
+            for task, slots in task_to_slots.items():
+                only_invalid_slots: tuple[FieldSlotStr, ...] = tuple(
+                    slot for slot in slots if slot not in syn_to_collection_entry_value
+                )
+
+                if only_invalid_slots:
+                    task_to_only_invalid_slots[task] = only_invalid_slots
+
+            if task_to_only_invalid_slots:
+                raise NewCollectionUnfittingForExistingFieldSlots(
+                    attr, new_collection, frozendict(task_to_only_invalid_slots)
+                )
+
+            tasks_to_new_data: dict[TaskEntity, tuple[FieldSlotStr, ...]] = {
+                task: tuple(syn_to_collection_entry_value[slot] for slot in slots)
+                for task, slots in task_to_slots.items()
+            }
+
+            self._field_slot_repository.replace_all_by_attribute_id(
+                attr.attribute_id,
+                (
+                    FieldSlotInsert(task.task_id, attr.attribute_id, Index(i), slot)
+                    for task, slots in tasks_to_new_data.items()
+                    for i, slot in enumerate(slots)
+                ),
+            )
+        else:
+            # Do not validate whether all users' field data fits the new criteria. This would be a disaster for the staff to deal with beforehand.
+            # Keep it as a soft limitation and staff can safely change it afterwards because users can't change it back to a now invalid collection entry.
+            t.assert_type(attr.type, UserAttributeTypeT)
+
+        self._collection_entry_repository.replace_collection(
+            attr.attribute_id, new_collection
+        )
+
+        return attr
+
+    def _validate_field_config(
+        self,
+        field_config: AttributeFieldConfig,
+        community: CommunityEntity,
+        creating_attribute: bool,
+    ) -> None:
+        if creating_attribute and field_config.min_slot_count != 0:
+            raise InitialSlotCountMustBeZero()
+
+        # Check slot count max does not exceed community limit here, because in Slot itself we don't know the community's limit
+        if field_config.max_slot_count > community.limits.field_slot_count_max:
+            raise SlotCountConfigLimitExceeded(
+                field_config.min_slot_count,
+                field_config.max_slot_count,
+                CommunityLimits.FIELD_MIN_MIN_SLOT_COUNT,
+                CommunityLimits.FIELD_MIN_MAX_SLOT_COUNT,
+                community.limits.field_slot_count_max,
+            )
+
+    def _validate_basic_community_limits(
+        self,
+        name: AttributeSynStr,
+        all_aliases_of_attr: tuple[AttributeSynStr, ...],
+        community: CommunityEntity,
+        list_attr_count: int,
+    ) -> None:
+        if list_attr_count >= community.limits.list_attribute_count_max:
+            raise CountLimitReached(
+                Concept.ATTRIBUTE, community.limits.list_attribute_count_max
+            )
+
+        if len(all_aliases_of_attr) > community.limits.attribute_alias_count_max:
+            raise AliasCountLimitSurpassed(
+                community.limits.attribute_alias_count_max, name, all_aliases_of_attr
+            )
+
+    def _validate_syn_uniqueness(
+        self,
+        name: AttributeSynStr,
+        all_aliases_of_attr: tuple[AttributeSynStr, ...],
+        lst: ListEntity,
+    ):
+        syns: tuple[AttributeSynStr, ...] = (name, *all_aliases_of_attr)
+
+        self._strs_service.validate_unique_syns(syns, Concept.ATTRIBUTE)
+
+        existing_same_syn = self._attribute_repository.get_first_by_list_id_and_any_syn(
+            lst.list_id, syns, None
+        )
+
+        if existing_same_syn is not None:
+            colliding_attr, colliding_syn = existing_same_syn
+
+            raise SynAlreadyTaken(
+                *existing_same_syn,
+                colliding_attr.name != colliding_syn,
+                colliding_syn != name,
+            )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class AttributePrepareService:
+    _attribute_access_service: AttributeAccessService
+    _permission_service: PermissionService
+
+    def delete(
+        self, name: AttributeSynStr, list_name: ListNameStr
+    ) -> tuple[PreparedDeleteAttribute, ListEntity, AttributeEntity]:
+        _, member, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, name, True
+        )
+
+        self._permission_service.ensure_community_rank(
+            member, CommunityRank.ADMINISTRATOR
+        )
+
+        if attr.kind is not AttributeKind.NONE:
+            raise NotDoableForKindedAttribute(attr)
+
+        return (
+            PreparedDeleteAttribute(lst.list_id, attr.attribute_id, attr.position),
+            lst,
+            attr,
+        )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class AttributeQueryService:
+    _attribute_repository: AttributeRepository
+    _collection_entry_repository: CollectionEntryRepository
+
+    _attribute_access_service: AttributeAccessService
+    _list_access_service: ListAccessService
+    _member_access_service: MemberAccessService
+
+    def get_info(
+        self, syn: AttributeSynStr, list_name: ListNameStr | DEFAULT
+    ) -> AttributeInfo:
+        _, _, lst, attr = self._attribute_access_service.get_convenient(
+            DEFAULT, list_name, syn, False
+        )
+
+        aliases = self._attribute_repository.get_aliases_by_attribute_id(
+            attr.attribute_id
+        )
+        collection = self._collection_entry_repository.get_collection_by_attribute_id(
+            attr.attribute_id
+        )
+
+        return AttributeInfo(attr, aliases, collection, lst)
+
+    def get_summaries(
+        self,
+        list_name: ListNameStr | DEFAULT,
+    ) -> tuple[AttributeSummary, ...]:
+        _, _, lst = self._list_access_service.get_convenient(DEFAULT, list_name)
+
+        ATTRIBUTE_TYPES: t.Final = AttributeType.ALL
+        ATTRIBUTE_KINDS: t.Final = AttributeKind.ALL
+
+        attrs = self._attribute_repository.get_all_by_list_id_ordered_by_position(
+            lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
+        )
+
+        attr_id_to_aliases = (
+            self._attribute_repository.get_grouped_aliases_by_list_id_ordered_by_pos(
+                lst.list_id, ATTRIBUTE_TYPES, ATTRIBUTE_KINDS
+            )
+        )
+        attr_id_to_collection = (
+            self._collection_entry_repository.get_grouped_collections_by_list_id(
+                lst.list_id, ATTRIBUTE_TYPES, AttributeKind.NONE_KINDED
+            )
+        )
+
+        return tuple(
+            AttributeSummary(
+                attr.name,
+                attr_id_to_aliases.get(attr.attribute_id, ()),
+                lst,
+                attr.type,
+                attr.kind,
+                attr.field_config,
+                attr.position,
+                attr_id_to_collection.get(attr.attribute_id, ()),
+            )
+            for attr in attrs
+        )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class AttributeAccessService:
+    _ctx: InteractingUserContext
+
+    _repository: AttributeRepository
+
+    _list_access_service: ListAccessService
+
+    def get_by_list_and_name_or_raise(
+        self, lst: ListEntity, name: AttributeSynStr
+    ) -> AttributeEntity:
+        attr = self._repository.get_by_list_id_and_name(lst.list_id, name)
+
+        if attr is None:
+            raise NotFoundByName(Concept.ATTRIBUTE, name)
+
+        return attr
+
+    def get_by_list_and_syn_or_raise(
+        self, lst: ListEntity, syn: AttributeSynStr
+    ) -> AttributeEntity:
+        existing_attr_and_syn = self._repository.get_by_list_id_and_syn(
+            lst.list_id, syn
+        )
+
+        if existing_attr_and_syn is None:
+            raise NotFoundBySyn(Concept.ATTRIBUTE, syn)
+
+        return existing_attr_and_syn[0]
+
+    def get_convenient(
+        self,
+        community_name: CommunityNameStr | DEFAULT,
+        list_name: ListNameStr | DEFAULT,
+        attribute_syn: AttributeSynStr,
+        attribute_only_by_name: bool,
+    ) -> tuple[CommunityEntity, MemberEntity, ListEntity, AttributeEntity]:
+        community, member, lst = self._list_access_service.get_convenient(
+            community_name, list_name
+        )
+        attr = (
+            self.get_by_list_and_name_or_raise(lst, attribute_syn)
+            if attribute_only_by_name
+            else self.get_by_list_and_syn_or_raise(lst, attribute_syn)
+        )
+
+        return (community, member, lst, attr)

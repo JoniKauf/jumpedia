@@ -1,0 +1,374 @@
+import itertools
+import types as ts
+import typing as t
+
+from sqlalchemy import delete, func, or_, select
+
+from jumpedia.db.models import (
+    AttributeModel,
+    CollectionEntryAliasModel,
+    CollectionEntryModel,
+)
+from jumpedia.domain.entities.collection_entry import CollectionEntryEntity
+from jumpedia.domain.enums.attribute import AttributeKind, AttributeType
+from jumpedia.domain.errors import business
+from jumpedia.domain.errors.internal import NotFoundById
+from jumpedia.domain.typing.attribute import AttributeID, NoneKindedAttributeT
+from jumpedia.domain.typing.collection_entry import (
+    AbstractCollectionT,
+    CollectionEntryID,
+    FrozenCollectionT,
+)
+from jumpedia.domain.typing.list import ListID
+from jumpedia.domain.value_objects.field_slot import FieldSlotStr
+from jumpedia.repositories.attribute import attribute_kind_filter
+from jumpedia.repositories.base import BaseRepository
+
+
+def collection_entry_model_to_entity(
+    model: CollectionEntryModel,
+) -> CollectionEntryEntity:
+    return CollectionEntryEntity(
+        (model.collection_entry_id,),
+        model.attribute_id,
+        FieldSlotStr._create_from_real_and_hash(model.value, model.value_hash),
+    )
+
+
+class CollectionEntryRepository(BaseRepository):
+    def create_collection(
+        self,
+        attribute_id: AttributeID,
+        collection: AbstractCollectionT,
+    ) -> None:
+        entry_objs = tuple(
+            CollectionEntryModel(
+                attribute_id=attribute_id,
+                index=i,
+                value_hash=value.hash,
+                value=value.real,
+            )
+            for i, (value, _) in enumerate(collection)
+        )
+
+        if not entry_objs:
+            return
+
+        self._session.add_all(entry_objs)
+        self._session.flush()  # For collection_entry_id update
+
+        alias_objs = tuple(
+            CollectionEntryAliasModel(
+                collection_entry_id=entry_obj.collection_entry_id,
+                index=j,
+                attribute_id=attribute_id,
+                alias_hash=alias.hash,
+                alias=alias.real,
+            )
+            for entry_obj, (_, aliases) in zip(entry_objs, collection, strict=True)
+            for j, alias in enumerate(aliases)
+        )
+
+        if alias_objs:
+            self._session.add_all(alias_objs)
+
+        self._session.flush()
+
+    def get_by_id(
+        self,
+        entry_id: CollectionEntryID,
+    ) -> CollectionEntryEntity | None:
+        obj = self._session.get(CollectionEntryModel, entry_id)
+
+        return None if obj is None else collection_entry_model_to_entity(obj)
+
+    def get_all_by_attribute_id(
+        self,
+        attribute_id: AttributeID,
+    ) -> tuple[CollectionEntryEntity, ...]:
+        stmt = (
+            select(CollectionEntryModel)
+            .where(CollectionEntryModel.attribute_id == attribute_id)
+            .order_by(CollectionEntryModel.index.asc())
+        )
+
+        return tuple(
+            collection_entry_model_to_entity(obj) for obj in self._session.scalars(stmt)
+        )
+
+    def get_by_attribute_id_and_name(
+        self,
+        attribute_id: AttributeID,
+        name: FieldSlotStr,
+    ) -> CollectionEntryEntity | None:
+        stmt = select(CollectionEntryModel).where(
+            CollectionEntryModel.attribute_id == attribute_id,
+            CollectionEntryModel.value_hash == name.hash,
+        )
+
+        obj = self._session.scalar(stmt)
+
+        return None if obj is None else collection_entry_model_to_entity(obj)
+
+    def get_by_attribute_id_and_any_syn(
+        self,
+        attribute_id: AttributeID,
+        syns: t.Iterable[FieldSlotStr],
+    ) -> (
+        tuple[
+            CollectionEntryEntity,
+            FieldSlotStr,
+        ]
+        | None
+    ):
+        hash_to_str = {syn.hash: syn for syn in syns}
+
+        if not hash_to_str:
+            return None
+
+        stmt = (
+            select(
+                CollectionEntryModel,
+                CollectionEntryModel.value_hash,
+                CollectionEntryAliasModel.alias_hash,
+            )
+            .outerjoin(
+                CollectionEntryAliasModel,
+                CollectionEntryAliasModel.collection_entry_id
+                == CollectionEntryModel.collection_entry_id,
+            )
+            .where(
+                CollectionEntryModel.attribute_id == attribute_id,
+                or_(
+                    CollectionEntryModel.value_hash.in_(tuple(hash_to_str)),
+                    CollectionEntryAliasModel.alias_hash.in_(tuple(hash_to_str)),
+                ),
+            )
+            .limit(1)
+        )
+
+        row = self._session.execute(stmt).first()
+
+        if row is None:
+            return None
+
+        obj, value_hash, alias_hash = row.tuple()
+
+        matched_norm = value_hash if value_hash in hash_to_str else alias_hash
+
+        return (
+            collection_entry_model_to_entity(obj),
+            hash_to_str[matched_norm],
+        )
+
+    def count_by_attribute_id(
+        self,
+        attribute_id: AttributeID,
+    ) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(CollectionEntryModel)
+            .where(CollectionEntryModel.attribute_id == attribute_id)
+        )
+
+        return self._session.scalar(stmt) or 0
+
+    def delete(
+        self,
+        entry_id: CollectionEntryID,
+    ) -> None:
+        obj = self._session.get(
+            CollectionEntryModel,
+            entry_id,
+        )
+
+        if obj is None:
+            raise NotFoundById(CollectionEntryEntity, entry_id)
+
+        self._session.delete(obj)
+        self._session.flush()
+
+    def get_collection_by_attribute_id(
+        self,
+        attribute_id: AttributeID,
+    ) -> FrozenCollectionT:
+        stmt = (
+            select(
+                CollectionEntryModel,
+                CollectionEntryAliasModel,
+            )
+            .outerjoin(
+                CollectionEntryAliasModel,
+                CollectionEntryAliasModel.collection_entry_id
+                == CollectionEntryModel.collection_entry_id,
+            )
+            .where(
+                CollectionEntryModel.attribute_id == attribute_id,
+            )
+            .order_by(
+                CollectionEntryModel.index.asc(),
+                CollectionEntryAliasModel.index.asc(),
+            )
+        )
+
+        entries: dict[
+            CollectionEntryID,
+            CollectionEntryEntity,
+        ] = {}
+        entry_aliases: dict[
+            CollectionEntryID,
+            list[FieldSlotStr],
+        ] = {}
+
+        ordered: list[CollectionEntryEntity] = []
+
+        for entry_obj, alias_obj in self._session.execute(stmt):
+            entry_obj: CollectionEntryModel
+            alias_obj: CollectionEntryAliasModel | None
+
+            entry = entries.get(entry_obj.collection_entry_id)
+
+            if entry is None:
+                entry = collection_entry_model_to_entity(entry_obj)
+                entries[entry.collection_entry_id] = entry
+                ordered.append(entry)
+
+            if alias_obj is not None:
+                entry_aliases.setdefault(entry.collection_entry_id, []).append(
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
+                    )
+                )
+
+        return tuple(
+            (entry.value, tuple(entry_aliases.get(entry.collection_entry_id, ())))
+            for entry in ordered
+        )
+
+    def get_grouped_collections_by_list_id(
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[AttributeType],
+        kinds: t.AbstractSet[t.Literal[AttributeKind.NONE]],
+    ) -> frozendict[AttributeID, FrozenCollectionT]:
+        stmt = (
+            select(CollectionEntryModel, CollectionEntryAliasModel)
+            .join(
+                AttributeModel,
+                AttributeModel.attribute_id == CollectionEntryModel.attribute_id,
+            )
+            .outerjoin(
+                CollectionEntryAliasModel,
+                CollectionEntryAliasModel.collection_entry_id
+                == CollectionEntryModel.collection_entry_id,
+            )
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+                attribute_kind_filter(kinds),
+            )
+            .order_by(
+                CollectionEntryModel.attribute_id.asc(),
+                CollectionEntryModel.index.asc(),
+                CollectionEntryAliasModel.index.asc(),
+            )
+        )
+
+        entries: dict[CollectionEntryID, CollectionEntryEntity] = {}
+        entry_aliases: dict[
+            CollectionEntryID,
+            list[FieldSlotStr],
+        ] = {}
+        grouped_entries: dict[
+            AttributeID,
+            list[CollectionEntryEntity],
+        ] = {}
+
+        for entry_obj, alias_obj in self._session.execute(stmt):
+            entry_obj: CollectionEntryModel
+            alias_obj: CollectionEntryAliasModel | None
+
+            entry = entries.get(entry_obj.collection_entry_id)
+
+            if entry is None:
+                entry = collection_entry_model_to_entity(entry_obj)
+                entries[entry.collection_entry_id] = entry
+                grouped_entries.setdefault(entry.attribute_id, []).append(entry)
+
+            if alias_obj is not None:
+                entry_aliases.setdefault(entry.collection_entry_id, []).append(
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
+                    )
+                )
+
+        return frozendict(
+            {
+                attribute_id: tuple(
+                    (
+                        entry.value,
+                        tuple(entry_aliases.get(entry.collection_entry_id, ())),
+                    )
+                    for entry in collection
+                )
+                for attribute_id, collection in grouped_entries.items()
+            }
+        )
+
+    def get_grouped_value_to_index_by_list_id(
+        self,
+        list_id: ListID,
+        types: t.AbstractSet[AttributeType],
+        kinds: t.AbstractSet[NoneKindedAttributeT],
+    ) -> frozendict[AttributeID, frozendict[FieldSlotStr, int]]:
+        stmt = (
+            select(CollectionEntryModel)
+            .join(
+                AttributeModel,
+                AttributeModel.attribute_id == CollectionEntryModel.attribute_id,
+            )
+            .where(
+                AttributeModel.list_id == list_id,
+                AttributeModel.type.in_(types),
+                attribute_kind_filter(kinds),
+            )
+            .order_by(
+                CollectionEntryModel.attribute_id.asc(),
+                CollectionEntryModel.index.asc(),
+            )
+        )
+
+        return frozendict(
+            (
+                attribute_id,
+                frozendict(
+                    (
+                        FieldSlotStr._create_from_real_and_hash(
+                            obj.value,
+                            obj.value_hash,
+                        ),
+                        obj.index,
+                    )
+                    for obj in group
+                ),
+            )
+            for attribute_id, group in itertools.groupby(
+                self._session.scalars(stmt),
+                lambda obj: obj.attribute_id,
+            )
+        )
+
+    def replace_collection(
+        self, attribute_id: AttributeID, collection: AbstractCollectionT
+    ) -> None:
+        """Replaces the entire collection of an attribute. Preserves entry order."""
+
+        self._session.execute(
+            delete(CollectionEntryModel).where(
+                CollectionEntryModel.attribute_id == attribute_id,
+            )
+        )
+
+        self.create_collection(attribute_id, collection)
