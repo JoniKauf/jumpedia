@@ -333,7 +333,13 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
             *args: P.args,
             **kwargs: P.kwargs,
         ) -> None:
-            await interaction.response.defer()
+            try:
+                await interaction.response.defer()
+            except discord.NotFound:
+                # Sometimes happens when there is some kind of big lag.
+                # Ignore this request and just let the user redo it as we are too late
+                # to save anything either way.
+                return
 
             with db.session.get_session() as session:
                 try:
@@ -370,7 +376,10 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                         e = t.cast(AnyEvalErrorT, e)
                         await _dsl_error_handling.handle_eval_error(interaction, e)
 
-                    raise AssertionError(f"'{e=}' is not any of the 3 DSL error types")
+                    else:
+                        raise AssertionError(
+                            f"'{e=}' is not any of the 3 DSL error types"
+                        )
 
                 except InternalError, Exception:
                     await messages.error(
@@ -384,6 +393,3 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
         return wrapper
 
     return decorator
-
-
-AnyParseErrorT.__value__

@@ -211,9 +211,9 @@ class TaskInterface(
             t"The {F.full_mention(task)} has been taken from the {F.full_mention(member)} successfully!",
         )
 
-    @app_commands.command()
+    @edit_group.command(name="given")
     @with_context()
-    async def update_given(
+    async def edit_given(
         self,
         ctx: CommandContext,
         task_name_or_alias: str,
@@ -282,6 +282,36 @@ class TasksInterface(
         list_name: str | None = None,
     ) -> None:
         summaries = ctx.services.member_task_query.get_summaries(
+            bindings.filter.filter(filter_dsl),
+            bindings.sort.sorts(sort_dsl),
+            bindings.sequence.yield_(yield_dsl_sequence),
+            user_ref.user_ref(user),
+            DEFAULT if list_name is None else ListNameStr(list_name),
+        )
+
+        await messages.object_browse(
+            ctx.interaction,
+            Concept.TASK,
+            {
+                str(attr.name): tuple(
+                    tuple(str(slot) for slot in field) for field in fields
+                )
+                for attr, fields in summaries.items()
+            },
+        )
+
+    @app_commands.command()
+    @with_context()
+    async def browse_missing(
+        self,
+        ctx: CommandContext,
+        user: discord.User | None = None,
+        filter_dsl: str | None = None,
+        sort_dsl: str | None = None,
+        yield_dsl_sequence: str | None = None,
+        list_name: str | None = None,
+    ) -> None:
+        summaries = ctx.services.member_task_query.get_summaries_missing(
             bindings.filter.filter(filter_dsl),
             bindings.sort.sorts(sort_dsl),
             bindings.sequence.yield_(yield_dsl_sequence),

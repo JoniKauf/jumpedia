@@ -38,6 +38,9 @@ dependencies = [
     "yarl==1.22.0",
 ]
 
+[project.scripts]
+jumpedia = "jumpedia.__main__:main"
+
 [tool.black]
 line-length = 88
 

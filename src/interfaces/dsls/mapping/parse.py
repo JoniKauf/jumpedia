@@ -6,7 +6,9 @@ from interfaces.dsls.core.lex import TEXT_TOKEN_TYPES, Token, TokenType
 from interfaces.dsls.core.parse import (
     BaseParser,
     ExprNode,
+    IdentifierNode,
     PushbackTokenStream,
+    StringNode,
     TextNodeT,
 )
 from interfaces.dsls.core.value_objects import Span
@@ -28,106 +30,136 @@ class MappingNode(ExprNode):
     items: tuple[MappingItemNode, ...]
 
 
+def _create_mapping_item_node_no_parentheses(
+    key: TextNodeT, colon: Token, values: t.Sequence[TextNodeT]
+) -> MappingItemNode:
+    return MappingItemNode(
+        Span(
+            key.span.begin,
+            values[-1].span.end if values else colon.span.end,
+        ),
+        key,
+        ValueListNode(
+            (
+                Span(values[0].span.begin, values[-1].span.end)
+                if values
+                else Span(colon.span.end, colon.span.end)
+            ),
+            tuple(values),
+        ),
+    )
+
+
 class MappingParser(BaseParser):
+    def _parse_with_parentheses(self, stream: PushbackTokenStream) -> MappingNode:
+        items: list[MappingItemNode] = []
+
+        while stream.peek().type is not TokenType.NONE:
+            lparen = self.expect(stream.pop(), TokenType.LPAREN)
+
+            key = self.text_token_to_node(self.expect(stream.pop(), *TEXT_TOKEN_TYPES))
+
+            colon = self.expect(stream.pop(), TokenType.COLON)
+
+            values: list[TextNodeT] = []
+
+            while stream.peek().type in TEXT_TOKEN_TYPES:
+                values.append(self.text_token_to_node(stream.pop()))
+
+            rparen = self.expect(stream.pop(), TokenType.RPAREN)
+
+            item = MappingItemNode(
+                Span(lparen.span.begin, rparen.span.end),
+                key,
+                ValueListNode(
+                    (
+                        Span(values[0].span.begin, values[-1].span.end)
+                        if values
+                        else Span(colon.span.end, colon.span.end)
+                    ),
+                    tuple(values),
+                ),
+            )
+
+            items.append(item)
+
+        assert items
+
+        return MappingNode(Span(items[0].span.begin, items[-1].span.end), tuple(items))
+
+    def _parse_without_parentheses(self, stream: PushbackTokenStream) -> MappingNode:
+        items: list[MappingItemNode] = []
+
+        while True:
+            key = self.text_token_to_node(self.expect(stream.pop(), *TEXT_TOKEN_TYPES))
+
+            colon = self.expect(stream.pop(), TokenType.COLON)
+
+            values: list[TextNodeT] = []
+
+            while stream.peek().type in TEXT_TOKEN_TYPES:
+                values.append(self.text_token_to_node(stream.pop()))
+
+            # Only peek!
+            colon_or_end = self.expect(stream.peek(), TokenType.COLON, TokenType.NONE)
+
+            if colon_or_end.type is TokenType.NONE:
+                # Add last item
+                items.append(
+                    _create_mapping_item_node_no_parentheses(key, colon, values)
+                )
+                break
+
+            # It is a colon so the last elem we added is in reality the key of the next
+            # item. Undo those steps.
+
+            # If we have 2 colons in a row, for exampe "value: :" then that is wrong.
+            if not values:
+                raise UnexpectedToken(
+                    self._s, (TokenType.NONE, *TEXT_TOKEN_TYPES), colon_or_end
+                )
+
+            # Pop from list of values
+            key_of_next_item_as_node = values.pop()
+            key_of_next_item: Token
+
+            match key_of_next_item_as_node:
+                case IdentifierNode() as ident_node:
+                    key_of_next_item = Token(
+                        TokenType.IDENT, ident_node.span, ident_node.name
+                    )
+
+                case StringNode() as string_node:
+                    key_of_next_item = Token(
+                        TokenType.STRING, string_node.span, string_node.value
+                    )
+
+                case _:
+                    t.assert_never(key_of_next_item_as_node)
+
+            # Push back onto stream for next key, values pair
+            stream.push(key_of_next_item)
+
+            items.append(_create_mapping_item_node_no_parentheses(key, colon, values))
+
+        assert items
+
+        return MappingNode(Span(items[0].span.begin, items[-1].span.end), tuple(items))
+
     def parse(self, tokens: t.Iterable[Token]) -> MappingNode:
         stream = PushbackTokenStream(tokens)
 
         first_tok = stream.peek()
-        with_parens: bool
 
-        res: list[MappingItemNode] = []
+        if first_tok.type is TokenType.IDENT and first_tok.value == "_":
+            stream.pop()
 
-        match first_tok.type:
-            case TokenType.LPAREN:
-                with_parens = True
-            case text if text in TEXT_TOKEN_TYPES:
-                with_parens = False
+            if stream.peek().type is TokenType.NONE:
+                return MappingNode(first_tok.span, ())
 
-                if first_tok.type is TokenType.IDENT and first_tok.value == "_":
-                    stream.pop()
+            stream.push(first_tok)
 
-                    if stream.peek().type is TokenType.NONE:
-                        return MappingNode(first_tok.span, ())
+        if first_tok.type is TokenType.LPAREN:
+            return self._parse_with_parentheses(stream)
 
-                    stream.push(first_tok)
-
-            case TokenType.NONE:
-                assert False
-            case _:
-                raise UnexpectedToken(
-                    self._s, TEXT_TOKEN_TYPES + (TokenType.LPAREN,), first_tok
-                )
-
-        # At least one iteration guaranteed
-        while stream.peek().type is not TokenType.NONE:
-            # Mark not unbound for type checker
-            item_begin: int = -1
-            item_end: int
-
-            if with_parens:
-                lparen_tok = stream.pop()
-
-                if lparen_tok.type is not TokenType.LPAREN:
-                    raise UnexpectedToken(self._s, (TokenType.LPAREN,), lparen_tok)
-
-                item_begin = lparen_tok.span.begin
-
-            key_token = stream.pop()
-            key_node = self.text_token_to_node(key_token)
-
-            if not with_parens:
-                item_begin = key_node.span.begin
-
-            colon = stream.pop()
-
-            if colon.type is not TokenType.COLON:
-                raise UnexpectedToken(self._s, (TokenType.COLON,), colon)
-
-            values: list[TextNodeT] = []
-
-            if with_parens:
-                while (popped_tok := stream.pop()).type is not TokenType.NONE:
-                    if popped_tok.type is TokenType.LPAREN:
-                        item_end = popped_tok.span.end
-                        break
-
-                    values.append(self.text_token_to_node(popped_tok))
-
-                # We didn't break, so no ")" was found
-                else:
-                    raise UnexpectedToken(self._s, (TokenType.RPAREN,), popped_tok)
-            else:
-                while (tok := stream.pop()).type is not TokenType.NONE:
-                    if stream.peek().type is TokenType.COLON:
-                        # We are after "key:" so if we receive another colon, bad
-                        if not values:
-                            raise UnexpectedToken(
-                                self._s, TEXT_TOKEN_TYPES, stream.pop()
-                            )
-
-                        # Otherwise if we see the next token is a colon, "tok" is the key of the next item
-                        # Undo adding to to the current values and stop for this item
-                        stream.push(tok)
-                        values.pop()
-                        break
-
-                    values.append(self.text_token_to_node(tok))
-
-                item_end = values[-1].span.end if values else colon.span.end
-
-            value_list = ValueListNode(
-                (
-                    Span(values[0].span.begin, values[-1].span.end)
-                    if values
-                    else Span(colon.span.begin + 1, colon.span.begin + 1)
-                ),
-                tuple(values),
-            )
-
-            res.append(
-                MappingItemNode(Span(item_begin, item_end), key_node, value_list)
-            )
-
-        assert res
-
-        return MappingNode(Span(res[0].span.begin, res[-1].span.end), tuple(res))
+        return self._parse_without_parentheses(stream)

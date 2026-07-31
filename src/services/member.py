@@ -161,7 +161,7 @@ class MemberAccessService:
         if target_user is DEFAULT or target_user.id == actor_member.user.user_id:
             return actor_member
 
-        # Awlays create users eagerly
+        # Always create users eagerly
         user = self._user_existence_service.get_or_create(
             UserInsert(target_user.id, target_user.name)
         )

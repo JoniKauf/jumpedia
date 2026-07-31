@@ -83,9 +83,9 @@ class Token:
     value: str
 
 
-TEXT_TOKEN_TYPES = (TokenType.IDENT, TokenType.STRING)
+TEXT_TOKEN_TYPES: t.Final = (TokenType.IDENT, TokenType.STRING)
 
-NONE_TOKEN = Token(TokenType.NONE, Span(-1, -1), "")
+NONE_TOKEN: t.Final = Token(TokenType.NONE, Span(-1, -1), "")
 QUOTES: t.Final[frozenset[str]] = frozenset("'" + '"')
 ESCAPES: t.Final[frozendict[str, str]] = frozendict(
     {"\\": "\\", '"': '"', "'": "'", "n": "\n"}

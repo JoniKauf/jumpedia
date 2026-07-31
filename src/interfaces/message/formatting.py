@@ -11,7 +11,7 @@ from interfaces.message.mentionable import (
 )
 
 
-def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
+def shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
     if len(ellipsis) > max:
         raise ValueError("'ellipsis' does not fit into max")
 
@@ -21,7 +21,7 @@ def _shorten(s: str, max: int = 32, ellipsis: str = "...") -> str:
     return s[: max - len(ellipsis)] + ellipsis
 
 
-def _embed(s: str) -> str:
+def embed(s: str) -> str:
     if not s:
         return "`` ``"
 
@@ -61,14 +61,14 @@ class F:
         return cls(_s=s, _format_args=FormatArgsEmpty())
 
     @classmethod
-    def string(cls, s: str, *, shorten: bool = True, embed: bool = True) -> t.Self:
+    def string(cls, s: str, *, short: bool = True, embedded: bool = True) -> t.Self:
         """Interpolate any string."""
 
-        if shorten:
-            s = _shorten(s)
+        if short:
+            s = shorten(s)
 
-        if embed:
-            s = _embed(s)
+        if embedded:
+            s = embed(s)
 
         return cls(_s=s, _format_args=FormatArgsEmpty())
 
@@ -91,20 +91,20 @@ class F:
 
     @classmethod
     def min_mention(
-        cls, mentionable: MentionableT, *, shorten: bool = True, embed: bool = True
+        cls, mentionable: MentionableT, *, short: bool = True, embedded: bool = True
     ) -> t.Self:
         s = get_name_of_mentionable(mentionable)
 
-        if shorten:
-            s = _shorten(s)
+        if short:
+            s = shorten(s)
 
-        if embed:
-            s = _embed(s)
+        if embedded:
+            s = embed(s)
 
         return cls(_s=s, _format_args=FormatArgsEmpty())
 
     @classmethod
-    def full_mention(cls, mentionable: MentionableT, *, shorten: bool = True) -> t.Self:
+    def full_mention(cls, mentionable: MentionableT, *, short: bool = True) -> t.Self:
         """Mention a mentionable object.
 
         For example, for a list this would be
@@ -115,6 +115,6 @@ class F:
             mentionable_to_formattable(mentionable)
         ).singular
 
-        s = f"{formattable_str} {cls.min_mention(mentionable, shorten=shorten, embed=True)._s}"
+        s = f"{formattable_str} {cls.min_mention(mentionable, short=short, embedded=True)._s}"
 
         return cls(_s=s, _format_args=FormatArgsEmpty())

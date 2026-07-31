@@ -22,7 +22,6 @@ from domain.errors.business import (
 from domain.sentinels.default import DEFAULT
 from domain.typing.attribute import SlotTypeT, TaskAttributeTypeT
 from domain.typing.field_mapping import (
-    FrozenFieldMappingEntityToStrings,
     RawFieldMappingT,
 )
 from domain.value_objects.attribute import AttributeSynStr
@@ -39,18 +38,14 @@ from repositories.dtos.task import TaskAliasInsert, TaskInsert
 
 lazy from repositories.field_slot import FieldSlotRepository
 lazy from repositories.task import TaskRepository
-lazy from services.contexts.interacting_user import InteractingUserContext
 from services.dtos.task import PreparedDeleteTask, TaskInfo
 
 lazy from services.internal.edit_mode import EditModeService
 lazy from services.internal.field_mapping import (
     FieldMappingBuildService,
-    FieldMappingExtractionService,
     FieldMappingService,
-    FieldMappingTransformationService,
 )
 lazy from services.internal.permission import PermissionService
-lazy from services.internal.slot_type import SlotTypeService
 lazy from services.internal.strs import StrsService
 lazy from services.list import ListAccessService
 

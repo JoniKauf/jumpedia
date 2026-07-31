@@ -10,7 +10,7 @@ def make_length_limited_str_store_type(
 ) -> type[Str]:
     class ConstrainedStr(Str):
         def _validation(self) -> None:
-            if len(self) >= limit:
+            if len(self) > limit:
                 raise StrTooLong(concept, self, limit)
 
     ConstrainedStr.__name__ = name

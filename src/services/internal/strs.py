@@ -1,7 +1,6 @@
 import typing as t
 from dataclasses import dataclass
 
-from domain.entities.base import BaseEntity
 from domain.enums.concept import Concept
 from domain.errors.business import (
     AliasesNotUnique,

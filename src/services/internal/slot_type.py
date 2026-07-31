@@ -8,14 +8,15 @@ from domain.errors.business import InvalidSlotForSlotType
 from domain.typing.attribute import SlotTypeT
 from domain.value_objects.community import CommunityLimits
 from domain.value_objects.field_slot import FieldSlotStr
-from domain.value_objects.string import NormHash
+from domain.value_objects.string import NormHash, RealStr
 
 DECIMAL_PRECISION: t.Final[int] = 9
 DECIMAL_SCALE: t.Final[decimal.Decimal] = decimal.Decimal(f"1e-{DECIMAL_PRECISION}")
 
 
-FALSE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr("False")
-TRUE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr("True")
+FALSE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr(RealStr._create("False"))
+TRUE_SLOT: t.Final[FieldSlotStr] = FieldSlotStr(RealStr._create("True"))
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotTypeService:
@@ -44,10 +45,10 @@ class SlotTypeService:
 
                 s = str(n)
 
-                if len(s) > CommunityLimits.FIELD_SLOT_LENGTH_MAX
+                if len(s) > CommunityLimits.FIELD_SLOT_LENGTH_MAX:
                     raise InvalidSlotForSlotType(type, slot)
 
-                return FieldSlotStr(s)
+                return FieldSlotStr(RealStr._create(s))
 
             case AttributeSlotType.DECIMAL:
                 try:
@@ -55,15 +56,18 @@ class SlotTypeService:
                 except decimal.InvalidOperation:
                     raise InvalidSlotForSlotType(type, slot)
 
-                try:
-                    n = n.quantize(DECIMAL_SCALE, rounding=decimal.ROUND_DOWN)
-                except decimal.InvalidOperation:
+                if not math.isnan(n) and not math.isinf(n):
+                    try:
+                        n = n.quantize(DECIMAL_SCALE, rounding=decimal.ROUND_DOWN)
+                    except decimal.InvalidOperation:
+                        raise InvalidSlotForSlotType(type, slot)
+
+                s = format(n, "f")
+
+                if len(s) > CommunityLimits.FIELD_SLOT_LENGTH_MAX:
                     raise InvalidSlotForSlotType(type, slot)
 
-                if not _is_number_in_range(n):
-                    raise InvalidSlotForSlotType(type, slot)
-
-                return FieldSlotStr(format(n, "f"))
+                return FieldSlotStr(RealStr._create(s))
 
         t.assert_never(type)
 

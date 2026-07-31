@@ -32,7 +32,7 @@ async def error(
     warning: bool = False,
     send_kwargs: SendKwargsT = {},
 ) -> None:
-    header = header + t" Error"
+    header = header + (t"" if warning else t" Error")
     body = Template(*body, "".join(f"\n- {doc}" for doc in documentation))
     status = Status.WARNING if warning else Status.ERROR
 
@@ -146,7 +146,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {F.string(str(count), embed=False)} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
+        t"A total of {F.string(str(count), embedded=False)} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
         {"suppress_embeds": True},
     )
 

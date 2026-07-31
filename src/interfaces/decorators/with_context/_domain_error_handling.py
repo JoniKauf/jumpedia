@@ -142,6 +142,7 @@ async def handle_domain_error(
                 interaction,
                 t"Aliases Did Not Change",
                 t"The specified aliases are identical to the current aliases of the {F.full_mention(e.entity)}!",
+                warning=True,
             )
 
         case CollectionDidNotChange():
@@ -149,6 +150,7 @@ async def handle_domain_error(
                 interaction,
                 t"{F.format(Concept.COLLECTION)} Did Not Change",
                 t"The specified {F.format(Concept.COLLECTION)} is identical to the current one!",
+                warning=True,
             )
 
         case SlotCountConfigLimitExceeded():
@@ -158,7 +160,11 @@ async def handle_domain_error(
                 t"The specified slot count configuration is invalid!\n"
                 + t"The minimum slot count must be between {F.string(str(e.min_min))} and {F.string(str(e.min_max))}.\n"
                 + t"The maximum slot count must be at least the minimum slot count"
-                + (t" and at most {e.max_max}." if e.max_max is not None else t"."),
+                + (
+                    t" and at most {F.string(str(e.max_max))}."
+                    if e.max_max is not None
+                    else t"."
+                ),
             )
 
         case TasksDoNotMatchMinOrMaxSlotCountCriteria():
@@ -235,7 +241,7 @@ async def handle_domain_error(
                 + (t"alias" if e.alias_of_new_collides else t"name")
                 + t" {F.string(str(e.new))} is already used by "
                 + (t"an alias" if e.alias_of_current_collides else t"the name")
-                + t"of the {F.full_mention(e.current)}!",
+                + t" of the {F.full_mention(e.current)}!",
             )
 
         case AliasesNotUnique():

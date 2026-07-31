@@ -411,9 +411,9 @@ class FieldMappingExtractionService:
                                     RealStr._create(
                                         str(
                                             OptionalMemberWrapper(
-                                                member_task_id_to_given_by[
+                                                member_task_id_to_given_by.get(
                                                     member_task.member_task_id
-                                                ]
+                                                )
                                             )
                                         )
                                     )
@@ -456,6 +456,8 @@ class FieldMappingTransformationService:
             AttributeID, t.Mapping[FieldSlotStr, int]
         ],
     ) -> frozendict[AttributeEntity[T], tuple[tuple[SlotTypeT, ...], ...]]:
+        seen_attrs: set[AttributeID] = set()
+
         logger.info("Filtering...")
         fms = self._filter(
             field_mappings,
@@ -463,6 +465,7 @@ class FieldMappingTransformationService:
             syn_to_attribute,
             attribute_id_to_collection_value_to_entry_index,
             attribute_id_to_collection_entry_syn_to_index,
+            seen_attrs,
         )
         logger.info("Sorting...")
         fms = self._sort(
@@ -470,9 +473,10 @@ class FieldMappingTransformationService:
             sort,
             syn_to_attribute,
             attribute_id_to_collection_value_to_entry_index,
+            seen_attrs,
         )
         logger.info("Yielding...")
-        fms = self._yield(fms, yield_, syn_to_attribute)
+        fms = self._yield(fms, yield_, syn_to_attribute, seen_attrs)
         return fms
 
     def _filter[T: AnyAttributeTypeT](
@@ -486,6 +490,7 @@ class FieldMappingTransformationService:
         attribute_id_to_collection_entry_syn_to_index: t.Mapping[
             AttributeID, t.Mapping[FieldSlotStr, int]
         ],
+        seen_attributes: set[AttributeID],
     ) -> t.Sequence[AbstractFieldMappingIDToSlotTypeT]:
         if filter is None:
             return field_mappings
@@ -512,6 +517,7 @@ class FieldMappingTransformationService:
                 for attr_id, val_to_idx in attribute_id_to_collection_value_to_entry_index.items()
             },
             attribute_id_to_collection_entry_syn_to_index,
+            seen_attributes,
         )
 
         return tuple(fm for fm in field_mappings if id(fm) in filtered)
@@ -527,6 +533,7 @@ class FieldMappingTransformationService:
         attribute_id_to_collection_entry_syn_to_index: t.Mapping[
             AttributeID, t.Mapping[FieldSlotStr, int]
         ],
+        seen_attributes: set[AttributeID],
     ) -> t.Mapping[int, AbstractFieldMappingIDToSlotTypeT]:
         """Recursively run through the filter and short circuit where possible.
 
@@ -561,6 +568,7 @@ class FieldMappingTransformationService:
                         syn_to_attribute,
                         attribute_id_to_collection_value_to_entry_index,
                         attribute_id_to_collection_entry_syn_to_index,
+                        seen_attributes,
                     )
 
                     for k in new_valid:
@@ -588,6 +596,7 @@ class FieldMappingTransformationService:
                         syn_to_attribute,
                         attribute_id_to_collection_value_to_entry_index,
                         attribute_id_to_collection_entry_syn_to_index,
+                        seen_attributes,
                     )
 
                 return still_valid
@@ -601,6 +610,8 @@ class FieldMappingTransformationService:
 
                 if attr is None:
                     raise NotFoundBySyn(Concept.ATTRIBUTE, attr_syn)
+
+                seen_attributes.add(attr.attribute_id)
 
                 # Examples: "a is _", "a is not _"
                 if isinstance(comp_filter, EmptyComparisonFilter):
@@ -675,6 +686,7 @@ class FieldMappingTransformationService:
         attribute_id_to_collection_value_to_entry_index: t.Mapping[
             AttributeID, t.Mapping[SlotTypeT, int]
         ],
+        seen_attributes: set[AttributeID],
     ) -> t.Sequence[AbstractFieldMappingIDToSlotTypeT]:
         # Warning: Complicated code ahead! But it allows for fast, multi-key, asc/desc sorting
 
@@ -683,15 +695,19 @@ class FieldMappingTransformationService:
         seen: set[AttributeEntity[T]] = set()
 
         for syn, asc in sort:
-            attr = syn_to_attribute[syn]
+            attr = syn_to_attribute.get(syn)
+
+            if attr is None:
+                raise NotFoundBySyn(Concept.ATTRIBUTE, syn)
 
             # Remove duplicate attrs, they don't affect final result
             # Even if an attr is duplicated, the later keys still matter! Don't break!
             if attr in seen:
                 continue
 
-            seen.add(attr)
+            seen_attributes.add(attr.attribute_id)
 
+            seen.add(attr)
             clean_sorts.append((attr, asc))
 
             # Short circuit when we know last sort results in unique sort values
@@ -789,19 +805,40 @@ class FieldMappingTransformationService:
         field_mappings: t.Sequence[AbstractFieldMappingIDToSlotTypeT],
         yield_: t.Sequence[AttributeSynStr],
         syn_to_attribute: t.Mapping[AttributeSynStr, AttributeEntity[T]],
+        seen_attributes: t.AbstractSet[AttributeID],
     ) -> frozendict[AttributeEntity[T], tuple[tuple[SlotTypeT, ...], ...]]:
         final_yield: tuple[AttributeEntity[T], ...]
 
         if not yield_:
             final_yield = tuple(
                 sorted(
-                    set(syn_to_attribute.values()), key=lambda attr: attr.position.value
+                    (
+                        attr
+                        for attr in set(syn_to_attribute.values())
+                        if attr.attribute_id in seen_attributes
+                        or attr.type is AttributeType.USER
+                        or attr.kind in (AttributeKind.NAME, AttributeKind.ALIAS)
+                    ),
+                    key=lambda attr: attr.position.value,
                 )
             )
         else:
-            final_yield = tuple(
-                dict.fromkeys((syn_to_attribute[syn] for syn in yield_), None)
-            )
+            seen: set[AttributeID] = set()
+            tmp_yield: list[AttributeEntity[T]] = []
+
+            for syn in yield_:
+                attr = syn_to_attribute.get(syn)
+
+                if attr is None:
+                    raise NotFoundBySyn(Concept.ATTRIBUTE, syn)
+
+                if attr.attribute_id in seen:
+                    raise AttributeMentionedMoreThanOnce(attr)
+
+                seen.add(attr.attribute_id)
+                tmp_yield.append(attr)
+
+            final_yield = tuple(tmp_yield)
 
         return frozendict(
             (
@@ -904,7 +941,11 @@ class FieldMappingService:
 
             user_kinded_field_mapping = self._field_mapping_extraction_service.get_user_kinded_field_mapping_single(
                 member_task,
-                None if member_task.given_by is None else self._member_repository.get_by_member_id(member_task.given_by),
+                (
+                    None
+                    if member_task.given_by is None
+                    else self._member_repository.get_by_member_id(member_task.given_by)
+                ),
                 attrs,
             )
 
@@ -1013,8 +1054,8 @@ class FieldMappingService:
 
         target_member: MemberEntity | None = None
 
-        # Task
-        if target_user is None:
+        # Task or missing (showing user attributes for missing makes no sense)
+        if target_user is None or missing:
             ATTRIBUTE_TYPES = AttributeType.TASK.as_set()
             ATTRIBUTE_KINDS = AttributeKind.NONE_OR_TASK_KINDED
         # User
@@ -1022,6 +1063,7 @@ class FieldMappingService:
             ATTRIBUTE_TYPES = AttributeType.ALL
             ATTRIBUTE_KINDS = AttributeKind.ALL
 
+        if target_user is not None:
             target_member = self._member_access_service.get_or_create_with_user_ref(
                 target_user, community.community_id
             )
@@ -1075,7 +1117,7 @@ class FieldMappingService:
         # Combine all mappings into the final one
         # DO NOT DEL these variables to clean up the namespace. This is a generator
         # which means that when the generator is used, the variables must still have
-        # their value!
+        # their value! This was a nasty bug to find...
         field_mappings_untyped_gen = tuple(
             (
                 _task_id_to_task_kinded_field_mapping.get(task.task_id, frozendict())

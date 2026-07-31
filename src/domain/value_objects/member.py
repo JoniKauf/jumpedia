@@ -9,7 +9,7 @@ class OptionalMemberWrapper:
 
     def __str__(self) -> str:
         return (
-            "<Deleted User>"
+            "<Unknown>"
             if self.value is None
             else f"{self.value.name} ({self.value.user.user_id})"
         )

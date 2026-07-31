@@ -62,3 +62,9 @@ class BaseParser:
             return StringNode(tok.span, tok.value)
 
         raise UnexpectedToken(self._s, (lex.TokenType.IDENT, lex.TokenType.STRING), tok)
+
+    def expect(self, received: lex.Token, *expected: lex.TokenType) -> lex.Token:
+        if received.type in expected:
+            return received
+
+        raise UnexpectedToken(self._s, expected, received)

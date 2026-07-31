@@ -56,7 +56,7 @@ class PermissionService:
     def ensure_user_can_set_meta_rank_for_target_user(
         self, *, target_user: UserEntity, meta_rank: MetaRank
     ) -> None:
-        # This is so Joni can give himself the JoniKauf Rank.
+        # This is so Joni can give himself the Owner Rank.
         # This is the only exception EVER, but really nice to have for development.
         if target_user.user_id == JONIKAUF_ID and self._ctx.user.user_id == JONIKAUF_ID:
             return

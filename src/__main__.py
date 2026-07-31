@@ -1,19 +1,8 @@
 import logging
-import os
 import platform
 import subprocess
 import sys
 import textwrap
-from pathlib import Path
-
-
-def _correct_path() -> None:
-    """Set the current working directory (CWD) to be inside 'src' instead of outside."""
-
-    src_dir = Path(__file__).resolve().parent
-
-    os.chdir(src_dir)
-    sys.path.insert(0, str(src_dir))
 
 
 def _setup_logging() -> logging.Logger:
@@ -26,7 +15,7 @@ def _setup_logging() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-def __main() -> None:
+def main() -> None:
     if sys.version_info < (3, 15):
         raise RuntimeError("Developed for Python 3.15 or higher")
 
@@ -44,19 +33,11 @@ def __main() -> None:
            to corruption due to dirty database reads and writes.
     """))
 
-    _correct_path()
-
     logger = _setup_logging()
 
     import db.session
     from infrastructure.dc import JumpediaBot
     from infrastructure.env import ENV
-
-    if _yes_no("Run old_to_new script?", False):
-        from _scripts.old_to_new import __main__ as old_to_new
-
-        old_to_new.main()
-        return
 
     logger.info("Formatting Code...")
     subprocess.run(["isort", "."])
@@ -64,6 +45,12 @@ def __main() -> None:
 
     logger.info("Initializing Database...")
     db.session.init_db()
+
+    if _yes_no("Run old_to_new script?", False):
+        from _scripts.old_to_new import __main__ as old_to_new
+
+        old_to_new.main()
+        return
 
     bot = JumpediaBot()
     bot.run(ENV["DISCORD_TOKEN"])
@@ -84,4 +71,4 @@ def _yes_no(question: str, default: bool = True) -> bool:
 
 
 if __name__ == "__main__":
-    __main()
+    main()

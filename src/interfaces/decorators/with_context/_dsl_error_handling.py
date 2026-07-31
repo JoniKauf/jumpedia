@@ -24,12 +24,16 @@ from interfaces.dsls.core.errors.parse import (
     UnexpectedToken,
 )
 from interfaces.dsls.core.value_objects import Span
-from interfaces.message import messages
+from interfaces.message import formatting, messages
 from interfaces.message.formatting import F
 from interfaces.message.mentionable import get_name_of_mentionable
 
 
 def _highlight_error(s: str, span: Span) -> Template:
+    # None Token
+    if span == Span(-1, -1):
+        span = Span(len(s), len(s))
+
     if span.begin == span.end:
         underline = "|"
     else:
@@ -110,11 +114,14 @@ async def handle_parse_error(
                 interaction,
                 t"Unexpected Token",
                 _highlight_error(e.s, e.received.span)
-                + t"Expected one of the following token types: "
+                + t"Expected one of the following token types:"
                 + Template(
-                    ", ".join(get_name_of_mentionable(elem) for elem in e.expected)
+                    "".join(
+                        f"\n- {formatting.embed(get_name_of_mentionable(elem))}"
+                        for elem in e.expected
+                    )
                 )
-                + t" - but received the {F.full_mention(e.received.type)}!",
+                + t"\n... but received the {F.full_mention(e.received.type)}!",
             )
 
         case DepthLimitSurpassed():
@@ -139,9 +146,13 @@ async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) 
                 interaction,
                 t"Unexpected Node",
                 _highlight_error(e.s, e.received.span)
-                + t"Expected one of the following nodes: "
-                + Template(", ".join(elem.__name__ for elem in e.expected))
-                + t" - but received {F.string(type(e.received).__name__)}!",
+                + t"Expected one of the following nodes:"
+                + Template(
+                    "".join(
+                        f"\n- {formatting.embed(elem.__name__)}" for elem in e.expected
+                    )
+                )
+                + t"\n... but received {F.string(type(e.received).__name__)}!",
             )
 
         case UnexpectedBinOp():
@@ -149,9 +160,11 @@ async def handle_eval_error(interaction: discord.Interaction, e: AnyEvalErrorT) 
                 interaction,
                 t"Unexpected Binary Operator",
                 _highlight_error(e.s, e.received.span)
-                + t"Expected one of the following binary operators: "
-                + Template(", ".join(op.name for op in e.expected))
-                + t" - but received {F.string(e.received.type.name)}!",
+                + t"Expected one of the following binary operators:"
+                + Template(
+                    "".join(f"\n- {formatting.embed(op.name)}" for op in e.expected)
+                )
+                + t"\n... but received {F.string(e.received.type.name)}!",
             )
 
         case EmptyAfterNonEqualityOperator():

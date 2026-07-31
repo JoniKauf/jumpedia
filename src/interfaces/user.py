@@ -1,17 +1,12 @@
 import enum
-import typing as t
 
 import discord
 from discord import app_commands
 
 from domain.enums.concept import Concept
 from domain.enums.rank import CommunityRank, MetaRank
-from domain.sentinels.default import DEFAULT
 from domain.sentinels.unknown import UNKNOWN
-from domain.typing.common import ID
-from domain.typing.user import UserID
 from domain.value_objects.list import ListNameStr
-from domain.value_objects.user import UserNameStr
 from interfaces.base import BaseInterface
 from interfaces.bindings import user_ref
 from interfaces.command import cogs, groups
@@ -88,46 +83,47 @@ class UserInterface(
         )
 
         # We unpack dicts instead of just adding items conditionally because
-        # like this we have the xact order we want
+        # like this we have the exact order we want inline.
+        server_rank_optional = (
+            {}
+            if info.server_rank is UNKNOWN
+            else {
+                "Server Rank": (mentionable.get_name_of_mentionable(info.server_rank),)
+            }
+        )
+        community_rank_optional = (
+            {}
+            if info.member_info is None
+            else {
+                "Community Rank": (
+                    mentionable.get_name_of_mentionable(
+                        info.member_info.member.community_rank
+                    ),
+                ),
+            }
+        )
+        selected_list_optional = (
+            {}
+            if info.member_info is None
+            else {
+                "Selected List": (
+                    ()
+                    if info.member_info.selected_list is None
+                    else (
+                        mentionable.get_name_of_mentionable(
+                            info.member_info.selected_list
+                        ),
+                    )
+                ),
+            }
+        )
         data: dict[str, tuple[str, ...]] = {
             "ID": (str(info.user.user_id),),
             "Name": (str(info.user.name),),
-            **(
-                {}
-                if info.server_rank is UNKNOWN
-                else {
-                    "Server Rank": (
-                        mentionable.get_name_of_mentionable(info.server_rank),
-                    )
-                }
-            ),
-            **(
-                {}
-                if info.member_info is None
-                else {
-                    "Community Rank": (
-                        mentionable.get_name_of_mentionable(
-                            info.member_info.member.community_rank
-                        ),
-                    ),
-                }
-            ),
+            **server_rank_optional,
+            **community_rank_optional,
             "Meta Rank": (mentionable.get_name_of_mentionable(info.user.meta_rank),),
-            **(
-                {}
-                if info.member_info is None
-                else {
-                    "Selected List": (
-                        ()
-                        if info.member_info.selected_list is None
-                        else (
-                            mentionable.get_name_of_mentionable(
-                                info.member_info.selected_list
-                            ),
-                        )
-                    ),
-                }
-            ),
+            **selected_list_optional,
         }
 
         await messages.object_info(
