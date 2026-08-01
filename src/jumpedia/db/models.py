@@ -416,7 +416,7 @@ class MemberTaskModel(BaseModel):
         Index(
             "ix_member_task_member_list_task",
             "member_id",
-            "list_id", 
+            "list_id",
         ),
         UniqueConstraint("member_id", "task_id"),
         *BaseModel.__table_args__,
