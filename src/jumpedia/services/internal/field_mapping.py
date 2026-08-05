@@ -13,9 +13,7 @@ from jumpedia.domain.enums.concept import Concept
 from jumpedia.domain.enums.edit_mode import FieldMappingEditMode
 from jumpedia.domain.errors.business import (
     AttributeMentionedMoreThanOnce,
-    AttributeNotMentioned,
     CollectionEntryNotFoundViaSyn,
-    NotFoundByName,
     NotFoundBySyn,
     NotUniqueSlots,
     SlotCountConfigNotFulfilled,
@@ -32,6 +30,7 @@ from jumpedia.domain.typing.collection_entry import AbstractCollectionT
 from jumpedia.domain.typing.field_mapping import (
     AbstractFieldMappingIDToSlotTypeT,
     AbstractFieldMappingIDToStringsT,
+    FrozenFieldMappingEntityToSlotTypeT,
     FrozenFieldMappingEntityToStrings,
     FrozenFieldMappingIDToStringsT,
     MutableFieldMappingIDToStringsT,
@@ -68,7 +67,7 @@ from jumpedia.services.internal.edit_mode import (
 )
 from jumpedia.services.internal.slot_type import SlotTypeService
 from jumpedia.services.list import ListAccessService
-from jumpedia.services.member import MemberAccessService, MemberExistenceService
+from jumpedia.services.member import MemberAccessService
 from jumpedia.services.member_task import MemberTaskAccessService
 from jumpedia.services.task import TaskAccessService
 
@@ -761,8 +760,14 @@ class FieldMappingTransformationService:
                         )
                     )
                 else:
+                    # Normalize slots so sort is case insensitive
                     task_sort_value.append(
-                        tuple(slot for slot in field_mapping.get(attr.attribute_id, ()))
+                        tuple(
+                            map(
+                                self._slot_type_service.normalize,
+                                field_mapping.get(attr.attribute_id, ()),
+                            )
+                        )
                     )
 
             field_mappings_and_their_sort_value.append(
@@ -963,7 +968,16 @@ class FieldMappingService:
         del task_kinded_field_mapping, task_field_mapping, user_field_mapping
 
         final_data = frozendict(
-            (attr, field_mapping.get(attr.attribute_id, ())) for attr in attrs
+            (
+                attr,
+                tuple(
+                    self._slot_type_service.many_to_slot_type(
+                        field_mapping.get(attr.attribute_id, ()),
+                        attr.field_config.slot_type,
+                    )
+                ),
+            )
+            for attr in attrs
         )
 
         if target_member_and_member_task is not None:
@@ -976,9 +990,11 @@ class FieldMappingService:
 
         # Assert type is what we think the type checker assumes and then cast to what we
         # know it is. It is only task data, no user data.
-        t.assert_type(final_data, FrozenFieldMappingEntityToStrings[AnyAttributeTypeT])
+        t.assert_type(
+            final_data, FrozenFieldMappingEntityToSlotTypeT[AnyAttributeTypeT]
+        )
         final_data = t.cast(
-            FrozenFieldMappingEntityToStrings[TaskAttributeTypeT], final_data
+            FrozenFieldMappingEntityToSlotTypeT[TaskAttributeTypeT], final_data
         )
 
         return TaskInfo(task, final_data)

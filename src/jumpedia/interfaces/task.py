@@ -20,7 +20,7 @@ from jumpedia.interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     FieldMappingEditModeInterfaceEnum,
 )
-from jumpedia.interfaces.message import messages
+from jumpedia.interfaces.message import formatting, messages
 from jumpedia.interfaces.message.formatting import F
 
 
@@ -43,7 +43,7 @@ class TaskInterface(
             ctx.interaction,
             info.task,
             {
-                str(attr.name): tuple(str(slot) for slot in field)
+                str(attr.name): tuple(map(formatting.typed_slot_to_str, field))
                 for attr, field in info.data.items()
             },
         )
@@ -162,7 +162,7 @@ class TaskInterface(
             ctx.interaction,
             info.task,
             {
-                str(attr.name): tuple(str(slot) for slot in field)
+                str(attr.name): tuple(map(formatting.typed_slot_to_str, field))
                 for attr, field in info.data.items()
             },
         )
@@ -262,7 +262,7 @@ class TasksInterface(
             Concept.TASK,
             {
                 str(attr.name): tuple(
-                    tuple(str(slot) for slot in field) for field in fields
+                    tuple(map(formatting.typed_slot_to_str, field)) for field in fields
                 )
                 for attr, fields in summaries.items()
             },
@@ -294,7 +294,7 @@ class TasksInterface(
             Concept.TASK,
             {
                 str(attr.name): tuple(
-                    tuple(str(slot) for slot in field) for field in fields
+                    tuple(map(formatting.typed_slot_to_str, field)) for field in fields
                 )
                 for attr, fields in summaries.items()
             },
@@ -324,7 +324,7 @@ class TasksInterface(
             Concept.TASK,
             {
                 str(attr.name): tuple(
-                    tuple(str(slot) for slot in field) for field in fields
+                    tuple(map(formatting.typed_slot_to_str, field)) for field in fields
                 )
                 for attr, fields in summaries.items()
             },

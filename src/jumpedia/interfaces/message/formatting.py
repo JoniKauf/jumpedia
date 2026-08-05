@@ -1,8 +1,10 @@
+import decimal
 import typing as t
 from dataclasses import dataclass
 from string import Template
 
 from jumpedia.domain.sentinels.default import DEFAULT
+from jumpedia.domain.typing.attribute import SlotTypeT
 from jumpedia.interfaces.message.formattable import FormattableForms, FormattableT
 from jumpedia.interfaces.message.mentionable import (
     MentionableT,
@@ -29,6 +31,24 @@ def embed(s: str) -> str:
         return f"`` {s} ``"
 
     return f"``{s}``"
+
+
+def typed_slot_to_str(slot: SlotTypeT) -> str:
+    match slot:
+        case str():
+            return slot
+
+        case bool():
+            return str(slot)
+
+        case int():
+            return str(slot)
+
+        case decimal.Decimal():
+            return format(slot.normalize(), "f").rstrip("0").rstrip(".")
+
+        case _:
+            t.assert_never(slot)
 
 
 type FormatArgsT = FormatArgsEmpty | FormatArgsTypeName

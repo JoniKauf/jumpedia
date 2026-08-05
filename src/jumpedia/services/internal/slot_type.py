@@ -62,7 +62,7 @@ class SlotTypeService:
                     except decimal.InvalidOperation:
                         raise InvalidSlotForSlotType(type, slot)
 
-                s = format(n, "f")
+                s = format(n.normalize(), "f").rstrip("0").rstrip(".")
 
                 if len(s) > CommunityLimits.FIELD_SLOT_LENGTH_MAX:
                     raise InvalidSlotForSlotType(type, slot)

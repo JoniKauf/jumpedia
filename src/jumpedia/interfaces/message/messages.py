@@ -78,18 +78,8 @@ async def object_info(
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
     try:
-        links = tuple(
-            pastee.create_pastee_with_retries({f"#{i}": s})
-            for i, s in enumerate(
-                pastee.table_to_pastee_strings(
-                    tuple(data),
-                    (
-                        ((elem,) for elem in row)
-                        for row in itertools.zip_longest(*data.values(), fillvalue="")
-                    ),
-                ),
-                start=1,
-            )
+        links = await pastee.create_pastees_with_retries_from_rows_async(
+            tuple(data), itertools.zip_longest(*data.values(), fillvalue="")
         )
     except ConnectionError:
         raise ApiUnreachable(Str("pastee"))
@@ -110,28 +100,21 @@ async def object_browse(
 ) -> None:
     header = t"{F.format(formattable, plural=True)} Browsed"
 
-    if all(len(row) == 0 for row in data.values()):
+    if all(len(values) == 0 for values in data.values()):
         return await info(
             interaction,
             header,
             t"No {F.format(formattable)} with the specified criteria could be found!",
         )
 
+    logger.info("Creating pastees async...")
     try:
-        logger.info("Creating pastee tables...")
-        paste_strings = pastee.table_to_pastee_strings(
-            tuple(data), zip(*data.values(), strict=True)
-        )
-
-        logger.info("Creating pastee links...")
-        links = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    pastee.create_pastee_with_retries,
-                    {f"#{i}": s},
-                )
-                for i, s in enumerate(paste_strings, start=1)
-            )
+        links = await pastee.create_pastees_with_retries_from_rows_async(
+            tuple(data),
+            (
+                tuple("   ".join(cell) for cell in row)
+                for row in zip(*data.values(), strict=True)
+            ),
         )
     except ConnectionError:
         raise ApiUnreachable(Str("pastee"))

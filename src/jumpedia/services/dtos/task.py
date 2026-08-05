@@ -2,7 +2,10 @@ from dataclasses import dataclass
 
 from jumpedia.domain.entities.task import TaskEntity
 from jumpedia.domain.typing.attribute import TaskAttributeTypeT
-from jumpedia.domain.typing.field_mapping import FrozenFieldMappingEntityToStrings
+from jumpedia.domain.typing.field_mapping import (
+    FrozenFieldMappingEntityToSlotTypeT,
+    FrozenFieldMappingEntityToStrings,
+)
 from jumpedia.domain.typing.task import TaskID
 
 
@@ -14,4 +17,4 @@ class PreparedDeleteTask:
 @dataclass(frozen=True, slots=True)
 class TaskInfo:
     task: TaskEntity
-    data: FrozenFieldMappingEntityToStrings[TaskAttributeTypeT]
+    data: FrozenFieldMappingEntityToSlotTypeT[TaskAttributeTypeT]

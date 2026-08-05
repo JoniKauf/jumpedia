@@ -30,6 +30,6 @@ type AbstractFieldMappingIDToStringsT = t.Mapping[AttributeID, t.Sequence[FieldS
 type MutableFieldMappingIDToStringsT = dict[AttributeID, tuple[FieldSlotStr, ...]]
 type FrozenFieldMappingIDToStringsT = frozendict[AttributeID, tuple[FieldSlotStr, ...]]
 type AbstractFieldMappingIDToSlotTypeT = t.Mapping[AttributeID, tuple[SlotTypeT, ...]]
-type FrozenFieldMappingEntityToSlotTypeT = frozendict[
-    AttributeEntity, tuple[SlotTypeT, ...]
+type FrozenFieldMappingEntityToSlotTypeT[T: AnyAttributeTypeT] = frozendict[
+    AttributeEntity[T], tuple[SlotTypeT, ...]
 ]

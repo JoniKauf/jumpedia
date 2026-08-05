@@ -1,5 +1,8 @@
+import asyncio
+import datetime as dt
 import enum
 import itertools
+import logging
 import os
 import time
 import typing as t
@@ -10,6 +13,8 @@ import requests
 
 from jumpedia.infrastructure.env import ENV
 from jumpedia.infrastructure.utils import text
+
+logger = logging.getLogger(__name__)
 
 
 def create_pastee(
@@ -76,65 +81,29 @@ def create_pastee_with_retries(
     raise err
 
 
-def table_to_pastee_strings(
-    headers: t.Sequence[str],
-    body_rows: t.Iterable[t.Iterable[t.Sequence[str]]],
-    *,
-    max_body_total_length_per_link: int = 1_500_000,
-) -> list[str]:
-    if len(headers) <= 0:
-        raise ValueError("'headers' less than 1")
+SOFT_PASTEE_LIMIT: t.Final[int] = 2_800_000
 
-    col_count = len(headers)
-    max_len_per_col = [len(h) for h in headers]
-    final_rows: list[list[str]] = []
 
-    MULTIPLE_ENTRIES_DIVIDOR: str = "   "
-
-    for row in body_rows:
-        final_row: list[str] = []
-
-        it = iter(row)
-
-        for i in range(col_count):
-            cell = next(it, "")
-
-            s = MULTIPLE_ENTRIES_DIVIDOR.join(cell)
-
-            final_row.append(s)
-            max_len_per_col[i] = max(max_len_per_col[i], len(s))
-
-        final_rows.append(final_row)
-
-    SPLIT = " | "
-    SPLIT_DIVIDOR = "-+-"
-
-    header_list = [
-        (
-            headers[i].upper().ljust(max_len_per_col[i])
-            if i < col_count - 1
-            else headers[i].upper()
-        )
-        for i in range(col_count)
-    ]
-
-    divider_list = ["-" * max_len_per_col[i] for i in range(col_count)]
-
-    headers_str = SPLIT.join(header_list) + "\n" + SPLIT_DIVIDOR.join(divider_list)
-
-    body = "\n".join(
-        SPLIT.join(
-            row[i].ljust(max_len_per_col[i]) if i < col_count - 1 else row[i]
-            for i in range(col_count)
-        )
-        for row in final_rows
+async def create_pastees_with_retries_from_rows_async(
+    headers: t.Iterable[str],
+    rows: t.Iterable[t.Iterable[str]],
+) -> tuple[str, ...]:
+    logger.info("Creating tables...")
+    tables = text.table_data_to_str(
+        headers,
+        rows,
+        SOFT_PASTEE_LIMIT,
     )
+    logger.info("Sending tables...")
 
-    bodies = text.split_into_chunks_prefer_seperator(
-        body, "\n", max_body_total_length_per_link
+    return tuple(
+        await asyncio.gather(
+            *(
+                asyncio.to_thread(create_pastee_with_retries, {f"#{i}": s})
+                for i, s in enumerate(
+                    tables,
+                    start=1,
+                )
+            )
+        )
     )
-
-    for i, body in enumerate(bodies):
-        bodies[i] = f"{headers_str}\n{body}"
-
-    return bodies
