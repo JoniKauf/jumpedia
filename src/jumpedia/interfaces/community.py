@@ -27,9 +27,9 @@ class CommunityInterface(
 
     @app_commands.command()
     @with_context()
-    async def info(self, ctx: CommandContext, community: str | None = None) -> None:
+    async def info(self, ctx: CommandContext, community_name: str | None = None) -> None:
         info = ctx.services.community_query.get_info(
-            DEFAULT if community is None else CommunityNameStr(community)
+            DEFAULT if community_name is None else CommunityNameStr(community_name)
         )
 
         data: dict[str, tuple[str, ...]] = {
@@ -68,7 +68,7 @@ class CommunityInterface(
         community_list_count_max: int = _DEFAULT_LIMITS.community_list_count_max,
         list_attribute_count_max: int = _DEFAULT_LIMITS.list_attribute_count_max,
         list_task_count_max: int = _DEFAULT_LIMITS.list_task_count_max,
-        attr_alias_count_max: int = _DEFAULT_LIMITS.attribute_alias_count_max,
+        attribute_alias_count_max: int = _DEFAULT_LIMITS.attribute_alias_count_max,
         field_slot_count_max: int = _DEFAULT_LIMITS.field_slot_count_max,
         collection_entry_count_max: int = _DEFAULT_LIMITS.collection_entry_count_max,
         collection_entry_alias_count_max: int = _DEFAULT_LIMITS.collection_entry_alias_count_max,
@@ -80,7 +80,7 @@ class CommunityInterface(
                 community_list_count_max=community_list_count_max,
                 list_attribute_count_max=list_attribute_count_max,
                 list_task_count_max=list_task_count_max,
-                attribute_alias_count_max=attr_alias_count_max,
+                attribute_alias_count_max=attribute_alias_count_max,
                 field_slot_count_max=field_slot_count_max,
                 collection_entry_count_max=collection_entry_count_max,
                 collection_entry_alias_count_max=collection_entry_alias_count_max,
