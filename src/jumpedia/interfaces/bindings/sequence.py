@@ -1,5 +1,6 @@
 from jumpedia.domain.value_objects.attribute import AttributeSynStr
 from jumpedia.domain.value_objects.field_slot import FieldSlotStr
+from jumpedia.domain.value_objects.string import RealStr
 from jumpedia.interfaces import dsls
 
 
@@ -11,7 +12,7 @@ def attribute_aliases(s: str | None) -> tuple[AttributeSynStr, ...]:
         if s is None
         else tuple(
             AttributeSynStr(alias)
-            for alias in dsls.sequence.engine.SequenceEngine().eval(s)
+            for alias in dsls.sequence.engine.SequenceEngine().eval(str(RealStr(s)))
         )
     )
 
@@ -22,7 +23,7 @@ def attributes(s: str | None) -> tuple[AttributeSynStr, ...]:
         if s is None
         else tuple(
             AttributeSynStr(alias)
-            for alias in dsls.sequence.engine.SequenceEngine().eval(s)
+            for alias in dsls.sequence.engine.SequenceEngine().eval(str(RealStr(s)))
         )
     )
 
@@ -33,7 +34,7 @@ def yield_(s: str | None) -> tuple[AttributeSynStr, ...]:
         if s is None
         else tuple(
             AttributeSynStr(syn)
-            for syn in dsls.sequence.engine.SequenceEngine().eval(s)
+            for syn in dsls.sequence.engine.SequenceEngine().eval(str(RealStr(s)))
         )
     )
 
@@ -44,6 +45,6 @@ def task_aliases(s: str | None) -> tuple[FieldSlotStr, ...]:
         if s is None
         else tuple(
             FieldSlotStr(alias)
-            for alias in dsls.sequence.engine.SequenceEngine().eval(s)
+            for alias in dsls.sequence.engine.SequenceEngine().eval(str(RealStr(s)))
         )
     )
