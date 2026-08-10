@@ -1,6 +1,6 @@
 from jumpedia.domain.value_objects.attribute import AttributeSynStr
-from jumpedia.domain.value_objects.string import RealStr
 from jumpedia.interfaces import dsls
+from jumpedia.interfaces.bindings import common
 
 
 def sorts(s: str | None) -> tuple[tuple[AttributeSynStr, bool], ...]:
@@ -9,6 +9,6 @@ def sorts(s: str | None) -> tuple[tuple[AttributeSynStr, bool], ...]:
         if s is None
         else tuple(
             (AttributeSynStr(sort), asc)
-            for sort, asc in dsls.sort.engine.SortEngine().eval(str(RealStr(s)))
+            for sort, asc in dsls.sort.engine.SortEngine().eval(common.build_dsl_input(s))
         )
     )

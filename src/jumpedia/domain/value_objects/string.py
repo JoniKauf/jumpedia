@@ -2,20 +2,10 @@ import hashlib
 import re
 import typing as t
 import unicodedata
-from hashlib import sha256
-
-ONE_OR_MORE_WHITESPACE_PATTERN = re.compile(r"\s+", re.UNICODE)
-BAD_CHAR_MAPPING = str.maketrans(
+_ONE_OR_MORE_WHITESPACE_PATTERN: t.Final = re.compile(r"\s+", re.UNICODE)
+_QUOTATION_MARKS_TRANS_TABLE: t.Final = str.maketrans(
     {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}
 )
-
-
-def _replace_whitespace_groups(s: str, repl: str, strip: bool = True) -> str:
-    return re.sub(ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
-
-
-def _replace_bad_chars(s: str) -> str:
-    return s.translate(BAD_CHAR_MAPPING)
 
 
 class EmptyStringError(ValueError):
@@ -67,18 +57,38 @@ class RealStr(BaseStrWrapper[str]):
     """String wrapper to sanitize a string."""
 
     def __init__(self, s: str) -> None:
-        s = _replace_whitespace_groups(s, " ", True)
-        s = _replace_bad_chars(s)
-        s = "".join(c for c in s if c.isprintable())
-        s = unicodedata.normalize("NFC", s)
+        s = self.clean_whitespace(s, " ", True)
+        s = self.replace_quotation_marks(s)
+        s = self.remove_non_printables(s)
+        s = self.normalize_unicode_codepoints(s)
 
+        self.validate_final_string(s)
+
+        self._value = s
+
+    @classmethod
+    def clean_whitespace(cls, s: str, repl: str, strip: bool) -> str:
+        return re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
+
+    @classmethod
+    def replace_quotation_marks(cls, s: str) -> str:
+        return s.translate(_QUOTATION_MARKS_TRANS_TABLE)
+
+    @classmethod
+    def remove_non_printables(cls, s: str) -> str:
+        return "".join(c for c in s if c.isprintable())
+
+    @classmethod
+    def normalize_unicode_codepoints(cls, s: str) -> str:
+        return unicodedata.normalize("NFC", s)
+
+    @classmethod
+    def validate_final_string(cls, s: str) -> None:
         if not s:
             raise EmptyStringError()
 
         if "``" in s:
             raise DoubleBacktickError()
-
-        self._value = s
 
 
 class NormHash(BaseStrWrapper[bytes]):
