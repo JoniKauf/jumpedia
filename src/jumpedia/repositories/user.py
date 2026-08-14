@@ -1,0 +1,64 @@
+from jumpedia.db.models import UserModel
+from jumpedia.domain.entities.user import UserEntity
+from jumpedia.domain.enums.rank import MetaRank
+from jumpedia.domain.errors import business
+from jumpedia.domain.errors.internal import InternalError, NotFoundById
+from jumpedia.domain.typing.user import UserID
+from jumpedia.domain.value_objects.string import RealStr
+from jumpedia.domain.value_objects.user import UserNameStr
+from jumpedia.repositories.dtos.user import UserInsert
+
+from .base import BaseRepository
+
+
+def user_model_to_entity(model: UserModel) -> UserEntity:
+    return UserEntity(
+        key=(model.user_id,),
+        name=UserNameStr(RealStr._create(model.name)),
+        meta_rank=MetaRank(model.meta_rank),
+    )
+
+
+class UserRepository(BaseRepository):
+    def get_by_id(self, user_id: UserID) -> UserEntity | None:
+        obj = self._session.get(UserModel, user_id)
+        return None if obj is None else user_model_to_entity(obj)
+
+    def create(self, user: UserInsert) -> UserEntity:
+        obj = UserModel(
+            user_id=user.id,
+            name=user.name.real,
+            meta_rank=user.meta_rank.value,
+        )
+
+        self._session.add(obj)
+        self._session.flush()
+
+        return user_model_to_entity(obj)
+
+    def update_meta_rank(self, user_id: UserID, meta_rank: MetaRank) -> UserEntity:
+        obj = self._session.get(UserModel, user_id)
+
+        if obj is None:
+            raise NotFoundById(UserEntity, user_id)
+
+        obj.meta_rank = meta_rank
+
+        self._session.flush()
+
+        return user_model_to_entity(obj)
+
+    # This should only be used if everything is changed!!
+    def update(
+        self,
+        user: UserEntity,
+    ) -> UserEntity:
+        obj = self._session.get(UserModel, user.user_id)
+
+        if obj is None:
+            raise NotFoundById(UserEntity, user.user_id)
+
+        obj.name = user.name.raw
+        obj.meta_rank = user.meta_rank
+
+        return user_model_to_entity(obj)

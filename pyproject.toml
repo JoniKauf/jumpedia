@@ -3,12 +3,53 @@ name = "jumpedia"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
-    "black>=25.9.0",
-    "discord>=2.3.2",
-    "isort>=7.0.0",
-    "mariadb>=1.1.14",
-    "requests>=2.32.5",
-    "typing-extensions>=4.15.0",
+    "aiohappyeyeballs==2.6.1",
+    "aiohttp==3.13.1",
+    "aiosignal==1.4.0",
+    "attrs==25.4.0",
+    "audioop-lts==0.2.2",
+    "black==26.5.1",
+    "certifi==2025.10.5",
+    "charset-normalizer==3.4.4",
+    "click==8.3.0",
+    "colorama==0.4.6",
+    "discord==2.3.2",
+    "discord-py==2.6.4",
+    "frozenlist==1.8.0",
+    "greenlet==3.5.3",
+    "idna==3.11",
+    "isort==7.0.0",
+    "mariadb==1.1.14",
+    "multidict==6.7.0",
+    "mypy-extensions==1.1.0",
+    "packaging==25.0",
+    "pathspec==1.1.1",
+    "platformdirs==4.5.0",
+    "propcache==0.4.1",
+    "pymysql>=1.2.0",
+    "python-dotenv==1.2.2",
+    "pytokens==0.4.1",
+    "requests==2.32.5",
+    "sqlalchemy==2.0.51",
+    "typing-extensions==4.15.0",
+    "urllib3==2.5.0",
+    "yarl==1.22.0",
 ]
+
+[project.scripts]
+jumpedia = "jumpedia.__main__:main"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jumpedia"]

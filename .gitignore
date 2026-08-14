@@ -1,5 +1,4 @@
 .vscode/
 .venv/
-secret.json
+.env
 **/__pycache__/
-src/scripts/one_to_two/data/

@@ -1,0 +1,15 @@
+from dataclasses import dataclass
+
+lazy from jumpedia.domain.entities.member import MemberEntity
+
+
+@dataclass(frozen=True, slots=True)
+class OptionalMemberWrapper:
+    value: MemberEntity | None
+
+    def __str__(self) -> str:
+        return (
+            "<Unknown>"
+            if self.value is None
+            else f"{self.value.name} ({self.value.user.user_id})"
+        )

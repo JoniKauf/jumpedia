@@ -1,0 +1,434 @@
+import typing as t
+
+from sqlalchemy import delete, exists, func, not_, or_, select
+
+from jumpedia.db.models import (
+    FieldSlotModel,
+    ListModel,
+    MemberID,
+    MemberTaskModel,
+    TaskAliasModel,
+    TaskModel,
+)
+from jumpedia.domain.entities.task import TaskEntity
+from jumpedia.domain.errors.internal import NotFoundById
+from jumpedia.domain.typing.attribute import AttributeID
+from jumpedia.domain.typing.community import CommunityID
+from jumpedia.domain.typing.list import ListID
+from jumpedia.domain.typing.task import TaskID
+from jumpedia.domain.value_objects.datetime import DateTimeWrapper
+from jumpedia.domain.value_objects.field_slot import FieldSlotStr
+from jumpedia.repositories.dtos.task import TaskAliasInsert, TaskInsert
+
+from .base import BaseRepository
+
+
+def task_model_to_entity(model: TaskModel) -> TaskEntity:
+    return TaskEntity(
+        key=(model.task_id,),
+        list_id=model.list_id,
+        name=FieldSlotStr._create_from_real_and_hash(model.name, model.name_hash),
+        created_at=DateTimeWrapper(model.created_at),
+    )
+
+
+class TaskRepository(BaseRepository):
+    def create(self, task: TaskInsert) -> TaskEntity:
+        obj = TaskModel(
+            list_id=task.list_id,
+            name_hash=task.name.hash,
+            name=task.name.real,
+        )
+
+        self._session.add(obj)
+        self._session.flush()
+
+        return task_model_to_entity(obj)
+
+    def get_by_id(self, task_id: int) -> TaskModel | None:
+        return self._session.get(TaskModel, task_id)
+
+    def get_all_by_list_id(self, list_id: ListID) -> tuple[TaskEntity, ...]:
+        stmt = select(TaskModel).where(TaskModel.list_id == list_id)
+        objs = self._session.scalars(stmt).all()
+        return tuple(task_model_to_entity(o) for o in objs)
+
+    def count_by_list(self, list_id: ListID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(TaskModel)
+            .where(TaskModel.list_id == list_id)
+        )
+        return self._session.scalar(stmt) or 0
+
+    def count_by_community(self, community_id: CommunityID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(TaskModel)
+            .join(ListModel, ListModel.list_id == TaskModel.list_id)
+            .where(ListModel.community_id == community_id)
+        )
+
+        return self._session.scalar(stmt) or 0
+
+    def count_grouped_by_community_id(self) -> frozendict[CommunityID, int]:
+        stmt = (
+            select(
+                ListModel.community_id,
+                func.count(),
+            )
+            .join(TaskModel, TaskModel.list_id == ListModel.list_id)
+            .group_by(ListModel.community_id)
+        )
+
+        return frozendict(
+            {
+                CommunityID(community_id): count
+                for community_id, count in self._session.execute(stmt)
+            }
+        )
+
+    def count_grouped_by_list_id(
+        self,
+        community_id: CommunityID,
+    ) -> dict[ListID, int]:
+        stmt = (
+            select(
+                TaskModel.list_id,
+                func.count(),
+            )
+            .join(ListModel, ListModel.list_id == TaskModel.list_id)
+            .where(ListModel.community_id == community_id)
+            .group_by(TaskModel.list_id)
+        )
+
+        return {
+            ListID(list_id): count for list_id, count in self._session.execute(stmt)
+        }
+
+    def get_syn_to_task_by_list_id(
+        self,
+        list_id: ListID,
+    ) -> dict[FieldSlotStr, TaskEntity]:
+        stmt = (
+            select(TaskModel, TaskAliasModel)
+            .outerjoin(
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
+            )
+            .where(TaskModel.list_id == list_id)
+        )
+
+        res: dict[FieldSlotStr, TaskEntity] = {}
+        id_to_entity: dict[TaskID, TaskEntity] = {}
+
+        for task_obj, alias_obj in self._session.execute(stmt):
+            task_obj: TaskModel
+            alias_obj: TaskAliasModel | None
+
+            entity = id_to_entity.get(task_obj.task_id)
+
+            if entity is None:
+                entity = task_model_to_entity(task_obj)
+                id_to_entity[task_obj.task_id] = entity
+                res[entity.name] = entity
+
+            if alias_obj is not None:
+                res[
+                    FieldSlotStr._create_from_real_and_hash(
+                        alias_obj.alias,
+                        alias_obj.alias_hash,
+                    )
+                ] = entity
+
+        return res
+
+    def get_first_by_list_id_and_any_syn(
+        self, list_id: ListID, syns: t.Iterable[FieldSlotStr], exclude: TaskID | None
+    ) -> tuple[TaskEntity, FieldSlotStr] | None:
+        syns = tuple(syns)
+        norms = {syn.hash for syn in syns}
+
+        if not norms:
+            return None
+
+        stmt = (
+            select(TaskModel, TaskAliasModel)
+            .outerjoin(
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
+            )
+            .where(
+                TaskModel.list_id == list_id,
+                or_(
+                    TaskModel.name_hash.in_(norms),
+                    TaskAliasModel.alias_hash.in_(norms),
+                ),
+            )
+            .limit(1)
+        )
+
+        if exclude is not None:
+            stmt = stmt.where(TaskModel.task_id != exclude)
+
+        row = self._session.execute(stmt).first()
+
+        if row is None:
+            return None
+
+        task_obj, alias_obj = row
+        task_obj: TaskModel
+        alias_obj: TaskAliasModel | None
+
+        entity = task_model_to_entity(task_obj)
+
+        if task_obj.name_hash in norms:
+            syn = FieldSlotStr._create_from_real_and_hash(
+                task_obj.name,
+                task_obj.name_hash,
+            )
+        else:
+            assert alias_obj is not None
+            syn = FieldSlotStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
+            )
+
+        return entity, syn
+
+    def create_many_aliases(self, task_aliases: t.Iterable[TaskAliasInsert]) -> None:
+        objs = tuple(
+            TaskAliasModel(
+                task_id=task_alias.task_id,
+                index=task_alias.index.value,
+                list_id=task_alias.list_id,
+                alias_hash=task_alias.alias.hash,
+                alias=task_alias.alias.real,
+            )
+            for task_alias in task_aliases
+        )
+
+        self._session.add_all(objs)
+        self._session.flush()
+
+    def delete(self, task_id: TaskID) -> None:
+        obj = self._session.get(TaskModel, task_id)
+
+        if obj is None:
+            raise NotFoundById(TaskEntity, task_id)
+
+        self._session.delete(obj)
+        self._session.flush()
+
+    def get_by_list_id_and_name(
+        self,
+        list_id: ListID,
+        name: FieldSlotStr,
+    ) -> TaskEntity | None:
+        stmt = select(TaskModel).where(
+            TaskModel.list_id == list_id,
+            TaskModel.name_hash == name.hash,
+        )
+
+        obj = self._session.scalar(stmt)
+
+        return None if obj is None else task_model_to_entity(obj)
+
+    def get_by_list_id_and_syn(
+        self,
+        list_id: ListID,
+        syn: FieldSlotStr,
+    ) -> tuple[TaskEntity, FieldSlotStr] | None:
+        stmt = (
+            select(TaskModel, TaskAliasModel)
+            .outerjoin(
+                TaskAliasModel,
+                TaskAliasModel.task_id == TaskModel.task_id,
+            )
+            .where(
+                TaskModel.list_id == list_id,
+                or_(
+                    TaskModel.name_hash == syn.hash,
+                    TaskAliasModel.alias_hash == syn.hash,
+                ),
+            )
+            .limit(1)
+        )
+
+        row = self._session.execute(stmt).first()
+
+        if row is None:
+            return None
+
+        task_obj, alias_obj = row
+        task_obj: TaskModel
+        alias_obj: TaskAliasModel | None
+
+        entity = task_model_to_entity(task_obj)
+
+        if task_obj.name_hash == syn.hash:
+            colliding_syn = FieldSlotStr._create_from_real_and_hash(
+                task_obj.name,
+                task_obj.name_hash,
+            )
+        else:
+            assert alias_obj is not None
+            colliding_syn = FieldSlotStr._create_from_real_and_hash(
+                alias_obj.alias,
+                alias_obj.alias_hash,
+            )
+
+        return entity, colliding_syn
+
+    def get_aliases_by_task_id(
+        self,
+        task_id: TaskID,
+    ) -> tuple[FieldSlotStr, ...]:
+        stmt = (
+            select(TaskAliasModel)
+            .where(TaskAliasModel.task_id == task_id)
+            .order_by(TaskAliasModel.index.asc())
+        )
+
+        return tuple(
+            FieldSlotStr._create_from_real_and_hash(
+                obj.alias,
+                obj.alias_hash,
+            )
+            for obj in self._session.scalars(stmt)
+        )
+
+    def get_grouped_aliases_by_list_id(
+        self,
+        list_id: ListID,
+    ) -> frozendict[TaskID, tuple[FieldSlotStr, ...]]:
+        stmt = (
+            select(TaskAliasModel)
+            .join(
+                TaskModel,
+                TaskModel.task_id == TaskAliasModel.task_id,
+            )
+            .where(
+                TaskModel.list_id == list_id,
+            )
+            .order_by(
+                TaskAliasModel.task_id.asc(),
+                TaskAliasModel.index.asc(),
+            )
+        )
+
+        res: dict[TaskID, list[FieldSlotStr]] = {}
+
+        for obj in self._session.scalars(stmt):
+            res.setdefault(obj.task_id, []).append(
+                FieldSlotStr._create_from_real_and_hash(
+                    obj.alias,
+                    obj.alias_hash,
+                )
+            )
+
+        return frozendict({task_id: tuple(aliases) for task_id, aliases in res.items()})
+
+    def update_name(
+        self,
+        task_id: TaskID,
+        name: FieldSlotStr,
+    ) -> None:
+        obj = self._session.get(TaskModel, task_id)
+
+        if obj is None:
+            raise NotFoundById(TaskEntity, task_id)
+
+        obj.name = name.real
+        obj.name_hash = name.hash
+
+        self._session.flush()
+
+    def update_aliases(
+        self,
+        task_id: TaskID,
+        aliases: t.Iterable[TaskAliasInsert],
+    ) -> None:
+        self._session.execute(
+            delete(TaskAliasModel).where(
+                TaskAliasModel.task_id == task_id,
+            )
+        )
+
+        objs = tuple(
+            TaskAliasModel(
+                task_id=task_id,
+                index=alias.index.value,
+                list_id=alias.list_id,
+                alias=alias.alias.real,
+                alias_hash=alias.alias.hash,
+            )
+            for alias in aliases
+        )
+
+        if objs:
+            self._session.add_all(objs)
+
+        self._session.flush()
+
+    def get_all_missing_by_list_id_and_member_id(
+        self,
+        list_id: ListID,
+        member_id: MemberID,
+    ) -> tuple[TaskEntity, ...]:
+        stmt = select(TaskModel).where(
+            TaskModel.list_id == list_id,
+            not_(
+                exists(
+                    select(1).where(
+                        MemberTaskModel.task_id == TaskModel.task_id,
+                        MemberTaskModel.member_id == member_id,
+                    )
+                )
+            ),
+        )
+
+        return tuple(
+            task_model_to_entity(model)
+            for model in self._session.execute(stmt).scalars().all()
+        )
+
+    def get_all_tasks_mapped_to_slots(
+        self,
+        list_id: ListID,
+        attribute_id: AttributeID,
+    ) -> frozendict[TaskEntity, tuple[FieldSlotStr, ...]]:
+        stmt = (
+            select(TaskModel, FieldSlotModel)
+            .outerjoin(
+                FieldSlotModel,
+                (FieldSlotModel.task_id == TaskModel.task_id)
+                & (FieldSlotModel.attribute_id == attribute_id),
+            )
+            .where(TaskModel.list_id == list_id)
+            .order_by(
+                TaskModel.task_id.asc(),
+                FieldSlotModel.index.asc(),
+            )
+        )
+
+        tasks: dict[TaskID, TaskEntity] = {}
+        res: dict[TaskEntity, list[FieldSlotStr]] = {}
+
+        for task_obj, slot_obj in self._session.execute(stmt).tuples():
+            task = tasks.get(task_obj.task_id)
+
+            if task is None:
+                task = task_model_to_entity(task_obj)
+                tasks[task_obj.task_id] = task
+                res[task] = []
+
+            if slot_obj is not None:
+                res[task].append(
+                    FieldSlotStr._create_from_real_and_hash(
+                        slot_obj.slot,
+                        slot_obj.slot_hash,
+                    )
+                )
+
+        return frozendict({task: tuple(slots) for task, slots in res.items()})
