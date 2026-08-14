@@ -21,7 +21,6 @@ dependencies = [
     "greenlet==3.5.3",
     "idna==3.11",
     "isort==7.0.0",
-    "mariadb==1.1.14",
     "multidict==6.7.0",
     "mypy-extensions==1.1.0",
     "packaging==25.0",

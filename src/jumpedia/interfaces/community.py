@@ -27,7 +27,9 @@ class CommunityInterface(
 
     @app_commands.command()
     @with_context()
-    async def info(self, ctx: CommandContext, community_name: str | None = None) -> None:
+    async def info(
+        self, ctx: CommandContext, community_name: str | None = None
+    ) -> None:
         info = ctx.services.community_query.get_info(
             DEFAULT if community_name is None else CommunityNameStr(community_name)
         )

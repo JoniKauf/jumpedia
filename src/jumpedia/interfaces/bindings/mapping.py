@@ -15,7 +15,9 @@ def collection(s: str | None) -> AbstractCollectionT:
                 FieldSlotStr(k),
                 tuple(FieldSlotStr(elem) for elem in v),
             )
-            for k, v in dsls.mapping.engine.MappingEngine().eval(common.build_dsl_input(s))
+            for k, v in dsls.mapping.engine.MappingEngine().eval(
+                common.build_dsl_input(s)
+            )
         )
     )
 
@@ -28,6 +30,8 @@ def field_mapping(
         if s is None
         else tuple(
             (AttributeSynStr(k), tuple(FieldSlotStr(slot) for slot in v))
-            for k, v in dsls.mapping.engine.MappingEngine().eval(common.build_dsl_input(s))
+            for k, v in dsls.mapping.engine.MappingEngine().eval(
+                common.build_dsl_input(s)
+            )
         )
     )

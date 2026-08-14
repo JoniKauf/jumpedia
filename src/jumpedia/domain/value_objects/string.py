@@ -2,6 +2,7 @@ import hashlib
 import re
 import typing as t
 import unicodedata
+
 _ONE_OR_MORE_WHITESPACE_PATTERN: t.Final = re.compile(r"\s+", re.UNICODE)
 _QUOTATION_MARKS_TRANS_TABLE: t.Final = str.maketrans(
     {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}

@@ -9,6 +9,8 @@ def sorts(s: str | None) -> tuple[tuple[AttributeSynStr, bool], ...]:
         if s is None
         else tuple(
             (AttributeSynStr(sort), asc)
-            for sort, asc in dsls.sort.engine.SortEngine().eval(common.build_dsl_input(s))
+            for sort, asc in dsls.sort.engine.SortEngine().eval(
+                common.build_dsl_input(s)
+            )
         )
     )

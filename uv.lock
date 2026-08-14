@@ -228,7 +228,6 @@ dependencies = [
     { name = "greenlet" },
     { name = "idna" },
     { name = "isort" },
-    { name = "mariadb" },
     { name = "multidict" },
     { name = "mypy-extensions" },
     { name = "packaging" },
@@ -263,7 +262,6 @@ requires-dist = [
     { name = "greenlet", specifier = "==3.5.3" },
     { name = "idna", specifier = "==3.11" },
     { name = "isort", specifier = "==7.0.0" },
-    { name = "mariadb", specifier = "==1.1.14" },
     { name = "multidict", specifier = "==6.7.0" },
     { name = "mypy-extensions", specifier = "==1.1.0" },
     { name = "packaging", specifier = "==25.0" },
@@ -279,15 +277,6 @@ requires-dist = [
     { name = "urllib3", specifier = "==2.5.0" },
     { name = "yarl", specifier = "==1.22.0" },
 ]
-
-[[package]]
-name = "mariadb"
-version = "1.1.14"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/ba/cedef19833be88e07bfff11964441cda8a998f1628dd3b2fa3e7751d36e0/mariadb-1.1.14.tar.gz", hash = "sha256:e6d702a53eccf20922e47f2f45cfb5c7a0c2c6c0a46e4ee2d8a80d0ff4a52f34", size = 111715, upload-time = "2025-10-07T06:45:48.017Z" }
 
 [[package]]
 name = "multidict"

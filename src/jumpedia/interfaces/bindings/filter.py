@@ -4,4 +4,8 @@ from jumpedia.interfaces.bindings import common
 
 
 def filter(s: str | None) -> FilterT | None:
-    return None if s is None else dsls.filter.engine.FilterEngine().eval(common.build_dsl_input(s))
+    return (
+        None
+        if s is None
+        else dsls.filter.engine.FilterEngine().eval(common.build_dsl_input(s))
+    )
