@@ -4,6 +4,8 @@ import subprocess
 import sys
 import textwrap
 
+from jumpedia.infrastructure import env
+
 
 def _setup_logging() -> logging.Logger:
     logging.basicConfig(
@@ -11,6 +13,9 @@ def _setup_logging() -> logging.Logger:
         format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    if not env.development():
+        logging.disable(logging.INFO)
 
     return logging.getLogger(__name__)
 
