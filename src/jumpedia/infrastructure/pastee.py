@@ -71,6 +71,8 @@ def create_pastee_with_retries(
     for i in range(1, tries + 1):
         try:
             return create_pastee(files, description=description)
+        except requests.ConnectTimeout:
+            raise ConnectionError
         except ConnectionError as e:
             time.sleep(between * i)
             err = e

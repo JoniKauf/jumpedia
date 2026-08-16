@@ -82,16 +82,16 @@ _OP_TO_COMP_ANY_FUNC: t.Final[
         OpType.EQ: lambda v, field: v in field,
         OpType.NEQ: lambda v, field: v not in field,
         OpType.LT: lambda v, field: any(
-            v < slot for slot in field  # pyright: ignore[reportOperatorIssue]
+            slot < v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
         OpType.LTE: lambda v, field: any(
-            v <= slot for slot in field  # pyright: ignore[reportOperatorIssue]
+            slot <= v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
         OpType.GT: lambda v, field: any(
-            v > slot for slot in field  # pyright: ignore[reportOperatorIssue]
+            slot > v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
         OpType.GTE: lambda v, field: any(
-            v >= slot for slot in field  # pyright: ignore[reportOperatorIssue]
+            slot >= v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
     }
 )
