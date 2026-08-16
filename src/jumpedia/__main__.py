@@ -14,7 +14,7 @@ def _setup_logging() -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    if env.development():
+    if not env.development():
         logging.disable(logging.INFO)
 
     return logging.getLogger(__name__)
