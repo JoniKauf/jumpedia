@@ -420,7 +420,10 @@ class AttributeService:
             new_collection, community, attr.field_config.slot_type
         )
 
-        if attr.type is AttributeType.TASK:
+        # Empty collection == No collection, therefore values are free to be anything and no check is needed
+        if not new_collection:
+            pass
+        elif attr.type is AttributeType.TASK:
             syn_to_collection_entry_value: dict[FieldSlotStr, FieldSlotStr] = {
                 syn: entry[0]
                 for entry in new_collection
