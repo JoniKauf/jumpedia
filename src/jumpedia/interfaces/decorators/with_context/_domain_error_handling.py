@@ -173,17 +173,12 @@ async def handle_domain_error(
                 f"Invalid {FormattableForms.from_formattable(Concept.FIELD).singular} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
-                ((str(task.name),), tuple(str(slot) for slot in field))
+                (str(task.name), '   '.join(str(slot) for slot in field))
                 for task, field in e.invalid.items()
             )
 
             try:
-                links = tuple(
-                    pastee.create_pastee_with_retries({f"#{i}": table})
-                    for i, table in enumerate(
-                        pastee.table_to_pastee_strings(headers, rows), start=1
-                    )
-                )
+                links = await pastee.create_pastees_with_retries_from_rows_async(headers, rows)
             except ConnectionError:
                 debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD, plural=True)} cannot be shown!"
             else:
@@ -321,17 +316,12 @@ async def handle_domain_error(
                 f"Only Invalid {FormattableForms.from_formattable(Concept.FIELD_SLOT).plural} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
-                ((str(task.name),), tuple(str(slot) for slot in field))
+                (str(task.name), '   '.join(str(slot) for slot in field))
                 for task, field in e.task_to_invalid_slots.items()
             )
 
             try:
-                links = tuple(
-                    pastee.create_pastee_with_retries({f"#{i}": table})
-                    for i, table in enumerate(
-                        pastee.table_to_pastee_strings(headers, rows), start=1
-                    )
-                )
+                links = await pastee.create_pastees_with_retries_from_rows_async(headers, rows)
             except ConnectionError:
                 debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD_SLOT, plural=True)} cannot be shown!"
             else:
