@@ -169,8 +169,8 @@ async def handle_domain_error(
 
         case TasksDoNotMatchMinOrMaxSlotCountCriteria():
             headers = (
-                f"{FormattableForms.from_formattable(Concept.TASK).singular} Name",
-                f"Invalid {FormattableForms.from_formattable(Concept.FIELD).singular} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular} {mentionable.get_name_of_mentionable(e.attribute)}",
+                f"{FormattableForms.from_formattable(Concept.TASK).singular.title()} Name",
+                f"Invalid {FormattableForms.from_formattable(Concept.FIELD).singular.title()} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular.title()} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
                 (str(task.name), '   '.join(str(slot) for slot in field))
@@ -312,8 +312,8 @@ async def handle_domain_error(
 
         case NewCollectionUnfittingForExistingFieldSlots():
             headers = (
-                f"{FormattableForms.from_formattable(Concept.TASK).singular} Name",
-                f"Only Invalid {FormattableForms.from_formattable(Concept.FIELD_SLOT).plural} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular} {mentionable.get_name_of_mentionable(e.attribute)}",
+                f"{FormattableForms.from_formattable(Concept.TASK).singular.title()} Name",
+                f"Only Invalid {FormattableForms.from_formattable(Concept.FIELD_SLOT).plural.title()} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular.title()} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
                 (str(task.name), '   '.join(str(slot) for slot in field))
@@ -326,7 +326,7 @@ async def handle_domain_error(
                 debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD_SLOT, plural=True)} cannot be shown!"
             else:
                 debug_msg = (
-                    t"All invalid {F.format(Concept.FIELD_SLOT, plural=True)}:"
+                    t"All invalid {F.format(Concept.FIELD_SLOT, plural=True)}:\n"
                     + Template("\n".join(links))
                 )
 
