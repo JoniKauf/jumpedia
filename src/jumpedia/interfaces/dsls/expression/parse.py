@@ -28,6 +28,8 @@ class BoolOpType(enum.Enum):
 class BinOpType(enum.Enum):
     IS = enum.auto()
     IS_NOT = enum.auto()
+    CONTAINS = enum.auto()
+    NOT_CONTAINS = enum.auto()
     LT = enum.auto()
     LTE = enum.auto()
     GT = enum.auto()
@@ -181,9 +183,22 @@ class ExpressionParser(BaseParser):
                 right,
             )
 
+        if _try_consume_token(tokens, TokenType.NOT):
+            self.expect(tokens.pop(), TokenType.CONTAINS)
+
+            right = self._parse_additive(tokens)
+
+            return BinOp(
+                Span(left.span.begin, right.span.end),
+                BinOpType.NOT_CONTAINS,
+                left,
+                right,
+            )
+
         tok = tokens.peek()
 
         for tok_type, bin_op_type in (
+            (TokenType.CONTAINS, BinOpType.CONTAINS),
             (TokenType.LT, BinOpType.LT),
             (TokenType.LTE, BinOpType.LTE),
             (TokenType.GT, BinOpType.GT),

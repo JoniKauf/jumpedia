@@ -76,21 +76,25 @@ logger = logging.getLogger(__name__)
 # Type checkers do not know that values passed in share the same SlotTypeT every time
 # They complain because comparisons between the different types is obviously not always valid
 _OP_TO_COMP_ANY_FUNC: t.Final[
-    frozendict[OpType, t.Callable[[SlotTypeT, t.Iterable[SlotTypeT]], bool]]
+    frozendict[OpType, t.Callable[[t.Iterable[SlotTypeT], SlotTypeT], bool]]
 ] = frozendict(
     {
-        OpType.EQ: lambda v, field: v in field,
-        OpType.NEQ: lambda v, field: v not in field,
-        OpType.LT: lambda v, field: any(
+        OpType.EQ: lambda field, v: v in field,
+        OpType.NEQ: lambda field, v: v not in field,
+        OpType.CONTAINS: lambda field, v: any(str(v) in str(slot) for slot in field),
+        OpType.NOT_CONTAINS: lambda field, v: all(
+            str(v) not in str(slot) for slot in field
+        ),
+        OpType.LT: lambda field, v: any(
             slot < v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
-        OpType.LTE: lambda v, field: any(
+        OpType.LTE: lambda field, v: any(
             slot <= v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
-        OpType.GT: lambda v, field: any(
+        OpType.GT: lambda field, v: any(
             slot > v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
-        OpType.GTE: lambda v, field: any(
+        OpType.GTE: lambda field, v: any(
             slot >= v for slot in field  # pyright: ignore[reportOperatorIssue]
         ),
     }
@@ -636,7 +640,11 @@ class FieldMappingTransformationService:
                     )
 
                     # Attribute has collection, compare collection index
-                    if coll_value_to_idx:
+                    # Exception: Contains operators, since for those we actually wanna check substring
+                    if coll_value_to_idx and comp_filter.op not in (
+                        OpType.CONTAINS,
+                        OpType.NOT_CONTAINS,
+                    ):
                         value_idx = attribute_id_to_collection_entry_syn_to_index[
                             attr.attribute_id
                         ].get(value)
@@ -648,11 +656,11 @@ class FieldMappingTransformationService:
                             id: field_mapping
                             for id, field_mapping in id_to_field_mappings.items()
                             if comp_any(
-                                value_idx,
                                 (
                                     coll_value_to_idx.get(slot, -1)
                                     for slot in field_mapping.get(attr.attribute_id, ())
                                 ),
+                                value_idx,
                             )
                         }
                     # Attribute has no collection, compare actual value
@@ -668,8 +676,8 @@ class FieldMappingTransformationService:
                             id: field_mapping
                             for id, field_mapping in id_to_field_mappings.items()
                             if comp_any(
-                                typed_value_normed,
                                 field_mapping.get(attr.attribute_id, ()),
+                                typed_value_normed,
                             )
                         }
 

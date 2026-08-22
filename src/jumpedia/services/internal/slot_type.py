@@ -103,6 +103,6 @@ class SlotTypeService:
 
     def normalize(self, slot: SlotTypeT) -> SlotTypeT:
         if isinstance(slot, str):
-            return NormHash.normalize(slot)
+            return NormHash.process(slot, normalize=True, hash=False)
 
         return slot

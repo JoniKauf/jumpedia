@@ -58,6 +58,8 @@ def get_name_of_mentionable(mentionable: MentionableT) -> str:
                     return "Keyword Else ('else')"
                 case TokenType.IS:
                     return "Keyword Is ('is')"
+                case TokenType.CONTAINS:
+                    return "Keyword Contains ('contains')"
                 case TokenType.NOT:
                     return "Keyword Not ('not')"
                 case TokenType.OR:

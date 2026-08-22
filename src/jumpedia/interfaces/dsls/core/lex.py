@@ -43,6 +43,7 @@ class TokenType(enum.Enum):
     IF = enum.auto()
     ELSE = enum.auto()
     IS = enum.auto()
+    CONTAINS = enum.auto()
     NOT = enum.auto()
     OR = enum.auto()
     AND = enum.auto()
@@ -69,6 +70,7 @@ KEYWORDS: t.Final[frozendict[str, TokenType]] = frozendict(
         "if": TokenType.IF,
         "else": TokenType.ELSE,
         "is": TokenType.IS,
+        "contains": TokenType.CONTAINS,
         "not": TokenType.NOT,
         "or": TokenType.OR,
         "and": TokenType.AND,

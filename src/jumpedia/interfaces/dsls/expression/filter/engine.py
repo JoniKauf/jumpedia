@@ -69,6 +69,10 @@ class FilterEngine(BaseEngine):
                         op_type = OpType.EQ
                     case BinOpType.IS_NOT:
                         op_type = OpType.NEQ
+                    case BinOpType.CONTAINS:
+                        op_type = OpType.CONTAINS
+                    case BinOpType.NOT_CONTAINS:
+                        op_type = OpType.NOT_CONTAINS
                     case BinOpType.LT:
                         op_type = OpType.LT
                     case BinOpType.LTE:
@@ -78,12 +82,17 @@ class FilterEngine(BaseEngine):
                     case BinOpType.GTE:
                         op_type = OpType.GTE
                     case _:
+                        t.assert_type(
+                            bin_op.type, t.Literal[BinOpType.ADD, BinOpType.SUB]
+                        )
                         assert self._s is not None
                         raise UnexpectedBinOp(
                             self._s,
                             (
                                 BinOpType.IS,
                                 BinOpType.IS_NOT,
+                                BinOpType.CONTAINS,
+                                BinOpType.NOT_CONTAINS,
                                 BinOpType.LT,
                                 BinOpType.LTE,
                                 BinOpType.GT,
