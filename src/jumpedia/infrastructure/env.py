@@ -20,7 +20,9 @@ type EnvironmentT = t.Literal["production", "development"]
 class EnvLayout(t.TypedDict, total=True):
     DATABASE_URL: str
     DISCORD_TOKEN: str
-    PASTEE_TOKEN: str
+    PASTES_PATH: str
+    PASTES_LINK: str
+    PASTEE_TOKEN: t.NotRequired[str]
     ENVIRONMENT: t.NotRequired[EnvironmentT]
 
 
@@ -29,9 +31,9 @@ def _get_or_throw_env_variable_if_req(name: str, annot: AnnotationForm) -> str |
 
     if v is None:
         if (t.get_origin(annot) or annot) is t.NotRequired:
-            v = None
-        else:
-            raise ProgrammingError(f"Env variable {name!r} could not be found!")
+            return None
+
+        raise ProgrammingError(f"Env variable {name!r} could not be found!")
 
     return v
 

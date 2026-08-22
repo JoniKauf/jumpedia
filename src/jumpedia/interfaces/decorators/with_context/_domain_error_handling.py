@@ -46,7 +46,7 @@ from jumpedia.domain.errors.business import (
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
     UserAlreadyHasRank,
 )
-from jumpedia.infrastructure import pastee
+from jumpedia.infrastructure import paste
 from jumpedia.interfaces.message import mentionable, messages
 from jumpedia.interfaces.message.formattable import FormattableForms
 from jumpedia.interfaces.message.formatting import F
@@ -173,19 +173,16 @@ async def handle_domain_error(
                 f"Invalid {FormattableForms.from_formattable(Concept.FIELD).singular.title()} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular.title()} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
-                (str(task.name), '   '.join(str(slot) for slot in field))
+                ((str(task.name),), (str(slot) for slot in field))
                 for task, field in e.invalid.items()
             )
 
             try:
-                links = await pastee.create_pastees_with_retries_from_rows_async(headers, rows)
-            except ConnectionError:
-                debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD, plural=True)} cannot be shown!"
+                link = paste.create_and_get_link(headers, rows)
+            except Exception:
+                debug_msg = t"Paste API is currently not reachable, so a list of invalid {F.format(Concept.FIELD, plural=True)} cannot be shown!"
             else:
-                debug_msg = (
-                    t"All invalid {F.format(Concept.FIELD, plural=True)}:\n"
-                    + Template("\n".join(links))
-                )
+                debug_msg = t"All invalid {F.format(Concept.FIELD, plural=True)}:\n{F.raw(link)}"
             await messages.error(
                 interaction,
                 t"Invalid Existing {F.format(Concept.FIELD, plural=True)}",
@@ -316,19 +313,16 @@ async def handle_domain_error(
                 f"Only Invalid {FormattableForms.from_formattable(Concept.FIELD_SLOT).plural.title()} For {FormattableForms.from_formattable(Concept.ATTRIBUTE).singular.title()} {mentionable.get_name_of_mentionable(e.attribute)}",
             )
             rows = (
-                (str(task.name), '   '.join(str(slot) for slot in field))
+                ((str(task.name),), (str(slot) for slot in field))
                 for task, field in e.task_to_invalid_slots.items()
             )
 
             try:
-                links = await pastee.create_pastees_with_retries_from_rows_async(headers, rows)
-            except ConnectionError:
-                debug_msg = t"Pastee API is currently not reachable, so a list of invalid {F.format(Concept.FIELD_SLOT, plural=True)} cannot be shown!"
+                link = paste.create_and_get_link(headers, rows)
+            except Exception:
+                debug_msg = t"Paste API is currently not reachable, so a list of invalid {F.format(Concept.FIELD_SLOT, plural=True)} cannot be shown!"
             else:
-                debug_msg = (
-                    t"All invalid {F.format(Concept.FIELD_SLOT, plural=True)}:\n"
-                    + Template("\n".join(links))
-                )
+                debug_msg = t"All invalid {F.format(Concept.FIELD_SLOT, plural=True)}:\n{F.raw(link)}"
 
             await messages.error(
                 interaction,

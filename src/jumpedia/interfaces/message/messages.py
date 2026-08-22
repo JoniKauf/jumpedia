@@ -9,7 +9,7 @@ import discord
 
 from jumpedia.domain.errors.business import ApiUnreachable
 from jumpedia.domain.value_objects.string import Str
-from jumpedia.infrastructure import pastee
+from jumpedia.infrastructure import paste
 from jumpedia.interfaces.message import layout, views
 from jumpedia.interfaces.message.formattable import FormattableT
 from jumpedia.interfaces.message.formatting import F, mentionable_to_formattable
@@ -78,17 +78,20 @@ async def object_info(
     data: t.Mapping[str, tuple[str, ...]],
 ) -> None:
     try:
-        links = await pastee.create_pastees_with_retries_from_rows_async(
-            tuple(data), itertools.zip_longest(*data.values(), fillvalue="")
+        link = paste.create_and_get_link(
+            tuple(data),
+            (
+                ((elem,) for elem in row)
+                for row in itertools.zip_longest(*data.values(), fillvalue="")
+            ),
         )
-    except ConnectionError:
-        raise ApiUnreachable(Str("pastee"))
+    except Exception:
+        raise ApiUnreachable(Str("paste"))
 
     await info(
         interaction,
         t"{F.format(mentionable_to_formattable(mentionable))} Info",
-        t"Here is the info for the {F.full_mention(mentionable)}:\n"
-        + Template("\n".join(links)),
+        t"Here is the info for the {F.full_mention(mentionable)}:\n{F.raw(link)}",
         {"suppress_embeds": True},
     )
 
@@ -109,15 +112,9 @@ async def object_browse(
 
     logger.info("Creating pastees async...")
     try:
-        links = await pastee.create_pastees_with_retries_from_rows_async(
-            tuple(data),
-            (
-                tuple("   ".join(cell) for cell in row)
-                for row in zip(*data.values(), strict=True)
-            ),
-        )
-    except ConnectionError:
-        raise ApiUnreachable(Str("pastee"))
+        link = paste.create_and_get_link(tuple(data), zip(*data.values(), strict=True))
+    except Exception as e:
+        raise ApiUnreachable(Str("paste"))
 
     count: int = len(
         next(iter(data.values()))
@@ -129,7 +126,7 @@ async def object_browse(
     await info(
         interaction,
         header,
-        t"A total of {F.string(str(count), embedded=False)} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria!\n\n{F.raw('\n'.join(links))}",
+        t"A total of {F.string(str(count), embedded=False)} {F.format(formattable, plural=plural)} {F.raw("were" if plural else "was")} found with the specified criteria:\n{F.raw(link)}",
         {"suppress_embeds": True},
     )
 

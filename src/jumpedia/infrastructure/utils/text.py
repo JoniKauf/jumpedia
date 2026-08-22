@@ -118,8 +118,6 @@ def table_data_to_str(
     if not validated_rows:
         return []
 
-    del rows, row, cell, i, validated_row
-
     DELIM = " | "
     SPLITTER_DELIM = "-+-"
     DELIM_LEN = 3
