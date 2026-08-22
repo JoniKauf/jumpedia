@@ -3,18 +3,12 @@ import re
 import typing as t
 import unicodedata
 
+from jumpedia.domain.errors.business import DoubleBacktick, EmptyString
+
 _ONE_OR_MORE_WHITESPACE_PATTERN: t.Final = re.compile(r"\s+", re.UNICODE)
 _QUOTATION_MARKS_TRANS_TABLE: t.Final = str.maketrans(
     {"‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"', "‟": '"'}
 )
-
-
-class EmptyStringError(ValueError):
-    pass
-
-
-class DoubleBacktickError(ValueError):
-    pass
 
 
 class BaseStrWrapper[T: (str, bytes)]:
@@ -58,38 +52,47 @@ class RealStr(BaseStrWrapper[str]):
     """String wrapper to sanitize a string."""
 
     def __init__(self, s: str) -> None:
-        s = self.clean_whitespace(s, " ", True)
-        s = self.replace_quotation_marks(s)
-        s = self.remove_non_printables(s)
-        s = self.normalize_unicode_codepoints(s)
-
-        self.validate_final_string(s)
+        s = self.clean(
+            s,
+            clean_whitespace=True,
+            replace_quotation_marks=True,
+            remove_non_printables=True,
+            normalize_unicode_codepoints=True,
+            validate_final_string=True,
+        )
 
         self._value = s
 
     @classmethod
-    def clean_whitespace(cls, s: str, repl: str, strip: bool) -> str:
-        return re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, repl, s.strip() if strip else s)
+    def clean(
+        cls,
+        s: str,
+        *,
+        clean_whitespace: bool,
+        replace_quotation_marks: bool,
+        remove_non_printables: bool,
+        normalize_unicode_codepoints: bool,
+        validate_final_string: bool,
+    ) -> str:
+        if clean_whitespace:
+            s = re.sub(_ONE_OR_MORE_WHITESPACE_PATTERN, " ", s.strip())
 
-    @classmethod
-    def replace_quotation_marks(cls, s: str) -> str:
-        return s.translate(_QUOTATION_MARKS_TRANS_TABLE)
+        if replace_quotation_marks:
+            s = s.translate(_QUOTATION_MARKS_TRANS_TABLE)
 
-    @classmethod
-    def remove_non_printables(cls, s: str) -> str:
-        return "".join(c for c in s if c.isprintable())
+        if remove_non_printables:
+            s = "".join(c for c in s if c.isprintable())
 
-    @classmethod
-    def normalize_unicode_codepoints(cls, s: str) -> str:
-        return unicodedata.normalize("NFC", s)
+        if normalize_unicode_codepoints:
+            s = unicodedata.normalize("NFC", s)
 
-    @classmethod
-    def validate_final_string(cls, s: str) -> None:
-        if not s:
-            raise EmptyStringError()
+        if validate_final_string:
+            if not s:
+                raise EmptyString()
+            if "``" in s:
+                raise DoubleBacktick()
 
-        if "``" in s:
-            raise DoubleBacktickError()
+        return s
 
 
 class NormHash(BaseStrWrapper[bytes]):
@@ -101,17 +104,46 @@ class NormHash(BaseStrWrapper[bytes]):
         if isinstance(s, str):
             s = RealStr(s)
 
-        self._value = self.hash(self.normalize(s.value))
+        self._value = self.process(s.value, normalize=True, hash=True)
+
+    @t.overload
+    @classmethod
+    def process(
+        cls,
+        s: str,
+        *,
+        normalize: bool,
+        hash: t.Literal[True],
+    ) -> bytes:
+        pass
+
+    @t.overload
+    @classmethod
+    def process(
+        cls,
+        s: str,
+        *,
+        normalize: bool,
+        hash: t.Literal[False],
+    ) -> str:
+        pass
 
     @classmethod
-    def normalize(cls, s: str) -> str:
-        """Algorithm used to normalize strings."""
-        return s.casefold()
+    def process(
+        cls,
+        s: str,
+        *,
+        normalize: bool = True,
+        hash: bool = True,
+    ) -> str | bytes:
+        """Normalizes and/or hashes a string."""
+        if normalize:
+            s = s.casefold()
 
-    @classmethod
-    def hash(cls, s: str) -> bytes:
-        """Algorithm used for hashing strings after normalization."""
-        return hashlib.sha256(s.encode("utf-8")).digest()
+        if hash:
+            return hashlib.sha256(s.encode("utf-8")).digest()
+
+        return s
 
 
 class Str:

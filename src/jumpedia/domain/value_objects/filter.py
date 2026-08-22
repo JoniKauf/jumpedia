@@ -6,6 +6,8 @@ from dataclasses import dataclass
 class OpType(enum.Enum):
     EQ = enum.auto()
     NEQ = enum.auto()
+    CONTAINS = enum.auto()
+    NOT_CONTAINS = enum.auto()
     LT = enum.auto()
     LTE = enum.auto()
     GT = enum.auto()
