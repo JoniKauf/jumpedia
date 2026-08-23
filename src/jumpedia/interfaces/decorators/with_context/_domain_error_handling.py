@@ -44,6 +44,7 @@ from jumpedia.domain.errors.business import (
     SynAlreadyTaken,
     SynsNotUnique,
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
+    UnknownCommand,
     UserAlreadyHasRank,
 )
 from jumpedia.infrastructure import paste
@@ -396,6 +397,13 @@ async def handle_domain_error(
                 interaction,
                 t"Invalid {F.format(Concept.FIELD_SLOT)}",
                 t"The {F.format(Concept.FIELD_SLOT)} {F.string(str(e.slot))} is not valid for the {F.full_mention(e.slot_type)}!",
+            )
+
+        case UnknownCommand():
+            await messages.error(
+                interaction,
+                t"Unknown Command",
+                t"The command {F.string(str(e.name), short=False)} does not exist!",
             )
 
         case _:
