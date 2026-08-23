@@ -61,6 +61,7 @@ type AnyBusinessErrorT = (
     | CannotChangeToRankOfEqualOrHigherPower
     | UserAlreadyHasRank
     | InvalidSlotForSlotType
+    | UnknownCommand
 )
 
 
@@ -311,3 +312,8 @@ class UserAlreadyHasRank(BusinessError):
 class InvalidSlotForSlotType(BusinessError):
     slot_type: AttributeSlotType
     slot: FieldSlotStr
+
+
+@dataclass()
+class UnknownCommand(BusinessError):
+    name: Str

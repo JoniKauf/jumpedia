@@ -4,6 +4,7 @@ from discord.ext import commands
 
 from .attribute import AttributeInterface, AttributesInterface
 from .community import CommunitiesInterface, CommunityInterface
+from .help import HelpInterface
 from .list import ListInterface, ListsInterface
 from .server import ServerInterface
 from .task import TaskInterface, TasksInterface
@@ -20,6 +21,7 @@ async def setup(bot: commands.Bot):
         AttributesInterface,
         CommunityInterface,
         CommunitiesInterface,
+        HelpInterface,
         ListInterface,
         ListsInterface,
         ServerInterface,

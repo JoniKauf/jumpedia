@@ -1,15 +1,31 @@
 import logging
-from typing import Any
+import typing as t
 
 import discord
 from discord.ext import commands
 
-import jumpedia.interfaces as interfaces
+# Unclean
+lazy import jumpedia.interfaces as interfaces
 
 logger = logging.getLogger(__name__)
 
 
-class JumpediaBot(commands.Bot):
+class _JumpediaBotMeta(type):
+    _instances: t.ClassVar[dict[_JumpediaBotMeta, t.Any]] = {}
+
+    def __call__(self, *args, **kwargs):
+        if self not in self._instances:
+            self._instances[self] = super(_JumpediaBotMeta, self).__call__(
+                *args, **kwargs
+            )
+        return self._instances[self]
+
+    @property
+    def instance(self) -> JumpediaBot:
+        return self._instances[self]
+
+
+class JumpediaBot(commands.Bot, metaclass=_JumpediaBotMeta):
     def __init__(self) -> None:
         intents = discord.Intents.default()
 
