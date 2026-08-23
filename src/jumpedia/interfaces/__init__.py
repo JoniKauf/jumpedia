@@ -1,4 +1,5 @@
 import logging
+import typing as t
 
 from discord.ext import commands
 
@@ -11,6 +12,15 @@ from .task import TaskInterface, TasksInterface
 from .user import UserInterface
 
 logger = logging.getLogger(__name__)
+
+PLURAL_TO_SINGULAR: t.Final = frozendict(
+    {
+        AttributesInterface: AttributeInterface,
+        CommunitiesInterface: CommunityInterface,
+        ListsInterface: ListInterface,
+        TasksInterface: TaskInterface,
+    }
+)
 
 
 async def setup(bot: commands.Bot):

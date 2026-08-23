@@ -8,6 +8,8 @@ from discord import app_commands
 from jumpedia.domain.errors.business import UnknownCommand
 from jumpedia.domain.value_objects.string import Str
 from jumpedia.infrastructure import dc
+
+lazy from jumpedia.interfaces import PLURAL_TO_SINGULAR
 from jumpedia.interfaces.base import BaseInterface
 from jumpedia.interfaces.contexts.command import CommandContext
 from jumpedia.interfaces.decorators.with_context import with_context
@@ -17,9 +19,20 @@ from jumpedia.interfaces.message.formatting import F
 
 def get_commands() -> frozenset[str]:
     return frozenset(
-        cmd.qualified_name.lower()
+        (cmd.qualified_name.lower())
         for cmd in dc.JumpediaBot.instance.tree.walk_commands()
         if not isinstance(cmd, app_commands.Group)
+    )
+
+
+def get_singular_to_plural_command_name() -> frozendict[str, str]:
+    return frozendict(
+        {
+            str(pinter.__cog_group_name__)
+            .lower(): str(sinter.__cog_group_name__)
+            .lower()
+            for pinter, sinter in PLURAL_TO_SINGULAR.items()
+        }
     )
 
 
@@ -69,7 +82,9 @@ class HelpInterface(BaseInterface, group_name="help"):
 
         assert len(parts) > 0
 
-        link = f"https://docs.jumpedia.dev/commands/{parts[0]}"
+        page = get_singular_to_plural_command_name().get(parts[0]) or parts[0]
+
+        link = f"https://docs.jumpedia.dev/commands/{page}"
 
         if len(parts) > 1:
             link += f"#{'-'.join(parts)}"
