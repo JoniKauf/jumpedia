@@ -99,7 +99,8 @@ class AttributeService:
         )
 
         attr_count = self._attribute_repository.count_by_list(lst.list_id)
-
+        logger.debug(f"{attr_count=}")
+        
         self._validate_basic_community_limits(name, aliases, community, attr_count)
 
         self._validate_syn_uniqueness(name, aliases, lst)
