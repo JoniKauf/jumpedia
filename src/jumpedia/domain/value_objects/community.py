@@ -1,3 +1,4 @@
+import math
 import typing as t
 from dataclasses import Field, dataclass
 
@@ -22,7 +23,7 @@ class CommunityLimits:
 
     def __post_init__(self) -> None:
         GENERAL_MIN: t.Final[int] = 0
-        GENERAL_MAX: t.Final[int] = 255
+        GENERAL_MAX: t.Final[int] = 65535
 
         for name, field in self.__dataclass_fields__.items():
             field: Field
@@ -50,12 +51,13 @@ class CommunityLimits:
                         )
 
                 case "list_attribute_count_max":
-                    if limit < GENERAL_MIN or limit > 127:
-                        # Attribute count MUST be lower than half of max of
-                        # TINYINT (255) because twice the space is needed for
-                        # editing their position (temporarily all are offset)
+                    list_attr_count_max_max = math.floor(GENERAL_MAX / 2)
+
+                    if limit < GENERAL_MIN or limit > list_attr_count_max_max:
+                        # Attribute count MUST be lower than half of max
+                        # since twice their exsting space is needed for editing positions
                         raise CommunityLimitOutOfRange(
-                            Str(name), limit, GENERAL_MIN, 127
+                            Str(name), limit, GENERAL_MIN, list_attr_count_max_max
                         )
 
                 case _:
@@ -72,8 +74,8 @@ class CommunityLimits:
             community_list_count_max=1,
             list_attribute_count_max=16,
             list_task_count_max=100,
-            attribute_alias_count_max=8,
-            field_slot_count_max=32,
+            attribute_alias_count_max=16,
+            field_slot_count_max=16,
             collection_entry_count_max=32,
             collection_entry_alias_count_max=8,
         )
