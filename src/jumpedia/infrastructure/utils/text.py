@@ -1,5 +1,7 @@
 import typing as t
 
+# This was coded by JoniKauf, but he was too lazy to release it as its own 
+# repository yet.
 
 def split_into_chunks_prefer_seperator(
     s: str, sep: str, max: int, min: int = 0

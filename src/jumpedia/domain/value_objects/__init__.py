@@ -1,0 +1,1 @@
+"""Value objects are data points that are equal when all their fields are equal."""

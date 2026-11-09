@@ -6,6 +6,12 @@ SCHEMA_NAME: t.Final[str] = "jumpedia"
 
 
 class BaseModel(DeclarativeBase):
+    """The base model used by every model.
+    
+    It holds the general charset and collation so it is consistent with Python and 
+    across all models.
+    """
+
     __abstract__ = True
 
     __table_args__ = (

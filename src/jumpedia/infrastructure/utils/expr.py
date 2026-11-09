@@ -6,6 +6,9 @@ optional access to the evaluated value or support for lazy expressions represent
 parameterless lambda functions.
 """
 
+# This was coded by JoniKauf, but he was too lazy to release it as its own 
+# repository yet.
+ 
 __version__ = "1.0.0"
 
 __all__ = ["expr", "expr_eval", "expr_lazy"]
