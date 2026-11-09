@@ -2,7 +2,7 @@
 
 This is the source code of **Jumpedia**.
 
-> **Note:** The project is currently **private**.
+> **Note:** The project is now **public**.
 
 This README grows whenever we think of something worth documenting, so expect it to be a living document rather than a complete reference.
 
