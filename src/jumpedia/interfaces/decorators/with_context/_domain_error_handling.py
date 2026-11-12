@@ -22,6 +22,8 @@ from jumpedia.domain.errors.business import (
     DoubleBacktick,
     EmptyString,
     FieldMappingAttributesNotUnique,
+    FileNotUtf8,
+    FileTooBig,
     InvalidSlotForSlotType,
     MemberAlreadyHasTask,
     MemberDoesNotHaveTask,
@@ -40,6 +42,7 @@ from jumpedia.domain.errors.business import (
     ServerAlreadyLinked,
     SlotCountConfigLimitExceeded,
     SlotCountConfigNotFulfilled,
+    StringAndFileSpecified,
     StrTooLong,
     SynAlreadyTaken,
     SynsNotUnique,
@@ -70,6 +73,14 @@ async def handle_domain_error(
                 t"Double Backtick",
                 t"You entered a string that contains a double backtick (`` ` `` `` ` ``), which is not allowed!\n"
                 + t"The reason why it is disallowed is because otherwise it would be impossible to format Discord messaged correctly!",
+            )
+
+        case StringAndFileSpecified():
+            await messages.error(
+                interaction,
+                t"String And File Specified",
+                t"You entered a string and specified a file, which is not allowed!\n"
+                + t"When specifying a file, the string has to be an underscore (`_`).",
             )
 
         case NotInServer():
@@ -129,6 +140,20 @@ async def handle_domain_error(
                 interaction,
                 t"{F.format(e.concept)} String Too Long",
                 t"The specified string {F.string(str(e.s))} exceeds the maximum allowed length of {F.string(str(e.limit))} characters!",
+            )
+
+        case FileTooBig():
+            await messages.error(
+                interaction,
+                t"File Too Big",
+                t"The specified file has a size of {F.string(str(e.size))} bytes, which exceeds the maximum allowed size of {F.string(str(e.limit))} bytes!",
+            )
+
+        case FileNotUtf8():
+            await messages.error(
+                interaction,
+                t"File Not UTF-8",
+                t"The specified file is not a UTF-8 encoded text file!",
             )
 
         case NewNameEqualToCurrent():

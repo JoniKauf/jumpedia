@@ -1,10 +1,12 @@
 from string.templatelib import Template
 
+import discord
 from discord import app_commands
 
 from jumpedia.domain.enums.attribute import AttributeSlotType, AttributeType
 from jumpedia.domain.enums.concept import Concept
 from jumpedia.domain.enums.edit_mode import AliasEditMode, CollectionEditMode
+from jumpedia.domain.errors.business import StringAndFileSpecified
 from jumpedia.domain.sentinels.default import DEFAULT
 from jumpedia.domain.typing.collection_entry import AbstractCollectionT
 from jumpedia.domain.value_objects.attribute import (
@@ -202,8 +204,19 @@ class AttributeInterface(
         list_name: str,
         new_collection_dsl_mapping: str,
         edit_mode: CollectionEditModeInterfaceEnum,
+        new_collection_dsl_mapping_file: discord.Attachment | None = None,
     ) -> None:
-        new_collection = bindings.mapping.collection(new_collection_dsl_mapping)
+        if (
+            new_collection_dsl_mapping_file is not None
+            and new_collection_dsl_mapping != "_"
+        ):
+            raise StringAndFileSpecified()
+
+        new_collection = bindings.mapping.collection(
+            new_collection_dsl_mapping
+            if new_collection_dsl_mapping_file is None
+            else await bindings.attachment.text(new_collection_dsl_mapping_file)
+        )
 
         attr = ctx.services.attribute.edit_collection(
             AttributeSynStr(attribute_name),
