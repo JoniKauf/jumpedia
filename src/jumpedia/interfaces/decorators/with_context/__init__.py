@@ -365,9 +365,13 @@ def with_context[T: BaseInterface, **P]() -> t.Callable[
                     )
                 except t.get_args(AnyBusinessErrorT.__value__) as e:
                     e = t.cast(AnyBusinessErrorT, e)
+                    # A failed command must not commit what it did before the error.
+                    session.rollback()
                     await _domain_error_handling.handle_domain_error(interaction, e)
 
                 except DslError as e:
+                    session.rollback()
+
                     if isinstance(e, t.get_args(AnyLexErrorT.__value__)):
                         e = t.cast(AnyLexErrorT, e)
                         await _dsl_error_handling.handle_lex_error(interaction, e)
