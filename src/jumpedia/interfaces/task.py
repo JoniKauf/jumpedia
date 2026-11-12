@@ -1,9 +1,24 @@
+import itertools
+import re
+import typing as t
+from dataclasses import dataclass
+
 import discord
 from discord import app_commands
 
 from jumpedia.domain.entities.task import TaskEntity
 from jumpedia.domain.enums.concept import Concept
 from jumpedia.domain.enums.edit_mode import AliasEditMode, FieldMappingEditMode
+from jumpedia.domain.errors.business import (
+    BusinessError,
+    CommandOptionMentionedMoreThanOnce,
+    CommandOptionNotMentioned,
+    NoCommandsInFile,
+    NotABulkCommand,
+    TextBeforeFirstCommandOption,
+    UnknownCommandOptionChoice,
+)
+from jumpedia.domain.errors.internal import ProgrammingError
 from jumpedia.domain.sentinels.default import DEFAULT
 from jumpedia.domain.typing.common import ID
 from jumpedia.domain.typing.user import UserID
@@ -16,12 +31,103 @@ from jumpedia.interfaces.bindings import user_ref
 from jumpedia.interfaces.command import cogs, groups
 from jumpedia.interfaces.contexts.command import CommandContext
 from jumpedia.interfaces.decorators.with_context import with_context
+from jumpedia.interfaces.dsls.core.errors.base import DslError
 from jumpedia.interfaces.enums.edit_mode import (
     AliasEditModeInterfaceEnum,
     FieldMappingEditModeInterfaceEnum,
 )
 from jumpedia.interfaces.message import formatting, messages
 from jumpedia.interfaces.message.formatting import F
+
+# Commands that ask for a confirmation or only show data are left out.
+_BULK_COMMANDS: t.Final[tuple[str, ...]] = (
+    "task create",
+    "task edit name",
+    "task edit aliases",
+    "task edit field_mapping",
+    "task give",
+    "task take",
+    "task edit given",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _BulkCommand:
+    name: str
+    options: frozendict[str, str]
+    user: discord.User | None
+
+
+def _execute_bulk_command(ctx: CommandContext, command: _BulkCommand) -> None:
+    options = command.options
+    list_name = options.get("list_name")
+
+    match command.name:
+        case "task create":
+            ctx.services.task.create(
+                FieldSlotStr(options["task_name"]),
+                ListNameStr(options["list_name"]),
+                bindings.sequence.task_aliases(options["aliases_dsl_sequence"]),
+                bindings.mapping.field_mapping(options["field_mapping_dsl"]),
+            )
+
+        case "task edit name":
+            ctx.services.task.edit_name(
+                FieldSlotStr(options["task_name"]),
+                FieldSlotStr(options["new_task_name"]),
+                ListNameStr(options["list_name"]),
+            )
+
+        case "task edit aliases":
+            ctx.services.task.edit_aliases(
+                bindings.sequence.task_aliases(
+                    options["new_task_aliases_dsl_sequence"]
+                ),
+                AliasEditMode(AliasEditModeInterfaceEnum[options["edit_mode"]].value),
+                FieldSlotStr(options["task_name"]),
+                ListNameStr(options["list_name"]),
+            )
+
+        case "task edit field_mapping":
+            ctx.services.task.edit_field_mapping(
+                bindings.mapping.field_mapping(options["new_field_mapping_dsl"]),
+                FieldMappingEditMode(
+                    FieldMappingEditModeInterfaceEnum[options["edit_mode"]].value
+                ),
+                FieldSlotStr(options["task_name"]),
+                ListNameStr(options["list_name"]),
+            )
+
+        case "task give":
+            ctx.services.member_task.give_to_user(
+                FieldSlotStr(options["task_name_or_alias"]),
+                DEFAULT if list_name is None else ListNameStr(list_name),
+                bindings.mapping.field_mapping(options.get("user_field_mapping_dsl")),
+                user_ref.user_ref(command.user),
+            )
+
+        case "task take":
+            ctx.services.member_task.take_from_user(
+                FieldSlotStr(options["task_name_or_alias"]),
+                DEFAULT if list_name is None else ListNameStr(list_name),
+                user_ref.user_ref(command.user),
+            )
+
+        case "task edit given":
+            ctx.services.member_task.edit_member_field_mapping(
+                bindings.mapping.field_mapping(options["new_user_field_mapping"]),
+                FieldMappingEditMode(
+                    FieldMappingEditModeInterfaceEnum[options["edit_mode"]].value
+                ),
+                user_ref.user_ref(command.user),
+                FieldSlotStr(options["task_name_or_alias"]),
+                DEFAULT if list_name is None else ListNameStr(list_name),
+            )
+
+        case _:
+            raise ProgrammingError(
+                f"'{command.name}' is a bulk command but not executed"
+            )
 
 
 class TaskInterface(
@@ -328,4 +434,112 @@ class TasksInterface(
                 )
                 for attr, fields in summaries.items()
             },
+        )
+
+    # --- Bulk --- #
+
+    def _parse_bulk_line(self, line: str) -> tuple[str, frozendict[str, str]]:
+        for cmd in self.bot.tree.walk_commands():
+            name = cmd.qualified_name
+
+            if name not in _BULK_COMMANDS:
+                continue
+
+            if line != f"/{name}" and not line.startswith(f"/{name} "):
+                continue
+
+            assert isinstance(cmd, app_commands.Command)
+
+            # Same format Discord accepts when a command is pasted into the chat:
+            # an option starts at its name followed by a colon.
+            before, *names_and_values = re.split(
+                rf"(?:^|(?<=\s))({'|'.join(param.name for param in cmd.parameters)}):",
+                line.removeprefix(f"/{name}"),
+            )
+
+            if before.strip():
+                raise TextBeforeFirstCommandOption(before.strip())
+
+            options: dict[str, str] = {}
+
+            for option, value in itertools.batched(names_and_values, 2, strict=True):
+                if option in options:
+                    raise CommandOptionMentionedMoreThanOnce(option)
+
+                options[option] = value.strip()
+
+            for param in cmd.parameters:
+                if param.name not in options:
+                    if param.required:
+                        raise CommandOptionNotMentioned(param.name)
+
+                    continue
+
+                choices = tuple(choice.name for choice in param.choices)
+
+                if choices and options[param.name] not in choices:
+                    raise UnknownCommandOptionChoice(param.name, choices)
+
+            return name, frozendict(options)
+
+        raise NotABulkCommand(_BULK_COMMANDS)
+
+    @app_commands.command()
+    @with_context()
+    async def bulk(self, ctx: CommandContext, file: discord.Attachment) -> None:
+        lines: list[tuple[int, str]] = []
+
+        for i, text in enumerate(
+            (await bindings.attachment.text(file)).splitlines(), start=1
+        ):
+            text = text.strip()
+
+            # Empty lines and comments are skipped.
+            if text and not text.startswith("#"):
+                lines.append((i, text))
+
+        if not lines:
+            raise NoCommandsInFile()
+
+        number: int = 0
+        line: str = ""
+
+        try:
+            # All users are fetched before the first command is executed, so no row
+            # stays locked while waiting for Discord.
+            mention_to_user: dict[str, discord.User] = {}
+            commands: list[_BulkCommand] = []
+
+            for number, line in lines:
+                name, options = self._parse_bulk_line(line)
+                mention = options.get("user")
+
+                if mention is not None and mention not in mention_to_user:
+                    mention_to_user[mention] = await user_ref.user_from_mention(
+                        self.bot, mention
+                    )
+
+                commands.append(
+                    _BulkCommand(
+                        name,
+                        options,
+                        None if mention is None else mention_to_user[mention],
+                    )
+                )
+
+            for (number, line), command in zip(lines, commands, strict=True):
+                _execute_bulk_command(ctx, command)
+
+        except (BusinessError, DslError) as e:
+            # Shown below the reason in the error message.
+            e.add_note(
+                f"The command {formatting.embed(formatting.shorten(line))} in line {number} of the file failed, so no command of the file was executed!"
+            )
+            raise
+
+        await messages.success(
+            ctx.interaction,
+            t"Bulk Executed",
+            t"All commands of the file were executed successfully!\n"
+            + t"Commands executed: {F.string(str(len(commands)), embedded=False)}",
         )

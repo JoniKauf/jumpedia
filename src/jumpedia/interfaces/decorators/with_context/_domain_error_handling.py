@@ -17,6 +17,8 @@ from jumpedia.domain.errors.business import (
     CannotChangeToRankOfEqualOrHigherPower,
     CollectionDidNotChange,
     CollectionEntryNotFoundViaSyn,
+    CommandOptionMentionedMoreThanOnce,
+    CommandOptionNotMentioned,
     CommunityLimitOutOfRange,
     CountLimitReached,
     DoubleBacktick,
@@ -29,7 +31,9 @@ from jumpedia.domain.errors.business import (
     MemberDoesNotHaveTask,
     NewCollectionUnfittingForExistingFieldSlots,
     NewNameEqualToCurrent,
+    NoCommandsInFile,
     NoDefaultSelectedList,
+    NotABulkCommand,
     NotAllowed,
     NotDoableForKindedAttribute,
     NotFoundByName,
@@ -47,11 +51,13 @@ from jumpedia.domain.errors.business import (
     SynAlreadyTaken,
     SynsNotUnique,
     TasksDoNotMatchMinOrMaxSlotCountCriteria,
+    TextBeforeFirstCommandOption,
     UnknownCommand,
+    UnknownCommandOptionChoice,
     UserAlreadyHasRank,
 )
 from jumpedia.infrastructure import paste
-from jumpedia.interfaces.message import mentionable, messages
+from jumpedia.interfaces.message import formatting, mentionable, messages
 from jumpedia.interfaces.message.formattable import FormattableForms
 from jumpedia.interfaces.message.formatting import F
 
@@ -429,6 +435,58 @@ async def handle_domain_error(
                 interaction,
                 t"Unknown Command",
                 t"The command {F.string(str(e.name), short=False)} does not exist!",
+            )
+
+        case NotABulkCommand():
+            await messages.error(
+                interaction,
+                t"Not A Bulk Command",
+                t"The line has to start with one of the following commands, directly followed by its options:"
+                + Template(
+                    "".join(
+                        f"\n- {formatting.embed(f'/{cmd}')}" for cmd in e.bulk_commands
+                    )
+                ),
+            )
+
+        case CommandOptionNotMentioned():
+            await messages.error(
+                interaction,
+                t"Command Option Not Specified",
+                t"The required command option {F.string(e.option)} was not specified!",
+            )
+
+        case CommandOptionMentionedMoreThanOnce():
+            await messages.error(
+                interaction,
+                t"Command Option Specified More Than Once",
+                t"The command option {F.string(e.option)} was specified more than once!",
+            )
+
+        case UnknownCommandOptionChoice():
+            await messages.error(
+                interaction,
+                t"Invalid Command Option Choice",
+                t"The command option {F.string(e.option)} has to be one of the following choices:"
+                + Template(
+                    "".join(f"\n- {formatting.embed(choice)}" for choice in e.choices)
+                ),
+            )
+
+        case TextBeforeFirstCommandOption():
+            await messages.error(
+                interaction,
+                t"Text Before First Command Option",
+                t"The text {F.string(e.text)} does not belong to any command option!\n"
+                + t"Every option has to start with its name directly followed by a colon, for example {F.string('task_name:')}.",
+            )
+
+        case NoCommandsInFile():
+            await messages.error(
+                interaction,
+                t"No Commands In File",
+                t"The specified file does not contain any commands!\n"
+                + t"Empty lines and lines starting with {F.string('#')} are skipped.",
             )
 
         case _:

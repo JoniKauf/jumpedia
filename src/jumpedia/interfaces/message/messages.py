@@ -2,6 +2,7 @@ import asyncio
 import enum
 import itertools
 import logging
+import sys
 import typing as t
 from string.templatelib import Template
 
@@ -32,8 +33,15 @@ async def error(
     warning: bool = False,
     send_kwargs: SendKwargsT = {},
 ) -> None:
+    # Notes added to the error being handled, like the line of a file it happened in.
+    notes: t.Sequence[str] = getattr(sys.exception(), "__notes__", ())
+
     header = header + (t"" if warning else t" Error")
-    body = Template(*body, "".join(f"\n- {doc}" for doc in documentation))
+    body = Template(
+        *body,
+        "".join(f"\n- {doc}" for doc in documentation),
+        "".join(f"\n\n{note}" for note in notes),
+    )
     status = Status.WARNING if warning else Status.ERROR
 
     await interaction.followup.send(layout.layout(header, body, status), **send_kwargs)

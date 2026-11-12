@@ -65,6 +65,12 @@ type AnyBusinessErrorT = (
     | UserAlreadyHasRank
     | InvalidSlotForSlotType
     | UnknownCommand
+    | NotABulkCommand
+    | CommandOptionNotMentioned
+    | CommandOptionMentionedMoreThanOnce
+    | UnknownCommandOptionChoice
+    | TextBeforeFirstCommandOption
+    | NoCommandsInFile
 )
 
 
@@ -336,3 +342,35 @@ class InvalidSlotForSlotType(BusinessError):
 @dataclass()
 class UnknownCommand(BusinessError):
     name: Str
+
+
+# --- Bulk --- #
+@dataclass()
+class NotABulkCommand(BusinessError):
+    bulk_commands: tuple[str, ...]
+
+
+@dataclass()
+class CommandOptionNotMentioned(BusinessError):
+    option: str
+
+
+@dataclass()
+class CommandOptionMentionedMoreThanOnce(BusinessError):
+    option: str
+
+
+@dataclass()
+class UnknownCommandOptionChoice(BusinessError):
+    option: str
+    choices: tuple[str, ...]
+
+
+@dataclass()
+class TextBeforeFirstCommandOption(BusinessError):
+    text: str
+
+
+@dataclass()
+class NoCommandsInFile(BusinessError):
+    pass
