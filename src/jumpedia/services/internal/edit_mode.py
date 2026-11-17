@@ -16,6 +16,7 @@ from jumpedia.domain.typing.collection_entry import AbstractCollectionT
 from jumpedia.domain.typing.field_mapping import (
     AbstractFieldMappingEntityToStringT,
 )
+from jumpedia.domain.value_objects.field_slot import FieldSlotStr
 from jumpedia.domain.value_objects.string import Str
 from jumpedia.services.internal.strs import StrsService
 
@@ -58,6 +59,35 @@ class EditModeService:
     ) -> AbstractCollectionT:
         if edit_mode is CollectionEditMode.REPLACE:
             return new
+
+        if edit_mode is CollectionEditMode.COMBINE_MERGE_ALIASES_ON_VALUE_COLLISION:
+            self._strs_service.validate_unique_collection_syns(new)
+
+            value_to_idx: dict[FieldSlotStr, int] = {
+                value: i for i, (value, _) in enumerate(current)
+            }
+            res: list[tuple[FieldSlotStr, t.Sequence[FieldSlotStr]]] = list(current)
+
+            for value, aliases in new:
+                idx = value_to_idx.get(value)
+
+                if idx is None:
+                    res.append((value, aliases))
+                    continue
+
+                _, current_aliases = res[idx]
+                res[idx] = (
+                    value,
+                    tuple(
+                        self._unique_and_preserve_order_and_preserve_first_seen_idx(
+                            (current_aliases, aliases)
+                        )
+                    ),
+                )
+
+            self._strs_service.validate_unique_collection_syns(res)
+
+            return tuple(res)
 
         t.assert_type(
             edit_mode, t.Literal[CollectionEditMode.COMBINE_ERROR_ON_ANY_SYN_COLLISION]

@@ -10,6 +10,7 @@ class AliasEditMode(enum.Enum):
 class CollectionEditMode(enum.Enum):
     REPLACE = enum.auto()
     COMBINE_ERROR_ON_ANY_SYN_COLLISION = enum.auto()
+    COMBINE_MERGE_ALIASES_ON_VALUE_COLLISION = enum.auto()
 
 
 class FieldMappingEditMode(enum.Enum):
