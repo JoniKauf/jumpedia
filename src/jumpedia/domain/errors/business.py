@@ -24,6 +24,7 @@ lazy from jumpedia.domain.value_objects.string import Str
 type AnyBusinessErrorT = (
     EmptyString
     | DoubleBacktick
+    | StringAndFileSpecified
     | NotInServer
     | NotInCommunity
     | ServerAlreadyLinked
@@ -32,6 +33,8 @@ type AnyBusinessErrorT = (
     | NotFoundByName
     | NotFoundBySyn
     | StrTooLong
+    | FileTooBig
+    | FileNotUtf8
     | NewNameEqualToCurrent
     | AliasesDidNotChange
     | CollectionDidNotChange
@@ -82,6 +85,11 @@ class DoubleBacktick(BusinessError):
     pass
 
 
+@dataclass()
+class StringAndFileSpecified(BusinessError):
+    pass
+
+
 # --- Access --- #
 @dataclass()
 class NotInServer(BusinessError):
@@ -129,6 +137,17 @@ class StrTooLong(BusinessError):
     concept: Concept
     s: Str
     limit: int
+
+
+@dataclass()
+class FileTooBig(BusinessError):
+    size: int
+    limit: int
+
+
+@dataclass()
+class FileNotUtf8(BusinessError):
+    pass
 
 
 # --- No Difference --- #

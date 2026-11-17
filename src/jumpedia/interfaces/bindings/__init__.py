@@ -1,1 +1,1 @@
-from jumpedia.interfaces.bindings import filter, mapping, sequence, sort
+from jumpedia.interfaces.bindings import attachment, filter, mapping, sequence, sort

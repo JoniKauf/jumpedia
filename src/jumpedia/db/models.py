@@ -12,7 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.mysql import INTEGER, TINYINT
+from sqlalchemy.dialects.mysql import INTEGER, SMALLINT, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from jumpedia.db.base import SCHEMA_NAME, BaseModel
@@ -246,7 +246,7 @@ class CollectionEntryModel(BaseModel):
         Integer, ForeignKey(AttributeModel.attribute_id, ondelete="CASCADE")
     )
 
-    index: Mapped[int] = mapped_column(TINYINT(unsigned=True))
+    index: Mapped[int] = mapped_column(SMALLINT(unsigned=True))
 
     value: Mapped[RealStr] = mapped_column(
         RealStrType(CommunityLimits.FIELD_SLOT_LENGTH_MAX)
