@@ -29,6 +29,10 @@ CollectionEditModeInterfaceEnum = enum.Enum(
             "Combine With Current Collection - Error On Any Value Or Alias Collision",
             CollectionEditMode.COMBINE_ERROR_ON_ANY_SYN_COLLISION.value,
         ),
+        (
+            "Combine With Current Collection - Merge Aliases On Value Collision",
+            CollectionEditMode.COMBINE_MERGE_ALIASES_ON_VALUE_COLLISION.value,
+        ),
     ],
 )
 
