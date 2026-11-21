@@ -527,6 +527,14 @@ class TasksInterface(
                     )
                 )
 
+            command_counts: dict[str, int] = {}
+
+            for command in commands:
+                command_counts[command.name] = command_counts.get(command.name, 0) + 1
+
+            if not await messages.bulk_confirmation(ctx.interaction, command_counts):
+                return
+
             for (number, line), command in zip(lines, commands, strict=True):
                 _execute_bulk_command(ctx, command)
 
