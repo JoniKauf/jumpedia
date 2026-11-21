@@ -2,6 +2,7 @@ import asyncio
 import enum
 import itertools
 import logging
+import sys
 import typing as t
 from string.templatelib import Template
 
@@ -32,8 +33,15 @@ async def error(
     warning: bool = False,
     send_kwargs: SendKwargsT = {},
 ) -> None:
+    # Notes added to the error being handled, like the line of a file it happened in.
+    notes: t.Sequence[str] = getattr(sys.exception(), "__notes__", ())
+
     header = header + (t"" if warning else t" Error")
-    body = Template(*body, "".join(f"\n- {doc}" for doc in documentation))
+    body = Template(
+        *body,
+        "".join(f"\n- {doc}" for doc in documentation),
+        "".join(f"\n\n{note}" for note in notes),
+    )
     status = Status.WARNING if warning else Status.ERROR
 
     await interaction.followup.send(layout.layout(header, body, status), **send_kwargs)
@@ -213,3 +221,41 @@ async def nuke_object_on_confirmation(
     # If we don't wait, as soon as we send the message for confirmation we leave and
     # ultimately commit. We want to wait until the interaction is finished though!
     await view.wait()
+
+
+async def bulk_confirmation(
+    interaction: discord.Interaction, command_counts: t.Mapping[str, int]
+) -> bool:
+    TIMEOUT: t.Final[int] = 60
+
+    view = views.ConfirmView(
+        user=interaction.user,
+        cancel_text=layout.layout(
+            t"Bulk Aborted",
+            t"The bulk has been aborted successfully!\nNothing changed.",
+            Status.WARNING,
+        ),
+        timeout=TIMEOUT,
+    )
+
+    body = t"Are you sure you want to execute these commands?\n"
+
+    for name, count in command_counts.items():
+        body += t"\n- {F.string(f"/{name}", short=False)}: {F.string(str(count), embedded=False)}"
+
+    view._message = await interaction.followup.send(
+        layout.layout(
+            t"Confirm Bulk",
+            body
+            + t"\n\nNothing is executed until you confirm."
+            + t"\n\nThis interaction will timeout after {F.raw(str(TIMEOUT))} seconds!",
+            Status.WARNING,
+        ),
+        view=view,
+        wait=True,
+    )
+
+    # Waiting keeps the command from going on before the user decides.
+    await view.wait()
+
+    return view.confirmed

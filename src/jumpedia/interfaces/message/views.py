@@ -99,3 +99,70 @@ class DangerousConfirmView(ui.View):
         )
 
         self.stop()
+
+
+class ConfirmView(ui.View):
+    def __init__(
+        self,
+        *,
+        user: discord.User | discord.Member,
+        cancel_text: str,
+        timeout: int,
+    ) -> None:
+        super().__init__(timeout=timeout)
+
+        self._user = user
+        self._cancel_text = cancel_text
+
+        self._message: discord.WebhookMessage | None = None
+        self.confirmed: bool = False
+
+    async def on_timeout(self) -> None:
+        if self._message is not None:
+            for child in self.children:
+                if isinstance(child, ui.Button):
+                    child.disabled = True
+
+            await self._message.edit(view=self)
+
+        self.stop()
+
+    @ui.button(
+        emoji="✔️",
+        label="Confirm",
+        style=ButtonStyle.success,
+    )
+    async def confirm(
+        self,
+        interaction: discord.Interaction,
+        _: ui.Button,
+    ) -> None:
+        if self._user.id != interaction.user.id:
+            return
+
+        self.confirmed = True
+
+        # The result is sent as its own message by whoever waits for this view.
+        await interaction.response.edit_message(view=None)
+
+        self.stop()
+
+    @ui.button(
+        emoji="✖️",
+        label="Abort",
+        style=ButtonStyle.primary,
+    )
+    async def cancel(
+        self,
+        interaction: discord.Interaction,
+        _: ui.Button,
+    ) -> None:
+        if self._user.id != interaction.user.id:
+            return
+
+        await interaction.response.edit_message(
+            content=self._cancel_text,
+            view=None,
+        )
+
+        self.stop()
